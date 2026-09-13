@@ -2,60 +2,42 @@
 set -Eeuo pipefail
 
 readonly APP_HOME="${FIDELIS_HOME:-$HOME/.local/share/fidelis}"
-readonly RUNTIME="$APP_HOME/runtime"
-readonly ENGINE="$RUNTIME/realsr-ncnn"
-readonly MODEL="$RUNTIME/models-ESRGAN-Nomos8kSC"
+readonly COLAB_URL="https://colab.research.google.com/github/TheHighBrid/Fidelis/blob/main/notebooks/Fidelis_VOSR2_Colab.ipynb"
 
 usage() {
   cat <<'EOF'
 Usage:
-  fidelis doctor
-  fidelis models
-  fidelis upscale INPUT OUTPUT
-  fidelis batch INPUT_DIR OUTPUT_DIR
+  fidelis open       Open the verified VOSR 2.0 notebook
+  fidelis doctor     Show the installed Fidelis architecture
 EOF
 }
 
-require_runtime() {
-  [[ -x "$ENGINE" ]] || { printf 'Fidelis is not installed. Run ./install.sh first.\n' >&2; exit 1; }
-  [[ -f "$MODEL/x4.param" && -f "$MODEL/x4.bin" ]] || { printf 'Nomos8kSC model is missing.\n' >&2; exit 1; }
-  export LD_LIBRARY_PATH="$RUNTIME${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+open_colab() {
+  if command -v termux-open-url >/dev/null 2>&1; then
+    termux-open-url "$COLAB_URL"
+  elif command -v am >/dev/null 2>&1; then
+    am start -a android.intent.action.VIEW -d "$COLAB_URL" >/dev/null
+  else
+    printf '%s\n' "$COLAB_URL"
+  fi
 }
 
 doctor() {
   printf 'Architecture: %s\n' "$(uname -m)"
   printf 'Termux prefix: %s\n' "${PREFIX:-not set}"
-  printf 'KGSL device: %s\n' "$([[ -e /dev/kgsl-3d0 ]] && printf visible || printf missing)"
-  printf 'Runtime: %s\n' "$([[ -x "$ENGINE" ]] && printf installed || printf missing)"
-  printf 'Nomos8kSC: %s\n' "$([[ -f "$MODEL/x4.param" && -f "$MODEL/x4.bin" ]] && printf installed || printf missing)"
+  printf 'Fidelis backend: VOSR 2.0 on interactive Google Colab\n'
+  printf 'Legacy NCNN backend: retired\n'
   [[ -f "$APP_HOME/install.json" ]] && cat "$APP_HOME/install.json"
-  if [[ -x "$ENGINE" ]]; then
-    require_runtime
-    printf '\nEngine probe:\n'
-    "$ENGINE" -h 2>&1 | sed -n '1,25p'
-  fi
-}
-
-run_upscale() {
-  local input="$1" output="$2"
-  [[ -e "$input" ]] || { printf 'Input not found: %s\n' "$input" >&2; exit 1; }
-  mkdir -p "$(dirname "$output")"
-  require_runtime
-  (cd "$RUNTIME" && "$ENGINE" -i "$input" -o "$output" -m "$MODEL" -s 4 -t 256)
 }
 
 command="${1:-}"
 case "$command" in
+  open) open_colab ;;
   doctor) doctor ;;
-  models) require_runtime; find "$RUNTIME" -maxdepth 1 -type d -name 'models-*' -printf '%f\n' | sort ;;
-  upscale)
-    [[ $# -eq 3 ]] || { usage >&2; exit 2; }
-    run_upscale "$(realpath "$2")" "$(realpath -m "$3")"
-    ;;
-  batch)
-    [[ $# -eq 3 ]] || { usage >&2; exit 2; }
-    [[ -d "$2" ]] || { printf 'Input directory not found: %s\n' "$2" >&2; exit 1; }
-    run_upscale "$(realpath "$2")" "$(realpath -m "$3")"
+  upscale|batch|models)
+    printf 'This command belonged to the retired NCNN prototype and is disabled because it produced corrupted images.\n' >&2
+    printf 'Run: fidelis open\n' >&2
+    exit 2
     ;;
   -h|--help|help|'') usage ;;
   *) printf 'Unknown command: %s\n' "$command" >&2; usage >&2; exit 2 ;;

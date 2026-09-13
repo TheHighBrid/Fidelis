@@ -1,58 +1,52 @@
 # Fidelis
 
-Fidelis is a local, ARM64-native image upscaling pipeline for natural fashion and product photography. Its default goal is credible detail, not aggressive sharpening: skin should remain skin, fabric should retain weave, and logos and seams should not be redrawn.
+Fidelis is a zero-cost image-restoration workflow for natural fashion and product photography. The quality target is believable photographic detail: stable faces, clean black fabric, readable logos, natural skin, and no checkerboard or sharpening grit.
 
-## Current target
+## Current architecture
 
-- Android 16 / Termux (`aarch64`)
-- Snapdragon 8 Gen 2 / Adreno 740
-- Turnip/Freedreno Vulkan
-- RealSR NCNN Android CLI
-- `4xNomos8kSC` photographic model
-- Single-image and folder batch processing
+The first ARM64 NCNN prototype has been retired. Its Nomos8kSC model degraded faces and its Android Vulkan path produced tiled checkerboard corruption on Adreno 740.
 
-## Status
+Fidelis now uses:
 
-The first milestone is a reproducible CLI installation. The installer downloads the latest ARM64 upstream APK, verifies the release-provided SHA-256 digest, and extracts only its native CLI runtime and bundled models. Large binaries and models are never committed to this repository.
+- VOSR 2.0, a one-step 1.4B vision-only restoration model
+- Free interactive Google Colab GPU compute
+- Android's normal file picker for input and output
+- 512-pixel overlapping DiT tiles and 1024-pixel overlapping VAE tiles
+- Wavelet color alignment
+- Deterministic output from a fixed seed
 
-## Install in native Termux
+Your Android ARM64 device is the launcher, not the inference server. This is necessary because Pixella-class generative restoration is far beyond what the current mobile NCNN runtime can reproduce reliably.
 
-Do not run the installer inside Ubuntu/Debian proot.
+## Install or update in native Termux
 
 ```bash
-pkg install -y git
-git clone https://github.com/TheHighBrid/Fidelis.git
-cd Fidelis
+cd "$HOME/Fidelis"
+git pull
 ./install.sh
 ```
 
-Restart the shell or run:
+## Run
 
 ```bash
-source "$HOME/.profile"
-fidelis doctor
+fidelis open
 ```
 
-## Commands
+This opens the Fidelis notebook. In Colab, choose a GPU runtime, run all cells, select one or more images, and download the finished ZIP when processing completes.
 
-```bash
-fidelis doctor
-fidelis models
-fidelis upscale input.jpg output.png
-fidelis batch ./input ./output
-```
+[Open Fidelis in Google Colab](https://colab.research.google.com/github/TheHighBrid/Fidelis/blob/main/notebooks/Fidelis_VOSR2_Colab.ipynb)
 
-The raw 4x output is intentional in milestone one. A visually validated natural 2x finishing stage will be added only after testing on one model image and one product image.
+## Important limits
 
-## Principles
+Google Colab is free but GPU availability and session limits are not guaranteed. Fidelis uses Colab interactively and does not create a remote API, tunnel, or background service.
 
-- Preserve natural tonal texture and edge roll-off.
-- Do not enable face restoration by default.
-- Keep upstream models and runtimes outside Git.
-- Fail clearly when architecture, storage, runtime, or model requirements are not met.
-- Pin installed upstream metadata so results can be reproduced.
+Generative restoration reconstructs plausible missing detail. It cannot determine the exact original pore or thread when that information is absent from the source. The benchmark rejects outputs that visibly alter identity, logos, garment construction, or tonal structure.
 
-## Upstream
+## Licensing
 
-Fidelis currently wraps the ARM64 runtime from [RealSR-NCNN-Android](https://github.com/tumuyan/RealSR-NCNN-Android). Review its licenses and the license of each selected model before commercial distribution.
+- Fidelis code: MIT
+- VOSR code: Apache License 2.0
+- VOSR checkpoint host listing: Apache License 2.0
+- Qwen Image VAE and DINOv2 components retain their upstream terms
+
+Large models are downloaded directly from their upstream host and are never committed to this repository.
 
