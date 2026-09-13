@@ -54,6 +54,10 @@ if [[ ! -f "$VOSR_DIR/inference_vosr.py" ]]; then
   echo "error: inference_vosr.py missing under: $VOSR_DIR" >&2
   exit 2
 fi
+if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
+  echo "error: Python executable not found: $PYTHON_BIN" >&2
+  exit 2
+fi
 
 if [[ "$VOSR_CKPT" = /* ]]; then
   CKPT="$VOSR_CKPT"
@@ -66,12 +70,12 @@ if [[ ! -d "$CKPT" ]]; then
 fi
 
 mkdir -p "$OUTPUT_ROOT"
-INPUT_ABS=$(python - "$INPUT" <<'PY'
+INPUT_ABS=$("$PYTHON_BIN" - "$INPUT" <<'PY'
 import os, sys
 print(os.path.abspath(sys.argv[1]))
 PY
 )
-OUTPUT_ABS=$(python - "$OUTPUT_ROOT" <<'PY'
+OUTPUT_ABS=$("$PYTHON_BIN" - "$OUTPUT_ROOT" <<'PY'
 import os, sys
 print(os.path.abspath(sys.argv[1]))
 PY
