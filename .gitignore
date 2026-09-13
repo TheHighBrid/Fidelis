@@ -1,0 +1,11 @@
+.fidelis/
+runtime/
+models/
+*.apk
+*.zip
+*.png
+*.jpg
+*.jpeg
+*.webp
+!tests/fixtures/.gitkeep
+
