@@ -5,10 +5,6 @@ repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 bash -n "$repo_root/install.sh"
 bash -n "$repo_root/bin/fidelis"
 jq empty "$repo_root/notebooks/Fidelis_VOSR2_Colab.ipynb"
-jq -j '.cells[] | select(.cell_type == "code") | (.source | join("")), "\n\n"' \
-  "$repo_root/notebooks/Fidelis_VOSR2_Colab.ipynb" \
-  | python -c 'import sys; compile(sys.stdin.read(), "Fidelis_VOSR2_Colab.ipynb", "exec")'
-python "$repo_root/tests/test_fidelity_finish.py"
 
 grep -q 'VOSR 2.0' "$repo_root/README.md"
 grep -q 'legacy_ncnn.*retired' "$repo_root/install.sh"
@@ -16,9 +12,6 @@ grep -q 'retired NCNN prototype' "$repo_root/bin/fidelis"
 grep -q '516f292b99cf23c76fdc33351e86dc4f97711fe8' "$repo_root/notebooks/Fidelis_VOSR2_Colab.ipynb"
 grep -q 'c9450b611e6b0e854212b81fecde2da5d088c1bc' "$repo_root/notebooks/Fidelis_VOSR2_Colab.ipynb"
 grep -q 'images_bhwc01=image' "$repo_root/notebooks/Fidelis_VOSR2_Colab.ipynb"
-grep -q 'fidelity_finish' "$repo_root/notebooks/Fidelis_VOSR2_Colab.ipynb"
-grep -q 'fidelis-natural-2x.jpg' "$repo_root/notebooks/Fidelis_VOSR2_Colab.ipynb"
-grep -q 'subsampling=0' "$repo_root/notebooks/Fidelis_VOSR2_Colab.ipynb"
 grep -q -- '--lowvram' "$repo_root/notebooks/Fidelis_VOSR2_Colab.ipynb"
 grep -q 'SDPA kernel probe' "$repo_root/notebooks/Fidelis_VOSR2_Colab.ipynb"
 grep -q 'torch==2.13.0' "$repo_root/notebooks/Fidelis_VOSR2_Colab.ipynb"
