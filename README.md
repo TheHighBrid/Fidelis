@@ -14,6 +14,10 @@ Fidelis now uses:
 - 512-pixel overlapping DiT tiles and 1024-pixel overlapping VAE tiles
 - Wavelet color alignment
 - Deterministic output from a fixed seed
+- A source-aware finishing stage that rejects unsupported generated edges
+- A high-quality 2x JPEG delivery instead of the oversized raw 4x PNG
+
+VOSR still reasons internally at 4x. Fidelis 2.1 then uses the original as the structural reference, blends only supported mid- and high-frequency detail, and downsamples to the more credible 2x delivery size. This is designed to protect identity, garment construction, distant subjects, and natural depth of field.
 
 Your Android ARM64 device is the launcher, not the inference server. This is necessary because Pixella-class generative restoration is far beyond what the current mobile NCNN runtime can reproduce reliably.
 
@@ -39,7 +43,7 @@ This opens the Fidelis notebook. In Colab, choose a GPU runtime, run all cells, 
 
 Google Colab is free but GPU availability and session limits are not guaranteed. Fidelis uses Colab interactively and does not create a remote API, tunnel, or background service.
 
-Generative restoration reconstructs plausible missing detail. It cannot determine the exact original pore or thread when that information is absent from the source. The benchmark rejects outputs that visibly alter identity, logos, garment construction, or tonal structure.
+Generative restoration reconstructs plausible missing detail. It cannot determine the exact original pore or thread when that information is absent from the source. The source-aware finishing stage reduces unsupported reconstruction, but the benchmark still rejects outputs that visibly alter identity, logos, garment construction, or tonal structure.
 
 ## Licensing
 
@@ -49,4 +53,3 @@ Generative restoration reconstructs plausible missing detail. It cannot determin
 - Qwen Image VAE and DINOv2 components retain their upstream terms
 
 Large models are downloaded directly from their upstream host and are never committed to this repository.
-
