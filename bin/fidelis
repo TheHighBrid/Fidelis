@@ -37,6 +37,11 @@ require_engine() {
   export LD_LIBRARY_PATH="$RUNTIME${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 }
 
+require_registry_tools() {
+  command -v jq >/dev/null 2>&1 || { printf 'jq is required. Run: pkg install jq\n' >&2; exit 1; }
+  command -v sha256sum >/dev/null 2>&1 || { printf 'sha256sum is required.\n' >&2; exit 1; }
+}
+
 normalize_model_name() {
   local name="${1#models-}"
   [[ -n "$name" && "$name" =~ ^[A-Za-z0-9._-]+$ ]] || {
@@ -72,12 +77,31 @@ list_models() {
 }
 
 model_info() {
-  local selector model metadata
+  local selector model metadata live_param_sha live_bin_sha
   selector="$(normalize_model_name "$1")"
   model="$(resolve_model "$selector")"
   metadata="$model/fidelis-model.json"
+  live_param_sha="$(sha256sum "$model/x4.param" | awk '{print $1}')"
+  live_bin_sha="$(sha256sum "$model/x4.bin" | awk '{print $1}')"
 
   if [[ -s "$metadata" ]]; then
+    jq -e . "$metadata" >/dev/null 2>&1 || {
+      printf 'Model registry metadata is invalid JSON: %s\n' "$selector" >&2
+      return 1
+    }
+
+    local registered_param_sha registered_bin_sha
+    registered_param_sha="$(jq -r '.sha256.param // empty' "$metadata")"
+    registered_bin_sha="$(jq -r '.sha256.bin // empty' "$metadata")"
+    if [[ -z "$registered_param_sha" || -z "$registered_bin_sha" ]]; then
+      printf 'Model registry metadata is missing SHA-256 provenance: %s\n' "$selector" >&2
+      return 1
+    fi
+    if [[ "$registered_param_sha" != "$live_param_sha" || "$registered_bin_sha" != "$live_bin_sha" ]]; then
+      printf 'Model integrity mismatch: %s\nRegistered hashes do not match the installed NCNN files. Re-add the model explicitly.\n' "$selector" >&2
+      return 1
+    fi
+
     cat "$metadata"
     return
   fi
@@ -89,8 +113,8 @@ model_info() {
     --arg engine "realsr-ncnn" \
     --arg format "ncnn" \
     --argjson scale 4 \
-    --arg param_sha256 "$(sha256sum "$model/x4.param" | awk '{print $1}')" \
-    --arg bin_sha256 "$(sha256sum "$model/x4.bin" | awk '{print $1}')" \
+    --arg param_sha256 "$live_param_sha" \
+    --arg bin_sha256 "$live_bin_sha" \
     '{name:$name,engine:$engine,format:$format,scale:$scale,registry:"legacy-unregistered",sha256:{param:$param_sha256,bin:$bin_sha256}}'
 }
 
@@ -108,8 +132,7 @@ model_add() {
   }
 
   require_engine
-  command -v jq >/dev/null 2>&1 || { printf 'jq is required. Run: pkg install jq\n' >&2; exit 1; }
-  command -v sha256sum >/dev/null 2>&1 || { printf 'sha256sum is required.\n' >&2; exit 1; }
+  require_registry_tools
 
   local dest="$RUNTIME/models-$selector"
   if [[ -e "$dest" && "$replace" != "--replace" ]]; then
@@ -230,6 +253,8 @@ audition() {
     exit 1
   }
   mkdir -p "$output_dir"
+  require_engine
+  require_registry_tools
 
   local -a models=()
   if [[ $# -gt 0 ]]; then
@@ -242,16 +267,58 @@ audition() {
     exit 1
   }
 
-  local selector safe output
+  local entries_file="$output_dir/.fidelis-audition-entries.$$"
+  local manifest_tmp="$output_dir/.manifest.json.new.$$"
+  rm -f "$entries_file" "$manifest_tmp"
+  : > "$entries_file"
+  trap 'rm -f "$entries_file" "$manifest_tmp"' RETURN
+
+  local selector safe output provenance output_sha output_bytes
   for selector in "${models[@]}"; do
     selector="$(normalize_model_name "$selector")"
+    provenance="$(model_info "$selector")"
     safe="${selector//[^A-Za-z0-9._-]/_}"
     output="$output_dir/${safe}.png"
+    rm -f "$output"
     printf '\n[%s] -> %s\n' "$selector" "$output"
     run_upscale "$input" "$output" "$selector"
+    if [[ ! -s "$output" ]]; then
+      printf 'Model audition failed: %s exited without producing a non-empty output.\n' "$selector" >&2
+      rm -f "$output"
+      return 1
+    fi
+
+    output_sha="$(sha256sum "$output" | awk '{print $1}')"
+    output_bytes="$(wc -c < "$output" | tr -d '[:space:]')"
+    jq -cn \
+      --argjson model "$provenance" \
+      --arg filename "$(basename "$output")" \
+      --arg sha256 "$output_sha" \
+      --argjson bytes "$output_bytes" \
+      '{model:$model,output:{filename:$filename,bytes:$bytes,sha256:$sha256}}' \
+      >> "$entries_file"
   done
 
+  local created_at input_sha input_bytes engine_sha
+  created_at="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+  input_sha="$(sha256sum "$input" | awk '{print $1}')"
+  input_bytes="$(wc -c < "$input" | tr -d '[:space:]')"
+  engine_sha="$(sha256sum "$ENGINE" | awk '{print $1}')"
+
+  jq -s \
+    --arg created_at "$created_at" \
+    --arg input_path "$input" \
+    --arg input_sha256 "$input_sha" \
+    --argjson input_bytes "$input_bytes" \
+    --arg engine_sha256 "$engine_sha" \
+    '{schema_version:1,command:"fidelis audition",created_at:$created_at,input:{path:$input_path,bytes:$input_bytes,sha256:$input_sha256},engine:{name:"realsr-ncnn",sha256:$engine_sha256},models:.}' \
+    "$entries_file" > "$manifest_tmp"
+  mv "$manifest_tmp" "$output_dir/manifest.json"
+  rm -f "$entries_file"
+  trap - RETURN
+
   printf '\nAudition complete: %d model(s).\n' "${#models[@]}"
+  printf 'Manifest: %s\n' "$output_dir/manifest.json"
 }
 
 command="${1:-}"
@@ -268,6 +335,7 @@ case "$command" in
   model-info)
     [[ $# -eq 2 ]] || { usage >&2; exit 2; }
     require_engine
+    require_registry_tools
     model_info "$2"
     ;;
   model-add)
