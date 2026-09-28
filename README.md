@@ -18,7 +18,7 @@ Target hardware:
 
 The existing RealSR-NCNN Android integration proves that a native ARM64/Vulkan CLI is practical. `4xNomos8kSC` remains a reproducible baseline model, **not the accepted final quality target**. Visual testing showed synthetic/checkerboard-like texture and overprocessed skin/fabric on some photographs, so Fidelis will not optimize around Nomos simply because it runs locally.
 
-The CLI can now select any installed compatible NCNN model and can audition several candidates against the exact same source image. That turns local model research into a repeatable comparison instead of a code-editing exercise.
+The CLI can now register compatible NCNN candidates with SHA-256 provenance, verify registered model integrity, select any installed candidate, and audition several models against the exact same source image. Each audition produces standalone PNGs plus a machine-readable evidence manifest, turning local model research into a reproducible comparison instead of a code-editing exercise.
 
 ### 2. Quality-reference lane
 
@@ -101,6 +101,8 @@ Commands:
 ```bash
 fidelis doctor
 fidelis models
+fidelis model-add PhotoCandidate ./candidate.param ./candidate.bin
+fidelis model-info PhotoCandidate
 fidelis upscale input.jpg output.png
 fidelis upscale input.jpg output.png --model PhotoCandidate
 fidelis batch ./input ./output --model PhotoCandidate
@@ -110,7 +112,11 @@ fidelis audition input.jpg ./audition PhotoCandidateA PhotoCandidateB
 
 `fidelis models` prints usable installed model names. The default stays `ESRGAN-Nomos8kSC` for backwards compatibility, but it can be overridden per command with `--model` or for a session with `FIDELIS_MODEL=<name>`.
 
+`fidelis model-add` installs a 4x NCNN candidate atomically and records the SHA-256 hashes of its `x4.param` and `x4.bin` files. `fidelis model-info` verifies those registered hashes against the live files before reporting provenance. If a registered model is changed outside the registry, Fidelis rejects it until it is explicitly re-added.
+
 `fidelis audition` runs one source through every usable installed model, or through an explicit shortlist, and writes one standalone PNG per model into the output folder. It does not create a collage or alter the generated outputs.
+
+A successful audition also writes `manifest.json` containing the exact input hash, local engine hash, each model's provenance, and each output's byte count and SHA-256 hash. Starting a new audition invalidates any previous manifest in that output directory, and a new manifest is published only after every selected model produces a non-empty output. A failed rerun therefore cannot leave an old success manifest behind.
 
 ## Reliability
 
@@ -119,7 +125,10 @@ Fidelis intentionally fails closed around image generation. The repository inclu
 - the VOSR case where image processing can fail while the process still exits successfully
 - actual weak-conditioning profile injection
 - output PNG verification and manifest creation
-- local model selection, default-model override, missing-model rejection, and multi-model audition
+- local model selection, default-model override, and missing-model rejection
+- atomic candidate registration and registered-model integrity verification
+- reproducible multi-model audition manifests with input, engine, model, and output hashes
+- stale audition manifest invalidation when a rerun fails
 
 Run locally:
 
