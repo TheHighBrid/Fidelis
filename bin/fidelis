@@ -4,22 +4,69 @@ set -Eeuo pipefail
 readonly APP_HOME="${FIDELIS_HOME:-$HOME/.local/share/fidelis}"
 readonly RUNTIME="$APP_HOME/runtime"
 readonly ENGINE="$RUNTIME/realsr-ncnn"
-readonly MODEL="$RUNTIME/models-ESRGAN-Nomos8kSC"
+readonly DEFAULT_MODEL="${FIDELIS_MODEL:-ESRGAN-Nomos8kSC}"
 
 usage() {
   cat <<'EOF'
 Usage:
   fidelis doctor
   fidelis models
-  fidelis upscale INPUT OUTPUT
-  fidelis batch INPUT_DIR OUTPUT_DIR
+  fidelis upscale INPUT OUTPUT [--model MODEL]
+  fidelis batch INPUT_DIR OUTPUT_DIR [--model MODEL]
+  fidelis audition INPUT OUTPUT_DIR [MODEL ...]
+
+MODEL is the installed directory name without the leading "models-".
+Examples:
+  fidelis upscale photo.jpg out.png --model ESRGAN-Nomos8kSC
+  fidelis audition photo.jpg ./audition
+  FIDELIS_MODEL=PhotoCandidate fidelis upscale photo.jpg out.png
 EOF
 }
 
-require_runtime() {
-  [[ -x "$ENGINE" ]] || { printf 'Fidelis is not installed. Run ./install.sh first.\n' >&2; exit 1; }
-  [[ -f "$MODEL/x4.param" && -f "$MODEL/x4.bin" ]] || { printf 'Nomos8kSC model is missing.\n' >&2; exit 1; }
+require_engine() {
+  [[ -x "$ENGINE" ]] || {
+    printf 'Fidelis runtime is not installed. Run ./install.sh first.\n' >&2
+    exit 1
+  }
   export LD_LIBRARY_PATH="$RUNTIME${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+}
+
+resolve_model() {
+  local selector="${1:-$DEFAULT_MODEL}"
+  selector="${selector#models-}"
+  local model="$RUNTIME/models-$selector"
+  [[ -d "$model" ]] || {
+    printf 'Model is not installed: %s\n' "$selector" >&2
+    return 1
+  }
+  [[ -f "$model/x4.param" && -f "$model/x4.bin" ]] || {
+    printf 'Model is incomplete (expected x4.param + x4.bin): %s\n' "$selector" >&2
+    return 1
+  }
+  printf '%s\n' "$model"
+}
+
+list_models() {
+  local dir base
+  [[ -d "$RUNTIME" ]] || return 0
+  while IFS= read -r dir; do
+    [[ -f "$dir/x4.param" && -f "$dir/x4.bin" ]] || continue
+    base="$(basename "$dir")"
+    printf '%s\n' "${base#models-}"
+  done < <(find "$RUNTIME" -maxdepth 1 -mindepth 1 -type d -name 'models-*' -print | sort)
+}
+
+parse_model_option() {
+  if [[ $# -eq 0 ]]; then
+    printf '%s\n' "$DEFAULT_MODEL"
+    return
+  fi
+  if [[ $# -eq 2 && "$1" == "--model" && -n "$2" ]]; then
+    printf '%s\n' "$2"
+    return
+  fi
+  printf 'Expected optional: --model MODEL\n' >&2
+  return 2
 }
 
 doctor() {
@@ -27,37 +74,106 @@ doctor() {
   printf 'Termux prefix: %s\n' "${PREFIX:-not set}"
   printf 'KGSL device: %s\n' "$([[ -e /dev/kgsl-3d0 ]] && printf visible || printf missing)"
   printf 'Runtime: %s\n' "$([[ -x "$ENGINE" ]] && printf installed || printf missing)"
-  printf 'Nomos8kSC: %s\n' "$([[ -f "$MODEL/x4.param" && -f "$MODEL/x4.bin" ]] && printf installed || printf missing)"
+  printf 'Default model: %s\n' "$DEFAULT_MODEL"
+
+  local default_path
+  if default_path="$(resolve_model "$DEFAULT_MODEL" 2>/dev/null)"; then
+    printf 'Default model status: installed\n'
+  else
+    printf 'Default model status: missing/incomplete\n'
+  fi
+
+  printf 'Installed usable models:\n'
+  local models
+  models="$(list_models || true)"
+  if [[ -n "$models" ]]; then
+    printf '%s\n' "$models" | sed 's/^/  - /'
+  else
+    printf '  (none)\n'
+  fi
+
   [[ -f "$APP_HOME/install.json" ]] && cat "$APP_HOME/install.json"
   if [[ -x "$ENGINE" ]]; then
-    require_runtime
+    require_engine
     printf '\nEngine probe:\n'
     "$ENGINE" -h 2>&1 | sed -n '1,25p'
   fi
 }
 
 run_upscale() {
-  local input="$1" output="$2"
-  [[ -e "$input" ]] || { printf 'Input not found: %s\n' "$input" >&2; exit 1; }
+  local input="$1" output="$2" selector="${3:-$DEFAULT_MODEL}"
+  [[ -e "$input" ]] || {
+    printf 'Input not found: %s\n' "$input" >&2
+    exit 1
+  }
   mkdir -p "$(dirname "$output")"
-  require_runtime
-  (cd "$RUNTIME" && "$ENGINE" -i "$input" -o "$output" -m "$MODEL" -s 4 -t 256)
+  require_engine
+  local model
+  model="$(resolve_model "$selector")"
+  (cd "$RUNTIME" && "$ENGINE" -i "$input" -o "$output" -m "$model" -s 4 -t 256)
+}
+
+audition() {
+  local input="$1" output_dir="$2"
+  shift 2
+  [[ -f "$input" ]] || {
+    printf 'Audition input must be one image file: %s\n' "$input" >&2
+    exit 1
+  }
+  mkdir -p "$output_dir"
+
+  local -a models=()
+  if [[ $# -gt 0 ]]; then
+    models=("$@")
+  else
+    mapfile -t models < <(list_models)
+  fi
+  [[ ${#models[@]} -gt 0 ]] || {
+    printf 'No usable models are installed.\n' >&2
+    exit 1
+  }
+
+  local selector safe output
+  for selector in "${models[@]}"; do
+    selector="${selector#models-}"
+    safe="${selector//[^A-Za-z0-9._-]/_}"
+    output="$output_dir/${safe}.png"
+    printf '\n[%s] -> %s\n' "$selector" "$output"
+    run_upscale "$input" "$output" "$selector"
+  done
+
+  printf '\nAudition complete: %d model(s).\n' "${#models[@]}"
 }
 
 command="${1:-}"
 case "$command" in
-  doctor) doctor ;;
-  models) require_runtime; find "$RUNTIME" -maxdepth 1 -type d -name 'models-*' -printf '%f\n' | sort ;;
+  doctor)
+    [[ $# -eq 1 ]] || { usage >&2; exit 2; }
+    doctor
+    ;;
+  models)
+    [[ $# -eq 1 ]] || { usage >&2; exit 2; }
+    require_engine
+    list_models
+    ;;
   upscale)
-    [[ $# -eq 3 ]] || { usage >&2; exit 2; }
-    run_upscale "$(realpath "$2")" "$(realpath -m "$3")"
+    [[ $# -eq 3 || $# -eq 5 ]] || { usage >&2; exit 2; }
+    model="$(parse_model_option "${@:4}")"
+    run_upscale "$(realpath "$2")" "$(realpath -m "$3")" "$model"
     ;;
   batch)
-    [[ $# -eq 3 ]] || { usage >&2; exit 2; }
+    [[ $# -eq 3 || $# -eq 5 ]] || { usage >&2; exit 2; }
     [[ -d "$2" ]] || { printf 'Input directory not found: %s\n' "$2" >&2; exit 1; }
-    run_upscale "$(realpath "$2")" "$(realpath -m "$3")"
+    model="$(parse_model_option "${@:4}")"
+    run_upscale "$(realpath "$2")" "$(realpath -m "$3")" "$model"
+    ;;
+  audition)
+    [[ $# -ge 3 ]] || { usage >&2; exit 2; }
+    input="$(realpath "$2")"
+    output_dir="$(realpath -m "$3")"
+    shift 3
+    audition "$input" "$output_dir" "$@"
     ;;
   -h|--help|help|'') usage ;;
   *) printf 'Unknown command: %s\n' "$command" >&2; usage >&2; exit 2 ;;
 esac
-
