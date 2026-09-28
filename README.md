@@ -1,23 +1,84 @@
 # Fidelis
 
-Fidelis is a local, ARM64-native image upscaling pipeline for natural fashion and product photography. Its default goal is credible detail, not aggressive sharpening: skin should remain skin, fabric should retain weave, and logos and seams should not be redrawn.
+Fidelis is an image-restoration project for natural fashion and product photography. Its standard is **credible photographic detail**, not aggressive sharpening: skin should remain skin, fabric should retain believable weave, and seams, logos, hardware, faces, and geometry should not be redrawn.
 
-## Current target
+## Project direction
+
+Fidelis currently has two deliberately separate lanes:
+
+### 1. ARM64 local runtime lane
+
+Target hardware:
 
 - Android 16 / Termux (`aarch64`)
 - Snapdragon 8 Gen 2 / Adreno 740
 - Turnip/Freedreno Vulkan
-- RealSR NCNN Android CLI
-- `4xNomos8kSC` photographic model
-- Single-image and folder batch processing
+- NCNN/Vulkan inference
+- single-image and folder batch processing
 
-## Status
+The existing RealSR-NCNN Android integration proves that a native ARM64/Vulkan CLI is practical. `4xNomos8kSC` remains a reproducible baseline model, **not the accepted final quality target**. Visual testing showed synthetic/checkerboard-like texture and overprocessed skin/fabric on some photographs, so Fidelis will not optimize around Nomos simply because it runs locally.
 
-The first milestone is a reproducible CLI installation. The installer downloads the latest ARM64 upstream APK, verifies the release-provided SHA-256 digest, and extracts only its native CLI runtime and bundled models. Large binaries and models are never committed to this repository.
+### 2. Quality-reference lane
 
-## Install in native Termux
+VOSR is being used as an external quality reference to establish what Fidelis should reproduce before choosing or converting the final local model.
 
-Do not run the installer inside Ubuntu/Debian proot.
+Current experiment:
+
+- official VOSR 1.4B multi-step checkpoint
+- fixed seed and 25 steps
+- deterministic VAE mode
+- wavelet colour alignment
+- three controlled fidelity profiles
+- no sharpening
+- no face restoration
+- no source blending
+- no synthetic grain
+- no secondary SR pass
+
+The previous Fidelis 2.1 source-fusion finishing stage was rejected because it softened useful micro-detail and reduced the value of the VOSR restoration.
+
+## Current quality experiment
+
+The canonical Colab notebook is:
+
+`notebooks/Fidelis_VOSR_MultiStep_Sweep_Colab.ipynb`
+
+It evaluates the same source through:
+
+| Profile | CFG | Weak condition | Intent |
+| --- | ---: | ---: | --- |
+| Natural | 0.50 | 0.10 | More reconstruction freedom |
+| Fidelity | 1.25 | 0.18 | Balance detail recovery and source loyalty |
+| Strict | 1.75 | 0.23 | Strong source loyalty |
+
+The sweep script is:
+
+`experiments/vosr-fidelity-sweep.sh`
+
+A run is considered successful only when every profile creates a verified non-empty PNG. Upstream VOSR can catch an image-level exception and still exit with status `0`, so Fidelis never treats the subprocess return code alone as proof of success.
+
+## Quality acceptance gate
+
+A candidate is judged in this order:
+
+1. **Identity and geometry**: faces, hands, body proportions, garment construction, seams, logos and hardware must not drift.
+2. **Skin**: recover believable pores and tonal variation without repeated dots, gritty pore synthesis, waxy smoothing or invented blemishes.
+3. **Fabric**: weave, rib, denim, leather, velour and knit texture must follow the real folds and material surface rather than forming a repeated enhancement pattern.
+4. **Fine edges**: hair and garment edges may become clearer without halos or invented strands.
+5. **Tonal realism**: highlights and shadows should remain photographic rather than locally over-contrasted.
+6. **Background restraint**: smooth surfaces should stay smooth; new wall/floor texture is a failure.
+
+Sharpness alone never wins a comparison.
+
+## Decision rule
+
+- If a VOSR multi-step profile materially improves skin/fabric realism over the good VOSR 2.0 one-step reference while preserving geometry, it becomes the external Fidelis quality target.
+- If multi-step VOSR does not materially beat the one-step reference, stop spending compute on it.
+- After the reference is locked, focus engineering effort on the lightest ARM64-compatible model or conversion that reproduces the winning visual behavior.
+
+## Native Termux CLI
+
+The ARM64 foundation remains available:
 
 ```bash
 pkg install -y git
@@ -33,7 +94,7 @@ source "$HOME/.profile"
 fidelis doctor
 ```
 
-## Commands
+Commands:
 
 ```bash
 fidelis doctor
@@ -42,17 +103,29 @@ fidelis upscale input.jpg output.png
 fidelis batch ./input ./output
 ```
 
-The raw 4x output is intentional in milestone one. A visually validated natural 2x finishing stage will be added only after testing on one model image and one product image.
+## Reliability
+
+Fidelis intentionally fails closed around image generation. The repository includes regression coverage for the VOSR sweep, including the upstream behavior where image processing can fail while the process still exits successfully.
+
+Run locally:
+
+```bash
+bash tests/smoke-test.sh
+bash tests/test-vosr-sweep.sh
+```
+
+GitHub Actions runs these checks on pull requests and `main` updates.
 
 ## Principles
 
 - Preserve natural tonal texture and edge roll-off.
+- Prefer source fidelity over invented detail.
 - Do not enable face restoration by default.
+- Do not hide failed inference behind a successful wrapper exit.
 - Keep upstream models and runtimes outside Git.
-- Fail clearly when architecture, storage, runtime, or model requirements are not met.
-- Pin installed upstream metadata so results can be reproduced.
+- Pin upstream revisions needed for reproducibility.
+- Treat external generative models as quality references until they prove practical for the ARM64 target.
 
-## Upstream
+## Upstream projects
 
-Fidelis currently wraps the ARM64 runtime from [RealSR-NCNN-Android](https://github.com/tumuyan/RealSR-NCNN-Android). Review its licenses and the license of each selected model before commercial distribution.
-
+The local ARM64 foundation currently wraps the runtime from [RealSR-NCNN-Android](https://github.com/tumuyan/RealSR-NCNN-Android). The quality-reference experiment uses [VOSR](https://github.com/cswry/VOSR). Review upstream licenses and the license of every selected model before commercial distribution.
