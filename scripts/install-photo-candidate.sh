@@ -4,7 +4,9 @@ set -Eeuo pipefail
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 catalog="${FIDELIS_CANDIDATE_CATALOG:-$repo_root/config/photo-candidates.tsv}"
 source_root="${FIDELIS_CANDIDATE_SOURCE_ROOT:-https://huggingface.co/tumuyan2/realsr-models/resolve}"
-url_suffix="${FIDELIS_CANDIDATE_URL_SUFFIX:-?download=true}"
+# Unlike :-, the single-hyphen form preserves an explicitly empty suffix. That
+# is useful for local file:// fixtures while retaining ?download=true normally.
+url_suffix="${FIDELIS_CANDIDATE_URL_SUFFIX-?download=true}"
 cli="${FIDELIS_CLI:-fidelis}"
 
 usage() {
@@ -67,7 +69,8 @@ done
 load_candidate "$command"
 
 tmp="$(mktemp -d "${TMPDIR:-/tmp}/fidelis-photo-candidate.XXXXXX")"
-trap 'rm -rf "$tmp"' EXIT
+metadata_tmp=""
+trap 'rm -rf "$tmp"; [[ -n "$metadata_tmp" ]] && rm -f "$metadata_tmp"' EXIT
 
 param_url="$source_root/$revision/$folder/x4.param$url_suffix"
 bin_url="$source_root/$revision/$folder/x4.bin$url_suffix"
@@ -115,6 +118,7 @@ jq \
    | .candidate = {role:$role,license_note:$license_note}' \
   "$metadata" > "$metadata_tmp"
 mv "$metadata_tmp" "$metadata"
+metadata_tmp=""
 
 # Re-read through the public command so the final state is validated by the
 # same integrity path used during future auditions.
