@@ -18,6 +18,8 @@ Target hardware:
 
 The existing RealSR-NCNN Android integration proves that a native ARM64/Vulkan CLI is practical. `4xNomos8kSC` remains a reproducible baseline model, **not the accepted final quality target**. Visual testing showed synthetic/checkerboard-like texture and overprocessed skin/fabric on some photographs, so Fidelis will not optimize around Nomos simply because it runs locally.
 
+The CLI can now select any installed compatible NCNN model and can audition several candidates against the exact same source image. That turns local model research into a repeatable comparison instead of a code-editing exercise.
+
 ### 2. Quality-reference lane
 
 VOSR is being used as an external quality reference to establish what Fidelis should reproduce before choosing or converting the final local model.
@@ -100,17 +102,30 @@ Commands:
 fidelis doctor
 fidelis models
 fidelis upscale input.jpg output.png
-fidelis batch ./input ./output
+fidelis upscale input.jpg output.png --model PhotoCandidate
+fidelis batch ./input ./output --model PhotoCandidate
+fidelis audition input.jpg ./audition
+fidelis audition input.jpg ./audition PhotoCandidateA PhotoCandidateB
 ```
+
+`fidelis models` prints usable installed model names. The default stays `ESRGAN-Nomos8kSC` for backwards compatibility, but it can be overridden per command with `--model` or for a session with `FIDELIS_MODEL=<name>`.
+
+`fidelis audition` runs one source through every usable installed model, or through an explicit shortlist, and writes one standalone PNG per model into the output folder. It does not create a collage or alter the generated outputs.
 
 ## Reliability
 
-Fidelis intentionally fails closed around image generation. The repository includes regression coverage for the VOSR sweep, including the upstream behavior where image processing can fail while the process still exits successfully.
+Fidelis intentionally fails closed around image generation. The repository includes regression coverage for:
+
+- the VOSR case where image processing can fail while the process still exits successfully
+- actual weak-conditioning profile injection
+- output PNG verification and manifest creation
+- local model selection, default-model override, missing-model rejection, and multi-model audition
 
 Run locally:
 
 ```bash
 bash tests/smoke-test.sh
+bash tests/test-cli-model-selection.sh
 bash tests/test-vosr-sweep.sh
 ```
 
