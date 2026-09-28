@@ -12,8 +12,8 @@ mkdir -p "$runtime"
 
 for model in ESRGAN-Nomos8kSC PhotoA PhotoB; do
   mkdir -p "$runtime/models-$model"
-  printf 'param\n' > "$runtime/models-$model/x4.param"
-  printf 'bin\n' > "$runtime/models-$model/x4.bin"
+  printf 'param-%s\n' "$model" > "$runtime/models-$model/x4.param"
+  printf 'bin-%s\n' "$model" > "$runtime/models-$model/x4.bin"
 done
 
 export FIDELIS_ENGINE_LOG="$work/engine.log"
@@ -47,6 +47,53 @@ expected=$'ESRGAN-Nomos8kSC\nPhotoA\nPhotoB'
   exit 1
 }
 
+# Legacy bundled models must remain inspectable even without registry metadata.
+legacy_info="$(bash "$cli" model-info PhotoA)"
+printf '%s' "$legacy_info" | jq -e '.name == "PhotoA" and .registry == "legacy-unregistered" and .scale == 4' >/dev/null
+
+# Add a converted candidate atomically and verify provenance metadata.
+new_param="$work/candidate.param"
+new_bin="$work/candidate.bin"
+printf 'candidate-param-v1\n' > "$new_param"
+printf 'candidate-bin-v1\n' > "$new_bin"
+expected_param_sha="$(sha256sum "$new_param" | awk '{print $1}')"
+expected_bin_sha="$(sha256sum "$new_bin" | awk '{print $1}')"
+
+bash "$cli" model-add PhotoCandidate "$new_param" "$new_bin"
+[[ -s "$runtime/models-PhotoCandidate/x4.param" ]]
+[[ -s "$runtime/models-PhotoCandidate/x4.bin" ]]
+[[ -s "$runtime/models-PhotoCandidate/fidelis-model.json" ]]
+
+candidate_info="$(bash "$cli" model-info PhotoCandidate)"
+printf '%s' "$candidate_info" | jq -e \
+  --arg p "$expected_param_sha" --arg b "$expected_bin_sha" \
+  '.schema_version == 1 and .name == "PhotoCandidate" and .engine == "realsr-ncnn" and .format == "ncnn" and .scale == 4 and .sha256.param == $p and .sha256.bin == $b' >/dev/null
+
+# Duplicate add is rejected and leaves the registered model untouched.
+set +e
+bash "$cli" model-add PhotoCandidate "$new_param" "$new_bin" >"$work/duplicate.out" 2>&1
+rc=$?
+set -e
+[[ $rc -ne 0 ]]
+grep -Fq 'Model already exists: PhotoCandidate' "$work/duplicate.out"
+[[ "$(sha256sum "$runtime/models-PhotoCandidate/x4.bin" | awk '{print $1}')" == "$expected_bin_sha" ]]
+
+# Explicit replacement swaps the model and metadata together.
+printf 'candidate-param-v2\n' > "$new_param"
+printf 'candidate-bin-v2\n' > "$new_bin"
+replacement_bin_sha="$(sha256sum "$new_bin" | awk '{print $1}')"
+bash "$cli" model-add PhotoCandidate "$new_param" "$new_bin" --replace
+replacement_info="$(bash "$cli" model-info PhotoCandidate)"
+printf '%s' "$replacement_info" | jq -e --arg b "$replacement_bin_sha" '.sha256.bin == $b' >/dev/null
+
+# Unsafe names never reach the filesystem.
+set +e
+bash "$cli" model-add '../escape' "$new_param" "$new_bin" >"$work/unsafe.out" 2>&1
+rc=$?
+set -e
+[[ $rc -ne 0 ]]
+grep -Fq 'Invalid model name' "$work/unsafe.out"
+
 bash "$cli" upscale "$input" "$work/default.png"
 grep -Fq "$runtime/models-ESRGAN-Nomos8kSC" "$FIDELIS_ENGINE_LOG"
 
@@ -64,12 +111,13 @@ bash "$cli" audition "$input" "$work/audition"
 [[ -s "$work/audition/ESRGAN-Nomos8kSC.png" ]]
 [[ -s "$work/audition/PhotoA.png" ]]
 [[ -s "$work/audition/PhotoB.png" ]]
-[[ "$(wc -l < "$FIDELIS_ENGINE_LOG")" -eq 3 ]]
+[[ -s "$work/audition/PhotoCandidate.png" ]]
+[[ "$(wc -l < "$FIDELIS_ENGINE_LOG")" -eq 4 ]]
 
 : > "$FIDELIS_ENGINE_LOG"
-bash "$cli" audition "$input" "$work/subset" PhotoB PhotoA
+bash "$cli" audition "$input" "$work/subset" PhotoCandidate PhotoA
 [[ -s "$work/subset/PhotoA.png" ]]
-[[ -s "$work/subset/PhotoB.png" ]]
+[[ -s "$work/subset/PhotoCandidate.png" ]]
 [[ ! -e "$work/subset/ESRGAN-Nomos8kSC.png" ]]
 [[ "$(wc -l < "$FIDELIS_ENGINE_LOG")" -eq 2 ]]
 
@@ -80,4 +128,4 @@ set -e
 [[ $rc -ne 0 ]]
 grep -Fq 'Model is not installed: DoesNotExist' "$work/missing.out"
 
-printf 'CLI model-selection tests passed.\n'
+printf 'CLI model registry and selection tests passed.\n'

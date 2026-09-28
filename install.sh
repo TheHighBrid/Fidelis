@@ -57,6 +57,30 @@ rm -rf "$APP_HOME/runtime.new"
 mkdir -p "$APP_HOME/runtime.new"
 cp -a "$runtime_source/." "$APP_HOME/runtime.new/"
 chmod +x "$APP_HOME/runtime.new/realsr-ncnn" "$APP_HOME/runtime.new/resize-ncnn" 2>/dev/null || true
+
+# Register the bundled baseline model with the same provenance format used by
+# `fidelis model-add`. This does not claim that Nomos is the accepted quality
+# target; it only makes the baseline reproducible and auditable.
+bundled_model="$APP_HOME/runtime.new/models-ESRGAN-Nomos8kSC"
+[[ -s "$bundled_model/x4.param" && -s "$bundled_model/x4.bin" ]] || die "Bundled Nomos8kSC model files are incomplete."
+bundled_param_sha="$(sha256sum "$bundled_model/x4.param" | awk '{print $1}')"
+bundled_bin_sha="$(sha256sum "$bundled_model/x4.bin" | awk '{print $1}')"
+installed_at="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+jq -n \
+  --arg name "ESRGAN-Nomos8kSC" \
+  --arg engine "realsr-ncnn" \
+  --arg format "ncnn" \
+  --argjson scale 4 \
+  --arg installed_at "$installed_at" \
+  --arg source_type "bundled-upstream" \
+  --arg upstream_repo "tumuyan/RealSR-NCNN-Android" \
+  --arg upstream_version "$version" \
+  --arg upstream_asset "$asset_name" \
+  --arg param_sha256 "$bundled_param_sha" \
+  --arg bin_sha256 "$bundled_bin_sha" \
+  '{schema_version:1,name:$name,engine:$engine,format:$format,scale:$scale,installed_at:$installed_at,source:{type:$source_type,repository:$upstream_repo,version:$upstream_version,asset:$upstream_asset},sha256:{param:$param_sha256,bin:$bin_sha256}}' \
+  > "$bundled_model/fidelis-model.json"
+
 rm -rf "$APP_HOME/runtime"
 mv "$APP_HOME/runtime.new" "$APP_HOME/runtime"
 
@@ -67,4 +91,3 @@ jq -n --arg version "$version" --arg asset "$asset_name" --arg sha256 "$actual_s
 install -m 0755 "$(cd "$(dirname "$0")" && pwd)/bin/fidelis" "$BIN_HOME/fidelis"
 
 printf '\nFidelis %s installed.\nRun: fidelis doctor\n' "$version"
-
