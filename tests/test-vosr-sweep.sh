@@ -74,7 +74,7 @@ VOSR_CKPT="preset/ckpts/VOSR_1.4B_ms" \
 PYTHON_BIN="python3" \
 TILE_SIZE=256 \
 VAE_TILE_SIZE=1024 \
-"$sweep" "$input" "$results"
+bash "$sweep" "$input" "$results"
 
 for profile in natural fidelity strict; do
   test -s "$results/$profile/test.png"
@@ -113,7 +113,7 @@ FAKE_FAIL_PROFILE=fidelity \
 VOSR_DIR="$fake_vosr" \
 VOSR_CKPT="preset/ckpts/VOSR_1.4B_ms" \
 PYTHON_BIN="python3" \
-"$sweep" "$input" "$results" >"$work/failure.out" 2>&1
+bash "$sweep" "$input" "$results" >"$work/failure.out" 2>&1
 rc=$?
 set -e
 
