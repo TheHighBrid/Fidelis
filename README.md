@@ -18,7 +18,7 @@ Target hardware:
 
 The existing RealSR-NCNN Android integration proves that a native ARM64/Vulkan CLI is practical. `4xNomos8kSC` remains a reproducible baseline model, **not the accepted final quality target**. Visual testing showed synthetic/checkerboard-like texture and overprocessed skin/fabric on some photographs, so Fidelis will not optimize around Nomos simply because it runs locally.
 
-The CLI can now register compatible NCNN candidates with SHA-256 provenance, verify registered model integrity, select any installed candidate, and audition several models against the exact same source image. Each audition produces standalone PNGs plus a machine-readable evidence manifest, turning local model research into a reproducible comparison instead of a code-editing exercise.
+The CLI can register compatible NCNN candidates with SHA-256 provenance, verify registered model integrity, select any installed candidate, and audition several models against the exact same source image. Each audition produces standalone PNGs plus a machine-readable evidence manifest, turning local model research into a reproducible comparison instead of a code-editing exercise.
 
 ### 2. Quality-reference lane
 
@@ -120,7 +120,7 @@ A successful audition also writes `manifest.json` containing the exact input has
 
 ## Curated photo candidates
 
-Fidelis now keeps a small checksum-locked candidate catalog in `config/photo-candidates.tsv`. The first shortlist is:
+Fidelis keeps a small checksum-locked candidate catalog in `config/photo-candidates.tsv`. The first shortlist is:
 
 - `RealeSR-general-v3`: mobile/general first priority
 - `RealSR-DF2K`: heavier photo-fidelity comparator
@@ -140,7 +140,19 @@ bash scripts/install-photo-candidate.sh RealeSR-general-v3
 
 The installer downloads from an immutable upstream revision, verifies both `x4.param` and `x4.bin` against pinned SHA-256 values, installs through the existing atomic model registry, and records source revision plus candidate role in the model metadata. A checksum mismatch fails before an existing model can be replaced.
 
-The research rationale, exact verified hashes, licensing notes and audition protocol are in `docs/PHOTO_MODEL_CANDIDATES.md`.
+### One-command device benchmark
+
+For the actual Android/ARM64 gate, run one source through the first mobile candidate and the Nomos baseline:
+
+```bash
+bash scripts/benchmark-photo-candidates.sh source.jpg ./benchmark
+```
+
+The benchmark automatically installs a missing curated candidate through the checksum-locked installer, writes one standalone PNG per model, and creates `benchmark.json` with source/engine/model/output hashes, host architecture and kernel, per-model inference time, and total elapsed time.
+
+A failed rerun invalidates the previous benchmark evidence. Even if the underlying engine exits with status `0`, Fidelis refuses success unless every selected model produces a non-empty output.
+
+The research rationale, exact verified hashes, licensing notes, larger benchmark command, and three-class visual protocol are in `docs/PHOTO_MODEL_CANDIDATES.md`.
 
 ## Reliability
 
@@ -154,6 +166,7 @@ Fidelis intentionally fails closed around image generation. The repository inclu
 - reproducible multi-model audition manifests with input, engine, model, and output hashes
 - stale audition manifest invalidation when a rerun fails
 - checksum-locked curated model installation and replacement rejection on source tampering
+- one-command device benchmark evidence, candidate auto-install, runtime timing, and fake-success rejection
 
 Run locally:
 
@@ -161,6 +174,7 @@ Run locally:
 bash tests/smoke-test.sh
 bash tests/test-cli-model-selection.sh
 bash tests/test-photo-candidate-installer.sh
+bash tests/test-photo-candidate-benchmark.sh
 bash tests/test-vosr-sweep.sh
 ```
 
