@@ -267,6 +267,9 @@ audition() {
     exit 1
   }
 
+  # A new run invalidates prior evidence immediately. The manifest is published
+  # atomically only after every selected model produces a non-empty output.
+  rm -f "$output_dir/manifest.json"
   local entries_file="$output_dir/.fidelis-audition-entries.$$"
   local manifest_tmp="$output_dir/.manifest.json.new.$$"
   rm -f "$entries_file" "$manifest_tmp"
