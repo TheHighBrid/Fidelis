@@ -27,5 +27,8 @@ jobs:
       - name: Static smoke tests
         run: bash tests/smoke-test.sh
 
+      - name: CLI model-selection tests
+        run: bash tests/test-cli-model-selection.sh
+
       - name: VOSR sweep regression tests
         run: bash tests/test-vosr-sweep.sh
