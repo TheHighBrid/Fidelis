@@ -11,14 +11,20 @@ usage() {
 Usage:
   fidelis doctor
   fidelis models
+  fidelis model-info MODEL
+  fidelis model-add MODEL PARAM_FILE BIN_FILE [--replace]
   fidelis upscale INPUT OUTPUT [--model MODEL]
   fidelis batch INPUT_DIR OUTPUT_DIR [--model MODEL]
   fidelis audition INPUT OUTPUT_DIR [MODEL ...]
 
 MODEL is the installed directory name without the leading "models-".
+The current local engine contract is 4x NCNN RealSR/ESRGAN: x4.param + x4.bin.
+
 Examples:
-  fidelis upscale photo.jpg out.png --model ESRGAN-Nomos8kSC
-  fidelis audition photo.jpg ./audition
+  fidelis model-add PhotoCandidate ./candidate.param ./candidate.bin
+  fidelis model-info PhotoCandidate
+  fidelis upscale photo.jpg out.png --model PhotoCandidate
+  fidelis audition photo.jpg ./audition PhotoCandidate ESRGAN-Nomos8kSC
   FIDELIS_MODEL=PhotoCandidate fidelis upscale photo.jpg out.png
 EOF
 }
@@ -31,16 +37,25 @@ require_engine() {
   export LD_LIBRARY_PATH="$RUNTIME${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 }
 
+normalize_model_name() {
+  local name="${1#models-}"
+  [[ -n "$name" && "$name" =~ ^[A-Za-z0-9._-]+$ ]] || {
+    printf 'Invalid model name: %s\nUse only letters, numbers, dot, underscore, and hyphen.\n' "$1" >&2
+    return 2
+  }
+  printf '%s\n' "$name"
+}
+
 resolve_model() {
-  local selector="${1:-$DEFAULT_MODEL}"
-  selector="${selector#models-}"
+  local selector
+  selector="$(normalize_model_name "${1:-$DEFAULT_MODEL}")" || return
   local model="$RUNTIME/models-$selector"
   [[ -d "$model" ]] || {
     printf 'Model is not installed: %s\n' "$selector" >&2
     return 1
   }
-  [[ -f "$model/x4.param" && -f "$model/x4.bin" ]] || {
-    printf 'Model is incomplete (expected x4.param + x4.bin): %s\n' "$selector" >&2
+  [[ -s "$model/x4.param" && -s "$model/x4.bin" ]] || {
+    printf 'Model is incomplete (expected non-empty x4.param + x4.bin): %s\n' "$selector" >&2
     return 1
   }
   printf '%s\n' "$model"
@@ -50,10 +65,104 @@ list_models() {
   local dir base
   [[ -d "$RUNTIME" ]] || return 0
   while IFS= read -r dir; do
-    [[ -f "$dir/x4.param" && -f "$dir/x4.bin" ]] || continue
+    [[ -s "$dir/x4.param" && -s "$dir/x4.bin" ]] || continue
     base="$(basename "$dir")"
     printf '%s\n' "${base#models-}"
   done < <(find "$RUNTIME" -maxdepth 1 -mindepth 1 -type d -name 'models-*' -print | sort)
+}
+
+model_info() {
+  local selector model metadata
+  selector="$(normalize_model_name "$1")"
+  model="$(resolve_model "$selector")"
+  metadata="$model/fidelis-model.json"
+
+  if [[ -s "$metadata" ]]; then
+    cat "$metadata"
+    return
+  fi
+
+  # Legacy/upstream bundled models predate the Fidelis registry. Report live
+  # hashes without mutating them so provenance remains explicit.
+  jq -n \
+    --arg name "$selector" \
+    --arg engine "realsr-ncnn" \
+    --arg format "ncnn" \
+    --argjson scale 4 \
+    --arg param_sha256 "$(sha256sum "$model/x4.param" | awk '{print $1}')" \
+    --arg bin_sha256 "$(sha256sum "$model/x4.bin" | awk '{print $1}')" \
+    '{name:$name,engine:$engine,format:$format,scale:$scale,registry:"legacy-unregistered",sha256:{param:$param_sha256,bin:$bin_sha256}}'
+}
+
+model_add() {
+  local selector param_file bin_file replace="${4:-}"
+  selector="$(normalize_model_name "$1")"
+  param_file="$(realpath "$2")"
+  bin_file="$(realpath "$3")"
+
+  [[ -s "$param_file" ]] || { printf 'NCNN param file is missing or empty: %s\n' "$2" >&2; exit 1; }
+  [[ -s "$bin_file" ]] || { printf 'NCNN bin file is missing or empty: %s\n' "$3" >&2; exit 1; }
+  [[ "$replace" == "" || "$replace" == "--replace" ]] || {
+    printf 'Expected optional flag: --replace\n' >&2
+    exit 2
+  }
+
+  require_engine
+  command -v jq >/dev/null 2>&1 || { printf 'jq is required. Run: pkg install jq\n' >&2; exit 1; }
+  command -v sha256sum >/dev/null 2>&1 || { printf 'sha256sum is required.\n' >&2; exit 1; }
+
+  local dest="$RUNTIME/models-$selector"
+  if [[ -e "$dest" && "$replace" != "--replace" ]]; then
+    printf 'Model already exists: %s\nUse --replace to replace it atomically.\n' "$selector" >&2
+    exit 1
+  fi
+
+  local tmp="$RUNTIME/.models-$selector.new.$$"
+  rm -rf "$tmp"
+  mkdir -p "$tmp"
+  trap 'rm -rf "$tmp"' RETURN
+
+  cp "$param_file" "$tmp/x4.param"
+  cp "$bin_file" "$tmp/x4.bin"
+
+  local param_sha bin_sha installed_at
+  param_sha="$(sha256sum "$tmp/x4.param" | awk '{print $1}')"
+  bin_sha="$(sha256sum "$tmp/x4.bin" | awk '{print $1}')"
+  installed_at="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+
+  jq -n \
+    --arg name "$selector" \
+    --arg engine "realsr-ncnn" \
+    --arg format "ncnn" \
+    --argjson scale 4 \
+    --arg installed_at "$installed_at" \
+    --arg param_sha256 "$param_sha" \
+    --arg bin_sha256 "$bin_sha" \
+    '{schema_version:1,name:$name,engine:$engine,format:$format,scale:$scale,installed_at:$installed_at,sha256:{param:$param_sha256,bin:$bin_sha256}}' \
+    > "$tmp/fidelis-model.json"
+
+  # Verify the staged files before the old model, if any, is touched.
+  [[ "$(sha256sum "$tmp/x4.param" | awk '{print $1}')" == "$param_sha" ]]
+  [[ "$(sha256sum "$tmp/x4.bin" | awk '{print $1}')" == "$bin_sha" ]]
+
+  local backup=""
+  if [[ -e "$dest" ]]; then
+    backup="$RUNTIME/.models-$selector.old.$$"
+    rm -rf "$backup"
+    mv "$dest" "$backup"
+  fi
+
+  if ! mv "$tmp" "$dest"; then
+    [[ -n "$backup" && -e "$backup" ]] && mv "$backup" "$dest"
+    printf 'Failed to activate model: %s\n' "$selector" >&2
+    exit 1
+  fi
+  [[ -n "$backup" ]] && rm -rf "$backup"
+  trap - RETURN
+
+  printf 'Installed model: %s\n' "$selector"
+  printf '  param sha256: %s\n' "$param_sha"
+  printf '  bin   sha256: %s\n' "$bin_sha"
 }
 
 parse_model_option() {
@@ -62,7 +171,7 @@ parse_model_option() {
     return
   fi
   if [[ $# -eq 2 && "$1" == "--model" && -n "$2" ]]; then
-    printf '%s\n' "$2"
+    normalize_model_name "$2"
     return
   fi
   printf 'Expected optional: --model MODEL\n' >&2
@@ -135,7 +244,7 @@ audition() {
 
   local selector safe output
   for selector in "${models[@]}"; do
-    selector="${selector#models-}"
+    selector="$(normalize_model_name "$selector")"
     safe="${selector//[^A-Za-z0-9._-]/_}"
     output="$output_dir/${safe}.png"
     printf '\n[%s] -> %s\n' "$selector" "$output"
@@ -155,6 +264,15 @@ case "$command" in
     [[ $# -eq 1 ]] || { usage >&2; exit 2; }
     require_engine
     list_models
+    ;;
+  model-info)
+    [[ $# -eq 2 ]] || { usage >&2; exit 2; }
+    require_engine
+    model_info "$2"
+    ;;
+  model-add)
+    [[ $# -eq 4 || $# -eq 5 ]] || { usage >&2; exit 2; }
+    model_add "$2" "$3" "$4" "${5:-}"
     ;;
   upscale)
     [[ $# -eq 3 || $# -eq 5 ]] || { usage >&2; exit 2; }
