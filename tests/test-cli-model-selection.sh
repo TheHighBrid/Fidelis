@@ -112,14 +112,55 @@ bash "$cli" audition "$input" "$work/audition"
 [[ -s "$work/audition/PhotoA.png" ]]
 [[ -s "$work/audition/PhotoB.png" ]]
 [[ -s "$work/audition/PhotoCandidate.png" ]]
+[[ -s "$work/audition/manifest.json" ]]
 [[ "$(wc -l < "$FIDELIS_ENGINE_LOG")" -eq 4 ]]
+
+input_sha="$(sha256sum "$input" | awk '{print $1}')"
+engine_sha="$(sha256sum "$runtime/realsr-ncnn" | awk '{print $1}')"
+jq -e \
+  --arg input_sha "$input_sha" \
+  --arg engine_sha "$engine_sha" \
+  '.schema_version == 1
+   and .command == "fidelis audition"
+   and .input.sha256 == $input_sha
+   and .engine.name == "realsr-ncnn"
+   and .engine.sha256 == $engine_sha
+   and (.models | length) == 4
+   and ([.models[].model.name] | sort) == ["ESRGAN-Nomos8kSC","PhotoA","PhotoB","PhotoCandidate"]
+   and all(.models[]; (.output.bytes > 0) and ((.output.sha256 | length) == 64))' \
+  "$work/audition/manifest.json" >/dev/null
 
 : > "$FIDELIS_ENGINE_LOG"
 bash "$cli" audition "$input" "$work/subset" PhotoCandidate PhotoA
 [[ -s "$work/subset/PhotoA.png" ]]
 [[ -s "$work/subset/PhotoCandidate.png" ]]
 [[ ! -e "$work/subset/ESRGAN-Nomos8kSC.png" ]]
+[[ -s "$work/subset/manifest.json" ]]
 [[ "$(wc -l < "$FIDELIS_ENGINE_LOG")" -eq 2 ]]
+jq -e \
+  '(.models | length) == 2
+   and ([.models[].model.name] | sort) == ["PhotoA","PhotoCandidate"]' \
+  "$work/subset/manifest.json" >/dev/null
+
+# Registered files are immutable evidence. Manual mutation must invalidate the
+# registry rather than silently producing a misleading audition manifest.
+printf 'tampered-bin\n' > "$runtime/models-PhotoCandidate/x4.bin"
+set +e
+bash "$cli" model-info PhotoCandidate >"$work/tamper-info.out" 2>&1
+rc=$?
+set -e
+[[ $rc -ne 0 ]]
+grep -Fq 'Model integrity mismatch: PhotoCandidate' "$work/tamper-info.out"
+
+# Reuse a previously successful audition directory. The failed rerun must
+# remove its old manifest immediately so stale success evidence cannot survive.
+set +e
+bash "$cli" audition "$input" "$work/subset" PhotoCandidate >"$work/tamper-audition.out" 2>&1
+rc=$?
+set -e
+[[ $rc -ne 0 ]]
+[[ ! -e "$work/subset/manifest.json" ]]
+grep -Fq 'Model integrity mismatch: PhotoCandidate' "$work/tamper-audition.out"
 
 set +e
 bash "$cli" upscale "$input" "$work/missing.png" --model DoesNotExist >"$work/missing.out" 2>&1
@@ -128,4 +169,4 @@ set -e
 [[ $rc -ne 0 ]]
 grep -Fq 'Model is not installed: DoesNotExist' "$work/missing.out"
 
-printf 'CLI model registry and selection tests passed.\n'
+printf 'CLI model registry, integrity, selection, and audition provenance tests passed.\n'
