@@ -32,3 +32,6 @@ jobs:
 
       - name: VOSR sweep regression tests
         run: bash tests/test-vosr-sweep.sh
+
+      - name: Probe pinned photo candidate sources
+        run: bash tests/probe-photo-candidate-sources.sh
