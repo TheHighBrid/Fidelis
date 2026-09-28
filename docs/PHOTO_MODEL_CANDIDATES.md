@@ -2,7 +2,7 @@
 
 This document records the first ARM64-compatible photo candidates selected after the Nomos8kSC baseline failed Fidelis visual expectations on skin and fabric.
 
-The goal is not to crown a model from reputation or sharpness. Every candidate must be run through the same Fidelis audition source set and judged against the project's quality acceptance gate.
+The goal is not to crown a model from reputation or sharpness. Every candidate must be run through the same Fidelis source set and judged against the project's quality acceptance gate.
 
 ## Source verification
 
@@ -51,9 +51,43 @@ bash scripts/install-photo-candidate.sh RealSR-DF2K
 bash scripts/install-photo-candidate.sh ESRGAN-Remacri
 ```
 
-The script downloads from the pinned revision, verifies both files, delegates installation to `fidelis model-add`, then records source revision, candidate role and the license note in `fidelis-model.json`.
+The installer downloads from the pinned revision, verifies both files, delegates installation to `fidelis model-add`, then records source revision, candidate role and the license note in `fidelis-model.json`.
 
-## Audition protocol
+## Device benchmark
+
+The normal device gate is one command. With no model list, Fidelis automatically benchmarks the first mobile candidate against the installed Nomos baseline:
+
+```bash
+bash scripts/benchmark-photo-candidates.sh source.jpg ./benchmark
+```
+
+If `RealeSR-general-v3` is not installed yet, the benchmark installs it through the checksum-locked candidate installer first. The baseline is never downloaded implicitly.
+
+To benchmark the larger local shortlist explicitly:
+
+```bash
+bash scripts/benchmark-photo-candidates.sh source.jpg ./benchmark \
+  RealeSR-general-v3 \
+  RealSR-DF2K \
+  ESRGAN-Remacri \
+  ESRGAN-Nomos8kSC
+```
+
+The benchmark writes **one standalone PNG per model**. It does not create a collage, contact sheet, or combined image.
+
+A successful run also writes `benchmark.json` with:
+
+- exact source path, byte count and SHA-256
+- engine SHA-256, scale and tile size
+- host architecture and kernel
+- complete model provenance from `fidelis model-info`
+- per-model elapsed inference time in milliseconds
+- per-output filename, byte count and SHA-256
+- total benchmark elapsed time
+
+The benchmark fails closed. Starting a new run invalidates the previous `benchmark.json`; a replacement is written only when all selected models produce non-empty outputs. An engine that exits successfully without creating an image therefore cannot leave stale success evidence behind.
+
+## Visual audition protocol
 
 Do not evaluate one convenient image. Use at least these source classes:
 
@@ -61,19 +95,9 @@ Do not evaluate one convenient image. Use at least these source classes:
 2. **Fashion / dark textured fabric**: black fabric, knit, denim, velour, leather, seams, embroidery and logos.
 3. **Product / hard edges**: metal hardware, zippers, eyewear, typography, smooth backgrounds and specular highlights.
 
-For each source, run the same input through the shortlisted local models:
+Run the same model set on each source. If the upstream APK also includes `Real-ESRGAN`, include it as an additional official baseline.
 
-```bash
-fidelis audition source.jpg ./audition \
-  RealeSR-general-v3 \
-  RealSR-DF2K \
-  ESRGAN-Remacri \
-  ESRGAN-Nomos8kSC
-```
-
-If the upstream APK also includes `Real-ESRGAN`, include it as an additional official baseline.
-
-Each successful run produces one standalone PNG per model plus `manifest.json` containing source, engine, model and output hashes.
+For ad hoc comparisons where runtime evidence is unnecessary, `fidelis audition` remains available and produces standalone outputs plus its own provenance manifest.
 
 ## Decision order
 
@@ -85,7 +109,7 @@ Judge candidates in this order:
 4. clean hair, seam and hardware edges without halos
 5. natural tonal roll-off
 6. smooth backgrounds staying smooth
-7. runtime and memory cost on the reference Android device
+7. runtime cost on the reference Android device
 
 A sharper image loses if it invents pores, weave, edges or geometry.
 

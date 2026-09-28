@@ -33,5 +33,8 @@ jobs:
       - name: Photo candidate installer tests
         run: bash tests/test-photo-candidate-installer.sh
 
+      - name: Photo candidate benchmark tests
+        run: bash tests/test-photo-candidate-benchmark.sh
+
       - name: VOSR sweep regression tests
         run: bash tests/test-vosr-sweep.sh
