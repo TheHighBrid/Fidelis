@@ -152,12 +152,14 @@ set -e
 [[ $rc -ne 0 ]]
 grep -Fq 'Model integrity mismatch: PhotoCandidate' "$work/tamper-info.out"
 
+# Reuse a previously successful audition directory. The failed rerun must
+# remove its old manifest immediately so stale success evidence cannot survive.
 set +e
-bash "$cli" audition "$input" "$work/tampered-audition" PhotoCandidate >"$work/tamper-audition.out" 2>&1
+bash "$cli" audition "$input" "$work/subset" PhotoCandidate >"$work/tamper-audition.out" 2>&1
 rc=$?
 set -e
 [[ $rc -ne 0 ]]
-[[ ! -e "$work/tampered-audition/manifest.json" ]]
+[[ ! -e "$work/subset/manifest.json" ]]
 grep -Fq 'Model integrity mismatch: PhotoCandidate' "$work/tamper-audition.out"
 
 set +e
