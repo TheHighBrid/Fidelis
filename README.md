@@ -118,6 +118,30 @@ fidelis audition input.jpg ./audition PhotoCandidateA PhotoCandidateB
 
 A successful audition also writes `manifest.json` containing the exact input hash, local engine hash, each model's provenance, and each output's byte count and SHA-256 hash. Starting a new audition invalidates any previous manifest in that output directory, and a new manifest is published only after every selected model produces a non-empty output. A failed rerun therefore cannot leave an old success manifest behind.
 
+## Curated photo candidates
+
+Fidelis now keeps a small checksum-locked candidate catalog in `config/photo-candidates.tsv`. The first shortlist is:
+
+- `RealeSR-general-v3`: mobile/general first priority
+- `RealSR-DF2K`: heavier photo-fidelity comparator
+- `ESRGAN-Remacri`: balanced community comparator, evaluation-only until its model license is resolved
+
+List them:
+
+```bash
+bash scripts/install-photo-candidate.sh list
+```
+
+Install the first mobile candidate without hunting for model files manually:
+
+```bash
+bash scripts/install-photo-candidate.sh RealeSR-general-v3
+```
+
+The installer downloads from an immutable upstream revision, verifies both `x4.param` and `x4.bin` against pinned SHA-256 values, installs through the existing atomic model registry, and records source revision plus candidate role in the model metadata. A checksum mismatch fails before an existing model can be replaced.
+
+The research rationale, exact verified hashes, licensing notes and audition protocol are in `docs/PHOTO_MODEL_CANDIDATES.md`.
+
 ## Reliability
 
 Fidelis intentionally fails closed around image generation. The repository includes regression coverage for:
@@ -129,12 +153,14 @@ Fidelis intentionally fails closed around image generation. The repository inclu
 - atomic candidate registration and registered-model integrity verification
 - reproducible multi-model audition manifests with input, engine, model, and output hashes
 - stale audition manifest invalidation when a rerun fails
+- checksum-locked curated model installation and replacement rejection on source tampering
 
 Run locally:
 
 ```bash
 bash tests/smoke-test.sh
 bash tests/test-cli-model-selection.sh
+bash tests/test-photo-candidate-installer.sh
 bash tests/test-vosr-sweep.sh
 ```
 
