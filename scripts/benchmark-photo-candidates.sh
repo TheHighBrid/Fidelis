@@ -21,9 +21,52 @@ installer before inference. Outputs remain standalone PNG files, one per model.
 EOF
 }
 
+now_ms() {
+  local ns
+  ns="$(date +%s%N 2>/dev/null || true)"
+  if [[ "$ns" =~ ^[0-9]{13,}$ ]]; then
+    printf '%s\n' "$(( ns / 1000000 ))"
+  elif command -v python3 >/dev/null 2>&1; then
+    python3 -c 'import time; print(int(time.time() * 1000))'
+  else
+    printf '%s\n' "$(( $(date +%s) * 1000 ))"
+  fi
+}
+
+canonical_path() {
+  local target="$1"
+  if command -v realpath >/dev/null 2>&1; then
+    if realpath -m . >/dev/null 2>&1; then
+      realpath -m "$target"
+      return
+    elif realpath "$target" >/dev/null 2>&1; then
+      realpath "$target"
+      return
+    fi
+  fi
+  local dir base
+  dir="$(dirname "$target")"
+  base="$(basename "$target")"
+  while [[ ! -d "$dir" && "$dir" != "/" && "$dir" != "." ]]; do
+    base="$(basename "$dir")/$base"
+    dir="$(dirname "$dir")"
+  done
+  if [[ -d "$dir" ]]; then
+    local resolved_dir
+    resolved_dir="$(cd "$dir" && pwd -P)"
+    if [[ "$resolved_dir" == "/" ]]; then
+      printf '/%s\n' "$base"
+    else
+      printf '%s/%s\n' "$resolved_dir" "$base"
+    fi
+  else
+    [[ "$target" = /* ]] && printf '%s\n' "$target" || printf '%s/%s\n' "$(pwd -P)" "$target"
+  fi
+}
+
 [[ $# -ge 2 ]] || { usage >&2; exit 2; }
-input="$(realpath "$1")"
-output_dir="$(realpath -m "$2")"
+input="$(canonical_path "$1")"
+output_dir="$(canonical_path "$2")"
 shift 2
 [[ -f "$input" ]] || { printf 'Benchmark input must be one image file: %s\n' "$input" >&2; exit 1; }
 
@@ -32,8 +75,14 @@ if [[ ${#models[@]} -eq 0 ]]; then
   models=(RealeSR-general-v3 ESRGAN-Nomos8kSC)
 fi
 
+if ! command -v sha256sum >/dev/null 2>&1 && command -v shasum >/dev/null 2>&1; then
+  sha256sum() {
+    shasum -a 256 "$@"
+  }
+fi
+
 command -v jq >/dev/null 2>&1 || { printf 'jq is required.\n' >&2; exit 1; }
-command -v sha256sum >/dev/null 2>&1 || { printf 'sha256sum is required.\n' >&2; exit 1; }
+command -v sha256sum >/dev/null 2>&1 || command -v shasum >/dev/null 2>&1 || { printf 'sha256sum (or shasum) is required.\n' >&2; exit 1; }
 [[ -x "$engine" ]] || { printf 'Fidelis runtime is not installed: %s\n' "$engine" >&2; exit 1; }
 
 mkdir -p "$output_dir"
@@ -43,7 +92,7 @@ manifest_tmp="$output_dir/.benchmark.json.new.$$"
 : > "$entries"
 trap 'rm -f "$entries" "$manifest_tmp"' EXIT
 
-benchmark_started_ns="$(date +%s%N)"
+benchmark_started_ms="$(now_ms)"
 input_sha="$(sha256sum "$input" | awk '{print $1}')"
 input_bytes="$(wc -c < "$input" | tr -d '[:space:]')"
 engine_sha="$(sha256sum "$engine" | awk '{print $1}')"
@@ -66,10 +115,10 @@ for requested in "${models[@]}"; do
   rm -f "$output"
 
   printf '\n[%s] benchmarking -> %s\n' "$model" "$output"
-  start_ns="$(date +%s%N)"
+  start_ms="$(now_ms)"
   "$cli" upscale "$input" "$output" --model "$model"
-  end_ns="$(date +%s%N)"
-  elapsed_ms=$(( (end_ns - start_ns) / 1000000 ))
+  end_ms="$(now_ms)"
+  elapsed_ms=$(( end_ms - start_ms ))
 
   [[ -s "$output" ]] || {
     printf 'Benchmark failed: %s produced no non-empty output.\n' "$model" >&2
@@ -91,8 +140,8 @@ for requested in "${models[@]}"; do
 
 done
 
-benchmark_finished_ns="$(date +%s%N)"
-total_elapsed_ms=$(( (benchmark_finished_ns - benchmark_started_ns) / 1000000 ))
+benchmark_finished_ms="$(now_ms)"
+total_elapsed_ms=$(( benchmark_finished_ms - benchmark_started_ms ))
 created_at="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
 architecture="$(uname -m)"
 kernel="$(uname -r)"

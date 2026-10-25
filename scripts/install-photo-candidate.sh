@@ -59,12 +59,22 @@ esac
 replace="${2:-}"
 [[ -z "$replace" || "$replace" == "--replace" ]] || { usage >&2; exit 2; }
 
-for dependency in curl sha256sum jq; do
+if ! command -v sha256sum >/dev/null 2>&1 && command -v shasum >/dev/null 2>&1; then
+  sha256sum() {
+    shasum -a 256 "$@"
+  }
+fi
+
+for dependency in curl jq; do
   command -v "$dependency" >/dev/null 2>&1 || {
     printf 'Required command is missing: %s\n' "$dependency" >&2
     exit 1
   }
 done
+command -v sha256sum >/dev/null 2>&1 || command -v shasum >/dev/null 2>&1 || {
+  printf 'Required command is missing: sha256sum (or shasum)\n' >&2
+  exit 1
+}
 
 load_candidate "$command"
 

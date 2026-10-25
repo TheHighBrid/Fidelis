@@ -6,6 +6,17 @@ sweep="$repo_root/experiments/vosr-fidelity-sweep.sh"
 work="$(mktemp -d "${TMPDIR:-/tmp}/fidelis-sweep-test.XXXXXX")"
 trap 'rm -rf "$work"' EXIT
 
+python_bin="${PYTHON_BIN:-}"
+if [[ -z "$python_bin" ]]; then
+  if [[ -x "$repo_root/.venv/bin/python" ]]; then
+    python_bin="$repo_root/.venv/bin/python"
+  elif python3 -c "import PIL" >/dev/null 2>&1; then
+    python_bin="python3"
+  else
+    python_bin="python3"
+  fi
+fi
+
 fake_vosr="$work/VOSR"
 ckpt="$fake_vosr/preset/ckpts/VOSR_1.4B_ms"
 mkdir -p "$ckpt/checkpoints"
@@ -62,7 +73,7 @@ print('Done!')
 PY
 
 input="$work/test.jpg"
-python3 - "$input" <<'PY'
+"$python_bin" - "$input" <<'PY'
 from PIL import Image
 import sys
 Image.new('RGB', (3, 2), (120, 110, 100)).save(sys.argv[1], quality=90)
@@ -71,7 +82,7 @@ PY
 results="$work/results"
 VOSR_DIR="$fake_vosr" \
 VOSR_CKPT="preset/ckpts/VOSR_1.4B_ms" \
-PYTHON_BIN="python3" \
+PYTHON_BIN="$python_bin" \
 TILE_SIZE=256 \
 VAE_TILE_SIZE=1024 \
 bash "$sweep" "$input" "$results"
@@ -82,7 +93,7 @@ for profile in natural fidelity strict; do
 done
 test -s "$results/manifest.json"
 
-python3 - "$results/manifest.json" <<'PY'
+"$python_bin" - "$results/manifest.json" <<'PY'
 import json
 import sys
 m = json.load(open(sys.argv[1]))
@@ -112,7 +123,7 @@ set +e
 FAKE_FAIL_PROFILE=fidelity \
 VOSR_DIR="$fake_vosr" \
 VOSR_CKPT="preset/ckpts/VOSR_1.4B_ms" \
-PYTHON_BIN="python3" \
+PYTHON_BIN="$python_bin" \
 bash "$sweep" "$input" "$results" >"$work/failure.out" 2>&1
 rc=$?
 set -e

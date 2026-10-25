@@ -10,7 +10,11 @@ permissions:
 
 jobs:
   shell-and-sweep-tests:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
     timeout-minutes: 10
     steps:
       - name: Check out repository
@@ -35,6 +39,12 @@ jobs:
 
       - name: Photo candidate benchmark tests
         run: bash tests/test-photo-candidate-benchmark.sh
+
+      - name: Audition report generator tests
+        run: bash tests/test-audition-report.sh
+
+      - name: Fidelity metrics evaluation tests
+        run: bash tests/test-fidelity-metrics.sh
 
       - name: VOSR sweep regression tests
         run: bash tests/test-vosr-sweep.sh

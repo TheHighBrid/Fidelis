@@ -78,21 +78,22 @@ Sharpness alone never wins a comparison.
 - If multi-step VOSR does not materially beat the one-step reference, stop spending compute on it.
 - After the reference is locked, focus engineering effort on the lightest ARM64-compatible model or conversion that reproduces the winning visual behavior.
 
-## Native Termux CLI
+## Native CLI & Runtimes
 
-The ARM64 foundation remains available:
-
+### Android / Termux (Snapdragon 8 Gen 2 / Adreno 740)
 ```bash
 pkg install -y git
 git clone https://github.com/TheHighBrid/Fidelis.git
 cd Fidelis
 ./install.sh
+fidelis doctor
 ```
 
-Restart the shell or run:
-
+### macOS (Apple Silicon GPU / Vulkan)
 ```bash
-source "$HOME/.profile"
+git clone https://github.com/TheHighBrid/Fidelis.git
+cd Fidelis
+bash scripts/install-macos-runtime.sh
 fidelis doctor
 ```
 
@@ -108,6 +109,9 @@ fidelis upscale input.jpg output.png --model PhotoCandidate
 fidelis batch ./input ./output --model PhotoCandidate
 fidelis audition input.jpg ./audition
 fidelis audition input.jpg ./audition PhotoCandidateA PhotoCandidateB
+fidelis evaluate ./audition
+fidelis report ./audition -o ./audition/report.html
+fidelis eval-crops
 ```
 
 `fidelis models` prints usable installed model names. The default stays `ESRGAN-Nomos8kSC` for backwards compatibility, but it can be overridden per command with `--model` or for a session with `FIDELIS_MODEL=<name>`.

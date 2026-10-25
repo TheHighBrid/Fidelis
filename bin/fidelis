@@ -1,9 +1,25 @@
-#!/data/data/com.termux/files/usr/bin/bash
+#!/usr/bin/env bash
 set -Eeuo pipefail
 
 readonly APP_HOME="${FIDELIS_HOME:-$HOME/.local/share/fidelis}"
 readonly RUNTIME="$APP_HOME/runtime"
-readonly ENGINE="$RUNTIME/realsr-ncnn"
+repo_root="$(cd "$(dirname "$0")/.." 2>/dev/null && pwd || echo "")"
+
+resolve_python() {
+  if [[ -n "$repo_root" && -x "$repo_root/.venv/bin/python" ]]; then
+    printf '%s\n' "$repo_root/.venv/bin/python"
+  elif command -v python3 >/dev/null 2>&1; then
+    printf 'python3\n'
+  else
+    printf 'python\n'
+  fi
+}
+
+ENGINE="${FIDELIS_ENGINE:-$RUNTIME/realsr-ncnn}"
+if [[ ! -x "$ENGINE" && -x "$RUNTIME/realsr-ncnn-vulkan" ]]; then
+  ENGINE="$RUNTIME/realsr-ncnn-vulkan"
+fi
+readonly ENGINE
 readonly DEFAULT_MODEL="${FIDELIS_MODEL:-ESRGAN-Nomos8kSC}"
 
 usage() {
@@ -16,6 +32,9 @@ Usage:
   fidelis upscale INPUT OUTPUT [--model MODEL]
   fidelis batch INPUT_DIR OUTPUT_DIR [--model MODEL]
   fidelis audition INPUT OUTPUT_DIR [MODEL ...]
+  fidelis evaluate RESULTS_DIR
+  fidelis report RESULTS_DIR [-o OUT_HTML]
+  fidelis eval-crops [-d TARGET_DIR]
 
 MODEL is the installed directory name without the leading "models-".
 The current local engine contract is 4x NCNN RealSR/ESRGAN: x4.param + x4.bin.
@@ -37,9 +56,46 @@ require_engine() {
   export LD_LIBRARY_PATH="$RUNTIME${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 }
 
+if ! command -v sha256sum >/dev/null 2>&1 && command -v shasum >/dev/null 2>&1; then
+  sha256sum() {
+    shasum -a 256 "$@"
+  }
+fi
+
 require_registry_tools() {
   command -v jq >/dev/null 2>&1 || { printf 'jq is required. Run: pkg install jq\n' >&2; exit 1; }
-  command -v sha256sum >/dev/null 2>&1 || { printf 'sha256sum is required.\n' >&2; exit 1; }
+  command -v sha256sum >/dev/null 2>&1 || command -v shasum >/dev/null 2>&1 || { printf 'sha256sum (or shasum) is required.\n' >&2; exit 1; }
+}
+
+canonical_path() {
+  local target="$1"
+  if command -v realpath >/dev/null 2>&1; then
+    if realpath -m . >/dev/null 2>&1; then
+      realpath -m "$target"
+      return
+    elif realpath "$target" >/dev/null 2>&1; then
+      realpath "$target"
+      return
+    fi
+  fi
+  local dir base
+  dir="$(dirname "$target")"
+  base="$(basename "$target")"
+  while [[ ! -d "$dir" && "$dir" != "/" && "$dir" != "." ]]; do
+    base="$(basename "$dir")/$base"
+    dir="$(dirname "$dir")"
+  done
+  if [[ -d "$dir" ]]; then
+    local resolved_dir
+    resolved_dir="$(cd "$dir" && pwd -P)"
+    if [[ "$resolved_dir" == "/" ]]; then
+      printf '/%s\n' "$base"
+    else
+      printf '%s/%s\n' "$resolved_dir" "$base"
+    fi
+  else
+    [[ "$target" = /* ]] && printf '%s\n' "$target" || printf '%s/%s\n' "$(pwd -P)" "$target"
+  fi
 }
 
 normalize_model_name() {
@@ -121,8 +177,8 @@ model_info() {
 model_add() {
   local selector param_file bin_file replace="${4:-}"
   selector="$(normalize_model_name "$1")"
-  param_file="$(realpath "$2")"
-  bin_file="$(realpath "$3")"
+  param_file="$(canonical_path "$2")"
+  bin_file="$(canonical_path "$3")"
 
   [[ -s "$param_file" ]] || { printf 'NCNN param file is missing or empty: %s\n' "$2" >&2; exit 1; }
   [[ -s "$bin_file" ]] || { printf 'NCNN bin file is missing or empty: %s\n' "$3" >&2; exit 1; }
@@ -228,7 +284,7 @@ doctor() {
   if [[ -x "$ENGINE" ]]; then
     require_engine
     printf '\nEngine probe:\n'
-    "$ENGINE" -h 2>&1 | sed -n '1,25p'
+    "$ENGINE" -h 2>&1 | sed -n '1,25p' || true
   fi
 }
 
@@ -260,7 +316,9 @@ audition() {
   if [[ $# -gt 0 ]]; then
     models=("$@")
   else
-    mapfile -t models < <(list_models)
+    while IFS= read -r line; do
+      [[ -n "$line" ]] && models+=("$line")
+    done < <(list_models)
   fi
   [[ ${#models[@]} -gt 0 ]] || {
     printf 'No usable models are installed.\n' >&2
@@ -346,22 +404,60 @@ case "$command" in
     model_add "$2" "$3" "$4" "${5:-}"
     ;;
   upscale)
-    [[ $# -eq 3 || $# -eq 5 ]] || { usage >&2; exit 2; }
-    model="$(parse_model_option "${@:4}")"
-    run_upscale "$(realpath "$2")" "$(realpath -m "$3")" "$model"
+    [[ $# -ge 3 ]] || { usage >&2; exit 2; }
+    input_file="$2"
+    output_file="$3"
+    is_tiled=false
+    model="$DEFAULT_MODEL"
+    shift 3 || true
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --model) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; model="$(normalize_model_name "$2")"; shift 2 ;;
+        --tiled) is_tiled=true; shift ;;
+        *) usage >&2; exit 2 ;;
+      esac
+    done
+    if [[ "$is_tiled" == true ]]; then
+      py="$(resolve_python)"
+      "$py" "$repo_root/scripts/tiled-upscale.py" "$(canonical_path "$input_file")" "$(canonical_path "$output_file")" --model "$model"
+    else
+      run_upscale "$(canonical_path "$input_file")" "$(canonical_path "$output_file")" "$model"
+    fi
     ;;
   batch)
     [[ $# -eq 3 || $# -eq 5 ]] || { usage >&2; exit 2; }
     [[ -d "$2" ]] || { printf 'Input directory not found: %s\n' "$2" >&2; exit 1; }
     model="$(parse_model_option "${@:4}")"
-    run_upscale "$(realpath "$2")" "$(realpath -m "$3")" "$model"
+    run_upscale "$(canonical_path "$2")" "$(canonical_path "$3")" "$model"
     ;;
   audition)
     [[ $# -ge 3 ]] || { usage >&2; exit 2; }
-    input="$(realpath "$2")"
-    output_dir="$(realpath -m "$3")"
+    input="$(canonical_path "$2")"
+    output_dir="$(canonical_path "$3")"
     shift 3
     audition "$input" "$output_dir" "$@"
+    ;;
+  evaluate)
+    [[ $# -eq 2 ]] || { usage >&2; exit 2; }
+    py="$(resolve_python)"
+    eval_script="$repo_root/scripts/evaluate-fidelity-metrics.py"
+    [[ -f "$eval_script" ]] || { printf 'Metrics evaluator not found: %s\n' "$eval_script" >&2; exit 1; }
+    "$py" "$eval_script" "$2"
+    ;;
+  report)
+    [[ $# -ge 2 ]] || { usage >&2; exit 2; }
+    py="$(resolve_python)"
+    report_script="$repo_root/scripts/generate-audition-report.py"
+    [[ -f "$report_script" ]] || { printf 'Report generator not found: %s\n' "$report_script" >&2; exit 1; }
+    shift
+    "$py" "$report_script" "$@"
+    ;;
+  eval-crops)
+    py="$(resolve_python)"
+    fetch_script="$repo_root/scripts/fetch-eval-crops.py"
+    [[ -f "$fetch_script" ]] || { printf 'Crops generator not found: %s\n' "$fetch_script" >&2; exit 1; }
+    shift
+    "$py" "$fetch_script" "$@"
     ;;
   -h|--help|help|'') usage ;;
   *) printf 'Unknown command: %s\n' "$command" >&2; usage >&2; exit 2 ;;

@@ -1,4 +1,6 @@
 .fidelis/
+.venv/
+dist/
 runtime/
 models/
 *.apk
@@ -8,4 +10,8 @@ models/
 *.jpeg
 *.webp
 !tests/fixtures/.gitkeep
+!tests/fixtures/*.png
+!experiments/eval_crops/*.png
+experiments/eval_crops/audition_*/
+*.html
 
