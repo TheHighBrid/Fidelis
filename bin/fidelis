@@ -39,6 +39,7 @@ Usage:
   fidelis benchmark-macos [INPUT] [OUTPUT_DIR]
   fidelis report RESULTS_DIR [-o OUT_HTML]
   fidelis eval-crops [-d TARGET_DIR]
+  fidelis portrait INPUT OUTPUT [-w FIDELITY]
   fidelis ui [-p PORT]
 
 MODEL is the installed directory name without the leading "models-".
@@ -492,6 +493,19 @@ case "$command" in
     [[ -f "$fetch_script" ]] || { printf 'Crops generator not found: %s\n' "$fetch_script" >&2; exit 1; }
     shift
     "$py" "$fetch_script" "$@"
+    ;;
+  portrait)
+    [[ $# -ge 3 ]] || { usage >&2; exit 2; }
+    py="$(resolve_python)"
+    portrait_script="$repo_root/scripts/restore-portrait.py"
+    [[ -f "$portrait_script" ]] || { printf 'Portrait engine not found: %s\n' "$portrait_script" >&2; exit 1; }
+    shift
+    uv_bin="$(command -v uv 2>/dev/null || printf '%s' "$HOME/.local/bin/uv")"
+    if [[ -x "$uv_bin" ]]; then
+      exec "$uv_bin" run --python 3.12 --with onnxruntime --with opencv-python --with numpy python3 "$portrait_script" "$@"
+    else
+      exec "$py" "$portrait_script" "$@"
+    fi
     ;;
   ui)
     py="$(resolve_python)"

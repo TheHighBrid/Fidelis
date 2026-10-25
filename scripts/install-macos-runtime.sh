@@ -68,7 +68,7 @@ cat > "$RUNTIME/realsr-ncnn" <<'WRAPPER'
 set -Eeuo pipefail
 
 runtime_dir="$(cd "$(dirname "$0")" && pwd)"
-input="" output="" model="" scale=4 tile=256 extra=()
+input="" output="" model="" scale=4 tile=0 extra=()
 
 while [[ $# -gt 0 ]]; do
   case "$1" in

@@ -34,6 +34,9 @@ echo "$html_out" | grep -Fq "mode-single-btn"
 echo "$html_out" | grep -Fq "mode-dual-btn"
 echo "$html_out" | grep -Fq "model-a-select"
 echo "$html_out" | grep -Fq "model-b-select"
+echo "$html_out" | grep -Fq "portrait-check"
+echo "$html_out" | grep -Fq "fidelity-slider"
+echo "$html_out" | grep -Fq "user_test_blonde.png"
 
 # Test models API
 models_json="$(curl -s "http://127.0.0.1:$port/api/models")"

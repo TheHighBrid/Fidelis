@@ -325,6 +325,8 @@ HTML_PAGE = r"""<!DOCTYPE html>
       
       <div style="margin-top: 12px; font-size: 12px; color: var(--text-muted);">Or load standard evaluation crop:</div>
       <div class="sample-btns">
+        <button class="btn" onclick="loadSample('user_test_blonde.png')">Blonde Portrait (1022x1024)</button>
+        <button class="btn" onclick="loadSample('user_test_darkhair.png')">Dark Hair Portrait (1024x1024)</button>
         <button class="btn" onclick="loadSample('portrait_skin_real.png')">Portrait Skin Crop (150x150)</button>
         <button class="btn" onclick="loadSample('fashion_fabric_real.png')">Fashion Fabric Weave (200x200)</button>
         <button class="btn" onclick="loadSample('product_edges_real.png')">Product Metal Hardware (250x250)</button>
@@ -350,7 +352,23 @@ HTML_PAGE = r"""<!DOCTYPE html>
         <select id="model-b-select"></select>
       </div>
 
-      <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; margin-top: 8px;">
+      <div style="margin-top: 12px; padding: 10px; background: rgba(88, 166, 255, 0.08); border: 1px solid rgba(88, 166, 255, 0.25); border-radius: 6px;">
+        <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; cursor: pointer; color: #58a6ff;">
+          <input type="checkbox" id="portrait-check" checked onchange="togglePortraitOpts()"> Portrait Pore Engine (Anti-Dollification)
+        </label>
+        <div id="portrait-opts" style="margin-top: 8px;">
+          <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">
+            <span>Pore Texture vs Identity Fidelity (w):</span>
+            <strong id="fidelity-val" style="color: var(--text);">0.70</strong>
+          </div>
+          <input type="range" id="fidelity-slider" min="0.30" max="0.95" step="0.05" value="0.70" style="width: 100%; cursor: pointer;" oninput="document.getElementById('fidelity-val').textContent = parseFloat(this.value).toFixed(2)">
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 4px; line-height: 1.3;">
+            0.40: Maximum pore/lash synthesis | <strong>0.70: Balanced (Zero dollification)</strong> | 0.90: Max source likeness
+          </div>
+        </div>
+      </div>
+
+      <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; margin-top: 10px;">
         <input type="checkbox" id="tiled-check"> Enable Seamless Tiled Upscaling
       </label>
       <div id="tile-opts" style="display:none; margin-top: 8px;">
@@ -505,13 +523,24 @@ function showSourcePreview(b64) {
   setSplitPosition(50);
 }
 
+function togglePortraitOpts() {
+  const chk = document.getElementById('portrait-check');
+  const opts = document.getElementById('portrait-opts');
+  if (opts) opts.style.display = chk.checked ? 'block' : 'none';
+}
+
 function runUpscale() {
   if (!currentSourceData) return alert('Please load an image first.');
   const model = document.getElementById('model-select').value;
   const tiled = document.getElementById('tiled-check').checked;
   const tileSize = document.getElementById('tile-size').value;
+  const portrait = document.getElementById('portrait-check').checked;
+  const fidelity = parseFloat(document.getElementById('fidelity-slider').value);
 
-  showLoading(true, `Upscaling 4x via ${model}...`);
+  const loadText = portrait
+    ? `Restoring natural skin pores & facial fidelity (w=${fidelity.toFixed(2)})...`
+    : `Upscaling 4x via ${model}...`;
+  showLoading(true, loadText);
   fetch('/api/upscale', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -519,13 +548,16 @@ function runUpscale() {
       image: currentSourceData,
       model: model,
       tiled: tiled,
-      tile_size: parseInt(tileSize)
+      tile_size: parseInt(tileSize),
+      portrait: portrait,
+      fidelity: fidelity
     })
   }).then(r => r.json()).then(data => {
     showLoading(false);
     if (data.error) return alert('Upscale failed: ' + data.error);
 
-    document.getElementById('view-title').innerHTML = `Split Comparison: <strong>Source vs ${model}</strong>`;
+    const titlePrefix = portrait ? 'Portrait Pore Engine' : model;
+    document.getElementById('view-title').innerHTML = `Split Comparison: <strong>Source vs ${titlePrefix}</strong>`;
     document.getElementById('badge-left').style.display = 'none';
     document.getElementById('badge-right').style.display = 'none';
 
@@ -536,7 +568,7 @@ function runUpscale() {
 
     // Update metrics & drift HUD
     document.getElementById('metrics-bar').style.display = 'flex';
-    document.getElementById('m-model').textContent = model;
+    document.getElementById('m-model').textContent = portrait ? `${model} + CodeFormer(w=${fidelity.toFixed(2)})` : model;
     document.getElementById('m-time').textContent = data.elapsed_ms + ' ms';
     if (data.metrics) {
       document.getElementById('m-ssim').textContent = data.metrics.ssim ?? '-';
@@ -564,8 +596,13 @@ function runCompare() {
   const modelB = document.getElementById('model-b-select').value;
   const tiled = document.getElementById('tiled-check').checked;
   const tileSize = document.getElementById('tile-size').value;
+  const portrait = document.getElementById('portrait-check').checked;
+  const fidelity = parseFloat(document.getElementById('fidelity-slider').value);
 
-  showLoading(true, `Comparing ${modelA} vs ${modelB}...`);
+  const loadText = portrait
+    ? `Comparing ${modelA} vs ${modelB} with pore restoration...`
+    : `Comparing ${modelA} vs ${modelB}...`;
+  showLoading(true, loadText);
   fetch('/api/compare', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -574,7 +611,9 @@ function runCompare() {
       model_a: modelA,
       model_b: modelB,
       tiled: tiled,
-      tile_size: parseInt(tileSize)
+      tile_size: parseInt(tileSize),
+      portrait: portrait,
+      fidelity: fidelity
     })
   }).then(r => r.json()).then(data => {
     showLoading(false);
@@ -691,6 +730,38 @@ function setZoom(mode) {
 </html>
 """
 
+def execute_restoration(cli, in_p, out_p, model, tiled=False, tile_size=256, portrait=False, fidelity=0.70):
+    t0 = time.time()
+    with tempfile.TemporaryDirectory(prefix="fidelis_step_") as step_tmp:
+        curr_in = in_p
+        with Image.open(in_p) as im:
+            w, h = im.size
+
+        needs_sr = (w < 512 or h < 512) or (not portrait)
+
+        if needs_sr:
+            up_target = Path(step_tmp) / "upscaled.png" if portrait else out_p
+            if tiled:
+                cmd = [
+                    sys.executable,
+                    str(REPO_ROOT / "scripts/tiled-upscale.py"),
+                    str(curr_in),
+                    str(up_target),
+                    "-m", model,
+                    "-t", str(tile_size)
+                ]
+            else:
+                cmd = [cli, "upscale", str(curr_in), str(up_target), "--model", model]
+            subprocess.check_call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            curr_in = up_target
+
+        if portrait:
+            port_cmd = [cli, "portrait", str(curr_in), str(out_p), "-w", str(fidelity)]
+            subprocess.check_call(port_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    return int((time.time() - t0) * 1000)
+
+
 class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         pass  # Quiet logs
@@ -748,28 +819,18 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
             model = data.get("model", "RealeSR-general-v3")
             tiled = data.get("tiled", False)
             tile_size = data.get("tile_size", 256)
+            portrait = data.get("portrait", False)
+            fidelity = float(data.get("fidelity", 0.70))
 
             with tempfile.TemporaryDirectory(prefix="fidelis_web_") as tmp:
                 in_p = Path(tmp) / "input.png"
                 out_p = Path(tmp) / "output.png"
                 in_p.write_bytes(base64.b64decode(raw_b64))
 
-                start = time.time()
                 cli = shutil.which("fidelis") or str(REPO_ROOT / "bin/fidelis")
-                if tiled:
-                    cmd = [
-                        sys.executable,
-                        str(REPO_ROOT / "scripts/tiled-upscale.py"),
-                        str(in_p),
-                        str(out_p),
-                        "-m", model,
-                        "-t", str(tile_size)
-                    ]
-                else:
-                    cmd = [cli, "upscale", str(in_p), str(out_p), "--model", model]
-
-                subprocess.check_call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                elapsed_ms = int((time.time() - start) * 1000)
+                elapsed_ms = execute_restoration(
+                    cli, in_p, out_p, model, tiled=tiled, tile_size=tile_size, portrait=portrait, fidelity=fidelity
+                )
 
                 metrics = {}
                 drift = {}
@@ -803,6 +864,8 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
             model_b = data.get("model_b", "DF2K")
             tiled = data.get("tiled", False)
             tile_size = data.get("tile_size", 256)
+            portrait = data.get("portrait", False)
+            fidelity = float(data.get("fidelity", 0.70))
 
             with tempfile.TemporaryDirectory(prefix="fidelis_cmp_") as tmp:
                 in_p = Path(tmp) / "input.png"
@@ -811,25 +874,12 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
                 in_p.write_bytes(base64.b64decode(raw_b64))
 
                 cli = shutil.which("fidelis") or str(REPO_ROOT / "bin/fidelis")
-
-                def run_one(m, target_out):
-                    t0 = time.time()
-                    if tiled:
-                        cmd = [
-                            sys.executable,
-                            str(REPO_ROOT / "scripts/tiled-upscale.py"),
-                            str(in_p),
-                            str(target_out),
-                            "-m", m,
-                            "-t", str(tile_size)
-                        ]
-                    else:
-                        cmd = [cli, "upscale", str(in_p), str(target_out), "--model", m]
-                    subprocess.check_call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                    return int((time.time() - t0) * 1000)
-
-                elapsed_a = run_one(model_a, out_a)
-                elapsed_b = run_one(model_b, out_b)
+                elapsed_a = execute_restoration(
+                    cli, in_p, out_a, model_a, tiled=tiled, tile_size=tile_size, portrait=portrait, fidelity=fidelity
+                )
+                elapsed_b = execute_restoration(
+                    cli, in_p, out_b, model_b, tiled=tiled, tile_size=tile_size, portrait=portrait, fidelity=fidelity
+                )
 
                 metrics_a, drift_a = {}, {}
                 metrics_b, drift_b = {}, {}
