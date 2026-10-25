@@ -2,9 +2,14 @@
 set -Eeuo pipefail
 
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
-version="3.0.0"
+version="${1:-${VERSION:-3.0.0}}"
+version="${version#v}" # Strip leading v if present
 dist_dir="$repo_root/dist"
 mkdir -p "$dist_dir"
+
+if ! command -v sha256sum >/dev/null 2>&1 && command -v shasum >/dev/null 2>&1; then
+  sha256sum() { shasum -a 256 "$@"; }
+fi
 
 printf 'Packaging Fidelis v%s release...\n' "$version"
 

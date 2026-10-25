@@ -30,7 +30,7 @@ from PIL import Image
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
-# Import metric evaluator if available
+# Import metric evaluator and drift detector if available
 try:
     sys.path.insert(0, str(REPO_ROOT / "scripts"))
     import importlib.util
@@ -40,6 +40,14 @@ try:
     HAS_METRICS = True
 except Exception:
     HAS_METRICS = False
+
+try:
+    spec_drift = importlib.util.spec_from_file_location("detect_drift", str(REPO_ROOT / "scripts/detect-drift.py"))
+    detect_drift = importlib.util.module_from_spec(spec_drift)
+    spec_drift.loader.exec_module(detect_drift)
+    HAS_DRIFT = True
+except Exception:
+    HAS_DRIFT = False
 
 def get_installed_models():
     cli = shutil.which("fidelis") or str(REPO_ROOT / "bin/fidelis")
@@ -261,7 +269,19 @@ HTML_PAGE = r"""<!DOCTYPE html>
     background: var(--card-alt);
     padding: 4px 10px;
     border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
   }
+  .status-pill {
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .status-pass { background: #238636; color: #fff; }
+  .status-warn { background: #d29922; color: #000; }
+  .status-fail { background: #da3633; color: #fff; }
   .loading-overlay {
     position: absolute;
     top:0; left:0; right:0; bottom:0;
@@ -370,6 +390,9 @@ HTML_PAGE = r"""<!DOCTYPE html>
     <div class="metrics-box" id="metrics-bar" style="display:none;">
       <div class="metric-item">Model: <strong id="m-model">-</strong></div>
       <div class="metric-item">Time: <strong id="m-time">-</strong></div>
+      <div class="metric-item">Rule #1: <span id="m-drift-status" class="status-pill status-pass">-</span></div>
+      <div class="metric-item">Coherence: <strong id="m-coherence">-</strong></div>
+      <div class="metric-item">Edge Shift: <strong id="m-shift">-</strong></div>
       <div class="metric-item">SSIM: <strong id="m-ssim" style="color:var(--success)">-</strong></div>
       <div class="metric-item">PSNR: <strong id="m-psnr">-</strong></div>
       <div class="metric-item">Color Drift: <strong id="m-drift">-</strong></div>
@@ -465,7 +488,7 @@ function runUpscale() {
     document.getElementById('btn-download').style.display = 'inline-block';
     setSplitPosition(50);
 
-    // Update metrics
+    // Update metrics & drift HUD
     document.getElementById('metrics-bar').style.display = 'flex';
     document.getElementById('m-model').textContent = model;
     document.getElementById('m-time').textContent = data.elapsed_ms + ' ms';
@@ -474,6 +497,14 @@ function runUpscale() {
       document.getElementById('m-psnr').textContent = (data.metrics.psnr_db ?? '-') + ' dB';
       document.getElementById('m-drift').textContent = data.metrics.color_drift ?? '-';
       document.getElementById('m-bg').textContent = data.metrics.bg_noise_restraint ?? '-';
+    }
+    if (data.drift) {
+      const ds = document.getElementById('m-drift-status');
+      const st = data.drift.status || 'UNKNOWN';
+      ds.textContent = st;
+      ds.className = 'status-pill ' + (st.includes('PASS') ? 'status-pass' : (st.includes('WARN') ? 'status-warn' : 'status-fail'));
+      document.getElementById('m-coherence').textContent = (data.drift.gradient_coherence_pct != null ? data.drift.gradient_coherence_pct + '%' : '-');
+      document.getElementById('m-shift').textContent = (data.drift.mean_edge_shift_px != null ? data.drift.mean_edge_shift_px + ' px' : '-');
     }
   }).catch(err => {
     showLoading(false);
@@ -621,19 +652,24 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
                 elapsed_ms = int((time.time() - start) * 1000)
 
                 metrics = {}
-                if HAS_METRICS and out_p.is_file():
+                drift = {}
+                if out_p.is_file():
                     try:
                         with Image.open(in_p) as sim, Image.open(out_p) as oim:
-                            metrics = eval_metrics.evaluate_pair(sim, oim)
+                            if HAS_METRICS:
+                                metrics = eval_metrics.evaluate_pair(sim, oim)
+                            if HAS_DRIFT:
+                                drift = detect_drift.compute_drift(sim, oim)
                     except Exception as e:
-                        print("Metric error:", e)
+                        print("Fidelity analysis error:", e)
 
                 out_b64 = "data:image/png;base64," + base64.b64encode(out_p.read_bytes()).decode("ascii")
 
                 resp = {
                     "output_image": out_b64,
                     "elapsed_ms": elapsed_ms,
-                    "metrics": metrics
+                    "metrics": metrics,
+                    "drift": drift
                 }
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")

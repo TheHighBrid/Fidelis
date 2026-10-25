@@ -104,15 +104,42 @@ fidelis doctor
 fidelis models
 fidelis model-add PhotoCandidate ./candidate.param ./candidate.bin
 fidelis model-info PhotoCandidate
-fidelis upscale input.jpg output.png
-fidelis upscale input.jpg output.png --model PhotoCandidate
+fidelis upscale input.jpg output.png [--model PhotoCandidate]
+fidelis upscale input.jpg output.png --tiled
 fidelis batch ./input ./output --model PhotoCandidate
-fidelis audition input.jpg ./audition
-fidelis audition input.jpg ./audition PhotoCandidateA PhotoCandidateB
+fidelis audition input.jpg ./audition [MODEL ...]
+fidelis batch-audition ./photos ./lookbook [MODEL ...]
+fidelis detect-drift ./audition [--strict]
 fidelis evaluate ./audition
 fidelis report ./audition -o ./audition/report.html
 fidelis eval-crops
+fidelis ui [-p 8765]
 ```
+
+### Studio Web UI (`fidelis ui`)
+Launch the zero-dependency browser studio running locally on `http://127.0.0.1:8765`:
+- **Drag-and-drop upload** for any JPEG, PNG, or WebP photo.
+- **Interactive before/after split slider** with real-time responsive dragging.
+- **100% and 200% native pixel zoom** for inspecting skin pores, fabric weave, and fine edge roll-off.
+- **Quality Inspection HUD**: Real-time evaluation of SSIM, PSNR, color drift, background restraint, edge shift, gradient coherence, and the **Fidelis Rule #1 drift badge** (`PASS (STABLE)`).
+
+### Batch Audition & Lookbook Generation (`fidelis batch-audition`)
+Audit entire collections or multi-shot shoots:
+- Automatically audits each photograph in an input folder across all installed or shortlisted models.
+- Generates standalone output PNGs and manifest provenance for each shot.
+- Compiles an interactive, self-contained `lookbook.html` master portfolio with cross-class aggregate scores and side-by-side model switchers.
+
+### Geometric & Identity Drift Detector (`fidelis detect-drift`)
+Enforces Fidelis Quality Rule #1 mathematically:
+- **Gradient Direction Coherence**: Verifies edge tangents preserve authentic source orientation rather than inventing new contours.
+- **Structural Displacement**: Computes mean and 98th-percentile edge shifts (in native pixels) via Euclidean distance transforms.
+- **Hallucinated Edge Percentage**: Identifies artificial high-frequency textures generated in flat source regions.
+- **Fail-Closed Gate**: The `--strict` flag fails non-zero on any model exhibiting identity shift or geometric deformation.
+
+### Seamless Tiled Upscaling (`--tiled`)
+Upscale high-resolution images of arbitrary dimensions without GPU memory limits:
+- Automatically divides the image into overlapping tiles (configurable tile size, default 256px, 32px overlap).
+- Blends overlapping tile seams using a **2D smooth cosine window function** (\(w(x) = \sin^2(\frac{\pi x}{2})\)), eliminating tile grid boundaries and edge artifacts.
 
 `fidelis models` prints usable installed model names. The default stays `ESRGAN-Nomos8kSC` for backwards compatibility, but it can be overridden per command with `--model` or for a session with `FIDELIS_MODEL=<name>`.
 
@@ -179,6 +206,11 @@ bash tests/smoke-test.sh
 bash tests/test-cli-model-selection.sh
 bash tests/test-photo-candidate-installer.sh
 bash tests/test-photo-candidate-benchmark.sh
+bash tests/test-audition-report.sh
+bash tests/test-batch-audition.sh
+bash tests/test-fidelity-metrics.sh
+bash tests/test-detect-drift.sh
+bash tests/test-web-ui.sh
 bash tests/test-vosr-sweep.sh
 ```
 

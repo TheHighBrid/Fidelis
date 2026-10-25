@@ -1,0 +1,64 @@
+name: Release Fidelis
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag name (e.g. v3.0.0)'
+        required: true
+        default: 'v3.0.0'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Package Release Archives
+        run: |
+          TAG="${{ github.event.inputs.tag_name || github.ref_name }}"
+          bash scripts/package-release.sh "$TAG"
+
+      - name: Extract Release Notes from CHANGELOG
+        id: notes
+        run: |
+          TAG="${{ github.event.inputs.tag_name || github.ref_name }}"
+          VERSION="${TAG#v}"
+          # Extract section from CHANGELOG.md between [VERSION] and next [
+          python3 -c "
+          import re
+          from pathlib import Path
+          content = Path('CHANGELOG.md').read_text()
+          m = re.search(r'## \[${VERSION}\].*?(?=\n## \[|\Z)', content, re.DOTALL)
+          if m:
+              Path('release_notes.md').write_text(m.group(0).strip() + '\n')
+          else:
+              Path('release_notes.md').write_text('Fidelis Release ' + '${TAG}' + '\n')
+          "
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: release_notes.md
+          files: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/*.sha256
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
