@@ -36,6 +36,21 @@ VOSR documents approximately `-0.5` to `2.0` as a useful `cfg_scale` range and t
 
 ## Run
 
+### Option A: Google Colab (Recommended, Free T4 GPU)
+
+Open the canonical notebook directly in Google Colab:
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/TheHighBrid/Fidelis/blob/main/notebooks/Fidelis_VOSR_MultiStep_Sweep_Colab.ipynb)
+
+1. Connect to a GPU runtime (**Runtime > Change runtime type > T4 GPU**).
+2. Run **Cell 1** to set up the official Python 3.11 environment.
+3. Run **Cell 2** and upload your test image (e.g. from `experiments/eval_crops/portrait_skin_real.png`).
+4. Run **Cell 3** to fetch the pinned VOSR 1.4B checkpoint.
+5. Run **Cell 4** to execute all three profiles. This automatically generates `report.html` and downloads `vosr-fidelity-results.zip`.
+6. Unzip locally and open `report.html` to inspect side-by-side with 100%/200% zoom.
+
+### Option B: Local Linux / CUDA GPU
+
 From a Linux/CUDA environment containing the official `cswry/VOSR` checkout and the `VOSR_1.4B_ms` checkpoint:
 
 ```bash
