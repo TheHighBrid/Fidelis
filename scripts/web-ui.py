@@ -332,11 +332,25 @@ HTML_PAGE = r"""<!DOCTYPE html>
     </div>
 
     <div class="panel">
-      <h3>2. Model & Settings</h3>
-      <label style="font-size: 12px; color: var(--text-muted);">Restoration Candidate:</label>
-      <select id="model-select"></select>
+      <h3>2. Mode & Settings</h3>
+      <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+        <button id="mode-single-btn" class="tool-btn active" style="flex: 1; text-align: center; padding: 6px;" onclick="setCompareMode('single')">Source vs Model</button>
+        <button id="mode-dual-btn" class="tool-btn" style="flex: 1; text-align: center; padding: 6px;" onclick="setCompareMode('dual')">Model vs Model</button>
+      </div>
 
-      <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; margin-top: 6px;">
+      <div id="single-model-box">
+        <label style="font-size: 12px; color: var(--text-muted);">Restoration Candidate:</label>
+        <select id="model-select"></select>
+      </div>
+
+      <div id="dual-model-box" style="display:none;">
+        <label style="font-size: 12px; color: var(--text-muted);">Model A (Left):</label>
+        <select id="model-a-select"></select>
+        <label style="font-size: 12px; color: var(--text-muted); margin-top: 6px; display: block;">Model B (Right):</label>
+        <select id="model-b-select"></select>
+      </div>
+
+      <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; margin-top: 8px;">
         <input type="checkbox" id="tiled-check"> Enable Seamless Tiled Upscaling
       </label>
       <div id="tile-opts" style="display:none; margin-top: 8px;">
@@ -344,7 +358,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
         <input type="number" id="tile-size" value="256" min="64" max="1024" step="64">
       </div>
 
-      <button class="btn btn-primary" id="btn-upscale" style="width: 100%; margin-top: 14px;" onclick="runUpscale()">
+      <button class="btn btn-primary" id="btn-run" style="width: 100%; margin-top: 14px;" onclick="runAction()">
         Upscale 4x
       </button>
       <button class="btn" id="btn-audition" style="width: 100%; margin-top: 8px; text-align: center;" onclick="runAudition()">
@@ -355,8 +369,10 @@ HTML_PAGE = r"""<!DOCTYPE html>
 
   <div class="viewer-panel">
     <div class="viewer-toolbar">
-      <div style="font-size: 13px;">
+      <div style="font-size: 13px; display: flex; align-items: center; gap: 8px;">
         <span id="view-title">Split Comparison: <strong>Source vs Upscaled</strong></span>
+        <span id="badge-left" class="badge" style="background:#21262d; border:1px solid var(--border); font-size:11px; display:none;">Left: Source</span>
+        <span id="badge-right" class="badge" style="background:#21262d; border:1px solid var(--border); font-size:11px; display:none;">Right: Output</span>
       </div>
       <div style="display: flex; gap: 6px;">
         <button class="tool-btn active" onclick="setZoom('fit')">Fit</button>
@@ -405,6 +421,26 @@ HTML_PAGE = r"""<!DOCTYPE html>
 let currentSourceData = null;
 let currentSourceFile = null;
 let isDraggingSlider = false;
+let currentCompareMode = 'single';
+
+function setCompareMode(mode) {
+  currentCompareMode = mode;
+  document.getElementById('mode-single-btn').classList.toggle('active', mode === 'single');
+  document.getElementById('mode-dual-btn').classList.toggle('active', mode === 'dual');
+  document.getElementById('single-model-box').style.display = mode === 'single' ? 'block' : 'none';
+  document.getElementById('dual-model-box').style.display = mode === 'dual' ? 'block' : 'none';
+  document.getElementById('btn-run').textContent = mode === 'single' ? 'Upscale 4x' : 'Compare Models 4x (A vs B)';
+  document.getElementById('badge-left').style.display = mode === 'dual' ? 'inline-block' : 'none';
+  document.getElementById('badge-right').style.display = mode === 'dual' ? 'inline-block' : 'none';
+}
+
+function runAction() {
+  if (currentCompareMode === 'single') {
+    runUpscale();
+  } else {
+    runCompare();
+  }
+}
 
 document.getElementById('tiled-check').addEventListener('change', e => {
   document.getElementById('tile-opts').style.display = e.target.checked ? 'block' : 'none';
@@ -412,13 +448,19 @@ document.getElementById('tiled-check').addEventListener('change', e => {
 
 // Setup models
 fetch('/api/models').then(r => r.json()).then(models => {
-  const sel = document.getElementById('model-select');
-  models.forEach(m => {
-    const opt = document.createElement('option');
-    opt.value = m;
-    opt.textContent = m + (m === 'RealeSR-general-v3' ? ' (Promoted Target)' : '');
-    sel.appendChild(opt);
+  ['model-select', 'model-a-select', 'model-b-select'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    sel.innerHTML = '';
+    models.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m;
+      opt.textContent = m + (m === 'RealeSR-general-v3' ? ' (Promoted Target)' : '');
+      sel.appendChild(opt);
+    });
   });
+  const selB = document.getElementById('model-b-select');
+  if (selB && selB.options.length > 1) selB.selectedIndex = 1;
 });
 
 // Drag and drop
@@ -483,6 +525,10 @@ function runUpscale() {
     showLoading(false);
     if (data.error) return alert('Upscale failed: ' + data.error);
 
+    document.getElementById('view-title').innerHTML = `Split Comparison: <strong>Source vs ${model}</strong>`;
+    document.getElementById('badge-left').style.display = 'none';
+    document.getElementById('badge-right').style.display = 'none';
+
     document.getElementById('img-after').src = data.output_image;
     document.getElementById('btn-download').href = data.output_image;
     document.getElementById('btn-download').style.display = 'inline-block';
@@ -509,6 +555,80 @@ function runUpscale() {
   }).catch(err => {
     showLoading(false);
     alert('Error: ' + err);
+  });
+}
+
+function runCompare() {
+  if (!currentSourceData) return alert('Please load an image first.');
+  const modelA = document.getElementById('model-a-select').value;
+  const modelB = document.getElementById('model-b-select').value;
+  const tiled = document.getElementById('tiled-check').checked;
+  const tileSize = document.getElementById('tile-size').value;
+
+  showLoading(true, `Comparing ${modelA} vs ${modelB}...`);
+  fetch('/api/compare', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      image: currentSourceData,
+      model_a: modelA,
+      model_b: modelB,
+      tiled: tiled,
+      tile_size: parseInt(tileSize)
+    })
+  }).then(r => r.json()).then(data => {
+    showLoading(false);
+    if (data.error) return alert('Comparison failed: ' + data.error);
+
+    document.getElementById('img-before').src = data.output_a;
+    document.getElementById('img-after').src = data.output_b;
+    document.getElementById('btn-download').href = data.output_a;
+    document.getElementById('btn-download').style.display = 'inline-block';
+    setSplitPosition(50);
+
+    document.getElementById('view-title').innerHTML = `Split: <strong>${data.model_a} (Left) vs ${data.model_b} (Right)</strong>`;
+    document.getElementById('badge-left').textContent = `Left: ${data.model_a}`;
+    document.getElementById('badge-right').textContent = `Right: ${data.model_b}`;
+    document.getElementById('badge-left').style.display = 'inline-block';
+    document.getElementById('badge-right').style.display = 'inline-block';
+
+    // Update metrics HUD
+    document.getElementById('metrics-bar').style.display = 'flex';
+    document.getElementById('m-model').textContent = `${data.model_a} vs ${data.model_b}`;
+    document.getElementById('m-time').textContent = `${data.elapsed_ms_a}ms / ${data.elapsed_ms_b}ms`;
+
+    const stA = data.drift_a?.status || 'UNKNOWN';
+    const stB = data.drift_b?.status || 'UNKNOWN';
+    const ds = document.getElementById('m-drift-status');
+    ds.textContent = `A:${stA.split(' ')[0]} | B:${stB.split(' ')[0]}`;
+    ds.className = 'status-pill ' + (stA.includes('PASS') && stB.includes('PASS') ? 'status-pass' : (stA.includes('FAIL') || stB.includes('FAIL') ? 'status-fail' : 'status-warn'));
+
+    const cohA = data.drift_a?.gradient_coherence_pct != null ? data.drift_a.gradient_coherence_pct + '%' : '-';
+    const cohB = data.drift_b?.gradient_coherence_pct != null ? data.drift_b.gradient_coherence_pct + '%' : '-';
+    document.getElementById('m-coherence').textContent = `${cohA} / ${cohB}`;
+
+    const sA = data.drift_a?.mean_edge_shift_px != null ? data.drift_a.mean_edge_shift_px + 'px' : '-';
+    const sB = data.drift_b?.mean_edge_shift_px != null ? data.drift_b.mean_edge_shift_px + 'px' : '-';
+    document.getElementById('m-shift').textContent = `${sA} / ${sB}`;
+
+    const ssimA = data.metrics_a?.ssim ?? '-';
+    const ssimB = data.metrics_b?.ssim ?? '-';
+    document.getElementById('m-ssim').textContent = `${ssimA} / ${ssimB}`;
+
+    const psnrA = data.metrics_a?.psnr_db ?? '-';
+    const psnrB = data.metrics_b?.psnr_db ?? '-';
+    document.getElementById('m-psnr').textContent = `${psnrA} / ${psnrB} dB`;
+
+    const drA = data.metrics_a?.color_drift ?? '-';
+    const drB = data.metrics_b?.color_drift ?? '-';
+    document.getElementById('m-drift').textContent = `${drA} / ${drB}`;
+
+    const bgA = data.metrics_a?.bg_noise_restraint ?? '-';
+    const bgB = data.metrics_b?.bg_noise_restraint ?? '-';
+    document.getElementById('m-bg').textContent = `${bgA} / ${bgB}`;
+  }).catch(err => {
+    showLoading(false);
+    alert('Comparison error: ' + err);
   });
 }
 
@@ -670,6 +790,71 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
                     "elapsed_ms": elapsed_ms,
                     "metrics": metrics,
                     "drift": drift
+                }
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps(resp).encode("utf-8"))
+
+        elif url.path == "/api/compare":
+            data = json.loads(body.decode("utf-8"))
+            raw_b64 = data.get("image", "").split(",")[-1]
+            model_a = data.get("model_a", "RealeSR-general-v3")
+            model_b = data.get("model_b", "DF2K")
+            tiled = data.get("tiled", False)
+            tile_size = data.get("tile_size", 256)
+
+            with tempfile.TemporaryDirectory(prefix="fidelis_cmp_") as tmp:
+                in_p = Path(tmp) / "input.png"
+                out_a = Path(tmp) / "out_a.png"
+                out_b = Path(tmp) / "out_b.png"
+                in_p.write_bytes(base64.b64decode(raw_b64))
+
+                cli = shutil.which("fidelis") or str(REPO_ROOT / "bin/fidelis")
+
+                def run_one(m, target_out):
+                    t0 = time.time()
+                    if tiled:
+                        cmd = [
+                            sys.executable,
+                            str(REPO_ROOT / "scripts/tiled-upscale.py"),
+                            str(in_p),
+                            str(target_out),
+                            "-m", m,
+                            "-t", str(tile_size)
+                        ]
+                    else:
+                        cmd = [cli, "upscale", str(in_p), str(target_out), "--model", m]
+                    subprocess.check_call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    return int((time.time() - t0) * 1000)
+
+                elapsed_a = run_one(model_a, out_a)
+                elapsed_b = run_one(model_b, out_b)
+
+                metrics_a, drift_a = {}, {}
+                metrics_b, drift_b = {}, {}
+
+                with Image.open(in_p) as sim:
+                    if out_a.is_file():
+                        with Image.open(out_a) as oim:
+                            if HAS_METRICS: metrics_a = eval_metrics.evaluate_pair(sim, oim)
+                            if HAS_DRIFT: drift_a = detect_drift.compute_drift(sim, oim)
+                    if out_b.is_file():
+                        with Image.open(out_b) as oim:
+                            if HAS_METRICS: metrics_b = eval_metrics.evaluate_pair(sim, oim)
+                            if HAS_DRIFT: drift_b = detect_drift.compute_drift(sim, oim)
+
+                resp = {
+                    "output_a": "data:image/png;base64," + base64.b64encode(out_a.read_bytes()).decode("ascii"),
+                    "output_b": "data:image/png;base64," + base64.b64encode(out_b.read_bytes()).decode("ascii"),
+                    "model_a": model_a,
+                    "model_b": model_b,
+                    "elapsed_ms_a": elapsed_a,
+                    "elapsed_ms_b": elapsed_b,
+                    "metrics_a": metrics_a,
+                    "metrics_b": metrics_b,
+                    "drift_a": drift_a,
+                    "drift_b": drift_b
                 }
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")

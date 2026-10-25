@@ -110,6 +110,8 @@ fidelis batch ./input ./output --model PhotoCandidate
 fidelis audition input.jpg ./audition [MODEL ...]
 fidelis batch-audition ./photos ./lookbook [MODEL ...]
 fidelis detect-drift ./audition [--strict]
+fidelis heatmap source.jpg upscaled.png -o heatmap.png
+fidelis benchmark-macos [INPUT] [OUTPUT_DIR]
 fidelis evaluate ./audition
 fidelis report ./audition -o ./audition/report.html
 fidelis eval-crops
@@ -118,10 +120,24 @@ fidelis ui [-p 8765]
 
 ### Studio Web UI (`fidelis ui`)
 Launch the zero-dependency browser studio running locally on `http://127.0.0.1:8765`:
+- **Dual Comparison Modes**: Switch effortlessly between:
+  - `Source vs Model`: Direct 4x upscaled comparison against the original source.
+  - `Model vs Model`: Compare two models side-by-side (e.g. `RealeSR-general-v3` vs `DF2K`) with dual differential metrics.
 - **Drag-and-drop upload** for any JPEG, PNG, or WebP photo.
 - **Interactive before/after split slider** with real-time responsive dragging.
 - **100% and 200% native pixel zoom** for inspecting skin pores, fabric weave, and fine edge roll-off.
 - **Quality Inspection HUD**: Real-time evaluation of SSIM, PSNR, color drift, background restraint, edge shift, gradient coherence, and the **Fidelis Rule #1 drift badge** (`PASS (STABLE)`).
+
+### Visual Drift & Hallucination Heatmaps (`fidelis heatmap`)
+Generate false-color thermal heatmaps highlighting where a model modifies an image:
+- Combines pixel-level luminance deltas with Sobel edge frequency shifts.
+- Employs an overlay mode to pinpoint exactly which facial contours, seams, or textures were altered or hallucinated.
+
+### Apple Silicon Hardware Benchmark (`fidelis benchmark-macos`)
+Profile local inference throughput directly on macOS (Metal/Vulkan):
+- Measures wall-clock inference latency per model and throughput (Megapixels/sec).
+- Measures exact hardware peak resident memory footprint (RSS RAM in MB) via macOS system kernel counters.
+- Generates machine-readable `macos_benchmark.json` and a visual HTML audition report.
 
 ### Batch Audition & Lookbook Generation (`fidelis batch-audition`)
 Audit entire collections or multi-shot shoots:
@@ -211,6 +227,7 @@ bash tests/test-batch-audition.sh
 bash tests/test-fidelity-metrics.sh
 bash tests/test-detect-drift.sh
 bash tests/test-web-ui.sh
+bash tests/test-release-pipeline.sh
 bash tests/test-vosr-sweep.sh
 ```
 

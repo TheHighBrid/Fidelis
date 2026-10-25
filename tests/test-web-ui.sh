@@ -30,6 +30,10 @@ done
 # Test HTML root
 html_out="$(curl -s "http://127.0.0.1:$port/")"
 echo "$html_out" | grep -Fq "Fidelis Photographic Restoration Studio"
+echo "$html_out" | grep -Fq "mode-single-btn"
+echo "$html_out" | grep -Fq "mode-dual-btn"
+echo "$html_out" | grep -Fq "model-a-select"
+echo "$html_out" | grep -Fq "model-b-select"
 
 # Test models API
 models_json="$(curl -s "http://127.0.0.1:$port/api/models")"

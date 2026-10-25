@@ -35,6 +35,8 @@ Usage:
   fidelis batch-audition INPUT_DIR OUTPUT_DIR [MODEL ...]
   fidelis evaluate RESULTS_DIR
   fidelis detect-drift RESULTS_DIR [--strict]
+  fidelis heatmap SOURCE [UPSCALED] [-o OUT_PNG]
+  fidelis benchmark-macos [INPUT] [OUTPUT_DIR]
   fidelis report RESULTS_DIR [-o OUT_HTML]
   fidelis eval-crops [-d TARGET_DIR]
   fidelis ui [-p PORT]
@@ -461,6 +463,20 @@ case "$command" in
     [[ -f "$drift_script" ]] || { printf 'Drift detector not found: %s\n' "$drift_script" >&2; exit 1; }
     shift
     "$py" "$drift_script" "$@"
+    ;;
+  heatmap)
+    [[ $# -ge 2 ]] || { usage >&2; exit 2; }
+    py="$(resolve_python)"
+    heatmap_script="$repo_root/scripts/generate-delta-heatmap.py"
+    [[ -f "$heatmap_script" ]] || { printf 'Heatmap generator not found: %s\n' "$heatmap_script" >&2; exit 1; }
+    shift
+    "$py" "$heatmap_script" "$@"
+    ;;
+  benchmark-macos)
+    bench_script="$repo_root/scripts/macos-benchmark.sh"
+    [[ -f "$bench_script" ]] || { printf 'macOS benchmark script not found: %s\n' "$bench_script" >&2; exit 1; }
+    shift
+    exec bash "$bench_script" "$@"
     ;;
   report)
     [[ $# -ge 2 ]] || { usage >&2; exit 2; }
