@@ -15,6 +15,7 @@ bash -n "$repo_root/experiments/vosr-fidelity-sweep.sh"
 bash -n "$repo_root/tests/test-cli-model-selection.sh"
 bash -n "$repo_root/tests/test-fidelity-metrics.sh"
 bash -n "$repo_root/tests/test-audition-report.sh"
+bash -n "$repo_root/tests/test-web-ui.sh"
 bash -n "$repo_root/tests/test-vosr-sweep.sh"
 
 python3 -m json.tool "$repo_root/notebooks/Fidelis_VOSR_MultiStep_Sweep_Colab.ipynb" >/dev/null

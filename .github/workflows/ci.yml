@@ -46,5 +46,8 @@ jobs:
       - name: Fidelity metrics evaluation tests
         run: bash tests/test-fidelity-metrics.sh
 
+      - name: Web UI server integration tests
+        run: bash tests/test-web-ui.sh
+
       - name: VOSR sweep regression tests
         run: bash tests/test-vosr-sweep.sh

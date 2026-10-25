@@ -35,6 +35,7 @@ Usage:
   fidelis evaluate RESULTS_DIR
   fidelis report RESULTS_DIR [-o OUT_HTML]
   fidelis eval-crops [-d TARGET_DIR]
+  fidelis ui [-p PORT]
 
 MODEL is the installed directory name without the leading "models-".
 The current local engine contract is 4x NCNN RealSR/ESRGAN: x4.param + x4.bin.
@@ -458,6 +459,13 @@ case "$command" in
     [[ -f "$fetch_script" ]] || { printf 'Crops generator not found: %s\n' "$fetch_script" >&2; exit 1; }
     shift
     "$py" "$fetch_script" "$@"
+    ;;
+  ui)
+    py="$(resolve_python)"
+    ui_script="$repo_root/scripts/web-ui.py"
+    [[ -f "$ui_script" ]] || { printf 'Web UI script not found: %s\n' "$ui_script" >&2; exit 1; }
+    shift
+    exec "$py" "$ui_script" "$@"
     ;;
   -h|--help|help|'') usage ;;
   *) printf 'Unknown command: %s\n' "$command" >&2; usage >&2; exit 2 ;;
