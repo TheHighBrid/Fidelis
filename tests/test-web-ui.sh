@@ -29,18 +29,18 @@ done
 
 # Test HTML root
 html_out="$(curl -s "http://127.0.0.1:$port/")"
-echo "$html_out" | grep -Fq "Fidelis Photographic Restoration Studio"
-echo "$html_out" | grep -Fq "mode-single-btn"
-echo "$html_out" | grep -Fq "mode-dual-btn"
-echo "$html_out" | grep -Fq "model-a-select"
-echo "$html_out" | grep -Fq "model-b-select"
-echo "$html_out" | grep -Fq "portrait-check"
-echo "$html_out" | grep -Fq "fidelity-slider"
-echo "$html_out" | grep -Fq "user_test_blonde.png"
+[[ "$html_out" == *"Fidelis Photographic Restoration Studio"* ]]
+[[ "$html_out" == *"mode-single-btn"* ]]
+[[ "$html_out" == *"mode-dual-btn"* ]]
+[[ "$html_out" == *"model-a-select"* ]]
+[[ "$html_out" == *"model-b-select"* ]]
+[[ "$html_out" == *"portrait-check"* ]]
+[[ "$html_out" == *"fidelity-slider"* ]]
+[[ "$html_out" == *"user_test_blonde.png"* ]]
 
 # Test models API
 models_json="$(curl -s "http://127.0.0.1:$port/api/models")"
-echo "$models_json" | grep -Fq "RealeSR-general-v3"
+[[ "$models_json" == *"RealeSR-general-v3"* ]]
 
 kill "$server_pid" 2>/dev/null || true
 trap - EXIT
