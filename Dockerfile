@@ -50,8 +50,9 @@ RUN curl -L -s -o /root/.local/share/fidelis/models/portrait/yunet.onnx \
     https://github.com/harisreedhar/Face-Upscalers-ONNX/releases/download/Models/codeformer.onnx || true
 
 EXPOSE 8080
+EXPOSE 80
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -f http://127.0.0.1:8080/ || exit 1
 
-ENTRYPOINT ["python3", "scripts/web-ui.py", "-p", "8080"]
+ENTRYPOINT ["python3", "scripts/web-ui.py", "-b", "0.0.0.0", "-p", "8080"]

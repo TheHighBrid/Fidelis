@@ -49,22 +49,26 @@ if [[ "$MODE" == "local" ]]; then
     apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
   fi
 
-  # 2. Configure firewall for port 8080 (and standard web ports)
+  # 2. Configure firewall for port 8080 and 80 (standard HTTP)
   if command -v ufw >/dev/null 2>&1; then
     printf 'Opening firewall ports (80, 443, 8080)...\n'
     ufw allow 80/tcp || true
     ufw allow 443/tcp || true
     ufw allow 8080/tcp || true
+    ufw reload || true
   fi
 
   # 3. Build and launch container
   printf 'Building and launching Fidelis Studio container...\n'
+  docker compose down 2>/dev/null || true
   docker compose build
   docker compose up -d
 
+  ip="$(curl -s https://api.ipify.org || hostname -I | awk '{print $1}')"
   printf '\n=======================================================\n'
   printf ' Fidelis Studio is now running on your OVH VPS!\n'
-  printf ' URL: http://%s:8080\n' "$(curl -s https://api.ipify.org || hostname -I | awk '{print $1}')"
+  printf ' Primary URL:   http://%s\n' "$ip"
+  printf ' Secondary URL: http://%s:8080\n' "$ip"
   printf '=======================================================\n'
   exit 0
 fi
