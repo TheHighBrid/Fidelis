@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Fidelis</string>
+    <string name="server_url_prompt">Enter Fidelis Studio Server URL:</string>
+    <string name="connect">Connect</string>
+</resources>
