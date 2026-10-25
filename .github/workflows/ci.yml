@@ -25,8 +25,8 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install test dependency
-        run: python -m pip install --disable-pip-version-check pillow
+      - name: Install test dependencies
+        run: python -m pip install --disable-pip-version-check pillow numpy scipy scikit-image
 
       - name: Static smoke tests
         run: bash tests/smoke-test.sh
@@ -43,8 +43,14 @@ jobs:
       - name: Audition report generator tests
         run: bash tests/test-audition-report.sh
 
+      - name: Batch audition tests
+        run: bash tests/test-batch-audition.sh
+
       - name: Fidelity metrics evaluation tests
         run: bash tests/test-fidelity-metrics.sh
+
+      - name: Geometric and drift detector tests
+        run: bash tests/test-detect-drift.sh
 
       - name: Web UI server integration tests
         run: bash tests/test-web-ui.sh

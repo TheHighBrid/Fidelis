@@ -32,7 +32,9 @@ Usage:
   fidelis upscale INPUT OUTPUT [--model MODEL]
   fidelis batch INPUT_DIR OUTPUT_DIR [--model MODEL]
   fidelis audition INPUT OUTPUT_DIR [MODEL ...]
+  fidelis batch-audition INPUT_DIR OUTPUT_DIR [MODEL ...]
   fidelis evaluate RESULTS_DIR
+  fidelis detect-drift RESULTS_DIR [--strict]
   fidelis report RESULTS_DIR [-o OUT_HTML]
   fidelis eval-crops [-d TARGET_DIR]
   fidelis ui [-p PORT]
@@ -438,12 +440,27 @@ case "$command" in
     shift 3
     audition "$input" "$output_dir" "$@"
     ;;
+  batch-audition)
+    [[ $# -ge 3 ]] || { usage >&2; exit 2; }
+    batch_aud_script="$repo_root/scripts/batch-audition.sh"
+    [[ -f "$batch_aud_script" ]] || { printf 'Batch audition script not found: %s\n' "$batch_aud_script" >&2; exit 1; }
+    shift
+    exec bash "$batch_aud_script" "$@"
+    ;;
   evaluate)
     [[ $# -eq 2 ]] || { usage >&2; exit 2; }
     py="$(resolve_python)"
     eval_script="$repo_root/scripts/evaluate-fidelity-metrics.py"
     [[ -f "$eval_script" ]] || { printf 'Metrics evaluator not found: %s\n' "$eval_script" >&2; exit 1; }
     "$py" "$eval_script" "$2"
+    ;;
+  detect-drift)
+    [[ $# -ge 2 ]] || { usage >&2; exit 2; }
+    py="$(resolve_python)"
+    drift_script="$repo_root/scripts/detect-drift.py"
+    [[ -f "$drift_script" ]] || { printf 'Drift detector not found: %s\n' "$drift_script" >&2; exit 1; }
+    shift
+    "$py" "$drift_script" "$@"
     ;;
   report)
     [[ $# -ge 2 ]] || { usage >&2; exit 2; }

@@ -116,6 +116,29 @@ grep -Fq 'WEAK_LIST=[0.1, 0.1]' "$results/natural.log"
 grep -Fq 'WEAK_LIST=[0.18, 0.18]' "$results/fidelity.log"
 grep -Fq 'WEAK_LIST=[0.23, 0.23]' "$results/strict.log"
 
+# One-step baseline comparator test
+results_onestep="$work/results_onestep"
+VOSR_DIR="$fake_vosr" \
+VOSR_CKPT="preset/ckpts/VOSR_1.4B_ms" \
+PYTHON_BIN="$python_bin" \
+bash "$sweep" "$input" "$results_onestep" --include-onestep
+
+for profile in natural fidelity strict onestep; do
+  test -s "$results_onestep/$profile/test.png"
+  test -s "$results_onestep/$profile.log"
+done
+test -s "$results_onestep/manifest.json"
+
+"$python_bin" - "$results_onestep/manifest.json" <<'PY'
+import json, sys
+m = json.load(open(sys.argv[1]))
+assert 'onestep' in m['profiles']
+assert m['profiles']['onestep']['infer_steps'] == 1
+assert m['profiles']['onestep']['cfg_scale'] == 1.00
+assert len(m['outputs']['onestep']) == 1
+print('onestep comparator profile verified')
+PY
+
 # Regression: a swallowed upstream image error must never become a success
 # manifest or an empty ZIP candidate.
 rm -rf "$results"

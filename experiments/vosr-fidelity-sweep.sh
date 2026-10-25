@@ -4,35 +4,62 @@ set -euo pipefail
 usage() {
   cat <<'USAGE'
 Usage:
-  vosr-fidelity-sweep.sh INPUT_IMAGE [OUTPUT_DIR]
+  vosr-fidelity-sweep.sh INPUT_IMAGE [OUTPUT_DIR] [--include-onestep]
 
 Environment overrides:
-  VOSR_DIR       Path to cswry/VOSR checkout (default: $HOME/VOSR)
-  VOSR_CKPT      Multi-step checkpoint path, absolute or relative to VOSR_DIR
-                 (default: preset/ckpts/VOSR_1.4B_ms)
-  PYTHON_BIN     Python executable (default: python)
-  UPSCALE        Upscale factor (default: 4)
-  INFER_STEPS    Multi-step evaluations (default: 25)
-  SEED           Shared seed for all profiles (default: 42)
-  TILE_SIZE      DiT tile size; 0 disables tiling (default: 256)
-  VAE_TILE_SIZE  VAE tile size; 0 disables VAE tiling (default: 1024)
+  VOSR_DIR            Path to cswry/VOSR checkout (default: $HOME/VOSR)
+  VOSR_CKPT           Multi-step checkpoint path, absolute or relative to VOSR_DIR
+                      (default: preset/ckpts/VOSR_1.4B_ms)
+  VOSR_ONESTEP_CKPT   One-step checkpoint path, absolute or relative to VOSR_DIR
+                      (default: preset/ckpts/VOSR_1.4B)
+  INCLUDE_ONESTEP     Set to 1 to run the one-step baseline comparator (default: 0)
+  PYTHON_BIN          Python executable (default: python)
+  UPSCALE             Upscale factor (default: 4)
+  INFER_STEPS         Multi-step evaluations (default: 25)
+  SEED                Shared seed for all profiles (default: 42)
+  TILE_SIZE           DiT tile size; 0 disables tiling (default: 256)
+  VAE_TILE_SIZE       VAE tile size; 0 disables VAE tiling (default: 1024)
 
 Profiles:
-  natural   cfg=0.50  weak=0.10
-  fidelity  cfg=1.25  weak=0.18
-  strict    cfg=1.75  weak=0.23
+  natural   cfg=0.50  weak=0.10  steps=$INFER_STEPS
+  fidelity  cfg=1.25  weak=0.18  steps=$INFER_STEPS
+  strict    cfg=1.75  weak=0.23  steps=$INFER_STEPS
+  onestep   cfg=1.00  weak=0.00  steps=1 (optional baseline comparator)
 USAGE
 }
 
-if [[ ${1:-} == "-h" || ${1:-} == "--help" ]]; then
-  usage
-  exit 0
-fi
+INPUT=""
+OUTPUT_ROOT="vosr-fidelity-sweep"
+INCLUDE_ONESTEP=${INCLUDE_ONESTEP:-0}
 
-INPUT=${1:-}
-OUTPUT_ROOT=${2:-vosr-fidelity-sweep}
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    --include-onestep)
+      INCLUDE_ONESTEP=1
+      shift
+      ;;
+    *)
+      if [[ -z "$INPUT" ]]; then
+        INPUT="$1"
+      elif [[ "$OUTPUT_ROOT" == "vosr-fidelity-sweep" ]]; then
+        OUTPUT_ROOT="$1"
+      else
+        echo "error: unexpected argument: $1" >&2
+        usage >&2
+        exit 2
+      fi
+      shift
+      ;;
+  esac
+done
+
 VOSR_DIR=${VOSR_DIR:-"$HOME/VOSR"}
 VOSR_CKPT=${VOSR_CKPT:-preset/ckpts/VOSR_1.4B_ms}
+VOSR_ONESTEP_CKPT=${VOSR_ONESTEP_CKPT:-}
 PYTHON_BIN=${PYTHON_BIN:-python}
 UPSCALE=${UPSCALE:-4}
 INFER_STEPS=${INFER_STEPS:-25}
@@ -75,6 +102,24 @@ if [[ ! -f "$CKPT/args.json" ]]; then
   exit 2
 fi
 
+if [[ "$INCLUDE_ONESTEP" == "1" ]]; then
+  if [[ -n "$VOSR_ONESTEP_CKPT" ]]; then
+    if [[ "$VOSR_ONESTEP_CKPT" = /* ]]; then
+      ONESTEP_CKPT="$VOSR_ONESTEP_CKPT"
+    else
+      ONESTEP_CKPT="$VOSR_DIR/$VOSR_ONESTEP_CKPT"
+    fi
+  elif [[ -d "$VOSR_DIR/preset/ckpts/VOSR_1.4B" && -f "$VOSR_DIR/preset/ckpts/VOSR_1.4B/args.json" ]]; then
+    ONESTEP_CKPT="$VOSR_DIR/preset/ckpts/VOSR_1.4B"
+  else
+    ONESTEP_CKPT="$CKPT"
+  fi
+  if [[ ! -d "$ONESTEP_CKPT" || ! -f "$ONESTEP_CKPT/args.json" ]]; then
+    echo "error: VOSR one-step checkpoint not found: $ONESTEP_CKPT" >&2
+    exit 2
+  fi
+fi
+
 mkdir -p "$OUTPUT_ROOT"
 INPUT_ABS=$("$PYTHON_BIN" - "$INPUT" <<'PY'
 import os, sys
@@ -97,11 +142,11 @@ TMP_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/fidelis-vsweep.XXXXXX")
 trap 'rm -rf "$TMP_ROOT"' EXIT
 
 make_profile_ckpt() {
-  local name=$1 weak=$2
+  local name=$1 weak=$2 target_ckpt=${3:-$CKPT}
   local profile_ckpt="$TMP_ROOT/$name"
   mkdir -p "$profile_ckpt"
 
-  "$PYTHON_BIN" - "$CKPT/args.json" "$profile_ckpt/args.json" "$weak" <<'PY'
+  "$PYTHON_BIN" - "$target_ckpt/args.json" "$profile_ckpt/args.json" "$weak" <<'PY'
 import json, pathlib, sys
 src, dst, weak = sys.argv[1], sys.argv[2], float(sys.argv[3])
 data = json.loads(pathlib.Path(src).read_text())
@@ -113,12 +158,12 @@ pathlib.Path(dst).write_text(json.dumps(data, indent=2) + "\n")
 PY
 
   for child in checkpoints clean_weights; do
-    if [[ -e "$CKPT/$child" ]]; then
-      ln -s "$CKPT/$child" "$profile_ckpt/$child"
+    if [[ -e "$target_ckpt/$child" ]]; then
+      ln -s "$target_ckpt/$child" "$profile_ckpt/$child"
     fi
   done
   # Fallback for unusual checkpoint layouts with weights directly in the root.
-  find "$CKPT" -maxdepth 1 -type f \( -name '*.safetensors' -o -name '*.pth' -o -name '*.pt' \) -print0 |
+  find "$target_ckpt" -maxdepth 1 -type f \( -name '*.safetensors' -o -name '*.pth' -o -name '*.pt' \) -print0 |
     while IFS= read -r -d '' weight; do
       ln -s "$weight" "$profile_ckpt/$(basename "$weight")"
     done
@@ -127,16 +172,16 @@ PY
 }
 
 run_profile() {
-  local name=$1 cfg=$2 weak=$3
+  local name=$1 cfg=$2 weak=$3 steps=${4:-$INFER_STEPS} target_ckpt=${5:-$CKPT}
   local out="$OUTPUT_ABS/$name"
   local log="$OUTPUT_ABS/${name}.log"
   local expected="$out/${INPUT_STEM}.png"
   local profile_ckpt
-  profile_ckpt=$(make_profile_ckpt "$name" "$weak")
+  profile_ckpt=$(make_profile_ckpt "$name" "$weak" "$target_ckpt")
   rm -rf "$out"
   mkdir -p "$out"
 
-  printf '\n==> %s  cfg=%s  weak=%s\n' "$name" "$cfg" "$weak"
+  printf '\n==> %s  cfg=%s  weak=%s  steps=%s\n' "$name" "$cfg" "$weak" "$steps"
   printf '    log: %s\n' "$log"
 
   set +e
@@ -147,7 +192,7 @@ run_profile() {
       -i "$INPUT_ABS" \
       -o "$out" \
       -u "$UPSCALE" \
-      --infer_steps "$INFER_STEPS" \
+      --infer_steps "$steps" \
       --cfg_scale "$cfg" \
       --weak_cond_strength_aelq "$weak" \
       --seed "$SEED" \
@@ -187,20 +232,26 @@ with Image.open(p) as im:
 PY
 }
 
-run_profile natural 0.50 0.10
-run_profile fidelity 1.25 0.18
-run_profile strict 1.75 0.23
+run_profile natural 0.50 0.10 "$INFER_STEPS" "$CKPT"
+run_profile fidelity 1.25 0.18 "$INFER_STEPS" "$CKPT"
+run_profile strict 1.75 0.23 "$INFER_STEPS" "$CKPT"
 
-"$PYTHON_BIN" - "$INPUT_ABS" "$OUTPUT_ABS" "$CKPT" "$UPSCALE" "$INFER_STEPS" "$SEED" "$TILE_SIZE" "$VAE_TILE_SIZE" <<'PY'
+if [[ "$INCLUDE_ONESTEP" == "1" ]]; then
+  run_profile onestep 1.00 0.00 1 "$ONESTEP_CKPT"
+fi
+
+"$PYTHON_BIN" - "$INPUT_ABS" "$OUTPUT_ABS" "$CKPT" "$UPSCALE" "$INFER_STEPS" "$SEED" "$TILE_SIZE" "$VAE_TILE_SIZE" "$INCLUDE_ONESTEP" <<'PY'
 import hashlib, json, pathlib, sys, time
 
-inp, root, ckpt, upscale, steps, seed, tile, vae_tile = sys.argv[1:]
+inp, root, ckpt, upscale, steps, seed, tile, vae_tile, inc_onestep = sys.argv[1:10]
 root = pathlib.Path(root)
 profiles = {
-    "natural": {"cfg_scale": 0.50, "weak_cond_strength_aelq": 0.10},
-    "fidelity": {"cfg_scale": 1.25, "weak_cond_strength_aelq": 0.18},
-    "strict": {"cfg_scale": 1.75, "weak_cond_strength_aelq": 0.23},
+    "natural": {"cfg_scale": 0.50, "weak_cond_strength_aelq": 0.10, "infer_steps": int(steps)},
+    "fidelity": {"cfg_scale": 1.25, "weak_cond_strength_aelq": 0.18, "infer_steps": int(steps)},
+    "strict": {"cfg_scale": 1.75, "weak_cond_strength_aelq": 0.23, "infer_steps": int(steps)},
 }
+if inc_onestep == "1":
+    profiles["onestep"] = {"cfg_scale": 1.00, "weak_cond_strength_aelq": 0.00, "infer_steps": 1}
 
 def sha256(path):
     h = hashlib.sha256()
@@ -240,5 +291,9 @@ for name, files in outputs.items():
     print(f"{name}: {len(files)} PNG output(s)")
 PY
 
-printf '\nDone. Three verified PNG outputs were produced.\n'
+count=3
+if [[ "$INCLUDE_ONESTEP" == "1" ]]; then
+  count=4
+fi
+printf '\nDone. %d verified PNG output(s) were produced.\n' "$count"
 printf 'No sharpening, face restoration, source fusion, denoise, or synthetic grain was applied.\n'

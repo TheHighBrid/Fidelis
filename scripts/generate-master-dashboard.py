@@ -19,7 +19,7 @@ def encode_img_base64(path: Path) -> str:
     data = base64.b64encode(path.read_bytes()).decode("ascii")
     return f"data:{mime};base64,{data}"
 
-def build_master_dashboard(target_dirs, output_file: Path):
+def build_master_dashboard(target_dirs, output_file: Path, title: str = "Fidelis Photographic Restoration Master Dashboard"):
     crops_data = []
 
     for d in target_dirs:
@@ -41,7 +41,8 @@ def build_master_dashboard(target_dirs, output_file: Path):
         crop_name = d.name.replace("audition_", "").replace("_real", "").replace("_", " ").title()
         models = []
 
-        for entry in manifest.get("entries", []):
+        entries = manifest.get("models") or manifest.get("entries") or []
+        for entry in entries:
             m_name = entry.get("model", {}).get("name", "Unknown")
             out_p = Path(entry.get("output", {}).get("path", ""))
             if not out_p.is_file():
@@ -87,7 +88,7 @@ def build_master_dashboard(target_dirs, output_file: Path):
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Fidelis Master Evaluation Dashboard</title>
+<title>{html.escape(title)}</title>
 <style>
   :root {{
     --bg: #0d1117;
@@ -257,7 +258,7 @@ def build_master_dashboard(target_dirs, output_file: Path):
 
 <div class="header">
   <div>
-    <h1>Fidelis Photographic Restoration Master Dashboard</h1>
+    <h1>{html.escape(title)}</h1>
     <div style="color: var(--text-muted); font-size: 14px;">Cross-Class Audition & Decision Evidence ({len(crops_data)} evaluation classes, {len(model_stats)} models)</div>
   </div>
   <div class="badge">Audition Evidence</div>
@@ -405,6 +406,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate Fidelis Master Evaluation Dashboard.")
     parser.add_argument("dirs", nargs="*", type=Path, help="Audition directories (or parent dir containing them)")
     parser.add_argument("-o", "--output", type=Path, default=Path("experiments/eval_crops/master_dashboard.html"), help="Output HTML file path")
+    parser.add_argument("--title", default="Fidelis Photographic Restoration Master Dashboard", help="Title for the dashboard")
     args = parser.parse_args()
 
     input_dirs = []
@@ -420,4 +422,4 @@ if __name__ == "__main__":
                 sub = sorted(d for d in p.glob("audition_*") if d.is_dir())
                 input_dirs.extend(sub if sub else [p])
 
-    build_master_dashboard(input_dirs, args.output)
+    build_master_dashboard(input_dirs, args.output, title=args.title)

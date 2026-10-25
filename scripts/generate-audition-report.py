@@ -68,10 +68,10 @@ def generate_report(results_dir: Path, output_html: Path):
                         "image_b64": encode_img_base64(out_file),
                         "filename": out_file.name
                     })
-        elif "entries" in metadata:
+        elif "entries" in metadata or "models" in metadata:
             report_type = "audition"
-            for entry in metadata.get("entries", []):
-                out_file = Path(entry.get("output", {}).get("path", ""))
+            for entry in (metadata.get("models") or metadata.get("entries") or []):
+                out_file = Path(entry.get("output", {}).get("path", "") or (results_dir / entry.get("output", {}).get("filename", "")))
                 if not out_file.is_file():
                     out_file = results_dir / out_file.name
                 models_data.append({
