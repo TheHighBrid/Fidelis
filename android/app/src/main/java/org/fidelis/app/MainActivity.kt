@@ -5,11 +5,14 @@ import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
+import android.net.http.SslError
 import android.os.Bundle
 import android.view.View
 import android.webkit.*
 import android.widget.EditText
+import android.widget.ImageButton
 import android.widget.ProgressBar
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 
@@ -17,6 +20,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
     private lateinit var progressBar: ProgressBar
+    private lateinit var btnSettings: ImageButton
     private var fileUploadCallback: ValueCallback<Array<Uri>>? = null
 
     private val filePickerLauncher = registerForActivityResult(
@@ -46,6 +50,11 @@ class MainActivity : AppCompatActivity() {
 
         webView = findViewById(R.id.webView)
         progressBar = findViewById(R.id.progressBar)
+        btnSettings = findViewById(R.id.btnSettings)
+
+        btnSettings.setOnClickListener {
+            promptServerUrl("Configure Fidelis Studio URL:")
+        }
 
         setupWebView()
 
@@ -59,6 +68,7 @@ class MainActivity : AppCompatActivity() {
         val settings = webView.settings
         settings.javaScriptEnabled = true
         settings.domStorageEnabled = true
+        settings.databaseEnabled = true
         settings.allowFileAccess = true
         settings.allowContentAccess = true
         settings.useWideViewPort = true
@@ -66,6 +76,7 @@ class MainActivity : AppCompatActivity() {
         settings.setSupportZoom(true)
         settings.builtInZoomControls = true
         settings.displayZoomControls = false
+        settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
 
         webView.webViewClient = object : WebViewClient() {
             override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
@@ -76,13 +87,38 @@ class MainActivity : AppCompatActivity() {
                 progressBar.visibility = View.GONE
             }
 
+            @SuppressLint("WebViewClientOnReceivedSslError")
+            override fun onReceivedSslError(
+                view: WebView?,
+                handler: SslErrorHandler?,
+                error: SslError?
+            ) {
+                // Allow self-signed or raw-IP SSL certs so webview doesn't freeze white
+                handler?.proceed()
+            }
+
+            override fun onReceivedError(
+                view: WebView?,
+                request: WebResourceRequest?,
+                error: WebResourceError?
+            ) {
+                if (request?.isForMainFrame == true) {
+                    progressBar.visibility = View.GONE
+                    val desc = error?.description ?: "Connection failed"
+                    Toast.makeText(this@MainActivity, "Connection failed: $desc", Toast.LENGTH_SHORT).show()
+                    promptServerUrl("Connection error: $desc\nFailed URL: ${request.url}\n\nPlease check your Fidelis Studio URL:")
+                }
+            }
+
+            @Suppress("DEPRECATION")
             override fun onReceivedError(
                 view: WebView?,
                 errorCode: Int,
                 description: String?,
                 failingUrl: String?
             ) {
-                promptServerUrl("Connection error: $description\nPlease configure your Fidelis Studio URL:")
+                progressBar.visibility = View.GONE
+                promptServerUrl("Connection error: $description\n\nPlease check your Fidelis Studio URL:")
             }
         }
 
@@ -124,7 +160,7 @@ class MainActivity : AppCompatActivity() {
 
         AlertDialog.Builder(this)
             .setTitle("Fidelis Studio Connection")
-            .setMessage("Enter your OVH Cloud VPS or Local Server URL:\n(e.g., http://51.79.71.248:8080)")
+            .setMessage(message)
             .setView(input)
             .setPositiveButton("Connect") { _, _ ->
                 var newUrl = input.text.toString().trim()
