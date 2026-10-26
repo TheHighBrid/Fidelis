@@ -403,7 +403,8 @@ HTML_PAGE = r"""<!DOCTYPE html>
     <div class="viewport" id="viewport">
       <div class="loading-overlay" id="loading">
         <div class="spinner"></div>
-        <p style="margin-top: 14px; font-size: 14px;" id="loading-text">Upscaling with native GPU engine...</p>
+        <p style="margin-top: 14px; font-size: 14px; text-align: center; max-width: 80%;" id="loading-text">Upscaling with native GPU engine...</p>
+        <button class="tool-btn" style="margin-top: 14px; background: #21262d; border: 1px solid var(--border);" onclick="showLoading(false)">Dismiss Overlay</button>
       </div>
       
       <div id="empty-state" style="color: var(--text-muted); font-size: 14px; text-align: center;">
@@ -673,7 +674,14 @@ function runCompare() {
 
 function runAudition() {
   if (!currentSourceData) return alert('Please load an image first.');
-  showLoading(true, 'Running full multi-model audition on local GPU...');
+  const confirmed = confirm(
+    "Auditioning all 4 models will process this entire image across 4 different AI architectures sequentially.\n\n" +
+    "On high-resolution camera photos, this can take a few minutes.\n\n" +
+    "Tip: For instant (~3.7s) single-model enhancement, use the green 'Upscale 4x' button instead.\n\n" +
+    "Do you want to proceed with full audition?"
+  );
+  if (!confirmed) return;
+  showLoading(true, 'Auditioning all candidate models... You can dismiss this overlay while it processes.');
   fetch('/api/audition', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -681,13 +689,15 @@ function runAudition() {
   }).then(r => r.json()).then(data => {
     showLoading(false);
     if (data.report_url) {
-      window.open(data.report_url, '_blank');
+      if (confirm('Audition complete! Open full comparison report?')) {
+        window.location.href = data.report_url;
+      }
     } else {
       alert('Audition complete.');
     }
   }).catch(err => {
     showLoading(false);
-    alert('Audition error: ' + err);
+    alert('Audition notice: ' + err);
   });
 }
 
