@@ -15,6 +15,19 @@ resolve_python() {
   fi
 }
 
+resolve_script() {
+  local name="$1"
+  local dir
+  for dir in "$repo_root/scripts" "$APP_HOME/scripts" "/Users/tyf12/Downloads/Fidelis-main/scripts"; do
+    if [[ -f "$dir/$name" ]]; then
+      printf '%s\n' "$dir/$name"
+      return 0
+    fi
+  done
+  printf '%s\n' "$repo_root/scripts/$name"
+  return 1
+}
+
 ENGINE="${FIDELIS_ENGINE:-$RUNTIME/realsr-ncnn}"
 if [[ ! -x "$ENGINE" && -x "$RUNTIME/realsr-ncnn-vulkan" ]]; then
   ENGINE="$RUNTIME/realsr-ncnn-vulkan"
@@ -445,7 +458,7 @@ case "$command" in
     ;;
   batch-audition)
     [[ $# -ge 3 ]] || { usage >&2; exit 2; }
-    batch_aud_script="$repo_root/scripts/batch-audition.sh"
+    batch_aud_script="$(resolve_script "batch-audition.sh")"
     [[ -f "$batch_aud_script" ]] || { printf 'Batch audition script not found: %s\n' "$batch_aud_script" >&2; exit 1; }
     shift
     exec bash "$batch_aud_script" "$@"
@@ -453,14 +466,14 @@ case "$command" in
   evaluate)
     [[ $# -eq 2 ]] || { usage >&2; exit 2; }
     py="$(resolve_python)"
-    eval_script="$repo_root/scripts/evaluate-fidelity-metrics.py"
+    eval_script="$(resolve_script "evaluate-fidelity-metrics.py")"
     [[ -f "$eval_script" ]] || { printf 'Metrics evaluator not found: %s\n' "$eval_script" >&2; exit 1; }
     "$py" "$eval_script" "$2"
     ;;
   detect-drift)
     [[ $# -ge 2 ]] || { usage >&2; exit 2; }
     py="$(resolve_python)"
-    drift_script="$repo_root/scripts/detect-drift.py"
+    drift_script="$(resolve_script "detect-drift.py")"
     [[ -f "$drift_script" ]] || { printf 'Drift detector not found: %s\n' "$drift_script" >&2; exit 1; }
     shift
     "$py" "$drift_script" "$@"
@@ -468,13 +481,13 @@ case "$command" in
   heatmap)
     [[ $# -ge 2 ]] || { usage >&2; exit 2; }
     py="$(resolve_python)"
-    heatmap_script="$repo_root/scripts/generate-delta-heatmap.py"
+    heatmap_script="$(resolve_script "generate-delta-heatmap.py")"
     [[ -f "$heatmap_script" ]] || { printf 'Heatmap generator not found: %s\n' "$heatmap_script" >&2; exit 1; }
     shift
     "$py" "$heatmap_script" "$@"
     ;;
   benchmark-macos)
-    bench_script="$repo_root/scripts/macos-benchmark.sh"
+    bench_script="$(resolve_script "macos-benchmark.sh")"
     [[ -f "$bench_script" ]] || { printf 'macOS benchmark script not found: %s\n' "$bench_script" >&2; exit 1; }
     shift
     exec bash "$bench_script" "$@"
@@ -482,14 +495,14 @@ case "$command" in
   report)
     [[ $# -ge 2 ]] || { usage >&2; exit 2; }
     py="$(resolve_python)"
-    report_script="$repo_root/scripts/generate-audition-report.py"
+    report_script="$(resolve_script "generate-audition-report.py")"
     [[ -f "$report_script" ]] || { printf 'Report generator not found: %s\n' "$report_script" >&2; exit 1; }
     shift
     "$py" "$report_script" "$@"
     ;;
   eval-crops)
     py="$(resolve_python)"
-    fetch_script="$repo_root/scripts/fetch-eval-crops.py"
+    fetch_script="$(resolve_script "fetch-eval-crops.py")"
     [[ -f "$fetch_script" ]] || { printf 'Crops generator not found: %s\n' "$fetch_script" >&2; exit 1; }
     shift
     "$py" "$fetch_script" "$@"
@@ -497,7 +510,7 @@ case "$command" in
   portrait)
     [[ $# -ge 3 ]] || { usage >&2; exit 2; }
     py="$(resolve_python)"
-    portrait_script="$repo_root/scripts/restore-portrait.py"
+    portrait_script="$(resolve_script "restore-portrait.py")"
     [[ -f "$portrait_script" ]] || { printf 'Portrait engine not found: %s\n' "$portrait_script" >&2; exit 1; }
     shift
     uv_bin="$(command -v uv 2>/dev/null || printf '%s' "$HOME/.local/bin/uv")"
@@ -509,7 +522,7 @@ case "$command" in
     ;;
   ui)
     py="$(resolve_python)"
-    ui_script="$repo_root/scripts/web-ui.py"
+    ui_script="$(resolve_script "web-ui.py")"
     [[ -f "$ui_script" ]] || { printf 'Web UI script not found: %s\n' "$ui_script" >&2; exit 1; }
     shift
     exec "$py" "$ui_script" "$@"

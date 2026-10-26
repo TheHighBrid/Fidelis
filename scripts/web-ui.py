@@ -25,6 +25,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import traceback
 from urllib.parse import parse_qs, urlparse
 from PIL import Image
 
@@ -553,9 +554,10 @@ function runUpscale() {
       portrait: portrait,
       fidelity: fidelity
     })
-  }).then(r => r.json()).then(data => {
+  }).then(async r => {
+    const data = await r.json().catch(() => ({ error: 'Server error (HTTP ' + r.status + ')' }));
     showLoading(false);
-    if (data.error) return alert('Upscale failed: ' + data.error);
+    if (!r.ok || data.error) return alert('Upscale failed: ' + (data.error || 'Unknown error'));
 
     const titlePrefix = portrait ? 'Portrait Pore Engine' : model;
     document.getElementById('view-title').innerHTML = `Split Comparison: <strong>Source vs ${titlePrefix}</strong>`;
@@ -587,7 +589,7 @@ function runUpscale() {
     }
   }).catch(err => {
     showLoading(false);
-    alert('Error: ' + err);
+    alert('Network error connecting to Fidelis server: ' + err.message);
   });
 }
 
@@ -616,9 +618,10 @@ function runCompare() {
       portrait: portrait,
       fidelity: fidelity
     })
-  }).then(r => r.json()).then(data => {
+  }).then(async r => {
+    const data = await r.json().catch(() => ({ error: 'Server error (HTTP ' + r.status + ')' }));
     showLoading(false);
-    if (data.error) return alert('Comparison failed: ' + data.error);
+    if (!r.ok || data.error) return alert('Comparison failed: ' + (data.error || 'Unknown error'));
 
     document.getElementById('img-before').src = data.output_a;
     document.getElementById('img-after').src = data.output_b;
@@ -668,7 +671,7 @@ function runCompare() {
     document.getElementById('m-bg').textContent = `${bgA} / ${bgB}`;
   }).catch(err => {
     showLoading(false);
-    alert('Comparison error: ' + err);
+    alert('Comparison network error: ' + err.message);
   });
 }
 
@@ -686,8 +689,11 @@ function runAudition() {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ image: currentSourceData })
-  }).then(r => r.json()).then(data => {
+  }).then(async r => {
+    const data = await r.json().catch(() => ({ error: 'Server error (HTTP ' + r.status + ')' }));
     showLoading(false);
+    if (!r.ok || data.error) return alert('Audition failed: ' + (data.error || 'Unknown error'));
+
     if (data.report_url) {
       if (confirm('Audition complete! Open full comparison report?')) {
         window.location.href = data.report_url;
@@ -697,7 +703,7 @@ function runAudition() {
     }
   }).catch(err => {
     showLoading(false);
-    alert('Audition notice: ' + err);
+    alert('Audition network error: ' + err.message);
   });
 }
 
@@ -762,12 +768,18 @@ def execute_restoration(cli, in_p, out_p, model, tiled=False, tile_size=256, por
                 ]
             else:
                 cmd = [cli, "upscale", str(curr_in), str(up_target), "--model", model]
-            subprocess.check_call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            if res.returncode != 0:
+                err_msg = res.stderr.strip() or res.stdout.strip()
+                raise RuntimeError(f"Upscaling failed ({res.returncode}): {err_msg}")
             curr_in = up_target
 
         if portrait:
             port_cmd = [cli, "portrait", str(curr_in), str(out_p), "-w", str(fidelity)]
-            subprocess.check_call(port_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            res = subprocess.run(port_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            if res.returncode != 0:
+                err_msg = res.stderr.strip() or res.stdout.strip()
+                raise RuntimeError(f"Portrait restoration failed ({res.returncode}): {err_msg}")
 
     return int((time.time() - t0) * 1000)
 
@@ -820,137 +832,148 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
 
     def do_POST(self):
         url = urlparse(self.path)
-        content_len = int(self.headers.get("Content-Length", 0))
-        body = self.rfile.read(content_len)
+        try:
+            content_len = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(content_len)
+            cli = str(REPO_ROOT / "bin/fidelis") if (REPO_ROOT / "bin/fidelis").is_file() else (shutil.which("fidelis") or "fidelis")
 
-        if url.path == "/api/upscale":
-            data = json.loads(body.decode("utf-8"))
-            raw_b64 = data.get("image", "").split(",")[-1]
-            model = data.get("model", "RealeSR-general-v3")
-            tiled = data.get("tiled", False)
-            tile_size = data.get("tile_size", 256)
-            portrait = data.get("portrait", False)
-            fidelity = float(data.get("fidelity", 0.70))
+            if url.path == "/api/upscale":
+                data = json.loads(body.decode("utf-8"))
+                raw_b64 = data.get("image", "").split(",")[-1]
+                model = data.get("model", "RealeSR-general-v3")
+                tiled = data.get("tiled", False)
+                tile_size = data.get("tile_size", 256)
+                portrait = data.get("portrait", False)
+                fidelity = float(data.get("fidelity", 0.70))
 
-            with tempfile.TemporaryDirectory(prefix="fidelis_web_") as tmp:
-                in_p = Path(tmp) / "input.png"
-                out_p = Path(tmp) / "output.png"
+                with tempfile.TemporaryDirectory(prefix="fidelis_web_") as tmp:
+                    in_p = Path(tmp) / "input.png"
+                    out_p = Path(tmp) / "output.png"
+                    in_p.write_bytes(base64.b64decode(raw_b64))
+
+                    elapsed_ms = execute_restoration(
+                        cli, in_p, out_p, model, tiled=tiled, tile_size=tile_size, portrait=portrait, fidelity=fidelity
+                    )
+
+                    metrics = {}
+                    drift = {}
+                    if out_p.is_file():
+                        try:
+                            with Image.open(in_p) as sim, Image.open(out_p) as oim:
+                                if HAS_METRICS:
+                                    metrics = eval_metrics.evaluate_pair(sim, oim)
+                                if HAS_DRIFT:
+                                    drift = detect_drift.compute_drift(sim, oim)
+                        except Exception as e:
+                            print("Fidelity analysis error:", e)
+
+                    out_b64 = "data:image/png;base64," + base64.b64encode(out_p.read_bytes()).decode("ascii")
+
+                    resp = {
+                        "output_image": out_b64,
+                        "elapsed_ms": elapsed_ms,
+                        "metrics": metrics,
+                        "drift": drift
+                    }
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(json.dumps(resp).encode("utf-8"))
+
+            elif url.path == "/api/compare":
+                data = json.loads(body.decode("utf-8"))
+                raw_b64 = data.get("image", "").split(",")[-1]
+                model_a = data.get("model_a", "RealeSR-general-v3")
+                model_b = data.get("model_b", "DF2K")
+                tiled = data.get("tiled", False)
+                tile_size = data.get("tile_size", 256)
+                portrait = data.get("portrait", False)
+                fidelity = float(data.get("fidelity", 0.70))
+
+                with tempfile.TemporaryDirectory(prefix="fidelis_cmp_") as tmp:
+                    in_p = Path(tmp) / "input.png"
+                    out_a = Path(tmp) / "out_a.png"
+                    out_b = Path(tmp) / "out_b.png"
+                    in_p.write_bytes(base64.b64decode(raw_b64))
+
+                    elapsed_a = execute_restoration(
+                        cli, in_p, out_a, model_a, tiled=tiled, tile_size=tile_size, portrait=portrait, fidelity=fidelity
+                    )
+                    elapsed_b = execute_restoration(
+                        cli, in_p, out_b, model_b, tiled=tiled, tile_size=tile_size, portrait=portrait, fidelity=fidelity
+                    )
+
+                    metrics_a, drift_a = {}, {}
+                    metrics_b, drift_b = {}, {}
+
+                    with Image.open(in_p) as sim:
+                        if out_a.is_file():
+                            with Image.open(out_a) as oim:
+                                if HAS_METRICS: metrics_a = eval_metrics.evaluate_pair(sim, oim)
+                                if HAS_DRIFT: drift_a = detect_drift.compute_drift(sim, oim)
+                        if out_b.is_file():
+                            with Image.open(out_b) as oim:
+                                if HAS_METRICS: metrics_b = eval_metrics.evaluate_pair(sim, oim)
+                                if HAS_DRIFT: drift_b = detect_drift.compute_drift(sim, oim)
+
+                    resp = {
+                        "output_a": "data:image/png;base64," + base64.b64encode(out_a.read_bytes()).decode("ascii"),
+                        "output_b": "data:image/png;base64," + base64.b64encode(out_b.read_bytes()).decode("ascii"),
+                        "model_a": model_a,
+                        "model_b": model_b,
+                        "elapsed_ms_a": elapsed_a,
+                        "elapsed_ms_b": elapsed_b,
+                        "metrics_a": metrics_a,
+                        "metrics_b": metrics_b,
+                        "drift_a": drift_a,
+                        "drift_b": drift_b
+                    }
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(json.dumps(resp).encode("utf-8"))
+
+            elif url.path == "/api/audition":
+                data = json.loads(body.decode("utf-8"))
+                raw_b64 = data.get("image", "").split(",")[-1]
+
+                aud_dir = REPO_ROOT / "experiments/eval_crops/web_audition"
+                shutil.rmtree(aud_dir, ignore_errors=True)
+                aud_dir.mkdir(parents=True, exist_ok=True)
+
+                in_p = aud_dir / "web_input.png"
                 in_p.write_bytes(base64.b64decode(raw_b64))
 
-                cli = shutil.which("fidelis") or str(REPO_ROOT / "bin/fidelis")
-                elapsed_ms = execute_restoration(
-                    cli, in_p, out_p, model, tiled=tiled, tile_size=tile_size, portrait=portrait, fidelity=fidelity
-                )
+                cmd = [cli, "audition", str(in_p), str(aud_dir)]
+                res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                if res.returncode != 0:
+                    err_msg = res.stderr.strip() or res.stdout.strip()
+                    raise RuntimeError(f"Audition failed ({res.returncode}): {err_msg}")
 
-                metrics = {}
-                drift = {}
-                if out_p.is_file():
+                # Evaluate metrics & report
+                if HAS_METRICS:
                     try:
-                        with Image.open(in_p) as sim, Image.open(out_p) as oim:
-                            if HAS_METRICS:
-                                metrics = eval_metrics.evaluate_pair(sim, oim)
-                            if HAS_DRIFT:
-                                drift = detect_drift.compute_drift(sim, oim)
-                    except Exception as e:
-                        print("Fidelity analysis error:", e)
+                        eval_metrics.evaluate_directory(aud_dir)
+                    except Exception:
+                        pass
 
-                out_b64 = "data:image/png;base64," + base64.b64encode(out_p.read_bytes()).decode("ascii")
+                report_script = REPO_ROOT / "scripts/generate-audition-report.py"
+                subprocess.check_call([sys.executable, str(report_script), str(aud_dir)])
 
-                resp = {
-                    "output_image": out_b64,
-                    "elapsed_ms": elapsed_ms,
-                    "metrics": metrics,
-                    "drift": drift
-                }
+                resp = {"report_url": "/results/experiments/eval_crops/web_audition/report.html"}
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
                 self.wfile.write(json.dumps(resp).encode("utf-8"))
-
-        elif url.path == "/api/compare":
-            data = json.loads(body.decode("utf-8"))
-            raw_b64 = data.get("image", "").split(",")[-1]
-            model_a = data.get("model_a", "RealeSR-general-v3")
-            model_b = data.get("model_b", "DF2K")
-            tiled = data.get("tiled", False)
-            tile_size = data.get("tile_size", 256)
-            portrait = data.get("portrait", False)
-            fidelity = float(data.get("fidelity", 0.70))
-
-            with tempfile.TemporaryDirectory(prefix="fidelis_cmp_") as tmp:
-                in_p = Path(tmp) / "input.png"
-                out_a = Path(tmp) / "out_a.png"
-                out_b = Path(tmp) / "out_b.png"
-                in_p.write_bytes(base64.b64decode(raw_b64))
-
-                cli = shutil.which("fidelis") or str(REPO_ROOT / "bin/fidelis")
-                elapsed_a = execute_restoration(
-                    cli, in_p, out_a, model_a, tiled=tiled, tile_size=tile_size, portrait=portrait, fidelity=fidelity
-                )
-                elapsed_b = execute_restoration(
-                    cli, in_p, out_b, model_b, tiled=tiled, tile_size=tile_size, portrait=portrait, fidelity=fidelity
-                )
-
-                metrics_a, drift_a = {}, {}
-                metrics_b, drift_b = {}, {}
-
-                with Image.open(in_p) as sim:
-                    if out_a.is_file():
-                        with Image.open(out_a) as oim:
-                            if HAS_METRICS: metrics_a = eval_metrics.evaluate_pair(sim, oim)
-                            if HAS_DRIFT: drift_a = detect_drift.compute_drift(sim, oim)
-                    if out_b.is_file():
-                        with Image.open(out_b) as oim:
-                            if HAS_METRICS: metrics_b = eval_metrics.evaluate_pair(sim, oim)
-                            if HAS_DRIFT: drift_b = detect_drift.compute_drift(sim, oim)
-
-                resp = {
-                    "output_a": "data:image/png;base64," + base64.b64encode(out_a.read_bytes()).decode("ascii"),
-                    "output_b": "data:image/png;base64," + base64.b64encode(out_b.read_bytes()).decode("ascii"),
-                    "model_a": model_a,
-                    "model_b": model_b,
-                    "elapsed_ms_a": elapsed_a,
-                    "elapsed_ms_b": elapsed_b,
-                    "metrics_a": metrics_a,
-                    "metrics_b": metrics_b,
-                    "drift_a": drift_a,
-                    "drift_b": drift_b
-                }
-                self.send_response(200)
-                self.send_header("Content-Type", "application/json")
+            else:
+                self.send_response(404)
                 self.end_headers()
-                self.wfile.write(json.dumps(resp).encode("utf-8"))
-
-        elif url.path == "/api/audition":
-            data = json.loads(body.decode("utf-8"))
-            raw_b64 = data.get("image", "").split(",")[-1]
-
-            aud_dir = REPO_ROOT / "experiments/eval_crops/web_audition"
-            shutil.rmtree(aud_dir, ignore_errors=True)
-            aud_dir.mkdir(parents=True, exist_ok=True)
-
-            in_p = aud_dir / "web_input.png"
-            in_p.write_bytes(base64.b64decode(raw_b64))
-
-            cli = shutil.which("fidelis") or str(REPO_ROOT / "bin/fidelis")
-            cmd = [cli, "audition", str(in_p), str(aud_dir)]
-            subprocess.check_call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-            # Evaluate metrics & report
-            if HAS_METRICS:
-                try:
-                    eval_metrics.evaluate_directory(aud_dir)
-                except Exception:
-                    pass
-
-            report_script = REPO_ROOT / "scripts/generate-audition-report.py"
-            subprocess.check_call([sys.executable, str(report_script), str(aud_dir)])
-
-            resp = {"report_url": "/results/experiments/eval_crops/web_audition/report.html"}
-            self.send_response(200)
+        except Exception as e:
+            traceback.print_exc()
+            self.send_response(500)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
-            self.wfile.write(json.dumps(resp).encode("utf-8"))
+            self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
 
 def run_server(port: int = 8765, host: str = "0.0.0.0"):
     handler = FidelisRequestHandler
