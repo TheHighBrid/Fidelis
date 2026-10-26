@@ -50,7 +50,7 @@ class MainActivity : AppCompatActivity() {
         setupWebView()
 
         val prefs = getSharedPreferences("fidelis_prefs", MODE_PRIVATE)
-        val defaultUrl = prefs.getString("server_url", "http://10.0.2.2:8080") ?: "http://10.0.2.2:8080"
+        val defaultUrl = prefs.getString("server_url", "http://51.79.71.248:8080") ?: "http://51.79.71.248:8080"
         loadUrlWithFallback(defaultUrl)
     }
 
@@ -118,15 +118,19 @@ class MainActivity : AppCompatActivity() {
     private fun promptServerUrl(message: String) {
         val input = EditText(this)
         val prefs = getSharedPreferences("fidelis_prefs", MODE_PRIVATE)
-        val current = prefs.getString("server_url", "http://10.0.2.2:8080")
+        val current = prefs.getString("server_url", "http://51.79.71.248:8080")
         input.setText(current)
+        input.hint = "http://51.79.71.248:8080"
 
         AlertDialog.Builder(this)
             .setTitle("Fidelis Studio Connection")
-            .setMessage(message)
+            .setMessage("Enter your OVH Cloud VPS or Local Server URL:\n(e.g., http://51.79.71.248:8080)")
             .setView(input)
             .setPositiveButton("Connect") { _, _ ->
-                val newUrl = input.text.toString().trim()
+                var newUrl = input.text.toString().trim()
+                if (newUrl.isNotEmpty() && !newUrl.startsWith("http://") && !newUrl.startsWith("https://")) {
+                    newUrl = "http://$newUrl"
+                }
                 prefs.edit().putString("server_url", newUrl).apply()
                 webView.loadUrl(newUrl)
             }
