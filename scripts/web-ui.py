@@ -946,11 +946,28 @@ def run_server(port: int = 8765, host: str = "0.0.0.0"):
     handler = FidelisRequestHandler
     # Allow port reuse
     socketserver.TCPServer.allow_reuse_address = True
-    with socketserver.TCPServer((host, port), handler) as httpd:
+
+    current_port = port
+    httpd = None
+    for attempt in range(30):
+        try:
+            httpd = socketserver.TCPServer((host, current_port), handler)
+            break
+        except OSError as e:
+            if getattr(e, "errno", None) in (48, 98):  # EADDRINUSE on macOS/Linux
+                print(f"[notice] Port {current_port} is already in use by another process. Trying {current_port + 1}...")
+                current_port += 1
+            else:
+                raise
+
+    if not httpd:
+        raise OSError(f"Could not find an open port starting from {port}")
+
+    with httpd:
         display_host = "127.0.0.1" if host in ("0.0.0.0", "") else host
         print(f"\n=======================================================")
         print(f" Fidelis Studio Web UI is running at:")
-        print(f" http://{display_host}:{port} (all interfaces: {host})")
+        print(f" http://{display_host}:{current_port} (all interfaces: {host})")
         print(f"=======================================================\n")
         try:
             httpd.serve_forever()
