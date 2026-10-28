@@ -26,10 +26,13 @@ import sys
 import tempfile
 import time
 import traceback
+import uuid
 from urllib.parse import parse_qs, urlparse
 from PIL import Image
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+CACHE_DIR = REPO_ROOT / ".cache" / "web_outputs"
+CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 # Import metric evaluator and drift detector if available
 try:
@@ -215,12 +218,13 @@ HTML_PAGE = r"""<!DOCTYPE html>
     display: inline-block;
     max-width: 100%;
     max-height: 100%;
-    user-select: none;
+    -webkit-touch-callout: default;
   }
   .split-container img {
     display: block;
     max-width: 100%;
     height: auto;
+    -webkit-touch-callout: default;
   }
   .zoom-100 .split-container img { max-width: none; transform: scale(1.0); }
   .zoom-200 .split-container img { max-width: none; transform: scale(2.0); image-rendering: pixelated; }
@@ -393,11 +397,12 @@ HTML_PAGE = r"""<!DOCTYPE html>
         <span id="badge-left" class="badge" style="background:#21262d; border:1px solid var(--border); font-size:11px; display:none;">Left: Source</span>
         <span id="badge-right" class="badge" style="background:#21262d; border:1px solid var(--border); font-size:11px; display:none;">Right: Output</span>
       </div>
-      <div style="display: flex; gap: 6px;">
+      <div style="display: flex; gap: 6px; flex-wrap: wrap;">
         <button class="tool-btn active" onclick="setZoom('fit')">Fit</button>
         <button class="tool-btn" onclick="setZoom('100')">100%</button>
         <button class="tool-btn" onclick="setZoom('200')">200% Grid</button>
-        <a id="btn-download" class="tool-btn" style="display:none; text-decoration: none; color: inherit;" download="fidelis_upscaled.png">Download PNG</a>
+        <button id="btn-download" class="tool-btn" style="display:none; background:#238636; color:#ffffff; font-weight:600; cursor:pointer;" onclick="downloadResultImage()">Download PNG</button>
+        <a id="btn-open-tab" class="tool-btn" style="display:none; text-decoration: none; color: inherit;" target="_blank">View Full Image</a>
       </div>
     </div>
 
@@ -531,6 +536,64 @@ function togglePortraitOpts() {
   if (opts) opts.style.display = chk.checked ? 'block' : 'none';
 }
 
+let currentDownloadUrl = null;
+let currentOutputBase64 = null;
+let currentViewUrl = null;
+
+function downloadResultImage() {
+  if (!currentOutputBase64 && !currentDownloadUrl) {
+    return alert('No upscaled image available to download.');
+  }
+
+  // 1. Native Android App Bridge (saves directly into device Pictures/Fidelis)
+  if (window.AndroidApp) {
+    if (typeof window.AndroidApp.saveImage === 'function' && currentOutputBase64) {
+      window.AndroidApp.saveImage(currentOutputBase64, 'fidelis_upscaled.png');
+      return;
+    }
+    if (typeof window.AndroidApp.downloadFromUrl === 'function' && currentDownloadUrl) {
+      const fullUrl = window.location.origin + currentDownloadUrl;
+      window.AndroidApp.downloadFromUrl(fullUrl, 'fidelis_upscaled.png');
+      return;
+    }
+  }
+
+  // 2. HTTP Server-Side Download (Fastest, avoids base64 URL limitations)
+  if (currentDownloadUrl) {
+    const a = document.createElement('a');
+    a.href = currentDownloadUrl;
+    a.download = 'fidelis_upscaled.png';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    return;
+  }
+
+  // 3. Blob URL Fallback
+  try {
+    const parts = currentOutputBase64.split(',');
+    const byteString = atob(parts[1]);
+    const mimeString = parts[0].split(':')[1].split(';')[0];
+    const ab = new ArrayBuffer(byteString.length);
+    const ia = new Uint8Array(ab);
+    for (let i = 0; i < byteString.length; i++) {
+      ia[i] = byteString.charCodeAt(i);
+    }
+    const blob = new Blob([ia], { type: mimeString });
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = 'fidelis_upscaled.png';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+  } catch (err) {
+    // 4. Fallback: open in new window
+    window.open(currentOutputBase64, '_blank');
+  }
+}
+
 function runUpscale() {
   if (!currentSourceData) return alert('Please load an image first.');
   const model = document.getElementById('model-select').value;
@@ -564,9 +627,17 @@ function runUpscale() {
     document.getElementById('badge-left').style.display = 'none';
     document.getElementById('badge-right').style.display = 'none';
 
+    currentOutputBase64 = data.output_image;
+    currentDownloadUrl = data.download_url;
+    currentViewUrl = data.view_url;
+
     document.getElementById('img-after').src = data.output_image;
-    document.getElementById('btn-download').href = data.output_image;
     document.getElementById('btn-download').style.display = 'inline-block';
+    if (data.view_url) {
+      const openBtn = document.getElementById('btn-open-tab');
+      openBtn.href = data.view_url;
+      openBtn.style.display = 'inline-block';
+    }
     setSplitPosition(50);
 
     // Update metrics & drift HUD
@@ -625,8 +696,15 @@ function runCompare() {
 
     document.getElementById('img-before').src = data.output_a;
     document.getElementById('img-after').src = data.output_b;
-    document.getElementById('btn-download').href = data.output_a;
+    currentOutputBase64 = data.output_b;
+    currentDownloadUrl = data.download_url_b;
+    currentViewUrl = data.view_url_b;
     document.getElementById('btn-download').style.display = 'inline-block';
+    if (data.view_url_b) {
+      const openBtn = document.getElementById('btn-open-tab');
+      openBtn.href = data.view_url_b;
+      openBtn.style.display = 'inline-block';
+    }
     setSplitPosition(50);
 
     document.getElementById('view-title').innerHTML = `Split: <strong>${data.model_a} (Left) vs ${data.model_b} (Right)</strong>`;
@@ -826,6 +904,41 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
             else:
                 self.send_response(404)
                 self.end_headers()
+        elif url.path == "/api/download":
+            query = parse_qs(url.query)
+            file_id = query.get("id", [""])[0]
+            filename = query.get("filename", ["fidelis_upscaled.png"])[0]
+            safe_id = os.path.basename(file_id)
+            safe_name = os.path.basename(filename) or "fidelis_upscaled.png"
+            target = (CACHE_DIR / f"{safe_id}.png").resolve()
+            if safe_id and target.is_file() and str(target).startswith(str(CACHE_DIR.resolve())):
+                data = target.read_bytes()
+                self.send_response(200)
+                self.send_header("Content-Type", "image/png")
+                self.send_header("Content-Disposition", f'attachment; filename="{safe_name}"')
+                self.send_header("Content-Length", str(len(data)))
+                self.send_header("Cache-Control", "no-cache")
+                self.end_headers()
+                self.wfile.write(data)
+            else:
+                self.send_response(404)
+                self.end_headers()
+        elif url.path == "/api/view":
+            query = parse_qs(url.query)
+            file_id = query.get("id", [""])[0]
+            safe_id = os.path.basename(file_id)
+            target = (CACHE_DIR / f"{safe_id}.png").resolve()
+            if safe_id and target.is_file() and str(target).startswith(str(CACHE_DIR.resolve())):
+                data = target.read_bytes()
+                self.send_response(200)
+                self.send_header("Content-Type", "image/png")
+                self.send_header("Content-Disposition", "inline")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+            else:
+                self.send_response(404)
+                self.end_headers()
         else:
             self.send_response(404)
             self.end_headers()
@@ -867,10 +980,19 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
                         except Exception as e:
                             print("Fidelity analysis error:", e)
 
-                    out_b64 = "data:image/png;base64," + base64.b64encode(out_p.read_bytes()).decode("ascii")
+                    raw_out_bytes = out_p.read_bytes()
+                    out_b64 = "data:image/png;base64," + base64.b64encode(raw_out_bytes).decode("ascii")
+
+                    token = f"fidelis_{int(time.time())}_{uuid.uuid4().hex[:6]}"
+                    (CACHE_DIR / f"{token}.png").write_bytes(raw_out_bytes)
+                    model_slug = "portrait" if portrait else model.replace(" ", "_")
+                    download_url = f"/api/download?id={token}&filename=fidelis_{model_slug}.png"
+                    view_url = f"/api/view?id={token}"
 
                     resp = {
                         "output_image": out_b64,
+                        "download_url": download_url,
+                        "view_url": view_url,
                         "elapsed_ms": elapsed_ms,
                         "metrics": metrics,
                         "drift": drift
@@ -916,9 +1038,21 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
                                 if HAS_METRICS: metrics_b = eval_metrics.evaluate_pair(sim, oim)
                                 if HAS_DRIFT: drift_b = detect_drift.compute_drift(sim, oim)
 
+                    bytes_a = out_a.read_bytes()
+                    bytes_b = out_b.read_bytes()
+
+                    token_a = f"fidelis_cmp_a_{int(time.time())}_{uuid.uuid4().hex[:6]}"
+                    token_b = f"fidelis_cmp_b_{int(time.time())}_{uuid.uuid4().hex[:6]}"
+                    (CACHE_DIR / f"{token_a}.png").write_bytes(bytes_a)
+                    (CACHE_DIR / f"{token_b}.png").write_bytes(bytes_b)
+
                     resp = {
-                        "output_a": "data:image/png;base64," + base64.b64encode(out_a.read_bytes()).decode("ascii"),
-                        "output_b": "data:image/png;base64," + base64.b64encode(out_b.read_bytes()).decode("ascii"),
+                        "output_a": "data:image/png;base64," + base64.b64encode(bytes_a).decode("ascii"),
+                        "output_b": "data:image/png;base64," + base64.b64encode(bytes_b).decode("ascii"),
+                        "download_url_a": f"/api/download?id={token_a}&filename=fidelis_{model_a}.png",
+                        "download_url_b": f"/api/download?id={token_b}&filename=fidelis_{model_b}.png",
+                        "view_url_a": f"/api/view?id={token_a}",
+                        "view_url_b": f"/api/view?id={token_b}",
                         "model_a": model_a,
                         "model_b": model_b,
                         "elapsed_ms_a": elapsed_a,

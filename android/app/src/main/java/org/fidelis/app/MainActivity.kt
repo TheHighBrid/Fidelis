@@ -2,11 +2,17 @@ package org.fidelis.app
 
 import android.annotation.SuppressLint
 import android.app.AlertDialog
+import android.app.DownloadManager
+import android.content.ContentValues
 import android.content.Intent
 import android.graphics.Bitmap
+import android.media.MediaScannerConnection
 import android.net.Uri
 import android.net.http.SslError
+import android.os.Build
 import android.os.Bundle
+import android.os.Environment
+import android.util.Base64
 import android.view.View
 import android.webkit.*
 import android.widget.EditText
@@ -15,6 +21,8 @@ import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import java.io.File
+import java.io.FileOutputStream
 
 class MainActivity : AppCompatActivity() {
 
@@ -145,6 +153,123 @@ class MainActivity : AppCompatActivity() {
                 return true
             }
         }
+
+        webView.addJavascriptInterface(WebAppInterface(this), "AndroidApp")
+
+        webView.setDownloadListener { url, _, contentDisposition, mimetype, _ ->
+            val filename = URLUtil.guessFileName(url, contentDisposition, mimetype) ?: "fidelis_upscaled.png"
+            if (url.startsWith("data:")) {
+                saveBase64ToGallery(url, filename)
+            } else {
+                downloadHttpFile(url, filename)
+            }
+        }
+    }
+
+    inner class WebAppInterface(private val activity: MainActivity) {
+        @JavascriptInterface
+        fun saveImage(base64Data: String, filename: String?) {
+            activity.runOnUiThread {
+                activity.saveBase64ToGallery(base64Data, filename ?: "fidelis_upscaled.png")
+            }
+        }
+
+        @JavascriptInterface
+        fun downloadFromUrl(fileUrl: String, filename: String?) {
+            activity.runOnUiThread {
+                activity.downloadHttpFile(fileUrl, filename ?: "fidelis_upscaled.png")
+            }
+        }
+    }
+
+    fun saveBase64ToGallery(base64Data: String, filename: String) {
+        try {
+            val cleanBase64 = if (base64Data.contains(",")) {
+                base64Data.substringAfter(",")
+            } else {
+                base64Data
+            }
+            val bytes = Base64.decode(cleanBase64, Base64.DEFAULT)
+            saveBytesToGallery(bytes, filename)
+        } catch (e: Exception) {
+            Toast.makeText(this, "Failed to decode image: ${e.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    fun saveBytesToGallery(bytes: ByteArray, filename: String) {
+        val name = if (filename.endsWith(".png", ignoreCase = true) || filename.endsWith(".jpg", ignoreCase = true)) {
+            filename
+        } else {
+            "fidelis_${System.currentTimeMillis()}.png"
+        }
+
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val contentValues = ContentValues().apply {
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, name)
+                    put(MediaStore.MediaColumns.MIME_TYPE, "image/png")
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/Fidelis")
+                    put(MediaStore.Images.Media.IS_PENDING, 1)
+                }
+                val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+                if (uri != null) {
+                    contentResolver.openOutputStream(uri)?.use { out ->
+                        out.write(bytes)
+                        out.flush()
+                    }
+                    contentValues.clear()
+                    contentValues.put(MediaStore.Images.Media.IS_PENDING, 0)
+                    contentResolver.update(uri, contentValues, null, null)
+                    Toast.makeText(this, "Saved to Pictures/Fidelis: $name", Toast.LENGTH_LONG).show()
+                    return
+                }
+            }
+
+            // Fallback for API < 29
+            val picturesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
+            val fidelisDir = File(picturesDir, "Fidelis")
+            if (!fidelisDir.exists()) fidelisDir.mkdirs()
+            val file = File(fidelisDir, name)
+            FileOutputStream(file).use { out ->
+                out.write(bytes)
+                out.flush()
+            }
+            MediaScannerConnection.scanFile(this, arrayOf(file.absolutePath), arrayOf("image/png"), null)
+            Toast.makeText(this, "Saved to Pictures/Fidelis: $name", Toast.LENGTH_LONG).show()
+        } catch (e: Exception) {
+            Toast.makeText(this, "Failed to save picture: ${e.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    fun downloadHttpFile(fileUrl: String, filename: String) {
+        try {
+            val uri = Uri.parse(fileUrl)
+            val request = DownloadManager.Request(uri).apply {
+                setTitle(filename)
+                setDescription("Downloading upscaled image from Fidelis Studio...")
+                setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                setDestinationInExternalPublicDir(Environment.DIRECTORY_PICTURES, "Fidelis/$filename")
+                setMimeType("image/png")
+            }
+            val dm = getSystemService(DOWNLOAD_SERVICE) as DownloadManager
+            dm.enqueue(request)
+            Toast.makeText(this, "Downloading $filename to Pictures/Fidelis...", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Thread {
+                try {
+                    val conn = java.net.URL(fileUrl).openConnection()
+                    val bytes = conn.getInputStream().use { it.readBytes() }
+                    runOnUiThread {
+                        saveBytesToGallery(bytes, filename)
+                    }
+                } catch (err: Exception) {
+                    runOnUiThread {
+                        Toast.makeText(this, "Download failed: ${err.message}", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }.start()
+        }
+    }
     }
 
     private fun loadUrlWithFallback(url: String) {
