@@ -12,6 +12,7 @@ import android.net.http.SslError
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.provider.MediaStore
 import android.util.Base64
 import android.view.View
 import android.webkit.*
@@ -269,7 +270,6 @@ class MainActivity : AppCompatActivity() {
                 }
             }.start()
         }
-    }
     }
 
     private fun loadUrlWithFallback(url: String) {
