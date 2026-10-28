@@ -1,0 +1,116 @@
+presets:
+  Fast_Fidelity:
+    target_use_case: "E-commerce, UI, Clean DSLR, Print 2x"
+    tier: 1
+    engine: "deterministic"
+    base_checkpoint: "RAESR / Real-HAT-GAN"
+    default_scale: 4
+    allowed_scales: [2, 4]
+    diffusion_steps: 0
+    deterministic: true
+    guidance_scale: 0.0
+    linear_cfg: false
+    s_noise: 1.0
+    s_churn: 0.0
+    color_correction: "direct_icc"
+    positive_prompt: ""
+    negative_prompt: ""
+    face_fidelity_default: 0.85
+    text_preservation: true
+
+  Smart_Balanced:
+    target_use_case: "General Web Photos, Portraits, Social Media"
+    tier: 2
+    engine: "distilled_one_step"
+    base_checkpoint: "PiSA-SR-S1 / OSEDiff"
+    default_scale: 4
+    allowed_scales: [2, 4]
+    diffusion_steps: 1
+    deterministic: true
+    guidance_scale: 1.0
+    linear_cfg: false
+    s_noise: 1.0
+    s_churn: 0.0
+    color_correction: "adain"
+    positive_prompt: "photorealistic, sharp details, natural skin texture"
+    negative_prompt: "noise, plastic skin, oversaturation, distortion"
+    face_fidelity_default: 0.70
+    text_preservation: true
+
+  Photo_Restore:
+    target_use_case: "Degraded Photos, Old Downloads"
+    tier: 3
+    engine: "multistep_diffusion"
+    base_checkpoint: "SUPIR-v0Q / SDXL ZeroSFT"
+    default_scale: 2
+    allowed_scales: [1, 2, 4]
+    diffusion_steps: 50
+    deterministic: false
+    guidance_scale: 7.5
+    linear_cfg: true
+    s_noise: 1.003
+    s_churn: 0.0
+    color_correction: "wavelet"
+    positive_prompt: "photo realistic, vibrant color, super detailed, crisp micro-texture"
+    negative_prompt: "noise, blur, artifacts, plastic smooth, cartoon"
+    face_fidelity_default: 0.50
+    text_preservation: true
+
+  LowLight_Denoise:
+    target_use_case: "High-ISO Night Shots, Heavy Sensor Grain"
+    tier: 3
+    engine: "multistep_diffusion"
+    base_checkpoint: "SUPIR-v0Q"
+    default_scale: 2
+    allowed_scales: [1, 2]
+    diffusion_steps: 75
+    deterministic: false
+    guidance_scale: 7.5
+    linear_cfg: true
+    s_noise: 1.005
+    s_churn: 4.0
+    color_correction: "wavelet"
+    positive_prompt: "clean, sharp, high fidelity, preserved low-light detail"
+    negative_prompt: "grain, excessive noise, blur, color banding"
+    face_fidelity_default: 0.65
+    text_preservation: false
+
+  Archival_BW:
+    target_use_case: "Historical Monochrome & Damaged Scans"
+    tier: 3
+    engine: "multistep_diffusion"
+    base_checkpoint: "SUPIR-v0Q + LLaVA"
+    default_scale: 4
+    allowed_scales: [2, 4]
+    diffusion_steps: 60
+    deterministic: false
+    guidance_scale: 7.5
+    linear_cfg: true
+    linear_s_stage2: true
+    s_noise: 1.003
+    s_churn: 2.0
+    color_correction: "wavelet"
+    use_llava: true
+    positive_prompt: "vivid realistic restoration, authentic natural textures, period-accurate lighting"
+    negative_prompt: "over saturation, unnatural hues, synthetic artifacts, plastic sheen"
+    face_fidelity_default: 0.45
+    text_preservation: true
+
+  Ultra_Redefine:
+    target_use_case: "Extreme 4x-16x Enlargement, AI Art, Print"
+    tier: 3
+    engine: "multistep_diffusion"
+    base_checkpoint: "SUPIR-v0F"
+    default_scale: 4
+    allowed_scales: [4, 8, 16]
+    diffusion_steps: 100
+    deterministic: false
+    guidance_scale: 10.5
+    linear_cfg: true
+    s_noise: 1.003
+    s_churn: 0.0
+    color_correction: "adain"
+    positive_prompt: "Cinematic, ultra HD, high contrast, extremely detailed micro-textures, 8k resolution"
+    negative_prompt: "low quality, artifacts, watermark, blurry, dull, distorted"
+    face_fidelity_default: 0.70
+    text_preservation: true

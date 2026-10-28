@@ -13,5 +13,6 @@ models/
 !tests/fixtures/*.png
 !experiments/eval_crops/*.png
 experiments/eval_crops/audition_*/
+experiments/eval_crops/web_audition/
 *.html
 

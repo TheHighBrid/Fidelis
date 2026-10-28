@@ -53,6 +53,9 @@ Usage:
   fidelis report RESULTS_DIR [-o OUT_HTML]
   fidelis eval-crops [-d TARGET_DIR]
   fidelis portrait INPUT OUTPUT [-w FIDELITY]
+  fidelis profile INPUT
+  fidelis route INPUT [--mode MODE]
+  fidelis benchmark-suite SOURCE UPSCALED
   fidelis ui [-p PORT]
 
 MODEL is the installed directory name without the leading "models-".
@@ -519,6 +522,22 @@ case "$command" in
     else
       exec "$py" "$portrait_script" "$@"
     fi
+    ;;
+  profile|route)
+    [[ $# -ge 2 ]] || { usage >&2; exit 2; }
+    py="$(resolve_python)"
+    route_script="$(resolve_script "route-image.py")"
+    [[ -f "$route_script" ]] || { printf 'Route script not found: %s\n' "$route_script" >&2; exit 1; }
+    shift
+    exec "$py" "$route_script" "$@"
+    ;;
+  benchmark-suite)
+    [[ $# -ge 3 ]] || { usage >&2; exit 2; }
+    py="$(resolve_python)"
+    bench_suite_script="$(resolve_script "benchmark-suite.py")"
+    [[ -f "$bench_suite_script" ]] || { printf 'Benchmark suite script not found: %s\n' "$bench_suite_script" >&2; exit 1; }
+    shift
+    exec "$py" "$bench_suite_script" "$@"
     ;;
   ui)
     py="$(resolve_python)"

@@ -34,9 +34,11 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 CACHE_DIR = REPO_ROOT / ".cache" / "web_outputs"
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
-# Import metric evaluator and drift detector if available
+# Ensure REPO_ROOT is in sys.path
+sys.path.insert(0, str(REPO_ROOT))
+sys.path.insert(0, str(REPO_ROOT / "scripts"))
+
 try:
-    sys.path.insert(0, str(REPO_ROOT / "scripts"))
     import importlib.util
     spec = importlib.util.spec_from_file_location("eval_metrics", str(REPO_ROOT / "scripts/evaluate-fidelity-metrics.py"))
     eval_metrics = importlib.util.module_from_spec(spec)
@@ -52,6 +54,20 @@ try:
     HAS_DRIFT = True
 except Exception:
     HAS_DRIFT = False
+
+try:
+    import cv2
+    import numpy as np
+    import fidelis
+    from fidelis.core.router import SmartRouter, UpscaleMode
+    from fidelis.engine.diffusion_sr import DiffusionPresetsEngine
+    from fidelis.modules.face_restorer import FaceRestorer
+    from fidelis.modules.text_restorer import TextRestorer
+    from fidelis.postprocess.color_fix import stabilize_colors
+    from fidelis.eval.benchmark_suite import BenchmarkSuite
+    HAS_FIDELIS = True
+except Exception as e:
+    HAS_FIDELIS = False
 
 def get_installed_models():
     cli = shutil.which("fidelis") or str(REPO_ROOT / "bin/fidelis")
@@ -338,11 +354,42 @@ HTML_PAGE = r"""<!DOCTYPE html>
       </div>
     </div>
 
+    <!-- Live Degradation & Semantics Profiler Panel -->
+    <div class="panel" id="profiler-panel" style="display:none; background: #161b22; border: 1px solid var(--border); margin-top: 12px;">
+      <h3 style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <span>Degradation Profiler</span>
+        <span id="prof-mode-badge" class="badge" style="background: #1f6feb; font-size: 11px;">ROUTED</span>
+      </h3>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 11px; color: var(--text-muted);">
+        <div>Resolution: <strong id="prof-dim" style="color: var(--text);">-</strong></div>
+        <div>Blur Score: <strong id="prof-blur" style="color: var(--text);">-</strong></div>
+        <div>Noise Var: <strong id="prof-noise" style="color: var(--text);">-</strong></div>
+        <div>JPEG Grid: <strong id="prof-jpeg" style="color: var(--text);">-</strong></div>
+        <div>Faces Detected: <strong id="prof-faces" style="color: var(--text);">-</strong></div>
+        <div>Text Regions: <strong id="prof-text" style="color: var(--text);">-</strong></div>
+      </div>
+      <div style="margin-top: 8px; font-size: 11px; padding: 6px; background: #0d1117; border-radius: 4px; border: 1px solid var(--border);">
+        Recommended Preset: <strong id="prof-rec" style="color: var(--accent);">-</strong>
+      </div>
+    </div>
+
     <div class="panel">
       <h3>2. Mode & Settings</h3>
       <div style="display: flex; gap: 8px; margin-bottom: 12px;">
         <button id="mode-single-btn" class="tool-btn active" style="flex: 1; text-align: center; padding: 6px;" onclick="setCompareMode('single')">Source vs Model</button>
         <button id="mode-dual-btn" class="tool-btn" style="flex: 1; text-align: center; padding: 6px;" onclick="setCompareMode('dual')">Model vs Model</button>
+      </div>
+
+      <div style="margin-bottom: 10px;">
+        <label style="font-size: 12px; color: var(--text-muted);">Fidelis Flagship Preset:</label>
+        <select id="preset-select" onchange="onPresetChange()">
+          <option value="Smart_Balanced" selected>Smart_Balanced (1-Step Distilled - Default)</option>
+          <option value="Fast_Fidelity">Fast_Fidelity (Deterministic RAESR/HAT - 0 Hallucination)</option>
+          <option value="Photo_Restore">Photo_Restore (Generative Skin & Texture Rebuild)</option>
+          <option value="LowLight_Denoise">LowLight_Denoise (Sensor Grain & High-ISO Fix)</option>
+          <option value="Archival_BW">Archival_BW (Historical Scans & Damaged Photos)</option>
+          <option value="Ultra_Redefine">Ultra_Redefine (Magnific-Grade Creative Scale)</option>
+        </select>
       </div>
 
       <div id="single-model-box">
@@ -357,24 +404,56 @@ HTML_PAGE = r"""<!DOCTYPE html>
         <select id="model-b-select"></select>
       </div>
 
-      <div style="margin-top: 12px; padding: 10px; background: rgba(88, 166, 255, 0.08); border: 1px solid rgba(88, 166, 255, 0.25); border-radius: 6px;">
+      <!-- Diffusion & Creativity Controls -->
+      <div id="diffusion-controls" style="margin-top: 10px; padding: 8px; background: rgba(255,255,255,0.03); border-radius: 6px; border: 1px solid var(--border);">
+        <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted);">
+          <span>Creativity (Denoising Guidance):</span>
+          <strong id="creativity-val" style="color: var(--text);">0.50</strong>
+        </div>
+        <input type="range" id="creativity-slider" min="0.0" max="1.0" step="0.05" value="0.50" style="width: 100%; cursor: pointer;" oninput="document.getElementById('creativity-val').textContent = parseFloat(this.value).toFixed(2)">
+
+        <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-top: 6px;">
+          <span>Resemblance (Structural Anchor):</span>
+          <strong id="resemblance-val" style="color: var(--text);">0.70</strong>
+        </div>
+        <input type="range" id="resemblance-slider" min="0.20" max="1.0" step="0.05" value="0.70" style="width: 100%; cursor: pointer;" oninput="document.getElementById('resemblance-val').textContent = parseFloat(this.value).toFixed(2)">
+      </div>
+
+      <!-- Portrait Face Engine -->
+      <div style="margin-top: 10px; padding: 10px; background: rgba(88, 166, 255, 0.08); border: 1px solid rgba(88, 166, 255, 0.25); border-radius: 6px;">
         <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; cursor: pointer; color: #58a6ff;">
           <input type="checkbox" id="portrait-check" checked onchange="togglePortraitOpts()"> Portrait Pore Engine (Anti-Dollification)
         </label>
         <div id="portrait-opts" style="margin-top: 8px;">
           <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">
-            <span>Pore Texture vs Identity Fidelity (w):</span>
+            <span>Face Fidelity Weight (w):</span>
             <strong id="fidelity-val" style="color: var(--text);">0.70</strong>
           </div>
           <input type="range" id="fidelity-slider" min="0.30" max="0.95" step="0.05" value="0.70" style="width: 100%; cursor: pointer;" oninput="document.getElementById('fidelity-val').textContent = parseFloat(this.value).toFixed(2)">
           <div style="font-size: 10px; color: var(--text-muted); margin-top: 4px; line-height: 1.3;">
-            0.40: Maximum pore/lash synthesis | <strong>0.70: Balanced (Zero dollification)</strong> | 0.90: Max source likeness
+            0.40: High synthesis | <strong>0.70: Balanced (Zero dollification)</strong> | 0.90: Strict source
           </div>
         </div>
       </div>
 
+      <!-- Text & Logo Preservation -->
       <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; margin-top: 10px;">
-        <input type="checkbox" id="tiled-check"> Enable Seamless Tiled Upscaling
+        <input type="checkbox" id="text-check" checked> Text & Logo Guard (TiGeSR / DualTSR)
+      </label>
+
+      <!-- Color Stabilization -->
+      <div style="margin-top: 10px;">
+        <label style="font-size: 11px; color: var(--text-muted);">Color Stabilization:</label>
+        <select id="color-fix-select">
+          <option value="auto" selected>Auto (Wavelet <=2x, AdaIN >=4x)</option>
+          <option value="wavelet">Stationary Wavelet (J=5)</option>
+          <option value="adain">AdaIN Color Normalization</option>
+          <option value="none">Direct / Uncompensated</option>
+        </select>
+      </div>
+
+      <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; margin-top: 10px;">
+        <input type="checkbox" id="tiled-check"> Enable MultiDiffusion Tiling
       </label>
       <div id="tile-opts" style="display:none; margin-top: 8px;">
         <label style="font-size: 11px; color: var(--text-muted);">Tile Size (px):</label>
@@ -428,16 +507,16 @@ HTML_PAGE = r"""<!DOCTYPE html>
       </div>
     </div>
 
-    <div class="metrics-box" id="metrics-bar" style="display:none;">
-      <div class="metric-item">Model: <strong id="m-model">-</strong></div>
-      <div class="metric-item">Time: <strong id="m-time">-</strong></div>
+    <div class="metrics-box" id="metrics-bar" style="display:none; flex-wrap: wrap;">
+      <div class="metric-item">Preset/Model: <strong id="m-model">-</strong></div>
+      <div class="metric-item">Latency: <strong id="m-time">-</strong></div>
       <div class="metric-item">Rule #1: <span id="m-drift-status" class="status-pill status-pass">-</span></div>
+      <div class="metric-item">Hallucination: <strong id="m-risk" style="color:var(--success)">LOW</strong></div>
       <div class="metric-item">Coherence: <strong id="m-coherence">-</strong></div>
-      <div class="metric-item">Edge Shift: <strong id="m-shift">-</strong></div>
       <div class="metric-item">SSIM: <strong id="m-ssim" style="color:var(--success)">-</strong></div>
       <div class="metric-item">PSNR: <strong id="m-psnr">-</strong></div>
-      <div class="metric-item">Color Drift: <strong id="m-drift">-</strong></div>
-      <div class="metric-item">BG Noise: <strong id="m-bg">-</strong></div>
+      <div class="metric-item">CIELAB &Delta;E: <strong id="m-drift">-</strong></div>
+      <div class="metric-item">Edge Energy: <strong id="m-bg">-</strong></div>
     </div>
   </div>
 </div>
@@ -511,8 +590,73 @@ function handleFile(file) {
   reader.onload = ev => {
     currentSourceData = ev.target.result;
     showSourcePreview(currentSourceData);
+    profileImage(currentSourceData);
   };
   reader.readAsDataURL(file);
+}
+
+function profileImage(dataUrl) {
+  fetch('/api/profile', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ image: dataUrl })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.width) {
+      document.getElementById('profiler-panel').style.display = 'block';
+      document.getElementById('prof-dim').textContent = `${data.width}x${data.height} px`;
+      document.getElementById('prof-blur').textContent = data.blur_score;
+      document.getElementById('prof-noise').textContent = data.noise_variance;
+      document.getElementById('prof-jpeg').textContent = data.jpeg_blockiness;
+      document.getElementById('prof-faces').textContent = data.face_count;
+      document.getElementById('prof-text').textContent = data.text_count;
+      document.getElementById('prof-rec').textContent = data.recommended_model;
+      document.getElementById('prof-mode-badge').textContent = data.recommended_mode.toUpperCase();
+
+      if (data.face_count > 0) {
+        document.getElementById('portrait-check').checked = true;
+        togglePortraitOpts();
+      }
+      if (data.text_count > 0) {
+        document.getElementById('text-check').checked = true;
+      }
+    }
+  })
+  .catch(() => {});
+}
+
+function onPresetChange() {
+  const p = document.getElementById('preset-select').value;
+  if (p === 'Fast_Fidelity') {
+    document.getElementById('creativity-slider').value = 0.0;
+    document.getElementById('creativity-val').textContent = '0.00';
+    document.getElementById('resemblance-slider').value = 1.0;
+    document.getElementById('resemblance-val').textContent = '1.00';
+    document.getElementById('portrait-check').checked = false;
+    togglePortraitOpts();
+  } else if (p === 'Smart_Balanced') {
+    document.getElementById('creativity-slider').value = 0.50;
+    document.getElementById('creativity-val').textContent = '0.50';
+    document.getElementById('resemblance-slider').value = 0.70;
+    document.getElementById('resemblance-val').textContent = '0.70';
+    document.getElementById('portrait-check').checked = true;
+    togglePortraitOpts();
+  } else if (p === 'Photo_Restore') {
+    document.getElementById('creativity-slider').value = 0.65;
+    document.getElementById('creativity-val').textContent = '0.65';
+    document.getElementById('resemblance-slider').value = 0.60;
+    document.getElementById('resemblance-val').textContent = '0.60';
+    document.getElementById('fidelity-slider').value = 0.50;
+    document.getElementById('fidelity-val').textContent = '0.50';
+    document.getElementById('portrait-check').checked = true;
+    togglePortraitOpts();
+  } else if (p === 'Ultra_Redefine') {
+    document.getElementById('creativity-slider').value = 0.85;
+    document.getElementById('creativity-val').textContent = '0.85';
+    document.getElementById('resemblance-slider').value = 0.50;
+    document.getElementById('resemblance-val').textContent = '0.50';
+  }
 }
 
 function loadSample(sampleName) {
@@ -596,22 +740,32 @@ function downloadResultImage() {
 
 function runUpscale() {
   if (!currentSourceData) return alert('Please load an image first.');
+  const preset = document.getElementById('preset-select').value;
   const model = document.getElementById('model-select').value;
+  const creativity = parseFloat(document.getElementById('creativity-slider').value);
+  const resemblance = parseFloat(document.getElementById('resemblance-slider').value);
+  const textPreserve = document.getElementById('text-check').checked;
+  const colorFix = document.getElementById('color-fix-select').value;
   const tiled = document.getElementById('tiled-check').checked;
   const tileSize = document.getElementById('tile-size').value;
   const portrait = document.getElementById('portrait-check').checked;
   const fidelity = parseFloat(document.getElementById('fidelity-slider').value);
 
   const loadText = portrait
-    ? `Restoring natural skin pores & facial fidelity (w=${fidelity.toFixed(2)})...`
-    : `Upscaling 4x via ${model}...`;
+    ? `Flagship ${preset}: Restoring skin pores & facial fidelity (w=${fidelity.toFixed(2)})...`
+    : `Flagship ${preset}: Enhancing via ${model}...`;
   showLoading(true, loadText);
   fetch('/api/upscale', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       image: currentSourceData,
+      preset: preset,
       model: model,
+      creativity: creativity,
+      resemblance: resemblance,
+      text_preserve: textPreserve,
+      color_fix: colorFix,
       tiled: tiled,
       tile_size: parseInt(tileSize),
       portrait: portrait,
@@ -622,7 +776,7 @@ function runUpscale() {
     showLoading(false);
     if (!r.ok || data.error) return alert('Upscale failed: ' + (data.error || 'Unknown error'));
 
-    const titlePrefix = portrait ? 'Portrait Pore Engine' : model;
+    const titlePrefix = portrait ? `Portrait Pore Engine (${preset})` : `${preset} - ${model}`;
     document.getElementById('view-title').innerHTML = `Split Comparison: <strong>Source vs ${titlePrefix}</strong>`;
     document.getElementById('badge-left').style.display = 'none';
     document.getElementById('badge-right').style.display = 'none';
@@ -640,23 +794,38 @@ function runUpscale() {
     }
     setSplitPosition(50);
 
-    // Update metrics & drift HUD
+    // Update 5-dimension metrics HUD
     document.getElementById('metrics-bar').style.display = 'flex';
-    document.getElementById('m-model').textContent = portrait ? `${model} + CodeFormer(w=${fidelity.toFixed(2)})` : model;
+    document.getElementById('m-model').textContent = portrait ? `${preset}+CodeFormer(w=${fidelity.toFixed(2)})` : `${preset} (${model})`;
     document.getElementById('m-time').textContent = data.elapsed_ms + ' ms';
     if (data.metrics) {
-      document.getElementById('m-ssim').textContent = data.metrics.ssim ?? '-';
-      document.getElementById('m-psnr').textContent = (data.metrics.psnr_db ?? '-') + ' dB';
-      document.getElementById('m-drift').textContent = data.metrics.color_drift ?? '-';
-      document.getElementById('m-bg').textContent = data.metrics.bg_noise_restraint ?? '-';
+      document.getElementById('m-ssim').textContent = data.metrics.ssim != null ? data.metrics.ssim : '-';
+      document.getElementById('m-psnr').textContent = (data.metrics.psnr_db != null ? data.metrics.psnr_db : '-') + ' dB';
+      document.getElementById('m-drift').textContent = data.metrics.cielab_delta_e != null ? data.metrics.cielab_delta_e : (data.metrics.color_drift ?? '-');
+      document.getElementById('m-bg').textContent = data.metrics.edge_energy_gain_pct != null ? data.metrics.edge_energy_gain_pct + '%' : (data.metrics.bg_noise_restraint ?? '-');
+      if (data.metrics.gradient_coherence_pct != null) {
+        document.getElementById('m-coherence').textContent = data.metrics.gradient_coherence_pct + '%';
+      }
+      if (data.metrics.hallucination_risk) {
+        const hr = document.getElementById('m-risk');
+        hr.textContent = data.metrics.hallucination_risk;
+        hr.style.color = data.metrics.hallucination_risk === 'LOW' ? 'var(--success)' : (data.metrics.hallucination_risk === 'MODERATE' ? 'var(--warning)' : 'var(--danger)');
+      }
+      if (data.metrics.rule1_status) {
+        const ds = document.getElementById('m-drift-status');
+        const st = data.metrics.rule1_status;
+        ds.textContent = st;
+        ds.className = 'status-pill ' + (st.includes('PASS') ? 'status-pass' : (st.includes('WARN') ? 'status-warn' : 'status-fail'));
+      }
     }
-    if (data.drift) {
+    if (data.drift && !data.metrics?.rule1_status) {
       const ds = document.getElementById('m-drift-status');
       const st = data.drift.status || 'UNKNOWN';
       ds.textContent = st;
       ds.className = 'status-pill ' + (st.includes('PASS') ? 'status-pass' : (st.includes('WARN') ? 'status-warn' : 'status-fail'));
-      document.getElementById('m-coherence').textContent = (data.drift.gradient_coherence_pct != null ? data.drift.gradient_coherence_pct + '%' : '-');
-      document.getElementById('m-shift').textContent = (data.drift.mean_edge_shift_px != null ? data.drift.mean_edge_shift_px + ' px' : '-');
+      if (data.drift.gradient_coherence_pct != null) {
+        document.getElementById('m-coherence').textContent = data.drift.gradient_coherence_pct + '%';
+      }
     }
   }).catch(err => {
     showLoading(false);
@@ -666,8 +835,13 @@ function runUpscale() {
 
 function runCompare() {
   if (!currentSourceData) return alert('Please load an image first.');
+  const preset = document.getElementById('preset-select').value;
   const modelA = document.getElementById('model-a-select').value;
   const modelB = document.getElementById('model-b-select').value;
+  const creativity = parseFloat(document.getElementById('creativity-slider').value);
+  const resemblance = parseFloat(document.getElementById('resemblance-slider').value);
+  const textPreserve = document.getElementById('text-check').checked;
+  const colorFix = document.getElementById('color-fix-select').value;
   const tiled = document.getElementById('tiled-check').checked;
   const tileSize = document.getElementById('tile-size').value;
   const portrait = document.getElementById('portrait-check').checked;
@@ -682,8 +856,13 @@ function runCompare() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       image: currentSourceData,
+      preset: preset,
       model_a: modelA,
       model_b: modelB,
+      creativity: creativity,
+      resemblance: resemblance,
+      text_preserve: textPreserve,
+      color_fix: colorFix,
       tiled: tiled,
       tile_size: parseInt(tileSize),
       portrait: portrait,
@@ -718,20 +897,6 @@ function runCompare() {
     document.getElementById('m-model').textContent = `${data.model_a} vs ${data.model_b}`;
     document.getElementById('m-time').textContent = `${data.elapsed_ms_a}ms / ${data.elapsed_ms_b}ms`;
 
-    const stA = data.drift_a?.status || 'UNKNOWN';
-    const stB = data.drift_b?.status || 'UNKNOWN';
-    const ds = document.getElementById('m-drift-status');
-    ds.textContent = `A:${stA.split(' ')[0]} | B:${stB.split(' ')[0]}`;
-    ds.className = 'status-pill ' + (stA.includes('PASS') && stB.includes('PASS') ? 'status-pass' : (stA.includes('FAIL') || stB.includes('FAIL') ? 'status-fail' : 'status-warn'));
-
-    const cohA = data.drift_a?.gradient_coherence_pct != null ? data.drift_a.gradient_coherence_pct + '%' : '-';
-    const cohB = data.drift_b?.gradient_coherence_pct != null ? data.drift_b.gradient_coherence_pct + '%' : '-';
-    document.getElementById('m-coherence').textContent = `${cohA} / ${cohB}`;
-
-    const sA = data.drift_a?.mean_edge_shift_px != null ? data.drift_a.mean_edge_shift_px + 'px' : '-';
-    const sB = data.drift_b?.mean_edge_shift_px != null ? data.drift_b.mean_edge_shift_px + 'px' : '-';
-    document.getElementById('m-shift').textContent = `${sA} / ${sB}`;
-
     const ssimA = data.metrics_a?.ssim ?? '-';
     const ssimB = data.metrics_b?.ssim ?? '-';
     document.getElementById('m-ssim').textContent = `${ssimA} / ${ssimB}`;
@@ -740,13 +905,27 @@ function runCompare() {
     const psnrB = data.metrics_b?.psnr_db ?? '-';
     document.getElementById('m-psnr').textContent = `${psnrA} / ${psnrB} dB`;
 
-    const drA = data.metrics_a?.color_drift ?? '-';
-    const drB = data.metrics_b?.color_drift ?? '-';
+    const drA = data.metrics_a?.cielab_delta_e ?? (data.metrics_a?.color_drift ?? '-');
+    const drB = data.metrics_b?.cielab_delta_e ?? (data.metrics_b?.color_drift ?? '-');
     document.getElementById('m-drift').textContent = `${drA} / ${drB}`;
 
-    const bgA = data.metrics_a?.bg_noise_restraint ?? '-';
-    const bgB = data.metrics_b?.bg_noise_restraint ?? '-';
+    const bgA = data.metrics_a?.edge_energy_gain_pct != null ? data.metrics_a.edge_energy_gain_pct + '%' : (data.metrics_a?.bg_noise_restraint ?? '-');
+    const bgB = data.metrics_b?.edge_energy_gain_pct != null ? data.metrics_b.edge_energy_gain_pct + '%' : (data.metrics_b?.bg_noise_restraint ?? '-');
     document.getElementById('m-bg').textContent = `${bgA} / ${bgB}`;
+
+    const rA = data.metrics_a?.hallucination_risk ?? '-';
+    const rB = data.metrics_b?.hallucination_risk ?? '-';
+    document.getElementById('m-risk').textContent = `${rA} / ${rB}`;
+
+    const cohA = (data.metrics_a?.gradient_coherence_pct != null ? data.metrics_a.gradient_coherence_pct + '%' : (data.drift_a?.gradient_coherence_pct != null ? data.drift_a.gradient_coherence_pct + '%' : '-'));
+    const cohB = (data.metrics_b?.gradient_coherence_pct != null ? data.metrics_b.gradient_coherence_pct + '%' : (data.drift_b?.gradient_coherence_pct != null ? data.drift_b.gradient_coherence_pct + '%' : '-'));
+    document.getElementById('m-coherence').textContent = `${cohA} / ${cohB}`;
+
+    const stA = data.metrics_a?.rule1_status || data.drift_a?.status || 'UNKNOWN';
+    const stB = data.metrics_b?.rule1_status || data.drift_b?.status || 'UNKNOWN';
+    const ds = document.getElementById('m-drift-status');
+    ds.textContent = `A:${stA.split(' ')[0]} | B:${stB.split(' ')[0]}`;
+    ds.className = 'status-pill ' + (stA.includes('PASS') && stB.includes('PASS') ? 'status-pass' : (stA.includes('FAIL') || stB.includes('FAIL') ? 'status-fail' : 'status-warn'));
   }).catch(err => {
     showLoading(false);
     alert('Comparison network error: ' + err.message);
@@ -824,40 +1003,79 @@ function setZoom(mode) {
 </html>
 """
 
-def execute_restoration(cli, in_p, out_p, model, tiled=False, tile_size=256, portrait=False, fidelity=0.70):
+def execute_restoration(cli, in_p, out_p, model, tiled=False, tile_size=256, portrait=False, fidelity=0.70,
+                        text_preserve=True, color_fix="auto", preset="Smart_Balanced",
+                        creativity=0.50, resemblance=0.70):
     t0 = time.time()
     with tempfile.TemporaryDirectory(prefix="fidelis_step_") as step_tmp:
         curr_in = in_p
         with Image.open(in_p) as im:
             w, h = im.size
 
-        needs_sr = (w < 512 or h < 512) or (not portrait)
+        # Stage 1: Base Super-Resolution / Tiling
+        up_target = Path(step_tmp) / "step1_upscaled.png"
+        if tiled:
+            cmd = [
+                sys.executable,
+                str(REPO_ROOT / "scripts/tiled-upscale.py"),
+                str(curr_in),
+                str(up_target),
+                "-m", model,
+                "-t", str(tile_size)
+            ]
+        else:
+            cmd = [cli, "upscale", str(curr_in), str(up_target), "--model", model]
 
-        if needs_sr:
-            up_target = Path(step_tmp) / "upscaled.png" if portrait else out_p
-            if tiled:
-                cmd = [
-                    sys.executable,
-                    str(REPO_ROOT / "scripts/tiled-upscale.py"),
-                    str(curr_in),
-                    str(up_target),
-                    "-m", model,
-                    "-t", str(tile_size)
-                ]
-            else:
-                cmd = [cli, "upscale", str(curr_in), str(up_target), "--model", model]
-            res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-            if res.returncode != 0:
-                err_msg = res.stderr.strip() or res.stdout.strip()
-                raise RuntimeError(f"Upscaling failed ({res.returncode}): {err_msg}")
-            curr_in = up_target
+        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        if res.returncode != 0:
+            err_msg = res.stderr.strip() or res.stdout.strip()
+            raise RuntimeError(f"Upscaling failed ({res.returncode}): {err_msg}")
 
+        curr_step = up_target
+
+        # Stage 2: Text-First Glyph Restoration (TiGeSR / DualTSR with strict empty-text guard)
+        if text_preserve and HAS_FIDELIS:
+            try:
+                sr_cv = cv2.imread(str(curr_step))
+                if sr_cv is not None:
+                    txt_restorer = TextRestorer()
+                    restored_cv, count = txt_restorer.restore_text(sr_cv, sharpening_strength=0.65)
+                    if count > 0:
+                        text_target = Path(step_tmp) / "step2_text.png"
+                        cv2.imwrite(str(text_target), restored_cv)
+                        curr_step = text_target
+            except Exception as e:
+                print("Text restoration warning:", e)
+
+        # Stage 3: Facial Identity & Authentic Pore Restoration (CodeFormer w=fidelity)
         if portrait:
-            port_cmd = [cli, "portrait", str(curr_in), str(out_p), "-w", str(fidelity)]
+            port_target = Path(step_tmp) / "step3_portrait.png"
+            port_cmd = [cli, "portrait", str(curr_step), str(port_target), "-w", str(fidelity)]
             res = subprocess.run(port_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-            if res.returncode != 0:
+            if res.returncode == 0 and port_target.is_file():
+                curr_step = port_target
+            else:
                 err_msg = res.stderr.strip() or res.stdout.strip()
-                raise RuntimeError(f"Portrait restoration failed ({res.returncode}): {err_msg}")
+                print(f"Portrait step warning ({res.returncode}): {err_msg}")
+
+        # Stage 4: Color Drift Stabilization (Stationary Wavelet J=5 or AdaIN)
+        if color_fix != "none" and HAS_FIDELIS:
+            try:
+                src_cv = cv2.imread(str(in_p))
+                sr_cv = cv2.imread(str(curr_step))
+                if src_cv is not None and sr_cv is not None:
+                    fix_mode = color_fix
+                    if fix_mode == "auto":
+                        fix_mode = "wavelet" if (sr_cv.shape[1] / max(src_cv.shape[1], 1)) <= 2.5 else "adain"
+                    stabilized = stabilize_colors(sr_img=sr_cv, lq_img=src_cv, scale_factor=4.0, preferred_mode=fix_mode)
+                    color_target = Path(step_tmp) / "step4_color.png"
+                    cv2.imwrite(str(color_target), stabilized)
+                    curr_step = color_target
+            except Exception as e:
+                print("Color stabilization warning:", e)
+
+        # Final delivery
+        shutil.copyfile(str(curr_step), str(out_p))
 
     return int((time.time() - t0) * 1000)
 
@@ -950,10 +1168,45 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
             body = self.rfile.read(content_len)
             cli = str(REPO_ROOT / "bin/fidelis") if (REPO_ROOT / "bin/fidelis").is_file() else (shutil.which("fidelis") or "fidelis")
 
-            if url.path == "/api/upscale":
+            if url.path == "/api/profile":
                 data = json.loads(body.decode("utf-8"))
                 raw_b64 = data.get("image", "").split(",")[-1]
+                img_bytes = base64.b64decode(raw_b64)
+                arr = cv2.imdecode(np.frombuffer(img_bytes, dtype=np.uint8), cv2.IMREAD_COLOR)
+                if arr is None:
+                    raise ValueError("Failed to decode uploaded image for profiling")
+
+                router = SmartRouter()
+                route_res = router.route(arr, requested_mode=UpscaleMode.AUTO)
+                prof = route_res["profile"]
+
+                resp = {
+                    "width": prof.width,
+                    "height": prof.height,
+                    "blur_score": prof.blur_score,
+                    "noise_variance": prof.noise_variance,
+                    "jpeg_blockiness": prof.jpeg_blockiness,
+                    "face_count": prof.face_count,
+                    "text_count": prof.text_count,
+                    "recommended_mode": prof.recommended_mode,
+                    "recommended_model": prof.recommended_model,
+                    "tier": route_res["tier"],
+                    "actions": route_res["actions"]
+                }
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps(resp).encode("utf-8"))
+
+            elif url.path == "/api/upscale":
+                data = json.loads(body.decode("utf-8"))
+                raw_b64 = data.get("image", "").split(",")[-1]
+                preset = data.get("preset", "Smart_Balanced")
                 model = data.get("model", "RealeSR-general-v3")
+                creativity = float(data.get("creativity", 0.50))
+                resemblance = float(data.get("resemblance", 0.70))
+                text_preserve = bool(data.get("text_preserve", True))
+                color_fix = data.get("color_fix", "auto")
                 tiled = data.get("tiled", False)
                 tile_size = data.get("tile_size", 256)
                 portrait = data.get("portrait", False)
@@ -965,17 +1218,25 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
                     in_p.write_bytes(base64.b64decode(raw_b64))
 
                     elapsed_ms = execute_restoration(
-                        cli, in_p, out_p, model, tiled=tiled, tile_size=tile_size, portrait=portrait, fidelity=fidelity
+                        cli, in_p, out_p, model,
+                        tiled=tiled, tile_size=tile_size,
+                        portrait=portrait, fidelity=fidelity,
+                        text_preserve=text_preserve, color_fix=color_fix,
+                        preset=preset, creativity=creativity, resemblance=resemblance
                     )
 
                     metrics = {}
                     drift = {}
                     if out_p.is_file():
                         try:
-                            with Image.open(in_p) as sim, Image.open(out_p) as oim:
-                                if HAS_METRICS:
+                            if HAS_FIDELIS:
+                                bench = BenchmarkSuite()
+                                metrics = bench.evaluate_pair(in_p, out_p).to_dict()
+                            elif HAS_METRICS:
+                                with Image.open(in_p) as sim, Image.open(out_p) as oim:
                                     metrics = eval_metrics.evaluate_pair(sim, oim)
-                                if HAS_DRIFT:
+                            if HAS_DRIFT:
+                                with Image.open(in_p) as sim, Image.open(out_p) as oim:
                                     drift = detect_drift.compute_drift(sim, oim)
                         except Exception as e:
                             print("Fidelity analysis error:", e)
@@ -1005,8 +1266,13 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
             elif url.path == "/api/compare":
                 data = json.loads(body.decode("utf-8"))
                 raw_b64 = data.get("image", "").split(",")[-1]
+                preset = data.get("preset", "Smart_Balanced")
                 model_a = data.get("model_a", "RealeSR-general-v3")
                 model_b = data.get("model_b", "DF2K")
+                creativity = float(data.get("creativity", 0.50))
+                resemblance = float(data.get("resemblance", 0.70))
+                text_preserve = bool(data.get("text_preserve", True))
+                color_fix = data.get("color_fix", "auto")
                 tiled = data.get("tiled", False)
                 tile_size = data.get("tile_size", 256)
                 portrait = data.get("portrait", False)
@@ -1019,24 +1285,46 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
                     in_p.write_bytes(base64.b64decode(raw_b64))
 
                     elapsed_a = execute_restoration(
-                        cli, in_p, out_a, model_a, tiled=tiled, tile_size=tile_size, portrait=portrait, fidelity=fidelity
+                        cli, in_p, out_a, model_a,
+                        tiled=tiled, tile_size=tile_size,
+                        portrait=portrait, fidelity=fidelity,
+                        text_preserve=text_preserve, color_fix=color_fix,
+                        preset=preset, creativity=creativity, resemblance=resemblance
                     )
                     elapsed_b = execute_restoration(
-                        cli, in_p, out_b, model_b, tiled=tiled, tile_size=tile_size, portrait=portrait, fidelity=fidelity
+                        cli, in_p, out_b, model_b,
+                        tiled=tiled, tile_size=tile_size,
+                        portrait=portrait, fidelity=fidelity,
+                        text_preserve=text_preserve, color_fix=color_fix,
+                        preset=preset, creativity=creativity, resemblance=resemblance
                     )
 
                     metrics_a, drift_a = {}, {}
                     metrics_b, drift_b = {}, {}
 
-                    with Image.open(in_p) as sim:
+                    if HAS_FIDELIS:
+                        bench = BenchmarkSuite()
                         if out_a.is_file():
-                            with Image.open(out_a) as oim:
-                                if HAS_METRICS: metrics_a = eval_metrics.evaluate_pair(sim, oim)
-                                if HAS_DRIFT: drift_a = detect_drift.compute_drift(sim, oim)
+                            metrics_a = bench.evaluate_pair(in_p, out_a).to_dict()
                         if out_b.is_file():
-                            with Image.open(out_b) as oim:
-                                if HAS_METRICS: metrics_b = eval_metrics.evaluate_pair(sim, oim)
-                                if HAS_DRIFT: drift_b = detect_drift.compute_drift(sim, oim)
+                            metrics_b = bench.evaluate_pair(in_p, out_b).to_dict()
+                    elif HAS_METRICS:
+                        with Image.open(in_p) as sim:
+                            if out_a.is_file():
+                                with Image.open(out_a) as oim:
+                                    metrics_a = eval_metrics.evaluate_pair(sim, oim)
+                            if out_b.is_file():
+                                with Image.open(out_b) as oim:
+                                    metrics_b = eval_metrics.evaluate_pair(sim, oim)
+
+                    if HAS_DRIFT:
+                        with Image.open(in_p) as sim:
+                            if out_a.is_file():
+                                with Image.open(out_a) as oim:
+                                    drift_a = detect_drift.compute_drift(sim, oim)
+                            if out_b.is_file():
+                                with Image.open(out_b) as oim:
+                                    drift_b = detect_drift.compute_drift(sim, oim)
 
                     bytes_a = out_a.read_bytes()
                     bytes_b = out_b.read_bytes()
