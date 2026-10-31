@@ -55,6 +55,9 @@ jobs:
       - name: Tiled upscaling border and seam fidelity tests
         run: python -m unittest discover -s tests -p 'test_tiler.py'
 
+      - name: CLI tiled upscaling integration tests
+        run: python -m unittest discover -s tests -p 'test_tiled_upscale_cli.py'
+
       - name: Web UI server integration tests
         run: bash tests/test-web-ui.sh
 
