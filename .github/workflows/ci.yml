@@ -58,6 +58,9 @@ jobs:
       - name: CLI tiled upscaling integration tests
         run: python -m unittest discover -s tests -p 'test_tiled_upscale_cli.py'
 
+      - name: Optional face detector fallback tests
+        run: python -m unittest discover -s tests -p 'test_face_fallback.py'
+
       - name: Web UI server integration tests
         run: bash tests/test-web-ui.sh
 
