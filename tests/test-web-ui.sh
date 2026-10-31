@@ -14,10 +14,33 @@ if [[ -z "$python_bin" ]]; then
   fi
 fi
 
+# A deterministic 4x fake NCNN engine tests the real HTTP pipeline without
+# downloading model weights or requiring a GPU. The output must still satisfy
+# the CLI's size and model registry contract.
+test_home="$(mktemp -d "${TMPDIR:-/tmp}/fidelis-webui-home.XXXXXX")"
+export FIDELIS_HOME="$test_home"
+runtime="$FIDELIS_HOME/runtime"
+mkdir -p "$runtime/models-RealeSR-general-v3"
+printf 'test-model-param\n' > "$runtime/models-RealeSR-general-v3/x4.param"
+printf 'test-model-bin\n' > "$runtime/models-RealeSR-general-v3/x4.bin"
+cat > "$runtime/realsr-ncnn" <<'PY'
+#!/usr/bin/env python3
+import sys
+from PIL import Image
+
+args = sys.argv[1:]
+source = args[args.index("-i") + 1]
+target = args[args.index("-o") + 1]
+with Image.open(source) as im:
+    im = im.convert("RGB")
+    im.resize((im.width * 4, im.height * 4), Image.Resampling.NEAREST).save(target)
+PY
+chmod +x "$runtime/realsr-ncnn"
+
 port=18942
 "$python_bin" "$repo_root/scripts/web-ui.py" -p "$port" &
 server_pid=$!
-trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+trap 'kill "$server_pid" 2>/dev/null || true; rm -rf "$test_home"' EXIT
 
 # Wait for server to start
 for _ in {1..20}; do
@@ -91,6 +114,7 @@ rm -f "$tmp_up"
 [[ "$up_json" == *"cielab_delta_e"* ]]
 
 kill "$server_pid" 2>/dev/null || true
+rm -rf "$test_home"
 trap - EXIT
 
 printf 'Web UI server tests passed.\n'

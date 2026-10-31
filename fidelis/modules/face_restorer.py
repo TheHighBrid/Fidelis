@@ -68,9 +68,16 @@ class FaceRestorer:
         h, w = bgr_img.shape[:2]
         self._init_detector(w, h)
         if self.detector is None:
-            # Fallback to Haar Cascade if YuNet is not found
-            cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
-            cascade = cv2.CascadeClassifier(cascade_path)
+            # Haar classifiers are optional in some stripped-down OpenCV builds.
+            # Profiling must not crash when neither YuNet nor Haar is available.
+            cascade_factory = getattr(cv2, "CascadeClassifier", None)
+            cascade_root = getattr(getattr(cv2, "data", None), "haarcascades", None)
+            if not callable(cascade_factory) or not cascade_root:
+                return []
+            cascade_path = cascade_root + 'haarcascade_frontalface_default.xml'
+            cascade = cascade_factory(cascade_path)
+            if cascade.empty():
+                return []
             gray = cv2.cvtColor(bgr_img, cv2.COLOR_BGR2GRAY)
             faces = cascade.detectMultiScale(gray, 1.3, 5)
             results = []

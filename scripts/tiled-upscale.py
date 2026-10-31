@@ -14,20 +14,34 @@ import tempfile
 from PIL import Image
 import numpy as np
 
-def make_cosine_window(h: int, w: int, overlap_y: int, overlap_x: int) -> np.ndarray:
-    """Create a 2D smooth weighting window with cosine rolloff at the borders."""
-    def ramp(length, edge):
-        if edge <= 0:
-            return np.ones(length, dtype=np.float32)
+def make_cosine_window(
+    h: int,
+    w: int,
+    overlap_y: int,
+    overlap_x: int,
+    fade_top: bool = True,
+    fade_bottom: bool = True,
+    fade_left: bool = True,
+    fade_right: bool = True,
+) -> np.ndarray:
+    """Cosine feathering with strictly positive weights and protected outer edges."""
+    def ramp(length, edge, fade_start, fade_end):
+        if length < 1:
+            raise ValueError("Tile dimensions must be positive")
         r = np.ones(length, dtype=np.float32)
-        t = np.linspace(0, math.pi / 2, edge, dtype=np.float32)
-        sin_ramp = np.sin(t) ** 2
-        r[:edge] = sin_ramp
-        r[-edge:] = sin_ramp[::-1]
+        edge = min(max(edge, 0), length)
+        if edge:
+            # Interior samples avoid zero-weight pixels when tiles meet a canvas edge.
+            t = np.linspace(0, math.pi / 2, edge + 2, dtype=np.float32)[1:-1]
+            sin_ramp = np.sin(t) ** 2
+            if fade_start:
+                r[:edge] = np.minimum(r[:edge], sin_ramp)
+            if fade_end:
+                r[-edge:] = np.minimum(r[-edge:], sin_ramp[::-1])
         return r
 
-    wy = ramp(h, overlap_y)
-    wx = ramp(w, overlap_x)
+    wy = ramp(h, overlap_y, fade_top, fade_bottom)
+    wx = ramp(w, overlap_x, fade_left, fade_right)
     return np.outer(wy, wx)
 
 def tiled_upscale(
@@ -39,6 +53,11 @@ def tiled_upscale(
     scale: int = 4,
     cli_path: str = None
 ):
+    if tile_size < 1 or overlap < 0 or overlap >= tile_size:
+        raise ValueError("tile_size must be positive and overlap must be smaller than tile_size")
+    # The installed NCNN runtime and CLI are explicitly 4x only.
+    if scale != 4:
+        raise ValueError("The current Fidelis NCNN runtime supports scale=4 only")
     if not cli_path:
         cli_path = shutil.which("fidelis") or "bin/fidelis"
 
@@ -53,6 +72,9 @@ def tiled_upscale(
         print(f"Image {w_in}x{h_in} fits within tile size ({tile_size}px); running direct upscale...")
         cmd = [cli_path, "upscale", str(input_path), str(output_path), "--model", model]
         subprocess.check_call(cmd)
+        with Image.open(output_path) as upscaled:
+            if upscaled.size != (w_in * scale, h_in * scale):
+                raise ValueError("Direct model output dimensions do not match the 4x contract")
         return
 
     w_out = w_in * scale
@@ -91,11 +113,21 @@ def tiled_upscale(
                 cmd = [cli_path, "upscale", str(tile_in), str(tile_out), "--model", model]
                 subprocess.check_call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
+                out_tw, out_th = tw * scale, th * scale
                 with Image.open(tile_out) as im_up:
+                    if im_up.size != (out_tw, out_th):
+                        raise ValueError(
+                            f"Tile {idx} returned {im_up.size}, expected {(out_tw, out_th)}"
+                        )
                     tile_arr = np.asarray(im_up.convert("RGB")).astype(np.float32)
 
-                out_tw, out_th = tw * scale, th * scale
-                window = make_cosine_window(out_th, out_tw, overlap * scale, overlap * scale)
+                window = make_cosine_window(
+                    out_th, out_tw, overlap * scale, overlap * scale,
+                    fade_top=y0 > 0,
+                    fade_bottom=y0 + th < h_in,
+                    fade_left=x0 > 0,
+                    fade_right=x0 + tw < w_in,
+                )
 
                 x_out = x0 * scale
                 y_out = y0 * scale
@@ -106,8 +138,11 @@ def tiled_upscale(
                 print(f"  Processed tile [{idx}/{total_tiles}] at ({x0},{y0})", end="\r", flush=True)
 
     print()
-    weight_accum = np.maximum(weight_accum, 1e-6)
-    final_arr = np.clip(out_accum / weight_accum[:, :, np.newaxis], 0, 255).astype(np.uint8)
+    if np.any(weight_accum <= 0):
+        raise RuntimeError("Tiled upscaling left uncovered output pixels")
+    final_arr = np.clip(
+        out_accum / weight_accum[:, :, np.newaxis] + 0.5, 0, 255
+    ).astype(np.uint8)
 
     final_img = Image.fromarray(final_arr)
     final_img.save(output_path)

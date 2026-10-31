@@ -27,19 +27,42 @@ def generate_gaussian_weights(tile_h: int, tile_w: int, sigma_scale: float = 0.2
     return weights.astype(np.float32)
 
 
-def generate_cosine_weights(tile_h: int, tile_w: int, overlap_h: int, overlap_w: int) -> np.ndarray:
-    """Generate 2D cosine ramp feathering weight matrix."""
+def generate_cosine_weights(
+    tile_h: int,
+    tile_w: int,
+    overlap_h: int,
+    overlap_w: int,
+    fade_top: bool = True,
+    fade_bottom: bool = True,
+    fade_left: bool = True,
+    fade_right: bool = True,
+) -> np.ndarray:
+    """Generate strictly positive cosine weights, tapering only requested sides.
+
+    The outer image boundary must never receive zero weight: it has no adjacent
+    tile to contribute to the normalized blend.
+    """
+    if tile_h < 1 or tile_w < 1:
+        raise ValueError("Tile dimensions must be positive")
+    overlap_h = min(max(overlap_h, 0), tile_h)
+    overlap_w = min(max(overlap_w, 0), tile_w)
+
     weight_y = np.ones(tile_h, dtype=np.float32)
     if overlap_h > 0:
-        ramp = 0.5 * (1 - np.cos(np.linspace(0, np.pi, overlap_h)))
-        weight_y[:overlap_h] = ramp
-        weight_y[-overlap_h:] = ramp[::-1]
+        # Interior samples avoid exact zeros, including on very small tiles.
+        ramp = 0.5 * (1 - np.cos(np.linspace(0, np.pi, overlap_h + 2)[1:-1]))
+        if fade_top:
+            weight_y[:overlap_h] = np.minimum(weight_y[:overlap_h], ramp)
+        if fade_bottom:
+            weight_y[-overlap_h:] = np.minimum(weight_y[-overlap_h:], ramp[::-1])
 
     weight_x = np.ones(tile_w, dtype=np.float32)
     if overlap_w > 0:
-        ramp = 0.5 * (1 - np.cos(np.linspace(0, np.pi, overlap_w)))
-        weight_x[:overlap_w] = ramp
-        weight_x[-overlap_w:] = ramp[::-1]
+        ramp = 0.5 * (1 - np.cos(np.linspace(0, np.pi, overlap_w + 2)[1:-1]))
+        if fade_left:
+            weight_x[:overlap_w] = np.minimum(weight_x[:overlap_w], ramp)
+        if fade_right:
+            weight_x[-overlap_w:] = np.minimum(weight_x[-overlap_w:], ramp[::-1])
 
     return np.outer(weight_y, weight_x)
 
@@ -54,6 +77,14 @@ class MultiDiffusionTiler:
         scale: int = 4,
         weight_type: str = "gaussian"
     ):
+        if any(isinstance(v, bool) or not isinstance(v, int) for v in (tile_size, overlap, scale)):
+            raise ValueError("tile_size, overlap, and scale must be integers")
+        if scale < 1 or tile_size < scale:
+            raise ValueError("tile_size must be at least scale, and scale must be positive")
+        if not 0 <= overlap < tile_size:
+            raise ValueError("overlap must be nonnegative and smaller than tile_size")
+        if weight_type not in ("gaussian", "cosine"):
+            raise ValueError("weight_type must be 'gaussian' or 'cosine'")
         self.tile_size = tile_size
         self.overlap = overlap
         self.scale = scale
@@ -61,7 +92,7 @@ class MultiDiffusionTiler:
 
     def compute_tile_grid(self, height: int, width: int) -> List[Tuple[int, int, int, int]]:
         """Compute tile bounding boxes (y1, y2, x1, x2) covering canvas with overlap."""
-        stride = max(self.tile_size - self.overlap, 16)
+        stride = self.tile_size - self.overlap
         tiles = []
 
         y = 0
@@ -98,6 +129,10 @@ class MultiDiffusionTiler:
         Returns:
             Seamless high-resolution reconstructed array of shape (H*scale, W*scale, C).
         """
+        if not isinstance(image, np.ndarray) or image.ndim not in (2, 3):
+            raise ValueError("image must be a 2D or 3D numpy array")
+        if image.shape[0] < 1 or image.shape[1] < 1 or (image.ndim == 3 and image.shape[2] < 1):
+            raise ValueError("image dimensions must be nonempty")
         in_h, in_w = image.shape[:2]
         out_h = in_h * self.scale
         out_w = in_w * self.scale
@@ -105,7 +140,7 @@ class MultiDiffusionTiler:
 
         # Tile size in input space
         in_tile_size = self.tile_size // self.scale
-        in_overlap = self.overlap // self.scale
+        in_overlap = min(self.overlap // self.scale, in_tile_size - 1)
 
         tiles = self.compute_tile_grid_custom(in_h, in_w, in_tile_size, in_overlap)
         total_tiles = len(tiles)
@@ -119,17 +154,40 @@ class MultiDiffusionTiler:
             tile_in = image[iy1:iy2, ix1:ix2]
 
             # Upscale tile via model denoiser / restorer Phi
-            tile_out = tile_fn(tile_in).astype(np.float32)
+            tile_out = np.asarray(tile_fn(tile_in))
             if tile_out.ndim == 2:
                 tile_out = tile_out[..., np.newaxis]
 
+            expected_shape = (
+                (iy2 - iy1) * self.scale,
+                (ix2 - ix1) * self.scale,
+                channels,
+            )
+            if tile_out.shape != expected_shape:
+                raise ValueError(
+                    f"Tile {idx + 1} returned shape {tile_out.shape}, expected {expected_shape}"
+                )
+            if not (
+                np.issubdtype(tile_out.dtype, np.integer)
+                or np.issubdtype(tile_out.dtype, np.floating)
+            ) or not np.all(np.isfinite(tile_out)):
+                raise ValueError(f"Tile {idx + 1} returned non-finite or non-numeric pixels")
+            tile_out = tile_out.astype(np.float32)
             th, tw = tile_out.shape[:2]
 
-            # Compute tile weighting matrix W_i
+            # Fade only edges shared with another tile. The image perimeter
+            # stays fully weighted, avoiding dark/black output borders.
             if self.weight_type == "gaussian":
                 w_mat = generate_gaussian_weights(th, tw)
             else:
-                w_mat = generate_cosine_weights(th, tw, self.overlap, self.overlap)
+                overlap_px = in_overlap * self.scale
+                w_mat = generate_cosine_weights(
+                    th, tw, overlap_px, overlap_px,
+                    fade_top=iy1 > 0,
+                    fade_bottom=iy2 < in_h,
+                    fade_left=ix1 > 0,
+                    fade_right=ix2 < in_w,
+                )
             w_mat = w_mat[..., np.newaxis]
 
             # Output coordinates
@@ -148,7 +206,8 @@ class MultiDiffusionTiler:
                 progress_callback((idx + 1) / total_tiles)
 
         # Normalize by cumulative weights: Z = sum(W_i * Phi) / sum(W_i)
-        global_weights = np.maximum(global_weights, 1e-6)
+        if np.any(global_weights <= 0):
+            raise RuntimeError("Tiling left uncovered output pixels")
         output = global_canvas / global_weights
 
         if image.dtype == np.uint8:
@@ -161,7 +220,9 @@ class MultiDiffusionTiler:
 
     @staticmethod
     def compute_tile_grid_custom(h: int, w: int, size: int, overlap: int) -> List[Tuple[int, int, int, int]]:
-        stride = max(size - overlap, 8)
+        if h < 1 or w < 1 or size < 1 or not 0 <= overlap < size:
+            raise ValueError("Invalid canvas dimensions, tile size, or overlap")
+        stride = size - overlap
         tiles = []
         y = 0
         while y < h:
