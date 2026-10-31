@@ -4,14 +4,19 @@ These use a deterministic nearest-neighbor tile function, so no GPU or model
 weights are required. An identity-preserving upscale must not alter borders.
 """
 
+import importlib.util
+from pathlib import Path
 import unittest
 
 import numpy as np
 
-from fidelis.engine.tiler import (
-    MultiDiffusionTiler,
-    generate_cosine_weights,
-)
+# Import the NumPy-only tiler without initializing optional cv2/onnx packages.
+tiler_path = Path(__file__).resolve().parents[1] / "fidelis/engine/tiler.py"
+spec = importlib.util.spec_from_file_location("fidelis_tiler", tiler_path)
+tiler_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(tiler_module)
+MultiDiffusionTiler = tiler_module.MultiDiffusionTiler
+generate_cosine_weights = tiler_module.generate_cosine_weights
 
 
 def repeat_upscale(tile, scale=2):
