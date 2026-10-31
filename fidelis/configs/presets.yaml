@@ -42,7 +42,7 @@ presets:
     calibrated_fidelity_w: 0.6
     calibrated_text_strength: 0.55
     calibrated_color_fix: auto
-    last_calibration: '2026-10-31 15:45:43'
+    last_calibration: '2026-10-31 15:49:53'
   Photo_Restore:
     target_use_case: Degraded Photos, Old Downloads
     tier: 3

@@ -23,8 +23,8 @@ runtime="$FIDELIS_HOME/runtime"
 mkdir -p "$runtime/models-RealeSR-general-v3"
 printf 'test-model-param\n' > "$runtime/models-RealeSR-general-v3/x4.param"
 printf 'test-model-bin\n' > "$runtime/models-RealeSR-general-v3/x4.bin"
-cat > "$runtime/realsr-ncnn" <<'PY'
-#!/usr/bin/env python3
+cat > "$runtime/realsr-ncnn" <<PY
+#!$python_bin
 import sys
 from PIL import Image
 
