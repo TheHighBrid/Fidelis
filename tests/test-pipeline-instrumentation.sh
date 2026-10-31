@@ -57,6 +57,13 @@ assert len(m["output_sha256"]) == 64, "Output SHA256 must be 64-char hex"
 assert c2pa == "verified", f"Bad C2PA status: {c2pa}"
 assert m["exif_preserved"] is True, "EXIF preservation should be true"
 assert m["zero_black_tiles"] is True, "Zero black tiles should be true"
+assert "metrics" in m, "Manifest must contain metrics"
+assert m["metrics"]["psnr"] > 0, "PSNR must be positive"
+assert m["metrics"]["ssim"] > 0, "SSIM must be positive"
+assert "tile_execution" in m, "Manifest must contain tile_execution"
+assert m["tile_execution"]["tile_size"] == 256, "Tile execution must record tile_size"
+assert m["telemetry_posted"] is True, "Telemetry must be successfully posted to kernel"
+assert m["telemetry_response"].get("status") == "ok", "Telemetry response status must be ok"
 span_count = len(m["spans"])
 assert span_count >= 3, f"Expected at least 3 spans, got {span_count}"
 print("Manifest telemetry verification passed successfully.")

@@ -28,6 +28,8 @@ def main():
     parser.add_argument("-w", "--fidelity-w", type=float, default=0.70, help="Face fidelity balance w [0.0-1.0]")
     parser.add_argument("--no-text", action="store_true", help="Disable text glyph restoration")
     parser.add_argument("--color-fix", default="auto", choices=["auto", "wavelet", "adain", "none"], help="Color drift fix")
+    parser.add_argument("--telemetry-url", help="Target URL for telemetry posting (default: http://127.0.0.1:8011/api/telemetry/trace?project=fidelis)")
+    parser.add_argument("--no-telemetry", action="store_true", help="Disable posting telemetry to kernel endpoint")
     parser.add_argument("--json-manifest", type=Path, help="Optional destination path for JSON telemetry manifest")
 
     args = parser.parse_args()
@@ -45,6 +47,8 @@ def main():
         fidelity_w=args.fidelity_w,
         text_preserve=not args.no_text,
         color_fix=args.color_fix,
+        post_telemetry=not args.no_telemetry,
+        telemetry_endpoint=args.telemetry_url,
     )
 
     print(f"\n=======================================================")
@@ -53,13 +57,16 @@ def main():
     print(f"Input:        {res.input_path} ({res.input_dimensions[0]}x{res.input_dimensions[1]}, {res.input_format})")
     print(f"Noise Level:  {res.input_noise_level:.2f} (MAD wavelet variance)")
     print(f"Profile:      {res.model_profile} (Engine: {res.actual_model})")
-    print(f"Tile Size:    {res.tile_size}px (Overlap: {res.overlap}px)")
+    print(f"Tile Size:    {res.tile_size}px (Overlap: {res.overlap}px, Strategy: {res.tile_execution.get('tile_strategy', 'direct')})")
     print(f"Peak VRAM:    {res.vram_peak_mb:.1f} MB")
     print(f"Speed:        {res.processing_time_per_megapixel_ms:.1f} ms/MP ({res.megapixels} MP in {res.elapsed_ms}ms)")
+    print(f"PSNR / SSIM:  {res.metrics.get('psnr', 0.0):.2f} dB / {res.metrics.get('ssim', 0.0):.4f} (LPIPS proxy: {res.metrics.get('lpips', 0.0):.3f})")
+    print(f"Artifacts:    {', '.join(res.detected_artifacts) if res.detected_artifacts else 'None detected'}")
     print(f"Output:       {res.output_path} ({res.output_dimensions[0]}x{res.output_dimensions[1]})")
     print(f"SHA-256:      {res.output_sha256}")
     print(f"C2PA Status:  {res.c2pa_status.upper()}")
     print(f"EXIF:         {'Preserved' if res.exif_preserved else 'Not Present/Skipped'}")
+    print(f"Telemetry:    {'POSTED (Status: ' + str(res.telemetry_response.get('status')) + ')' if res.telemetry_posted else ('Attempted (' + str(res.telemetry_response.get('status')) + ')' if res.telemetry_response else 'Disabled')}")
     print(f"Spans Traced: {len(res.spans)}")
     print(f"=======================================================\n")
 
