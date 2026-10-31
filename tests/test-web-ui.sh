@@ -113,6 +113,10 @@ rm -f "$tmp_up"
 [[ "$up_json" == *"metrics"* ]]
 [[ "$up_json" == *"cielab_delta_e"* ]]
 
+# Test Self-Improvement status API
+si_json="$(curl -s "http://127.0.0.1:$port/api/self-improve/status")"
+[[ "$si_json" == *"calibrated"* || "$si_json" == "{}" ]]
+
 kill "$server_pid" 2>/dev/null || true
 rm -rf "$test_home"
 trap - EXIT

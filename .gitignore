@@ -14,5 +14,8 @@ models/
 !experiments/eval_crops/*.png
 experiments/eval_crops/audition_*/
 experiments/eval_crops/web_audition/
+experiments/self_improvement/outputs/
+experiments/eval_corpus/
 *.html
+.DS_Store
 

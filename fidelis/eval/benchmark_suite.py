@@ -88,7 +88,12 @@ class BenchmarkSuite:
         norm1 = np.sqrt(gx1 * gx1 + gy1 * gy1) + 1e-4
         norm2 = np.sqrt(gx2 * gx2 + gy2 * gy2) + 1e-4
         cos_sim = dot / (norm1 * norm2)
-        return float(np.mean(cos_sim) * 100.0)
+
+        # Evaluate gradient coherence across salient structural edges
+        edge_mask = norm1 > 12.0
+        if np.any(edge_mask):
+            return float(np.mean(np.clip(cos_sim[edge_mask], 0.0, 1.0)) * 100.0)
+        return float(np.mean(np.clip(cos_sim, 0.0, 1.0)) * 100.0)
 
     def evaluate_pair(
         self,

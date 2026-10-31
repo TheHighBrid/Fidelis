@@ -9,6 +9,9 @@ from fidelis.modules.face_restorer import FaceRestorer
 from fidelis.modules.text_restorer import TextRestorer
 from fidelis.postprocess.color_fix import stabilize_colors, wavelet_color_fix, adain_color_fix
 from fidelis.eval.benchmark_suite import BenchmarkSuite
+from fidelis.eval.corpus import EvaluationCorpus, TestBucket
+from fidelis.data.degradation import DegradationGenerator
+from fidelis.tune.optimizer import SelfImprovementEngine
 
 __all__ = [
     "SmartRouter",
@@ -22,4 +25,8 @@ __all__ = [
     "wavelet_color_fix",
     "adain_color_fix",
     "BenchmarkSuite",
+    "EvaluationCorpus",
+    "TestBucket",
+    "DegradationGenerator",
+    "SelfImprovementEngine",
 ]

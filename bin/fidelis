@@ -56,6 +56,7 @@ Usage:
   fidelis profile INPUT
   fidelis route INPUT [--mode MODE]
   fidelis benchmark-suite SOURCE UPSCALED
+  fidelis self-improve [-n MAX_ITEMS] [-o OUT_DIR]
   fidelis ui [-p PORT]
 
 MODEL is the installed directory name without the leading "models-".
@@ -538,6 +539,13 @@ case "$command" in
     [[ -f "$bench_suite_script" ]] || { printf 'Benchmark suite script not found: %s\n' "$bench_suite_script" >&2; exit 1; }
     shift
     exec "$py" "$bench_suite_script" "$@"
+    ;;
+  self-improve|tune)
+    py="$(resolve_python)"
+    self_improve_script="$(resolve_script "self-improve.py")"
+    [[ -f "$self_improve_script" ]] || { printf 'Self-improve script not found: %s\n' "$self_improve_script" >&2; exit 1; }
+    shift
+    exec "$py" "$self_improve_script" "$@"
     ;;
   ui)
     py="$(resolve_python)"

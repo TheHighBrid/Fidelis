@@ -65,6 +65,7 @@ try:
     from fidelis.modules.text_restorer import TextRestorer
     from fidelis.postprocess.color_fix import stabilize_colors
     from fidelis.eval.benchmark_suite import BenchmarkSuite
+    from fidelis.tune.optimizer import SelfImprovementEngine
     HAS_FIDELIS = True
 except Exception as e:
     HAS_FIDELIS = False
@@ -466,6 +467,14 @@ HTML_PAGE = r"""<!DOCTYPE html>
       <button class="btn" id="btn-audition" style="width: 100%; margin-top: 8px; text-align: center;" onclick="runAudition()">
         Audition All Models
       </button>
+      <button class="btn" id="btn-self-improve" style="width: 100%; margin-top: 8px; text-align: center; background: #1f6feb; color: white;" onclick="runSelfImprovement()">
+        Auto-Calibrate & Self-Improve
+      </button>
+      <div id="self-improve-box" style="margin-top: 8px; font-size: 11px; padding: 8px; background: rgba(31,111,235,0.1); border: 1px solid #1f6feb; border-radius: 6px; display: none;">
+        <div>Calibration Gate: <strong id="si-status">Calibrated</strong></div>
+        <div style="margin-top: 4px;">Optimal Face w: <strong id="si-opt-w">0.70</strong> | Text: <strong id="si-opt-txt">0.65</strong></div>
+        <div style="margin-top: 4px;"><a id="si-report-link" href="/results/experiments/self_improvement/self_improvement_report.html" target="_blank" style="color: #58a6ff; text-decoration: underline;">Open HTML Quality Report</a></div>
+      </div>
     </div>
   </div>
 
@@ -566,6 +575,8 @@ fetch('/api/models').then(r => r.json()).then(models => {
   const selB = document.getElementById('model-b-select');
   if (selB && selB.options.length > 1) selB.selectedIndex = 1;
 });
+
+loadSelfImprovementStatus();
 
 // Drag and drop
 const dropzone = document.getElementById('dropzone');
@@ -964,6 +975,40 @@ function runAudition() {
   });
 }
 
+function runSelfImprovement() {
+  showLoading(true, 'Running autonomous self-improvement & calibration cycle across test buckets...');
+  fetch('/api/self-improve/run', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' }
+  }).then(async r => {
+    const data = await r.json().catch(() => ({ error: 'Server error (HTTP ' + r.status + ')' }));
+    showLoading(false);
+    if (!r.ok || data.error) return alert('Self-improvement failed: ' + (data.error || 'Unknown error'));
+
+    loadSelfImprovementStatus();
+    if (confirm(`Self-improvement cycle complete!\n\nQuality Status: ${data.quality_status}\nImprovements Landed: ${data.improvements_found}\nTrials: ${data.total_trials}\n\nOpen full HTML quality & calibration report?`)) {
+      window.open(data.report_url || '/results/experiments/self_improvement/self_improvement_report.html', '_blank');
+    }
+  }).catch(err => {
+    showLoading(false);
+    alert('Self-improvement network error: ' + err.message);
+  });
+}
+
+function loadSelfImprovementStatus() {
+  fetch('/api/self-improve/status')
+    .then(r => r.json())
+    .then(data => {
+      if (data && data.timestamp) {
+        document.getElementById('self-improve-box').style.display = 'block';
+        document.getElementById('si-status').textContent = data.quality_status || 'Calibrated';
+        document.getElementById('si-opt-w').textContent = data.calibrated_face_fidelity_w ?? '0.70';
+        document.getElementById('si-opt-txt').textContent = data.calibrated_text_strength ?? '0.65';
+      }
+    })
+    .catch(() => {});
+}
+
 function showLoading(show, text) {
   const el = document.getElementById('loading');
   el.style.display = show ? 'flex' : 'none';
@@ -1157,6 +1202,18 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
             else:
                 self.send_response(404)
                 self.end_headers()
+        elif url.path == "/api/self-improve/status":
+            manifest_p = REPO_ROOT / "experiments" / "self_improvement" / "manifest.json"
+            summary = {}
+            if manifest_p.is_file():
+                try:
+                    summary = json.loads(manifest_p.read_text(encoding="utf-8")).get("summary", {})
+                except Exception:
+                    pass
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(summary).encode("utf-8"))
         else:
             self.send_response(404)
             self.end_headers()
@@ -1387,6 +1444,14 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
                 self.wfile.write(json.dumps(resp).encode("utf-8"))
+            elif url.path == "/api/self-improve/run":
+                engine = SelfImprovementEngine()
+                summary = engine.run_self_improvement_cycle(max_items=3)
+                summary["report_url"] = "/results/experiments/self_improvement/self_improvement_report.html"
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps(summary).encode("utf-8"))
             else:
                 self.send_response(404)
                 self.end_headers()
