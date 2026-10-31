@@ -431,17 +431,25 @@ case "$command" in
     input_file="$2"
     output_file="$3"
     is_tiled=false
+    is_instrumented=false
     model="$DEFAULT_MODEL"
+    json_manifest=""
     shift 3 || true
     while [[ $# -gt 0 ]]; do
       case "$1" in
         --model) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; model="$(normalize_model_name "$2")"; shift 2 ;;
         --tiled) is_tiled=true; shift ;;
+        --instrumented) is_instrumented=true; shift ;;
+        --json-manifest) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; json_manifest="$2"; shift 2 ;;
         *) usage >&2; exit 2 ;;
       esac
     done
-    if [[ "$is_tiled" == true ]]; then
-      py="$(resolve_python)"
+    py="$(resolve_python)"
+    if [[ "$is_instrumented" == true ]]; then
+      args=("$input_file" "$output_file" --model "$model")
+      [[ -n "$json_manifest" ]] && args+=(--json-manifest "$json_manifest")
+      "$py" "$repo_root/scripts/upscale.py" "${args[@]}"
+    elif [[ "$is_tiled" == true ]]; then
       "$py" "$repo_root/scripts/tiled-upscale.py" "$(canonical_path "$input_file")" "$(canonical_path "$output_file")" --model "$model"
     else
       run_upscale "$(canonical_path "$input_file")" "$(canonical_path "$output_file")" "$model"
