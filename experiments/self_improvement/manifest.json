@@ -1,24 +1,24 @@
 {
   "summary": {
-    "timestamp": "2026-10-31 15:39:52",
-    "items_evaluated": 2,
-    "total_trials": 54,
-    "improvements_found": 1,
-    "calibrated_face_fidelity_w": 0.65,
-    "calibrated_text_strength": 0.6,
+    "timestamp": "2026-10-31 21:07:01",
+    "items_evaluated": 3,
+    "total_trials": 81,
+    "improvements_found": 2,
+    "calibrated_face_fidelity_w": 0.63,
+    "calibrated_text_strength": 0.58,
     "calibrated_color_fix": "auto",
     "report_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/self_improvement_report.html",
     "quality_status": "SUPERIOR"
   },
   "trials": [
     {
-      "trial_id": "trial_product_hard_edges_Smart_Balanced_68777",
+      "trial_id": "trial_product_hard_edges_Smart_Balanced_87523",
       "bucket": "architecture",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.7,
       "text_strength": 0.65,
       "color_fix_mode": "auto",
-      "elapsed_ms": 64.1,
+      "elapsed_ms": 40.4,
       "metrics": {
         "psnr_db": 39.14,
         "ssim": 0.9871,
@@ -37,13 +37,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/product_hard_edges_baseline.png"
     },
     {
-      "trial_id": "trial_product_hard_edges_Smart_Balanced_68869",
+      "trial_id": "trial_product_hard_edges_Smart_Balanced_87615",
       "bucket": "architecture",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.6,
       "text_strength": 0.55,
       "color_fix_mode": "auto",
-      "elapsed_ms": 35.2,
+      "elapsed_ms": 34.2,
       "metrics": {
         "psnr_db": 39.56,
         "ssim": 0.9877,
@@ -62,13 +62,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/product_hard_edges_tune_w0.6_t0.55_auto.png"
     },
     {
-      "trial_id": "trial_product_hard_edges_Smart_Balanced_69950",
+      "trial_id": "trial_product_hard_edges_Smart_Balanced_88657",
       "bucket": "architecture",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.6,
       "text_strength": 0.55,
       "color_fix_mode": "wavelet",
-      "elapsed_ms": 1004.7,
+      "elapsed_ms": 981.1,
       "metrics": {
         "psnr_db": 39.49,
         "ssim": 0.9876,
@@ -87,13 +87,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/product_hard_edges_tune_w0.6_t0.55_wavelet.png"
     },
     {
-      "trial_id": "trial_product_hard_edges_Smart_Balanced_70120",
+      "trial_id": "trial_product_hard_edges_Smart_Balanced_88754",
       "bucket": "architecture",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.6,
       "text_strength": 0.55,
       "color_fix_mode": "adain",
-      "elapsed_ms": 46.8,
+      "elapsed_ms": 36.7,
       "metrics": {
         "psnr_db": 39.56,
         "ssim": 0.9877,
@@ -112,13 +112,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/product_hard_edges_tune_w0.6_t0.55_adain.png"
     },
     {
-      "trial_id": "trial_product_hard_edges_Smart_Balanced_70220",
+      "trial_id": "trial_product_hard_edges_Smart_Balanced_88857",
       "bucket": "architecture",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.6,
       "text_strength": 0.65,
       "color_fix_mode": "auto",
-      "elapsed_ms": 38.9,
+      "elapsed_ms": 36.9,
       "metrics": {
         "psnr_db": 39.14,
         "ssim": 0.9871,
@@ -137,13 +137,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/product_hard_edges_tune_w0.6_t0.65_auto.png"
     },
     {
-      "trial_id": "trial_product_hard_edges_Smart_Balanced_71486",
+      "trial_id": "trial_product_hard_edges_Smart_Balanced_89943",
       "bucket": "architecture",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.6,
       "text_strength": 0.65,
       "color_fix_mode": "wavelet",
-      "elapsed_ms": 1186.3,
+      "elapsed_ms": 1023.7,
       "metrics": {
         "psnr_db": 39.09,
         "ssim": 0.9871,
@@ -162,13 +162,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/product_hard_edges_tune_w0.6_t0.65_wavelet.png"
     },
     {
-      "trial_id": "trial_product_hard_edges_Smart_Balanced_71603",
+      "trial_id": "trial_product_hard_edges_Smart_Balanced_90039",
       "bucket": "architecture",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.6,
       "text_strength": 0.65,
       "color_fix_mode": "adain",
-      "elapsed_ms": 46.5,
+      "elapsed_ms": 37.2,
       "metrics": {
         "psnr_db": 39.14,
         "ssim": 0.9871,
@@ -187,13 +187,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/product_hard_edges_tune_w0.6_t0.65_adain.png"
     },
     {
-      "trial_id": "trial_product_hard_edges_Smart_Balanced_71710",
+      "trial_id": "trial_product_hard_edges_Smart_Balanced_90137",
       "bucket": "architecture",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.6,
       "text_strength": 0.75,
       "color_fix_mode": "auto",
-      "elapsed_ms": 41.9,
+      "elapsed_ms": 37.0,
       "metrics": {
         "psnr_db": 38.83,
         "ssim": 0.9868,
@@ -212,13 +212,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/product_hard_edges_tune_w0.6_t0.75_auto.png"
     },
     {
-      "trial_id": "trial_product_hard_edges_Smart_Balanced_72764",
+      "trial_id": "trial_product_hard_edges_Smart_Balanced_91170",
       "bucket": "architecture",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.6,
       "text_strength": 0.75,
       "color_fix_mode": "wavelet",
-      "elapsed_ms": 997.3,
+      "elapsed_ms": 963.7,
       "metrics": {
         "psnr_db": 38.75,
         "ssim": 0.9867,
@@ -237,13 +237,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/product_hard_edges_tune_w0.6_t0.75_wavelet.png"
     },
     {
-      "trial_id": "trial_product_hard_edges_Smart_Balanced_72853",
+      "trial_id": "trial_product_hard_edges_Smart_Balanced_91263",
       "bucket": "architecture",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.6,
       "text_strength": 0.75,
       "color_fix_mode": "adain",
-      "elapsed_ms": 33.1,
+      "elapsed_ms": 36.9,
       "metrics": {
         "psnr_db": 38.83,
         "ssim": 0.9868,
@@ -262,13 +262,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/product_hard_edges_tune_w0.6_t0.75_adain.png"
     },
     {
-      "trial_id": "trial_product_hard_edges_Smart_Balanced_72949",
+      "trial_id": "trial_product_hard_edges_Smart_Balanced_91357",
       "bucket": "architecture",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.7,
       "text_strength": 0.55,
       "color_fix_mode": "auto",
-      "elapsed_ms": 34.4,
+      "elapsed_ms": 34.7,
       "metrics": {
         "psnr_db": 39.56,
         "ssim": 0.9877,
@@ -287,13 +287,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/product_hard_edges_tune_w0.7_t0.55_auto.png"
     },
     {
-      "trial_id": "trial_product_hard_edges_Smart_Balanced_73949",
+      "trial_id": "trial_product_hard_edges_Smart_Balanced_92372",
       "bucket": "architecture",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.7,
       "text_strength": 0.55,
       "color_fix_mode": "wavelet",
-      "elapsed_ms": 936.4,
+      "elapsed_ms": 955.1,
       "metrics": {
         "psnr_db": 39.49,
         "ssim": 0.9876,
@@ -312,13 +312,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/product_hard_edges_tune_w0.7_t0.55_wavelet.png"
     },
     {
-      "trial_id": "trial_product_hard_edges_Smart_Balanced_74039",
+      "trial_id": "trial_product_hard_edges_Smart_Balanced_92466",
       "bucket": "architecture",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.7,
       "text_strength": 0.55,
       "color_fix_mode": "adain",
-      "elapsed_ms": 33.8,
+      "elapsed_ms": 35.6,
       "metrics": {
         "psnr_db": 39.56,
         "ssim": 0.9877,
@@ -337,13 +337,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/product_hard_edges_tune_w0.7_t0.55_adain.png"
     },
     {
-      "trial_id": "trial_product_hard_edges_Smart_Balanced_75325",
+      "trial_id": "trial_product_hard_edges_Smart_Balanced_93519",
       "bucket": "architecture",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.7,
       "text_strength": 0.65,
       "color_fix_mode": "wavelet",
-      "elapsed_ms": 1215.5,
+      "elapsed_ms": 989.3,
       "metrics": {
         "psnr_db": 39.09,
         "ssim": 0.9871,
@@ -362,13 +362,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/product_hard_edges_tune_w0.7_t0.65_wavelet.png"
     },
     {
-      "trial_id": "trial_product_hard_edges_Smart_Balanced_75432",
+      "trial_id": "trial_product_hard_edges_Smart_Balanced_93632",
       "bucket": "architecture",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.7,
       "text_strength": 0.65,
       "color_fix_mode": "adain",
-      "elapsed_ms": 38.5,
+      "elapsed_ms": 41.8,
       "metrics": {
         "psnr_db": 39.14,
         "ssim": 0.9871,
@@ -387,13 +387,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/product_hard_edges_tune_w0.7_t0.65_adain.png"
     },
     {
-      "trial_id": "trial_product_hard_edges_Smart_Balanced_75579",
+      "trial_id": "trial_product_hard_edges_Smart_Balanced_93744",
       "bucket": "architecture",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.7,
       "text_strength": 0.75,
       "color_fix_mode": "auto",
-      "elapsed_ms": 44.8,
+      "elapsed_ms": 44.1,
       "metrics": {
         "psnr_db": 38.83,
         "ssim": 0.9868,
@@ -412,13 +412,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/product_hard_edges_tune_w0.7_t0.75_auto.png"
     },
     {
-      "trial_id": "trial_product_hard_edges_Smart_Balanced_76641",
+      "trial_id": "trial_product_hard_edges_Smart_Balanced_94763",
       "bucket": "architecture",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.7,
       "text_strength": 0.75,
       "color_fix_mode": "wavelet",
-      "elapsed_ms": 994.7,
+      "elapsed_ms": 962.2,
       "metrics": {
         "psnr_db": 38.75,
         "ssim": 0.9867,
@@ -437,13 +437,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/product_hard_edges_tune_w0.7_t0.75_wavelet.png"
     },
     {
-      "trial_id": "trial_product_hard_edges_Smart_Balanced_76743",
+      "trial_id": "trial_product_hard_edges_Smart_Balanced_94855",
       "bucket": "architecture",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.7,
       "text_strength": 0.75,
       "color_fix_mode": "adain",
-      "elapsed_ms": 46.7,
+      "elapsed_ms": 34.8,
       "metrics": {
         "psnr_db": 38.83,
         "ssim": 0.9868,
@@ -462,13 +462,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/product_hard_edges_tune_w0.7_t0.75_adain.png"
     },
     {
-      "trial_id": "trial_product_hard_edges_Smart_Balanced_76835",
+      "trial_id": "trial_product_hard_edges_Smart_Balanced_94944",
       "bucket": "architecture",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.8,
       "text_strength": 0.55,
       "color_fix_mode": "auto",
-      "elapsed_ms": 36.1,
+      "elapsed_ms": 33.4,
       "metrics": {
         "psnr_db": 39.56,
         "ssim": 0.9877,
@@ -487,13 +487,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/product_hard_edges_tune_w0.8_t0.55_auto.png"
     },
     {
-      "trial_id": "trial_product_hard_edges_Smart_Balanced_77820",
+      "trial_id": "trial_product_hard_edges_Smart_Balanced_95993",
       "bucket": "architecture",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.8,
       "text_strength": 0.55,
       "color_fix_mode": "wavelet",
-      "elapsed_ms": 923.1,
+      "elapsed_ms": 990.1,
       "metrics": {
         "psnr_db": 39.49,
         "ssim": 0.9876,
@@ -512,13 +512,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/product_hard_edges_tune_w0.8_t0.55_wavelet.png"
     },
     {
-      "trial_id": "trial_product_hard_edges_Smart_Balanced_77922",
+      "trial_id": "trial_product_hard_edges_Smart_Balanced_96087",
       "bucket": "architecture",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.8,
       "text_strength": 0.55,
       "color_fix_mode": "adain",
-      "elapsed_ms": 39.0,
+      "elapsed_ms": 35.4,
       "metrics": {
         "psnr_db": 39.56,
         "ssim": 0.9877,
@@ -537,13 +537,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/product_hard_edges_tune_w0.8_t0.55_adain.png"
     },
     {
-      "trial_id": "trial_product_hard_edges_Smart_Balanced_78035",
+      "trial_id": "trial_product_hard_edges_Smart_Balanced_96181",
       "bucket": "architecture",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.8,
       "text_strength": 0.65,
       "color_fix_mode": "auto",
-      "elapsed_ms": 41.6,
+      "elapsed_ms": 35.6,
       "metrics": {
         "psnr_db": 39.14,
         "ssim": 0.9871,
@@ -562,13 +562,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/product_hard_edges_tune_w0.8_t0.65_auto.png"
     },
     {
-      "trial_id": "trial_product_hard_edges_Smart_Balanced_79051",
+      "trial_id": "trial_product_hard_edges_Smart_Balanced_97176",
       "bucket": "architecture",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.8,
       "text_strength": 0.65,
       "color_fix_mode": "wavelet",
-      "elapsed_ms": 958.9,
+      "elapsed_ms": 937.1,
       "metrics": {
         "psnr_db": 39.09,
         "ssim": 0.9871,
@@ -587,13 +587,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/product_hard_edges_tune_w0.8_t0.65_wavelet.png"
     },
     {
-      "trial_id": "trial_product_hard_edges_Smart_Balanced_79143",
+      "trial_id": "trial_product_hard_edges_Smart_Balanced_97269",
       "bucket": "architecture",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.8,
       "text_strength": 0.65,
       "color_fix_mode": "adain",
-      "elapsed_ms": 33.4,
+      "elapsed_ms": 34.7,
       "metrics": {
         "psnr_db": 39.14,
         "ssim": 0.9871,
@@ -612,13 +612,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/product_hard_edges_tune_w0.8_t0.65_adain.png"
     },
     {
-      "trial_id": "trial_product_hard_edges_Smart_Balanced_79232",
+      "trial_id": "trial_product_hard_edges_Smart_Balanced_97363",
       "bucket": "architecture",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.8,
       "text_strength": 0.75,
       "color_fix_mode": "auto",
-      "elapsed_ms": 33.7,
+      "elapsed_ms": 34.8,
       "metrics": {
         "psnr_db": 38.83,
         "ssim": 0.9868,
@@ -637,13 +637,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/product_hard_edges_tune_w0.8_t0.75_auto.png"
     },
     {
-      "trial_id": "trial_product_hard_edges_Smart_Balanced_80219",
+      "trial_id": "trial_product_hard_edges_Smart_Balanced_98393",
       "bucket": "architecture",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.8,
       "text_strength": 0.75,
       "color_fix_mode": "wavelet",
-      "elapsed_ms": 922.6,
+      "elapsed_ms": 969.1,
       "metrics": {
         "psnr_db": 38.75,
         "ssim": 0.9867,
@@ -662,13 +662,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/product_hard_edges_tune_w0.8_t0.75_wavelet.png"
     },
     {
-      "trial_id": "trial_product_hard_edges_Smart_Balanced_80309",
+      "trial_id": "trial_product_hard_edges_Smart_Balanced_98485",
       "bucket": "architecture",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.8,
       "text_strength": 0.75,
       "color_fix_mode": "adain",
-      "elapsed_ms": 34.2,
+      "elapsed_ms": 36.0,
       "metrics": {
         "psnr_db": 38.83,
         "ssim": 0.9868,
@@ -687,13 +687,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/product_hard_edges_tune_w0.8_t0.75_adain.png"
     },
     {
-      "trial_id": "trial_portrait_skin_Smart_Balanced_80409",
+      "trial_id": "trial_portrait_skin_Smart_Balanced_98586",
       "bucket": "portrait_skin",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.7,
       "text_strength": 0.65,
       "color_fix_mode": "auto",
-      "elapsed_ms": 27.7,
+      "elapsed_ms": 28.0,
       "metrics": {
         "psnr_db": 51.55,
         "ssim": 0.9946,
@@ -712,13 +712,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/portrait_skin_baseline.png"
     },
     {
-      "trial_id": "trial_portrait_skin_Smart_Balanced_80510",
+      "trial_id": "trial_portrait_skin_Smart_Balanced_98687",
       "bucket": "portrait_skin",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.6,
       "text_strength": 0.55,
       "color_fix_mode": "auto",
-      "elapsed_ms": 28.4,
+      "elapsed_ms": 28.0,
       "metrics": {
         "psnr_db": 51.55,
         "ssim": 0.9946,
@@ -737,13 +737,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/portrait_skin_tune_w0.6_t0.55_auto.png"
     },
     {
-      "trial_id": "trial_portrait_skin_Smart_Balanced_81532",
+      "trial_id": "trial_portrait_skin_Smart_Balanced_99733",
       "bucket": "portrait_skin",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.6,
       "text_strength": 0.55,
       "color_fix_mode": "wavelet",
-      "elapsed_ms": 944.8,
+      "elapsed_ms": 974.5,
       "metrics": {
         "psnr_db": 51.55,
         "ssim": 0.9946,
@@ -762,13 +762,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/portrait_skin_tune_w0.6_t0.55_wavelet.png"
     },
     {
-      "trial_id": "trial_portrait_skin_Smart_Balanced_81634",
+      "trial_id": "trial_portrait_skin_Smart_Balanced_99836",
       "bucket": "portrait_skin",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.6,
       "text_strength": 0.55,
       "color_fix_mode": "adain",
-      "elapsed_ms": 28.1,
+      "elapsed_ms": 28.2,
       "metrics": {
         "psnr_db": 51.55,
         "ssim": 0.9946,
@@ -787,13 +787,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/portrait_skin_tune_w0.6_t0.55_adain.png"
     },
     {
-      "trial_id": "trial_portrait_skin_Smart_Balanced_81733",
+      "trial_id": "trial_portrait_skin_Smart_Balanced_99962",
       "bucket": "portrait_skin",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.6,
       "text_strength": 0.65,
       "color_fix_mode": "auto",
-      "elapsed_ms": 27.1,
+      "elapsed_ms": 35.5,
       "metrics": {
         "psnr_db": 51.55,
         "ssim": 0.9946,
@@ -812,13 +812,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/portrait_skin_tune_w0.6_t0.65_auto.png"
     },
     {
-      "trial_id": "trial_portrait_skin_Smart_Balanced_82733",
+      "trial_id": "trial_portrait_skin_Smart_Balanced_1003",
       "bucket": "portrait_skin",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.6,
       "text_strength": 0.65,
       "color_fix_mode": "wavelet",
-      "elapsed_ms": 921.1,
+      "elapsed_ms": 968.2,
       "metrics": {
         "psnr_db": 51.55,
         "ssim": 0.9946,
@@ -837,13 +837,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/portrait_skin_tune_w0.6_t0.65_wavelet.png"
     },
     {
-      "trial_id": "trial_portrait_skin_Smart_Balanced_82831",
+      "trial_id": "trial_portrait_skin_Smart_Balanced_1103",
       "bucket": "portrait_skin",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.6,
       "text_strength": 0.65,
       "color_fix_mode": "adain",
-      "elapsed_ms": 27.2,
+      "elapsed_ms": 27.9,
       "metrics": {
         "psnr_db": 51.55,
         "ssim": 0.9946,
@@ -862,13 +862,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/portrait_skin_tune_w0.6_t0.65_adain.png"
     },
     {
-      "trial_id": "trial_portrait_skin_Smart_Balanced_82929",
+      "trial_id": "trial_portrait_skin_Smart_Balanced_1202",
       "bucket": "portrait_skin",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.6,
       "text_strength": 0.75,
       "color_fix_mode": "auto",
-      "elapsed_ms": 27.5,
+      "elapsed_ms": 27.8,
       "metrics": {
         "psnr_db": 51.55,
         "ssim": 0.9946,
@@ -887,13 +887,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/portrait_skin_tune_w0.6_t0.75_auto.png"
     },
     {
-      "trial_id": "trial_portrait_skin_Smart_Balanced_84062",
+      "trial_id": "trial_portrait_skin_Smart_Balanced_2223",
       "bucket": "portrait_skin",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.6,
       "text_strength": 0.75,
       "color_fix_mode": "wavelet",
-      "elapsed_ms": 1059.7,
+      "elapsed_ms": 943.9,
       "metrics": {
         "psnr_db": 51.55,
         "ssim": 0.9946,
@@ -912,13 +912,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/portrait_skin_tune_w0.6_t0.75_wavelet.png"
     },
     {
-      "trial_id": "trial_portrait_skin_Smart_Balanced_84166",
+      "trial_id": "trial_portrait_skin_Smart_Balanced_2326",
       "bucket": "portrait_skin",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.6,
       "text_strength": 0.75,
       "color_fix_mode": "adain",
-      "elapsed_ms": 28.0,
+      "elapsed_ms": 28.8,
       "metrics": {
         "psnr_db": 51.55,
         "ssim": 0.9946,
@@ -937,13 +937,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/portrait_skin_tune_w0.6_t0.75_adain.png"
     },
     {
-      "trial_id": "trial_portrait_skin_Smart_Balanced_84279",
+      "trial_id": "trial_portrait_skin_Smart_Balanced_2428",
       "bucket": "portrait_skin",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.7,
       "text_strength": 0.55,
       "color_fix_mode": "auto",
-      "elapsed_ms": 31.7,
+      "elapsed_ms": 27.6,
       "metrics": {
         "psnr_db": 51.55,
         "ssim": 0.9946,
@@ -962,13 +962,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/portrait_skin_tune_w0.7_t0.55_auto.png"
     },
     {
-      "trial_id": "trial_portrait_skin_Smart_Balanced_85324",
+      "trial_id": "trial_portrait_skin_Smart_Balanced_3473",
       "bucket": "portrait_skin",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.7,
       "text_strength": 0.55,
       "color_fix_mode": "wavelet",
-      "elapsed_ms": 951.8,
+      "elapsed_ms": 972.4,
       "metrics": {
         "psnr_db": 51.55,
         "ssim": 0.9946,
@@ -987,13 +987,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/portrait_skin_tune_w0.7_t0.55_wavelet.png"
     },
     {
-      "trial_id": "trial_portrait_skin_Smart_Balanced_85447",
+      "trial_id": "trial_portrait_skin_Smart_Balanced_3575",
       "bucket": "portrait_skin",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.7,
       "text_strength": 0.55,
       "color_fix_mode": "adain",
-      "elapsed_ms": 30.2,
+      "elapsed_ms": 28.4,
       "metrics": {
         "psnr_db": 51.55,
         "ssim": 0.9946,
@@ -1012,13 +1012,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/portrait_skin_tune_w0.7_t0.55_adain.png"
     },
     {
-      "trial_id": "trial_portrait_skin_Smart_Balanced_86780",
+      "trial_id": "trial_portrait_skin_Smart_Balanced_4610",
       "bucket": "portrait_skin",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.7,
       "text_strength": 0.65,
       "color_fix_mode": "wavelet",
-      "elapsed_ms": 1205.2,
+      "elapsed_ms": 959.4,
       "metrics": {
         "psnr_db": 51.55,
         "ssim": 0.9946,
@@ -1037,13 +1037,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/portrait_skin_tune_w0.7_t0.65_wavelet.png"
     },
     {
-      "trial_id": "trial_portrait_skin_Smart_Balanced_86900",
+      "trial_id": "trial_portrait_skin_Smart_Balanced_4715",
       "bucket": "portrait_skin",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.7,
       "text_strength": 0.65,
       "color_fix_mode": "adain",
-      "elapsed_ms": 35.4,
+      "elapsed_ms": 29.4,
       "metrics": {
         "psnr_db": 51.55,
         "ssim": 0.9946,
@@ -1062,13 +1062,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/portrait_skin_tune_w0.7_t0.65_adain.png"
     },
     {
-      "trial_id": "trial_portrait_skin_Smart_Balanced_87013",
+      "trial_id": "trial_portrait_skin_Smart_Balanced_4817",
       "bucket": "portrait_skin",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.7,
       "text_strength": 0.75,
       "color_fix_mode": "auto",
-      "elapsed_ms": 36.8,
+      "elapsed_ms": 29.6,
       "metrics": {
         "psnr_db": 51.55,
         "ssim": 0.9946,
@@ -1087,13 +1087,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/portrait_skin_tune_w0.7_t0.75_auto.png"
     },
     {
-      "trial_id": "trial_portrait_skin_Smart_Balanced_88337",
+      "trial_id": "trial_portrait_skin_Smart_Balanced_5828",
       "bucket": "portrait_skin",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.7,
       "text_strength": 0.75,
       "color_fix_mode": "wavelet",
-      "elapsed_ms": 1225.7,
+      "elapsed_ms": 937.9,
       "metrics": {
         "psnr_db": 51.55,
         "ssim": 0.9946,
@@ -1112,13 +1112,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/portrait_skin_tune_w0.7_t0.75_wavelet.png"
     },
     {
-      "trial_id": "trial_portrait_skin_Smart_Balanced_88471",
+      "trial_id": "trial_portrait_skin_Smart_Balanced_5930",
       "bucket": "portrait_skin",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.7,
       "text_strength": 0.75,
       "color_fix_mode": "adain",
-      "elapsed_ms": 38.1,
+      "elapsed_ms": 28.9,
       "metrics": {
         "psnr_db": 51.55,
         "ssim": 0.9946,
@@ -1137,13 +1137,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/portrait_skin_tune_w0.7_t0.75_adain.png"
     },
     {
-      "trial_id": "trial_portrait_skin_Smart_Balanced_88611",
+      "trial_id": "trial_portrait_skin_Smart_Balanced_6030",
       "bucket": "portrait_skin",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.8,
       "text_strength": 0.55,
       "color_fix_mode": "auto",
-      "elapsed_ms": 47.9,
+      "elapsed_ms": 29.1,
       "metrics": {
         "psnr_db": 51.55,
         "ssim": 0.9946,
@@ -1162,13 +1162,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/portrait_skin_tune_w0.8_t0.55_auto.png"
     },
     {
-      "trial_id": "trial_portrait_skin_Smart_Balanced_89886",
+      "trial_id": "trial_portrait_skin_Smart_Balanced_7099",
       "bucket": "portrait_skin",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.8,
       "text_strength": 0.55,
       "color_fix_mode": "wavelet",
-      "elapsed_ms": 1175.2,
+      "elapsed_ms": 993.7,
       "metrics": {
         "psnr_db": 51.55,
         "ssim": 0.9946,
@@ -1187,13 +1187,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/portrait_skin_tune_w0.8_t0.55_wavelet.png"
     },
     {
-      "trial_id": "trial_portrait_skin_Smart_Balanced_90000",
+      "trial_id": "trial_portrait_skin_Smart_Balanced_7202",
       "bucket": "portrait_skin",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.8,
       "text_strength": 0.55,
       "color_fix_mode": "adain",
-      "elapsed_ms": 34.2,
+      "elapsed_ms": 29.8,
       "metrics": {
         "psnr_db": 51.55,
         "ssim": 0.9946,
@@ -1212,13 +1212,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/portrait_skin_tune_w0.8_t0.55_adain.png"
     },
     {
-      "trial_id": "trial_portrait_skin_Smart_Balanced_90106",
+      "trial_id": "trial_portrait_skin_Smart_Balanced_7306",
       "bucket": "portrait_skin",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.8,
       "text_strength": 0.65,
       "color_fix_mode": "auto",
-      "elapsed_ms": 28.9,
+      "elapsed_ms": 29.4,
       "metrics": {
         "psnr_db": 51.55,
         "ssim": 0.9946,
@@ -1237,13 +1237,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/portrait_skin_tune_w0.8_t0.65_auto.png"
     },
     {
-      "trial_id": "trial_portrait_skin_Smart_Balanced_91126",
+      "trial_id": "trial_portrait_skin_Smart_Balanced_8322",
       "bucket": "portrait_skin",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.8,
       "text_strength": 0.65,
       "color_fix_mode": "wavelet",
-      "elapsed_ms": 934.4,
+      "elapsed_ms": 927.1,
       "metrics": {
         "psnr_db": 51.55,
         "ssim": 0.9946,
@@ -1262,13 +1262,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/portrait_skin_tune_w0.8_t0.65_wavelet.png"
     },
     {
-      "trial_id": "trial_portrait_skin_Smart_Balanced_91237",
+      "trial_id": "trial_portrait_skin_Smart_Balanced_8440",
       "bucket": "portrait_skin",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.8,
       "text_strength": 0.65,
       "color_fix_mode": "adain",
-      "elapsed_ms": 33.1,
+      "elapsed_ms": 34.5,
       "metrics": {
         "psnr_db": 51.55,
         "ssim": 0.9946,
@@ -1287,13 +1287,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/portrait_skin_tune_w0.8_t0.65_adain.png"
     },
     {
-      "trial_id": "trial_portrait_skin_Smart_Balanced_91348",
+      "trial_id": "trial_portrait_skin_Smart_Balanced_8544",
       "bucket": "portrait_skin",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.8,
       "text_strength": 0.75,
       "color_fix_mode": "auto",
-      "elapsed_ms": 29.5,
+      "elapsed_ms": 29.3,
       "metrics": {
         "psnr_db": 51.55,
         "ssim": 0.9946,
@@ -1312,13 +1312,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/portrait_skin_tune_w0.8_t0.75_auto.png"
     },
     {
-      "trial_id": "trial_portrait_skin_Smart_Balanced_92447",
+      "trial_id": "trial_portrait_skin_Smart_Balanced_9556",
       "bucket": "portrait_skin",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.8,
       "text_strength": 0.75,
       "color_fix_mode": "wavelet",
-      "elapsed_ms": 1023.9,
+      "elapsed_ms": 938.5,
       "metrics": {
         "psnr_db": 51.55,
         "ssim": 0.9946,
@@ -1337,13 +1337,13 @@
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/portrait_skin_tune_w0.8_t0.75_wavelet.png"
     },
     {
-      "trial_id": "trial_portrait_skin_Smart_Balanced_92546",
+      "trial_id": "trial_portrait_skin_Smart_Balanced_9658",
       "bucket": "portrait_skin",
       "preset_name": "Smart_Balanced",
       "face_fidelity_w": 0.8,
       "text_strength": 0.75,
       "color_fix_mode": "adain",
-      "elapsed_ms": 28.1,
+      "elapsed_ms": 27.6,
       "metrics": {
         "psnr_db": 51.55,
         "ssim": 0.9946,
@@ -1360,6 +1360,681 @@
       "detected_artifacts": [],
       "rule1_passed": true,
       "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/portrait_skin_tune_w0.8_t0.75_adain.png"
+    },
+    {
+      "trial_id": "trial_fabric_weave_Smart_Balanced_9782",
+      "bucket": "fashion_fabric",
+      "preset_name": "Smart_Balanced",
+      "face_fidelity_w": 0.7,
+      "text_strength": 0.65,
+      "color_fix_mode": "auto",
+      "elapsed_ms": 29.9,
+      "metrics": {
+        "psnr_db": 38.85,
+        "ssim": 0.9826,
+        "color_drift_delta_e": 2.98,
+        "luminance_drift": 0.06,
+        "edge_energy_gain": 1.05,
+        "gradient_coherence_pct": 98.34,
+        "hallucination_risk": "LOW",
+        "quality_verdict": "PASS",
+        "cielab_delta_e": 2.98,
+        "edge_energy_gain_pct": 5.0,
+        "rule1_status": "PASS - LOW RISK"
+      },
+      "detected_artifacts": [],
+      "rule1_passed": true,
+      "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/fabric_weave_baseline.png"
+    },
+    {
+      "trial_id": "trial_fabric_weave_Smart_Balanced_9931",
+      "bucket": "fashion_fabric",
+      "preset_name": "Smart_Balanced",
+      "face_fidelity_w": 0.6,
+      "text_strength": 0.55,
+      "color_fix_mode": "auto",
+      "elapsed_ms": 62.0,
+      "metrics": {
+        "psnr_db": 38.85,
+        "ssim": 0.9826,
+        "color_drift_delta_e": 2.98,
+        "luminance_drift": 0.06,
+        "edge_energy_gain": 1.05,
+        "gradient_coherence_pct": 98.34,
+        "hallucination_risk": "LOW",
+        "quality_verdict": "PASS",
+        "cielab_delta_e": 2.98,
+        "edge_energy_gain_pct": 5.0,
+        "rule1_status": "PASS - LOW RISK"
+      },
+      "detected_artifacts": [],
+      "rule1_passed": true,
+      "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/fabric_weave_tune_w0.6_t0.55_auto.png"
+    },
+    {
+      "trial_id": "trial_fabric_weave_Smart_Balanced_11083",
+      "bucket": "fashion_fabric",
+      "preset_name": "Smart_Balanced",
+      "face_fidelity_w": 0.6,
+      "text_strength": 0.55,
+      "color_fix_mode": "wavelet",
+      "elapsed_ms": 1042.0,
+      "metrics": {
+        "psnr_db": 40.27,
+        "ssim": 0.9862,
+        "color_drift_delta_e": 2.56,
+        "luminance_drift": 0.01,
+        "edge_energy_gain": 1.01,
+        "gradient_coherence_pct": 98.34,
+        "hallucination_risk": "LOW",
+        "quality_verdict": "PASS",
+        "cielab_delta_e": 2.56,
+        "edge_energy_gain_pct": 1.0,
+        "rule1_status": "PASS - LOW RISK"
+      },
+      "detected_artifacts": [],
+      "rule1_passed": true,
+      "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/fabric_weave_tune_w0.6_t0.55_wavelet.png"
+    },
+    {
+      "trial_id": "trial_fabric_weave_Smart_Balanced_11212",
+      "bucket": "fashion_fabric",
+      "preset_name": "Smart_Balanced",
+      "face_fidelity_w": 0.6,
+      "text_strength": 0.55,
+      "color_fix_mode": "adain",
+      "elapsed_ms": 27.4,
+      "metrics": {
+        "psnr_db": 38.85,
+        "ssim": 0.9826,
+        "color_drift_delta_e": 2.98,
+        "luminance_drift": 0.06,
+        "edge_energy_gain": 1.05,
+        "gradient_coherence_pct": 98.34,
+        "hallucination_risk": "LOW",
+        "quality_verdict": "PASS",
+        "cielab_delta_e": 2.98,
+        "edge_energy_gain_pct": 5.0,
+        "rule1_status": "PASS - LOW RISK"
+      },
+      "detected_artifacts": [],
+      "rule1_passed": true,
+      "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/fabric_weave_tune_w0.6_t0.55_adain.png"
+    },
+    {
+      "trial_id": "trial_fabric_weave_Smart_Balanced_11342",
+      "bucket": "fashion_fabric",
+      "preset_name": "Smart_Balanced",
+      "face_fidelity_w": 0.6,
+      "text_strength": 0.65,
+      "color_fix_mode": "auto",
+      "elapsed_ms": 27.5,
+      "metrics": {
+        "psnr_db": 38.85,
+        "ssim": 0.9826,
+        "color_drift_delta_e": 2.98,
+        "luminance_drift": 0.06,
+        "edge_energy_gain": 1.05,
+        "gradient_coherence_pct": 98.34,
+        "hallucination_risk": "LOW",
+        "quality_verdict": "PASS",
+        "cielab_delta_e": 2.98,
+        "edge_energy_gain_pct": 5.0,
+        "rule1_status": "PASS - LOW RISK"
+      },
+      "detected_artifacts": [],
+      "rule1_passed": true,
+      "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/fabric_weave_tune_w0.6_t0.65_auto.png"
+    },
+    {
+      "trial_id": "trial_fabric_weave_Smart_Balanced_12396",
+      "bucket": "fashion_fabric",
+      "preset_name": "Smart_Balanced",
+      "face_fidelity_w": 0.6,
+      "text_strength": 0.65,
+      "color_fix_mode": "wavelet",
+      "elapsed_ms": 964.4,
+      "metrics": {
+        "psnr_db": 40.27,
+        "ssim": 0.9862,
+        "color_drift_delta_e": 2.56,
+        "luminance_drift": 0.01,
+        "edge_energy_gain": 1.01,
+        "gradient_coherence_pct": 98.34,
+        "hallucination_risk": "LOW",
+        "quality_verdict": "PASS",
+        "cielab_delta_e": 2.56,
+        "edge_energy_gain_pct": 1.0,
+        "rule1_status": "PASS - LOW RISK"
+      },
+      "detected_artifacts": [],
+      "rule1_passed": true,
+      "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/fabric_weave_tune_w0.6_t0.65_wavelet.png"
+    },
+    {
+      "trial_id": "trial_fabric_weave_Smart_Balanced_12526",
+      "bucket": "fashion_fabric",
+      "preset_name": "Smart_Balanced",
+      "face_fidelity_w": 0.6,
+      "text_strength": 0.65,
+      "color_fix_mode": "adain",
+      "elapsed_ms": 26.3,
+      "metrics": {
+        "psnr_db": 38.85,
+        "ssim": 0.9826,
+        "color_drift_delta_e": 2.98,
+        "luminance_drift": 0.06,
+        "edge_energy_gain": 1.05,
+        "gradient_coherence_pct": 98.34,
+        "hallucination_risk": "LOW",
+        "quality_verdict": "PASS",
+        "cielab_delta_e": 2.98,
+        "edge_energy_gain_pct": 5.0,
+        "rule1_status": "PASS - LOW RISK"
+      },
+      "detected_artifacts": [],
+      "rule1_passed": true,
+      "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/fabric_weave_tune_w0.6_t0.65_adain.png"
+    },
+    {
+      "trial_id": "trial_fabric_weave_Smart_Balanced_12647",
+      "bucket": "fashion_fabric",
+      "preset_name": "Smart_Balanced",
+      "face_fidelity_w": 0.6,
+      "text_strength": 0.75,
+      "color_fix_mode": "auto",
+      "elapsed_ms": 30.2,
+      "metrics": {
+        "psnr_db": 38.85,
+        "ssim": 0.9826,
+        "color_drift_delta_e": 2.98,
+        "luminance_drift": 0.06,
+        "edge_energy_gain": 1.05,
+        "gradient_coherence_pct": 98.34,
+        "hallucination_risk": "LOW",
+        "quality_verdict": "PASS",
+        "cielab_delta_e": 2.98,
+        "edge_energy_gain_pct": 5.0,
+        "rule1_status": "PASS - LOW RISK"
+      },
+      "detected_artifacts": [],
+      "rule1_passed": true,
+      "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/fabric_weave_tune_w0.6_t0.75_auto.png"
+    },
+    {
+      "trial_id": "trial_fabric_weave_Smart_Balanced_13746",
+      "bucket": "fashion_fabric",
+      "preset_name": "Smart_Balanced",
+      "face_fidelity_w": 0.6,
+      "text_strength": 0.75,
+      "color_fix_mode": "wavelet",
+      "elapsed_ms": 1017.7,
+      "metrics": {
+        "psnr_db": 40.27,
+        "ssim": 0.9862,
+        "color_drift_delta_e": 2.56,
+        "luminance_drift": 0.01,
+        "edge_energy_gain": 1.01,
+        "gradient_coherence_pct": 98.34,
+        "hallucination_risk": "LOW",
+        "quality_verdict": "PASS",
+        "cielab_delta_e": 2.56,
+        "edge_energy_gain_pct": 1.0,
+        "rule1_status": "PASS - LOW RISK"
+      },
+      "detected_artifacts": [],
+      "rule1_passed": true,
+      "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/fabric_weave_tune_w0.6_t0.75_wavelet.png"
+    },
+    {
+      "trial_id": "trial_fabric_weave_Smart_Balanced_13854",
+      "bucket": "fashion_fabric",
+      "preset_name": "Smart_Balanced",
+      "face_fidelity_w": 0.6,
+      "text_strength": 0.75,
+      "color_fix_mode": "adain",
+      "elapsed_ms": 24.4,
+      "metrics": {
+        "psnr_db": 38.85,
+        "ssim": 0.9826,
+        "color_drift_delta_e": 2.98,
+        "luminance_drift": 0.06,
+        "edge_energy_gain": 1.05,
+        "gradient_coherence_pct": 98.34,
+        "hallucination_risk": "LOW",
+        "quality_verdict": "PASS",
+        "cielab_delta_e": 2.98,
+        "edge_energy_gain_pct": 5.0,
+        "rule1_status": "PASS - LOW RISK"
+      },
+      "detected_artifacts": [],
+      "rule1_passed": true,
+      "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/fabric_weave_tune_w0.6_t0.75_adain.png"
+    },
+    {
+      "trial_id": "trial_fabric_weave_Smart_Balanced_13964",
+      "bucket": "fashion_fabric",
+      "preset_name": "Smart_Balanced",
+      "face_fidelity_w": 0.7,
+      "text_strength": 0.55,
+      "color_fix_mode": "auto",
+      "elapsed_ms": 24.7,
+      "metrics": {
+        "psnr_db": 38.85,
+        "ssim": 0.9826,
+        "color_drift_delta_e": 2.98,
+        "luminance_drift": 0.06,
+        "edge_energy_gain": 1.05,
+        "gradient_coherence_pct": 98.34,
+        "hallucination_risk": "LOW",
+        "quality_verdict": "PASS",
+        "cielab_delta_e": 2.98,
+        "edge_energy_gain_pct": 5.0,
+        "rule1_status": "PASS - LOW RISK"
+      },
+      "detected_artifacts": [],
+      "rule1_passed": true,
+      "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/fabric_weave_tune_w0.7_t0.55_auto.png"
+    },
+    {
+      "trial_id": "trial_fabric_weave_Smart_Balanced_15013",
+      "bucket": "fashion_fabric",
+      "preset_name": "Smart_Balanced",
+      "face_fidelity_w": 0.7,
+      "text_strength": 0.55,
+      "color_fix_mode": "wavelet",
+      "elapsed_ms": 955.9,
+      "metrics": {
+        "psnr_db": 40.27,
+        "ssim": 0.9862,
+        "color_drift_delta_e": 2.56,
+        "luminance_drift": 0.01,
+        "edge_energy_gain": 1.01,
+        "gradient_coherence_pct": 98.34,
+        "hallucination_risk": "LOW",
+        "quality_verdict": "PASS",
+        "cielab_delta_e": 2.56,
+        "edge_energy_gain_pct": 1.0,
+        "rule1_status": "PASS - LOW RISK"
+      },
+      "detected_artifacts": [],
+      "rule1_passed": true,
+      "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/fabric_weave_tune_w0.7_t0.55_wavelet.png"
+    },
+    {
+      "trial_id": "trial_fabric_weave_Smart_Balanced_15124",
+      "bucket": "fashion_fabric",
+      "preset_name": "Smart_Balanced",
+      "face_fidelity_w": 0.7,
+      "text_strength": 0.55,
+      "color_fix_mode": "adain",
+      "elapsed_ms": 25.1,
+      "metrics": {
+        "psnr_db": 38.85,
+        "ssim": 0.9826,
+        "color_drift_delta_e": 2.98,
+        "luminance_drift": 0.06,
+        "edge_energy_gain": 1.05,
+        "gradient_coherence_pct": 98.34,
+        "hallucination_risk": "LOW",
+        "quality_verdict": "PASS",
+        "cielab_delta_e": 2.98,
+        "edge_energy_gain_pct": 5.0,
+        "rule1_status": "PASS - LOW RISK"
+      },
+      "detected_artifacts": [],
+      "rule1_passed": true,
+      "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/fabric_weave_tune_w0.7_t0.55_adain.png"
+    },
+    {
+      "trial_id": "trial_fabric_weave_Smart_Balanced_16131",
+      "bucket": "fashion_fabric",
+      "preset_name": "Smart_Balanced",
+      "face_fidelity_w": 0.7,
+      "text_strength": 0.65,
+      "color_fix_mode": "wavelet",
+      "elapsed_ms": 922.2,
+      "metrics": {
+        "psnr_db": 40.27,
+        "ssim": 0.9862,
+        "color_drift_delta_e": 2.56,
+        "luminance_drift": 0.01,
+        "edge_energy_gain": 1.01,
+        "gradient_coherence_pct": 98.34,
+        "hallucination_risk": "LOW",
+        "quality_verdict": "PASS",
+        "cielab_delta_e": 2.56,
+        "edge_energy_gain_pct": 1.0,
+        "rule1_status": "PASS - LOW RISK"
+      },
+      "detected_artifacts": [],
+      "rule1_passed": true,
+      "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/fabric_weave_tune_w0.7_t0.65_wavelet.png"
+    },
+    {
+      "trial_id": "trial_fabric_weave_Smart_Balanced_16242",
+      "bucket": "fashion_fabric",
+      "preset_name": "Smart_Balanced",
+      "face_fidelity_w": 0.7,
+      "text_strength": 0.65,
+      "color_fix_mode": "adain",
+      "elapsed_ms": 25.7,
+      "metrics": {
+        "psnr_db": 38.85,
+        "ssim": 0.9826,
+        "color_drift_delta_e": 2.98,
+        "luminance_drift": 0.06,
+        "edge_energy_gain": 1.05,
+        "gradient_coherence_pct": 98.34,
+        "hallucination_risk": "LOW",
+        "quality_verdict": "PASS",
+        "cielab_delta_e": 2.98,
+        "edge_energy_gain_pct": 5.0,
+        "rule1_status": "PASS - LOW RISK"
+      },
+      "detected_artifacts": [],
+      "rule1_passed": true,
+      "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/fabric_weave_tune_w0.7_t0.65_adain.png"
+    },
+    {
+      "trial_id": "trial_fabric_weave_Smart_Balanced_16370",
+      "bucket": "fashion_fabric",
+      "preset_name": "Smart_Balanced",
+      "face_fidelity_w": 0.7,
+      "text_strength": 0.75,
+      "color_fix_mode": "auto",
+      "elapsed_ms": 30.1,
+      "metrics": {
+        "psnr_db": 38.85,
+        "ssim": 0.9826,
+        "color_drift_delta_e": 2.98,
+        "luminance_drift": 0.06,
+        "edge_energy_gain": 1.05,
+        "gradient_coherence_pct": 98.34,
+        "hallucination_risk": "LOW",
+        "quality_verdict": "PASS",
+        "cielab_delta_e": 2.98,
+        "edge_energy_gain_pct": 5.0,
+        "rule1_status": "PASS - LOW RISK"
+      },
+      "detected_artifacts": [],
+      "rule1_passed": true,
+      "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/fabric_weave_tune_w0.7_t0.75_auto.png"
+    },
+    {
+      "trial_id": "trial_fabric_weave_Smart_Balanced_17428",
+      "bucket": "fashion_fabric",
+      "preset_name": "Smart_Balanced",
+      "face_fidelity_w": 0.7,
+      "text_strength": 0.75,
+      "color_fix_mode": "wavelet",
+      "elapsed_ms": 976.2,
+      "metrics": {
+        "psnr_db": 40.27,
+        "ssim": 0.9862,
+        "color_drift_delta_e": 2.56,
+        "luminance_drift": 0.01,
+        "edge_energy_gain": 1.01,
+        "gradient_coherence_pct": 98.34,
+        "hallucination_risk": "LOW",
+        "quality_verdict": "PASS",
+        "cielab_delta_e": 2.56,
+        "edge_energy_gain_pct": 1.0,
+        "rule1_status": "PASS - LOW RISK"
+      },
+      "detected_artifacts": [],
+      "rule1_passed": true,
+      "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/fabric_weave_tune_w0.7_t0.75_wavelet.png"
+    },
+    {
+      "trial_id": "trial_fabric_weave_Smart_Balanced_17536",
+      "bucket": "fashion_fabric",
+      "preset_name": "Smart_Balanced",
+      "face_fidelity_w": 0.7,
+      "text_strength": 0.75,
+      "color_fix_mode": "adain",
+      "elapsed_ms": 24.5,
+      "metrics": {
+        "psnr_db": 38.85,
+        "ssim": 0.9826,
+        "color_drift_delta_e": 2.98,
+        "luminance_drift": 0.06,
+        "edge_energy_gain": 1.05,
+        "gradient_coherence_pct": 98.34,
+        "hallucination_risk": "LOW",
+        "quality_verdict": "PASS",
+        "cielab_delta_e": 2.98,
+        "edge_energy_gain_pct": 5.0,
+        "rule1_status": "PASS - LOW RISK"
+      },
+      "detected_artifacts": [],
+      "rule1_passed": true,
+      "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/fabric_weave_tune_w0.7_t0.75_adain.png"
+    },
+    {
+      "trial_id": "trial_fabric_weave_Smart_Balanced_17644",
+      "bucket": "fashion_fabric",
+      "preset_name": "Smart_Balanced",
+      "face_fidelity_w": 0.8,
+      "text_strength": 0.55,
+      "color_fix_mode": "auto",
+      "elapsed_ms": 25.0,
+      "metrics": {
+        "psnr_db": 38.85,
+        "ssim": 0.9826,
+        "color_drift_delta_e": 2.98,
+        "luminance_drift": 0.06,
+        "edge_energy_gain": 1.05,
+        "gradient_coherence_pct": 98.34,
+        "hallucination_risk": "LOW",
+        "quality_verdict": "PASS",
+        "cielab_delta_e": 2.98,
+        "edge_energy_gain_pct": 5.0,
+        "rule1_status": "PASS - LOW RISK"
+      },
+      "detected_artifacts": [],
+      "rule1_passed": true,
+      "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/fabric_weave_tune_w0.8_t0.55_auto.png"
+    },
+    {
+      "trial_id": "trial_fabric_weave_Smart_Balanced_18672",
+      "bucket": "fashion_fabric",
+      "preset_name": "Smart_Balanced",
+      "face_fidelity_w": 0.8,
+      "text_strength": 0.55,
+      "color_fix_mode": "wavelet",
+      "elapsed_ms": 937.6,
+      "metrics": {
+        "psnr_db": 40.27,
+        "ssim": 0.9862,
+        "color_drift_delta_e": 2.56,
+        "luminance_drift": 0.01,
+        "edge_energy_gain": 1.01,
+        "gradient_coherence_pct": 98.34,
+        "hallucination_risk": "LOW",
+        "quality_verdict": "PASS",
+        "cielab_delta_e": 2.56,
+        "edge_energy_gain_pct": 1.0,
+        "rule1_status": "PASS - LOW RISK"
+      },
+      "detected_artifacts": [],
+      "rule1_passed": true,
+      "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/fabric_weave_tune_w0.8_t0.55_wavelet.png"
+    },
+    {
+      "trial_id": "trial_fabric_weave_Smart_Balanced_18804",
+      "bucket": "fashion_fabric",
+      "preset_name": "Smart_Balanced",
+      "face_fidelity_w": 0.8,
+      "text_strength": 0.55,
+      "color_fix_mode": "adain",
+      "elapsed_ms": 31.8,
+      "metrics": {
+        "psnr_db": 38.85,
+        "ssim": 0.9826,
+        "color_drift_delta_e": 2.98,
+        "luminance_drift": 0.06,
+        "edge_energy_gain": 1.05,
+        "gradient_coherence_pct": 98.34,
+        "hallucination_risk": "LOW",
+        "quality_verdict": "PASS",
+        "cielab_delta_e": 2.98,
+        "edge_energy_gain_pct": 5.0,
+        "rule1_status": "PASS - LOW RISK"
+      },
+      "detected_artifacts": [],
+      "rule1_passed": true,
+      "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/fabric_weave_tune_w0.8_t0.55_adain.png"
+    },
+    {
+      "trial_id": "trial_fabric_weave_Smart_Balanced_18919",
+      "bucket": "fashion_fabric",
+      "preset_name": "Smart_Balanced",
+      "face_fidelity_w": 0.8,
+      "text_strength": 0.65,
+      "color_fix_mode": "auto",
+      "elapsed_ms": 29.5,
+      "metrics": {
+        "psnr_db": 38.85,
+        "ssim": 0.9826,
+        "color_drift_delta_e": 2.98,
+        "luminance_drift": 0.06,
+        "edge_energy_gain": 1.05,
+        "gradient_coherence_pct": 98.34,
+        "hallucination_risk": "LOW",
+        "quality_verdict": "PASS",
+        "cielab_delta_e": 2.98,
+        "edge_energy_gain_pct": 5.0,
+        "rule1_status": "PASS - LOW RISK"
+      },
+      "detected_artifacts": [],
+      "rule1_passed": true,
+      "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/fabric_weave_tune_w0.8_t0.65_auto.png"
+    },
+    {
+      "trial_id": "trial_fabric_weave_Smart_Balanced_19926",
+      "bucket": "fashion_fabric",
+      "preset_name": "Smart_Balanced",
+      "face_fidelity_w": 0.8,
+      "text_strength": 0.65,
+      "color_fix_mode": "wavelet",
+      "elapsed_ms": 922.7,
+      "metrics": {
+        "psnr_db": 40.27,
+        "ssim": 0.9862,
+        "color_drift_delta_e": 2.56,
+        "luminance_drift": 0.01,
+        "edge_energy_gain": 1.01,
+        "gradient_coherence_pct": 98.34,
+        "hallucination_risk": "LOW",
+        "quality_verdict": "PASS",
+        "cielab_delta_e": 2.56,
+        "edge_energy_gain_pct": 1.0,
+        "rule1_status": "PASS - LOW RISK"
+      },
+      "detected_artifacts": [],
+      "rule1_passed": true,
+      "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/fabric_weave_tune_w0.8_t0.65_wavelet.png"
+    },
+    {
+      "trial_id": "trial_fabric_weave_Smart_Balanced_20035",
+      "bucket": "fashion_fabric",
+      "preset_name": "Smart_Balanced",
+      "face_fidelity_w": 0.8,
+      "text_strength": 0.65,
+      "color_fix_mode": "adain",
+      "elapsed_ms": 24.9,
+      "metrics": {
+        "psnr_db": 38.85,
+        "ssim": 0.9826,
+        "color_drift_delta_e": 2.98,
+        "luminance_drift": 0.06,
+        "edge_energy_gain": 1.05,
+        "gradient_coherence_pct": 98.34,
+        "hallucination_risk": "LOW",
+        "quality_verdict": "PASS",
+        "cielab_delta_e": 2.98,
+        "edge_energy_gain_pct": 5.0,
+        "rule1_status": "PASS - LOW RISK"
+      },
+      "detected_artifacts": [],
+      "rule1_passed": true,
+      "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/fabric_weave_tune_w0.8_t0.65_adain.png"
+    },
+    {
+      "trial_id": "trial_fabric_weave_Smart_Balanced_20146",
+      "bucket": "fashion_fabric",
+      "preset_name": "Smart_Balanced",
+      "face_fidelity_w": 0.8,
+      "text_strength": 0.75,
+      "color_fix_mode": "auto",
+      "elapsed_ms": 25.1,
+      "metrics": {
+        "psnr_db": 38.85,
+        "ssim": 0.9826,
+        "color_drift_delta_e": 2.98,
+        "luminance_drift": 0.06,
+        "edge_energy_gain": 1.05,
+        "gradient_coherence_pct": 98.34,
+        "hallucination_risk": "LOW",
+        "quality_verdict": "PASS",
+        "cielab_delta_e": 2.98,
+        "edge_energy_gain_pct": 5.0,
+        "rule1_status": "PASS - LOW RISK"
+      },
+      "detected_artifacts": [],
+      "rule1_passed": true,
+      "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/fabric_weave_tune_w0.8_t0.75_auto.png"
+    },
+    {
+      "trial_id": "trial_fabric_weave_Smart_Balanced_21204",
+      "bucket": "fashion_fabric",
+      "preset_name": "Smart_Balanced",
+      "face_fidelity_w": 0.8,
+      "text_strength": 0.75,
+      "color_fix_mode": "wavelet",
+      "elapsed_ms": 966.8,
+      "metrics": {
+        "psnr_db": 40.27,
+        "ssim": 0.9862,
+        "color_drift_delta_e": 2.56,
+        "luminance_drift": 0.01,
+        "edge_energy_gain": 1.01,
+        "gradient_coherence_pct": 98.34,
+        "hallucination_risk": "LOW",
+        "quality_verdict": "PASS",
+        "cielab_delta_e": 2.56,
+        "edge_energy_gain_pct": 1.0,
+        "rule1_status": "PASS - LOW RISK"
+      },
+      "detected_artifacts": [],
+      "rule1_passed": true,
+      "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/fabric_weave_tune_w0.8_t0.75_wavelet.png"
+    },
+    {
+      "trial_id": "trial_fabric_weave_Smart_Balanced_21323",
+      "bucket": "fashion_fabric",
+      "preset_name": "Smart_Balanced",
+      "face_fidelity_w": 0.8,
+      "text_strength": 0.75,
+      "color_fix_mode": "adain",
+      "elapsed_ms": 27.9,
+      "metrics": {
+        "psnr_db": 38.85,
+        "ssim": 0.9826,
+        "color_drift_delta_e": 2.98,
+        "luminance_drift": 0.06,
+        "edge_energy_gain": 1.05,
+        "gradient_coherence_pct": 98.34,
+        "hallucination_risk": "LOW",
+        "quality_verdict": "PASS",
+        "cielab_delta_e": 2.98,
+        "edge_energy_gain_pct": 5.0,
+        "rule1_status": "PASS - LOW RISK"
+      },
+      "detected_artifacts": [],
+      "rule1_passed": true,
+      "output_path": "/Users/tyf12/Downloads/Fidelis-main/experiments/self_improvement/outputs/fabric_weave_tune_w0.8_t0.75_adain.png"
     }
   ]
 }
