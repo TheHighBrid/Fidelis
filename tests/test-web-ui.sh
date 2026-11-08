@@ -23,8 +23,9 @@ runtime="$FIDELIS_HOME/runtime"
 mkdir -p "$runtime/models-RealeSR-general-v3"
 printf 'test-model-param\n' > "$runtime/models-RealeSR-general-v3/x4.param"
 printf 'test-model-bin\n' > "$runtime/models-RealeSR-general-v3/x4.bin"
-cat > "$runtime/realsr-ncnn" <<PY
-#!$python_bin
+cat > "$runtime/realsr-ncnn" <<SH
+#!/usr/bin/env bash
+exec "$python_bin" - "\$@" <<'PY'
 import sys
 from PIL import Image
 
@@ -35,6 +36,7 @@ with Image.open(source) as im:
     im = im.convert("RGB")
     im.resize((im.width * 4, im.height * 4), Image.Resampling.NEAREST).save(target)
 PY
+SH
 chmod +x "$runtime/realsr-ncnn"
 
 port=18942
