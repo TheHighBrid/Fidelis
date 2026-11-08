@@ -64,6 +64,9 @@ jobs:
       - name: Optional face detector fallback tests
         run: python -m unittest discover -s tests -p 'test_face_fallback.py'
 
+      - name: Web upload validation tests
+        run: python -m unittest discover -s tests -p 'test_web_uploads.py'
+
       - name: Web UI server integration tests
         run: bash tests/test-web-ui.sh
 
