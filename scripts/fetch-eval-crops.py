@@ -6,7 +6,8 @@ Classes:
 2. `fashion_fabric_real.png`: Textile weave, embroidery patch, uniform folds, and garment stitching.
 3. `product_edges_real.png`: Hard metallic reflection, ceramic curves, specular highlights, and edge contrast.
 
-Sourced from the public domain standard imaging dataset (NASA astronaut portrait / photographic stills).
+Sourced through skimage sample datasets. Per-asset terms and subject permissions
+require separate review; this curation script does not certify rights.
 Outputs verified PNG crops to `experiments/eval_crops/`.
 """
 

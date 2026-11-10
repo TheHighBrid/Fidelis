@@ -245,15 +245,15 @@
       "id": "F12",
       "title": "Freeze rights-cleared corpus and comparator runners",
       "milestone": "M3",
-      "state": "Backlog",
-      "implementation": "not_started",
+      "state": "In Progress",
+      "implementation": "partial",
       "depends_on": [
         "F05"
       ],
       "role": "Evaluation / evidence",
       "scope": "Build 60-case rights/hash/ROI inventory, frozen 30/30 split and reproducible comparisons.",
       "acceptance": "Coverage and permissions documented; each output separate; settings/cost/time/hash recorded; real comparators distinguished from unavailable evidence.",
-      "evidence": "fidelis/eval/; experiments/eval_crops/; docs/project/QUALITY_GATES.md",
+      "evidence": "fidelis/eval/; experiments/eval_crops/; docs/project/QUALITY_GATES.md; explicit F12-A inventory/freeze tooling verified; production corpus and comparators remain missing",
       "priority": 3,
       "linear": {
         "id": "MEL-63",
@@ -483,20 +483,21 @@
       "title": "Prepare corpus rights and ROI manifest",
       "parent": "F12",
       "milestone": "M3",
-      "state": "Todo",
-      "implementation": "not_started",
+      "state": "In Progress",
+      "implementation": "partial_inventory_tooling_verified_production_data_missing",
       "depends_on": [],
       "role": "Evaluation",
       "scope": "Define and populate corpus metadata for consent/rights, categories, source hashes, known text and critical ROIs.",
       "acceptance": "Inventory distinguishes available cases from missing ones; proposed 60-case coverage and calibration/held-out split are frozen before tuning.",
-      "evidence": "Schema/inventory preparation is independent of live model outputs.",
+      "evidence": "config/benchmark/; fidelis/eval/corpus_manifest.py; scripts/benchmark-corpus.py; tests/test_corpus_manifest.py; 8 regression assets, 0 production eligible, 60 missing slots; docs/project/checkpoints/2026-11-10-corpus-inventory.md",
       "priority": 3,
       "linear": {
         "id": "MEL-79",
         "uuid": "a53deaa4-fca7-4778-aaeb-09c53092541b",
         "url": "https://linear.app/melato/issue/MEL-79/f12-a-prepare-corpus-rights-and-roi-manifest",
         "title": "F12-A \u00b7 Prepare corpus rights and ROI manifest"
-      }
+      },
+      "verification_checkpoint": "docs/project/checkpoints/2026-11-10-corpus-inventory.md"
     },
     {
       "id": "D01",
@@ -641,6 +642,6 @@
       "linear_id": "fb26feb5-8122-40cb-a6e1-01a83b4f542c"
     }
   ],
-  "latest_checkpoint": "docs/project/checkpoints/2026-11-10-native-inspection.md",
-  "checkpoint_base_commit": "e0a8602480e58237325b2d6f9848e2c6ff2883ad"
+  "latest_checkpoint": "docs/project/checkpoints/2026-11-10-corpus-inventory.md",
+  "checkpoint_base_commit": "c15d10d49bd3c2baae23c2bd9e27a5fa3cd3f328"
 }

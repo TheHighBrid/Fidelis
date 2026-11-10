@@ -123,3 +123,12 @@ Node geometry/DOM contracts; real browser/touch visual acceptance is separate.
 Pending PR #12 review/merge. See the [native inspection receipt](docs/project/checkpoints/2026-11-10-native-inspection.md).
 Next: F08-B browser/device acceptance and F12-A corpus/ROI preparation. Live model
 quality, confidence masks and resource/release gates remain open.
+
+## Corpus inventory delivery · 2026-11-10
+
+F12-A now has versioned protocol/slot design, rights/hash/group/ROI inventory and
+local audit/freeze/verify tooling. **114 Python tests pass.** Actual audit: eight
+regression assets, zero production-eligible cases and 60 unfilled slots. F12-A
+remains In Progress; the production corpus is not frozen. See the
+[corpus checkpoint](docs/project/checkpoints/2026-11-10-corpus-inventory.md). Next: real corpus/permission/ROI review before tuning;
+confidence-mask interfaces and browser/device review can proceed independently.

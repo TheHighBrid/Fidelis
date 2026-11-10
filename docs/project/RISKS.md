@@ -26,7 +26,7 @@ the tracked module/file mismatch; a controlled-runtime regression now exercises 
 | B01 | No configured live worker/weights in audited executor | Doctor found no native candidate/runtime or reachable ComfyUI; no live quality result exists | F05-A/F05-B prepare actual worker and provenance, then F06 live audition |
 | B02 | Browser/device acceptance outstanding | Prior review browser could not connect to the execution server; Node/HTTP tests do not verify UI appearance/touch | F08-B use a reachable same-host browser/device path |
 | B03 | Native inspector awaits browser/device acceptance | F08-A exact crop/paired-load implementation is protocol/DOM tested in PR #12; overview zoom remains preview-only | F08-B verify actual rendering/touch on target devices |
-| B04 | No frozen production comparison corpus | Few crops/synthetic fixtures are regression coverage only | F12-A rights/hash/ROI inventory before F13 tuning |
+| B04 | No frozen production comparison corpus | F12-A tooling/inventory verified: eight regression assets, zero eligible production cases, 60 missing slots | Populate reviewed rights/ROIs/groups and freeze actual cases before F13 tuning |
 
 ## Architectural and release risks
 

@@ -1,5 +1,15 @@
 # Fidelis Changelog
 
+## Unreleased corpus tooling checkpoint · 2026-11-10
+
+- Added versioned 60-slot protocol/split design and explicit rights/hash/group/ROI inventory.
+- Added safe audit, unsigned freeze and re-verification commands with leakage and duplicate checks.
+- Audited eight legacy regression assets; no production case or permission was inferred.
+- Recorded 114 passing Python tests and static smoke/compilation checks.
+- F12-A remains partial: 60 production slots and reviewed permissions/coverage are still missing.
+- See [corpus receipt](docs/project/checkpoints/2026-11-10-corpus-inventory.md).
+
+
 ## Unreleased native inspection checkpoint · 2026-11-10
 
 - Added revision-pinned, unresampled RGB crop responses and a read-only paired inspector.

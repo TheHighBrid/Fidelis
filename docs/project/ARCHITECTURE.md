@@ -92,3 +92,7 @@ for the current tradeoffs. The detailed technical plan remains in
 Current F07-A queue and crash/cancellation contracts: [Background generation](../ASYNC_GENERATION.md).
 
 Native read-only crop endpoint and paired inspector: [Inspection contract](../NATIVE_INSPECTION.md). Crops are revision-pinned, bounded to 512 px per side and never resampled by the server.
+
+The explicit [benchmark inventory](../BENCHMARK_CORPUS.md) is separate from legacy
+corpus discovery/synthetic generation; only validated reviewed production records
+can enter an unsigned benchmark lock.
