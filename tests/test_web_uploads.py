@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 import threading
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 
 from PIL import Image
 
@@ -79,6 +79,15 @@ class UploadTests(unittest.TestCase):
         encoded = base64.b64encode(self.image_data("GIF")).decode()
         status, _ = self.post(json.dumps({"image": encoded}))
         self.assertEqual(status, 400)
+
+    def test_calibration_accepts_empty_body(self):
+        engine = Mock()
+        engine.run_self_improvement_cycle.return_value = {"quality_status": "tested"}
+        with patch.object(web, "SelfImprovementEngine", return_value=engine, create=True):
+            for body in (b"", b"{}"):
+                status, data = self.post(body, "/api/self-improve/run")
+                self.assertEqual(status, 200)
+                self.assertEqual(data["quality_status"], "tested")
 
     def test_rejected_audition_keeps_previous_results(self):
         with patch.object(web.shutil, "rmtree") as remove:
