@@ -23,6 +23,8 @@ bash -n "$repo_root/tests/test-detect-drift.sh"
 bash -n "$repo_root/tests/test-web-ui.sh"
 bash -n "$repo_root/tests/test-vosr-sweep.sh"
 bash -n "$repo_root/tests/test-release-pipeline.sh"
+bash -n "$repo_root/tests/test-browser-acceptance.sh"
+node --check "$repo_root/scripts/browser-acceptance.mjs"
 
 python3 -m py_compile "$repo_root/scripts/generate-delta-heatmap.py"
 python3 -m py_compile "$repo_root/scripts/detect-drift.py"

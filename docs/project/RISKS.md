@@ -36,6 +36,13 @@ the tracked module/file mismatch; a controlled-runtime regression now exercises 
   model is configured. Declared scores can be confidently wrong and nearest expansion
   is not fine matting. Segmentation labels do not inherently identify seams, logos or zipper teeth.
   Automatic masking remains a candidate, not a guaranteed structural guard.
+- F08-B same-host browser acceptance (`scripts/browser-acceptance.mjs`) ran in
+  headless `Google Chrome 157.0.8103.50` on `darwin arm64` against loopback `/regions`
+  and logged three minor baseline UI findings in `studio.html`
+  (`UX-KEYBOARD-FOCUS-TRAP` on `<select>`/`<input>`, `MISSING-FAVICON-404`, and
+  `UX-DESKTOP-CANVAS-SCROLL` scrolling `#canvasBox` off-screen when lower sidebar
+  controls focus); physical Android/iOS touch hardware, stylus tilt/pressure, and
+  human visual inspection remain open.
 - Current inputs are untagged uint8 sRGB RGB PNGs. ICC/alpha/high-precision support
   is not established by the uint16 file container or old colour-fix claims.
 - Stripe allocation limits are not total-RSS measurements. Import decoding and

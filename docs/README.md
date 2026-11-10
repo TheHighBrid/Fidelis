@@ -20,6 +20,7 @@ Operational references:
 
 - [Regional workspace and brush editing](REGIONAL_WORKSPACE.md)
 - [Native pixel inspection](NATIVE_INSPECTION.md)
+- [Same-host browser acceptance](BROWSER_ACCEPTANCE.md)
 - [Imported mask suggestions](MASK_SUGGESTIONS.md)
 - [ComfyUI texture adapter](COMFY_TEXTURE_BACKEND.md)
 - [Background generation and recovery](ASYNC_GENERATION.md)

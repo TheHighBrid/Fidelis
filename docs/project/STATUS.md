@@ -11,7 +11,7 @@ This is a committed checkpoint, not a live status feed.
 | Studio code | `feat/region-aware-studio`, open PR #12; latest delivery receipts below |
 | Project coordination | Linear Fidelis Studio, P-MEL-3; existing umbrella MEL-53 linked to GH #11 |
 | Product status | Engineering alpha; no GPU quality certificate or parity claim |
-| Latest runtime work | D01-D04, F07-A and F08-A implemented/tested in PR #12; pending review/merge |
+| Latest runtime work | D01-D04, F07-A, F08-A and F09 in PR #12; F08-B (`MEL-80`) Chrome CDP acceptance runner on `work/mel-80-browser-acceptance` |
 
 ## Implemented achievements
 
@@ -111,3 +111,15 @@ preserves manual masks/protection. **125 Python tests pass.** F09 remains partia
 no automatic segmentation model is configured or quality-qualified. See the
 [mask suggestion checkpoint](checkpoints/2026-11-10-mask-suggestions.md). Next: actual model/label/terms and ROI
 qualification, with browser/device and production corpus gates still open.
+
+## Same-host browser acceptance · 2026-11-10
+
+F08-B / MEL-80 on isolated branch `work/mel-80-browser-acceptance` adds the
+Chrome DevTools Protocol acceptance runner `scripts/browser-acceptance.mjs` and
+`tests/test-browser-acceptance.sh` against loopback `/regions`, documenting
+[the browser acceptance guide](../BROWSER_ACCEPTANCE.md). Verified live in
+`Google Chrome 157.0.8103.50` (`darwin arm64`) at `1440×900` desktop and
+`390×844` emulated touch (`0` runtime errors, `3` minor baseline UI defects
+recorded). **125 Python tests pass.** F08-B moves to `In Progress` (`partial`);
+physical Android/iOS touch hardware, stylus input and human visual review remain
+open. See the [browser acceptance checkpoint](checkpoints/2026-11-10-browser-acceptance.md).

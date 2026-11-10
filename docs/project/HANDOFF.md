@@ -97,3 +97,15 @@ preserves manual masks/protection. **125 Python tests pass.** F09 remains partia
 no automatic segmentation model is configured or quality-qualified. See the
 [mask suggestion checkpoint](checkpoints/2026-11-10-mask-suggestions.md). Next: actual model/label/terms and ROI
 qualification, with browser/device and production corpus gates still open.
+
+## Same-host browser acceptance · 2026-11-10
+
+F08-B / MEL-80 on isolated branch `work/mel-80-browser-acceptance` adds
+`scripts/browser-acceptance.mjs` and `tests/test-browser-acceptance.sh` driving
+live `Google Chrome 157.0.8103.50` (`darwin arm64`) over CDP against `/regions`.
+Verified file import, mouse/touch painting, blur-safe `Ctrl+Z`, redo, save/reload,
+native 100/200% inspection, `409` stale-edit preservation, and `390×844` mobile
+overflow, logging 3 minor UI findings (`UX-KEYBOARD-FOCUS-TRAP`,
+`MISSING-FAVICON-404`, `UX-DESKTOP-CANVAS-SCROLL`). F08-B is `In Progress`
+(`partial`); physical touch devices and human visual review remain open. See
+the [browser acceptance checkpoint](checkpoints/2026-11-10-browser-acceptance.md).

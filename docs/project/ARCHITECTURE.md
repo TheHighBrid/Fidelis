@@ -34,7 +34,7 @@ The native CLI remains a separate, preserved lane rather than a hidden replaceme
 | Composition | `fidelis/postprocess/regions.py` | Linear-light sRGB blend, confidence and exact locks | uint8 RGB input, explicit masks |
 | Masks | `fidelis/studio/brush.py`, `editor.js` | Native stripe raster and browser parity | Manual masks; not automatic semantics |
 | Persistence | `fidelis/studio/store.py` | SQLite manifests, immutable NPYs, revisions, budgets | Synchronous, single-user; not total-RSS certification |
-| HTTP/UI | `scripts/web-ui.py`, `fidelis/studio/http.py`, `studio.html` | Local review/edit/save/export | Visual/device acceptance pending |
+| HTTP/UI | `scripts/web-ui.py`, `fidelis/studio/http.py`, `studio.html` | Local review/edit/save/export | Chrome CDP same-host verified (`F08-B`); physical device/human visual open |
 | Background generation | `fidelis/studio/generation.py`, optional server workflow | Durable bounded worker, scoped local cancel and same-run resume | Protocol-tested; no global GPU cancel; aggregate cache quota pending |
 | Texture bridge | `fidelis/studio/comfy.py`, `scripts/generate-texture.py` | Graph schema preflight, run ledger and polling | Fixture/protocol tested; no certified model graph |
 | Capabilities | `capabilities.py`, `scripts/backend-doctor.py` | Installed/checksummed versus declared | Availability is not quality certification |
@@ -101,3 +101,7 @@ Imported [mask suggestions](../MASK_SUGGESTIONS.md) use optional `suggestion_*`
 artifacts and `mask_suggestion` review metadata in the existing manifest. Stage
 advances revision without changing active masks/master; accept performs a striped
 fill-only-unclassified merge. Model inference is a separate unqualified boundary.
+
+Same-host [browser acceptance](../BROWSER_ACCEPTANCE.md) runs headless Chromium
+over CDP (`scripts/browser-acceptance.mjs`) against loopback `/regions` without
+implying physical mobile/stylus or human visual acceptance (`F08-B` `In Progress`).

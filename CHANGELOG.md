@@ -1,5 +1,18 @@
 # Fidelis Changelog
 
+## Unreleased same-host browser acceptance harness · 2026-11-10
+
+- Added live Chrome DevTools Protocol acceptance runner `scripts/browser-acceptance.mjs`
+  and shell wrapper `tests/test-browser-acceptance.sh` for `F08-B` / `MEL-80`.
+- Exercised real `Google Chrome 157.0.8103.50` (`darwin arm64`) interactions against
+  local `scripts/web-ui.py` (`/regions`): file-input upload, desktop mouse painting,
+  Ctrl+Z undo (after blur), redo, save/reload persistence, native 100/200% zoom,
+  409 stale-revision conflict preservation, and emulated `390×844` touch painting.
+- Documented contract and 3 minor baseline UX defects (`UX-KEYBOARD-FOCUS-TRAP`,
+  `MISSING-FAVICON-404`, `UX-DESKTOP-CANVAS-SCROLL`) in `docs/BROWSER_ACCEPTANCE.md`;
+  physical touch-device hardware and human visual signoff remain open (`F08-B`
+  is `In Progress`).
+
 ## Unreleased mask suggestion interface · 2026-11-10
 
 - Added source-bound class probability import, explicit label routing and conservative confidence/boundary gates.
