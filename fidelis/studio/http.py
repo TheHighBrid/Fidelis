@@ -12,6 +12,8 @@ from urllib.parse import parse_qs, urlparse
 import numpy as np
 from PIL import Image
 
+from fidelis.studio.inspection import native_crop
+
 from fidelis.postprocess.regions import PROFILES, RegionBlend
 from fidelis.studio.store import MASK_NAMES, BudgetExceeded, JobStore, RevisionConflict, write_rgb_png
 
@@ -102,9 +104,9 @@ def dispatch(handler, workspace_root):
         return False
     try:
         _local_request(handler)
-        if url.path in ("/regions", "/api/regions/editor.js") and handler.command == "GET":
+        if url.path in ("/regions", "/api/regions/editor.js", "/api/regions/inspection.js") and handler.command == "GET":
             is_script = url.path.endswith(".js")
-            content = (Path(__file__).with_name("editor.js" if is_script else "studio.html")).read_bytes()
+            content = (Path(__file__).with_name(url.path.rsplit("/", 1)[-1] if is_script else "studio.html")).read_bytes()
             handler.send_response(200)
             handler.send_header("Content-Type", "text/javascript; charset=utf-8" if is_script else "text/html; charset=utf-8")
             handler.send_header("Content-Length", str(len(content)))
@@ -131,6 +133,31 @@ def dispatch(handler, workspace_root):
                     _json(handler, 200, {"tasks": queue.list(parts[3])} if len(parts) == 5 else queue.get(parts[3], parts[5]))
             elif len(parts) == 4 and parts[:3] == ["api", "regions", "jobs"]:
                 _json(handler, 200, _public(store.get(parts[3])))
+            elif len(parts) == 5 and parts[:3] == ["api", "regions", "jobs"] and parts[4] == "crop":
+                query = parse_qs(url.query, keep_blank_values=True)
+                required = {"role", "revision", "x", "y", "width", "height"}
+                if set(query) != required or any(len(values) != 1 for values in query.values()):
+                    raise ValueError("Supply one role, revision, x, y, width and height")
+                role = query["role"][0]
+                if role not in ("base", "texture", "master"):
+                    raise ValueError("Unsupported image role")
+                revision = int(query["revision"][0])
+                if revision < 1:
+                    raise ValueError("A positive saved revision is required")
+                rectangle = {key: int(query[key][0]) for key in ("x", "y", "width", "height")}
+                with store.open_array(parts[3], role, expected_revision=revision) as array:
+                    crop = native_crop(array, **rectangle)
+                encoded = io.BytesIO()
+                Image.fromarray(crop).save(encoded, format="PNG")
+                handler.send_response(200)
+                handler.send_header("Content-Type", "image/png")
+                handler.send_header("Content-Length", str(encoded.tell()))
+                handler.send_header("Cache-Control", "no-store")
+                handler.send_header("X-Content-Type-Options", "nosniff")
+                handler.send_header("X-Fidelis-Revision", str(revision))
+                handler.send_header("X-Fidelis-Crop", ",".join(str(rectangle[key]) for key in ("x", "y", "width", "height")))
+                handler.end_headers()
+                handler.wfile.write(encoded.getvalue())
             elif len(parts) == 5 and parts[:3] == ["api", "regions", "jobs"] and parts[4] == "mask-data":
                 query = parse_qs(url.query)
                 _json(handler, 200, store.mask_data(parts[3], int(query.get("revision", ["0"])[0])))

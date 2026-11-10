@@ -19,6 +19,7 @@ your task. The documentation describes an engineering alpha, not a certified rel
 Operational references:
 
 - [Regional workspace and brush editing](REGIONAL_WORKSPACE.md)
+- [Native pixel inspection](NATIVE_INSPECTION.md)
 - [ComfyUI texture adapter](COMFY_TEXTURE_BACKEND.md)
 - [Background generation and recovery](ASYNC_GENERATION.md)
 - [Aligned-pass reblend CLI](REGION_REBLEND.md)

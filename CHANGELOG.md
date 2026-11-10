@@ -1,5 +1,15 @@
 # Fidelis Changelog
 
+## Unreleased native inspection checkpoint · 2026-11-10
+
+- Added revision-pinned, unresampled RGB crop responses and a read-only paired inspector.
+- Added 100/200% CSS-pixel scales, coordinate/overview selection and bounded crop sizes.
+- Preserved unsaved edits; reject stale/mismatched pairs and invalidate old asynchronous loads.
+- Recorded 102 passing Python tests, HTTP/static smoke and JavaScript syntax checks.
+- In Review in PR #12. Actual browser/device rendering and live quality remain open.
+- See [native inspection receipt](docs/project/checkpoints/2026-11-10-native-inspection.md).
+
+
 ## Unreleased background generation checkpoint · 2026-11-10
 
 - Added an opt-in durable local generation queue with scoped status/cancel/resume API and editor controls.

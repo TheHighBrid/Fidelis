@@ -11,7 +11,7 @@ Krea-style editable region workflow. Competitive parity is not established.
 ## Locate the actual work
 
 - Repository: https://github.com/TheHighBrid/Fidelis
-- Current Studio code: `feat/region-aware-studio`, `5f32fba`, open PR #12.
+- Current Studio code: `feat/region-aware-studio`, open PR #12; latest delivery receipts below.
 - Audited main baseline: `0f10ca6`; newer documentation does not imply Studio merged.
 - Execution board: https://linear.app/melato/project/fidelis-studio-a057f366fa71
 - Umbrella: GitHub #11 / Linear MEL-53. Stable plan IDs: F01-F17.
@@ -31,8 +31,8 @@ F05-F08 are partial: capability inventory, local Comfy transport/CLI, run identi
 mask painting/erase/undo and review. The local snapshot had 62 Python tests passing,
 plus web UI integration/smoke/JS checks. That is fixture/protocol evidence.
 
-Missing: actual selected weights and live worker output, async queue/cancellation,
-visual/device acceptance, native image-pixel inspection, automatic segmentation,
+Missing: actual selected weights and live worker output, live queue/cancellation
+qualification, visual/device acceptance, automatic segmentation,
 structural detection, managed colour/alpha/precision export, full corpus/comparator
 quality acceptance, robust batches and release packaging/signoff.
 
@@ -70,3 +70,12 @@ not certify live model quality. Pending review/merge in PR #12. See the
 [async checkpoint](checkpoints/2026-11-10-async-generation.md) for evidence, resource limits and recovery boundaries.
 Next implementation: F08-A native-pixel inspection. Live worker, device acceptance
 and aggregate generated-cache retention remain open.
+
+## Native inspection delivery · 2026-11-10
+
+F08-A adds read-only, same-grid native crops with 100/200% CSS-pixel comparison,
+revision pinning and stale-load protection. **102 Python tests pass**, including
+Node geometry/DOM contracts; real browser/touch visual acceptance is separate.
+Pending PR #12 review/merge. See the [native inspection receipt](checkpoints/2026-11-10-native-inspection.md).
+Next: F08-B browser/device acceptance and F12-A corpus/ROI preparation. Live model
+quality, confidence masks and resource/release gates remain open.

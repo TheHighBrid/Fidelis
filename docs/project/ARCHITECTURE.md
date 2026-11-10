@@ -90,3 +90,5 @@ for the current tradeoffs. The detailed technical plan remains in
 [FIDELIS_STUDIO_PLAN.md](../FIDELIS_STUDIO_PLAN.md).
 
 Current F07-A queue and crash/cancellation contracts: [Background generation](../ASYNC_GENERATION.md).
+
+Native read-only crop endpoint and paired inspector: [Inspection contract](../NATIVE_INSPECTION.md). Crops are revision-pinned, bounded to 512 px per side and never resampled by the server.

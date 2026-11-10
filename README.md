@@ -33,7 +33,7 @@ historical changelog entry is not proof of production readiness.
 | --- | --- |
 | Linear-light composition with exact protected base pixels | Live model/workflow quality validation |
 | Persistent jobs, checksums, revisions and storage limits | Live/device acceptance of queue and cancellation |
-| Protect/skin/hair/fabric painting, erase and unsaved undo/redo | Visual/device acceptance and native-pixel inspection |
+| Protect/skin/hair/fabric painting, erase and unsaved undo/redo | Visual/device acceptance of native inspection |
 | Regional comparison, preview zoom and PNG export | Automatic confidence-gated segmentation and structural detection |
 | Local ComfyUI protocol adapter and resumable run IDs | Colour-managed alpha/high-precision export and benchmark parity |
 
@@ -114,3 +114,12 @@ not certify live model quality. Pending review/merge in PR #12. See the
 [async checkpoint](docs/project/checkpoints/2026-11-10-async-generation.md) for evidence, resource limits and recovery boundaries.
 Next implementation: F08-A native-pixel inspection. Live worker, device acceptance
 and aggregate generated-cache retention remain open.
+
+## Native inspection delivery · 2026-11-10
+
+F08-A adds read-only, same-grid native crops with 100/200% CSS-pixel comparison,
+revision pinning and stale-load protection. **102 Python tests pass**, including
+Node geometry/DOM contracts; real browser/touch visual acceptance is separate.
+Pending PR #12 review/merge. See the [native inspection receipt](docs/project/checkpoints/2026-11-10-native-inspection.md).
+Next: F08-B browser/device acceptance and F12-A corpus/ROI preparation. Live model
+quality, confidence masks and resource/release gates remain open.

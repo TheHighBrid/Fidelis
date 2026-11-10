@@ -1,6 +1,6 @@
 # Current progress and evidence checkpoint
 
-Snapshot date: 2026-11-10. Code reference: `5f32fbad22f3a294a878d16be129436c69c5ed06`.
+Snapshot date: 2026-11-10. Latest delivery base: `e0a8602`; native-inspection delivery is the commit containing its receipt below. Original Studio snapshot: `5f32fba`.
 This is a committed checkpoint, not a live status feed.
 
 ## Delivery reality
@@ -8,10 +8,10 @@ This is a committed checkpoint, not a live status feed.
 | Record | Verified state |
 | --- | --- |
 | Audited baseline code on main | `0f10ca6`; subsequent documentation publication does not merge Studio code |
-| Studio code | `feat/region-aware-studio`, `5f32fba`, open PR #12 |
+| Studio code | `feat/region-aware-studio`, open PR #12; latest delivery receipts below |
 | Project coordination | Linear Fidelis Studio, P-MEL-3; existing umbrella MEL-53 linked to GH #11 |
 | Product status | Engineering alpha; no GPU quality certificate or parity claim |
-| Latest runtime work | D01-D04 and F07-A implemented/tested in PR #12; pending review/merge |
+| Latest runtime work | D01-D04, F07-A and F08-A implemented/tested in PR #12; pending review/merge |
 
 ## Implemented achievements
 
@@ -37,12 +37,11 @@ browser brush math parity, persistence, revision/concurrency/rollback, malformed
 uploads, Comfy HTTP protocol states and CLI cache reuse. The Comfy fixture deliberately
 uses fixed pixels and a FixtureTexture node; it is not GPU inference evidence.
 Remote CI, visual appearance and target-device evidence must be checked separately.
-This documentation-only task does not renew every historical test/benchmark claim.
+Historical checkpoint counts do not replace the latest delivery evidence below; none certifies model quality.
 
 ## What remains
 
-Actual selected model/workflow output and compatibility; bounded async execution
-and cancellation; browser/device acceptance and native image-pixel inspection;
+Actual selected model/workflow output and compatibility; live qualification of async execution/cancellation; browser/device acceptance;
 automatic confidence masks; logo/seam/hardware detection and internal drift checks;
 managed ICC/alpha/precision export; rights-cleared corpus and Clarity/Krea held-out
 comparisons; resumable Studio batches; production packaging and release signoff.
@@ -85,3 +84,12 @@ not certify live model quality. Pending review/merge in PR #12. See the
 [async checkpoint](checkpoints/2026-11-10-async-generation.md) for evidence, resource limits and recovery boundaries.
 Next implementation: F08-A native-pixel inspection. Live worker, device acceptance
 and aggregate generated-cache retention remain open.
+
+## Native inspection delivery · 2026-11-10
+
+F08-A adds read-only, same-grid native crops with 100/200% CSS-pixel comparison,
+revision pinning and stale-load protection. **102 Python tests pass**, including
+Node geometry/DOM contracts; real browser/touch visual acceptance is separate.
+Pending PR #12 review/merge. See the [native inspection receipt](checkpoints/2026-11-10-native-inspection.md).
+Next: F08-B browser/device acceptance and F12-A corpus/ROI preparation. Live model
+quality, confidence masks and resource/release gates remain open.

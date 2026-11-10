@@ -167,7 +167,7 @@
       "role": "Studio UX",
       "scope": "Complete acceptance of painted masks, brush tools, revision saves, preview and actual native-pixel inspection.",
       "acceptance": "Mouse/pen/touch/keyboard and stale edits verified on real browser/device; native 100/200% crops distinguish source pixels from preview zoom; no mask protection regression.",
-      "evidence": "fidelis/studio/studio.html; editor.js; brush.py; tests/test_region_brush.py",
+      "evidence": "fidelis/studio/studio.html; editor.js; brush.py; tests/test_region_brush.py; F08-A native crops/paired inspector protocol and DOM tested in PR #12; F08-B device acceptance remains open",
       "priority": 2,
       "linear": {
         "id": "MEL-59",
@@ -442,20 +442,21 @@
       "title": "Add actual native image-pixel crop inspection",
       "parent": "F08",
       "milestone": "M2",
-      "state": "Todo",
-      "implementation": "not_started",
+      "state": "In Review",
+      "implementation": "implemented_protocol_dom_tested_in_review",
       "depends_on": [],
       "role": "Studio UX",
       "scope": "Display genuine native 100/200% crops while preserving same-grid comparisons.",
       "acceptance": "Tests distinguish preview scale from original image pixels and verify alignment; labels are honest on mobile/desktop.",
-      "evidence": "No GPU required; current zoom is explicitly preview-only.",
+      "evidence": "fidelis/studio/inspection.py; inspection.js; tests/test_native_inspection.py; tests/native-inspection-ui.cjs; docs/project/checkpoints/2026-11-10-native-inspection.md",
       "priority": 2,
       "linear": {
         "id": "MEL-78",
         "uuid": "e7222acd-7769-4cbf-8397-36fd36023f02",
         "url": "https://linear.app/melato/issue/MEL-78/f08-a-add-actual-native-image-pixel-crop-inspection",
         "title": "F08-A \u00b7 Add actual native image-pixel crop inspection"
-      }
+      },
+      "verification_checkpoint": "docs/project/checkpoints/2026-11-10-native-inspection.md"
     },
     {
       "id": "F08-B",
@@ -640,6 +641,6 @@
       "linear_id": "fb26feb5-8122-40cb-a6e1-01a83b4f542c"
     }
   ],
-  "latest_checkpoint": "docs/project/checkpoints/2026-11-10-async-generation.md",
-  "checkpoint_base_commit": "2c55c79a36bed64f7b8e459b9bc885311afc8141"
+  "latest_checkpoint": "docs/project/checkpoints/2026-11-10-native-inspection.md",
+  "checkpoint_base_commit": "e0a8602480e58237325b2d6f9848e2c6ff2883ad"
 }

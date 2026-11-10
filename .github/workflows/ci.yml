@@ -64,6 +64,9 @@ jobs:
       - name: Local ComfyUI protocol and capability tests
         run: python -m unittest discover -s tests -p 'test_comfy*.py'
 
+      - name: Native image-pixel crop and inspector contracts
+        run: python -m unittest discover -s tests -p 'test_native_inspection.py'
+
       - name: Durable background generation and cancellation tests
         run: python -m unittest discover -s tests -p 'test_generation_queue.py'
 
