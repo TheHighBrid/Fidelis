@@ -11,7 +11,7 @@ This is a committed checkpoint, not a live status feed.
 | Studio code | `feat/region-aware-studio`, open PR #12; latest delivery receipts below |
 | Project coordination | Linear Fidelis Studio, P-MEL-3; existing umbrella MEL-53 linked to GH #11 |
 | Product status | Engineering alpha; no GPU quality certificate or parity claim |
-| Latest runtime work | D01-D04, F07-A and F08-A implemented/tested in PR #12; pending review/merge |
+| Latest runtime work | D01-D04, F07-A, F08-A and F12-A tooling in PR #12 (`10a3095`); F05-B provenance catalog implemented/tested on `work/mel-75-model-provenance`, pending PR/Linear sync |
 
 ## Implemented achievements
 
@@ -102,3 +102,15 @@ regression assets, zero production-eligible cases and 60 unfilled slots. F12-A
 remains In Progress; the production corpus is not frozen. See the
 [corpus checkpoint](checkpoints/2026-11-10-corpus-inventory.md). Next: real corpus/permission/ROI review before tuning;
 confidence-mask interfaces and browser/device review can proceed independently.
+
+## Model provenance & terms delivery · 2026-11-10
+
+F05-B adds `config/model-provenance-v1.json`, `fidelis/studio/provenance.py`,
+`scripts/audit-model-provenance.py`, `capabilities.inventory()` provenance reporting,
+updated `docs/PHOTO_MODEL_CANDIDATES.md`, and 5 regressions in
+`tests/test_model_provenance.py` on `work/mel-75-model-provenance` (`--no-track`
+over `10a3095`). **119 Python tests pass**, plus `--json` CLI provenance audit and
+installer/UI/smoke checks; pending PR review and remote Linear `MEL-75` sync.
+See the [model provenance receipt](checkpoints/2026-11-10-model-provenance.md).
+Next independent work: `F08-B` same-host browser/device visual acceptance, `F09`
+confidence-mask interfaces, and cleared corpus/weight acquisition (`F12` / `F05-A`).

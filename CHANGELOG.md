@@ -1,5 +1,14 @@
 # Fidelis Changelog
 
+## Unreleased candidate model provenance checkpoint · 2026-11-10
+
+- Added `config/model-provenance-v1.json`, `fidelis/studio/provenance.py`, and `scripts/audit-model-provenance.py` (`F05-B / MEL-75`) recording upstream sources, pinned vs. unpinned revisions, SHA-256 weight pins, and separate commercial/usage terms across NCNN, portrait ONNX, and Studio generative/segmentation candidates.
+- Integrated `model_provenance` into `fidelis/studio/capabilities.py` (`inventory`) with fail-closed `config/photo-candidates.tsv` cross-checking, preserving `quality_certified: false` on missing/unpinned/restricted entries.
+- Separated historical NCNN local crop notes from Studio certification in `docs/PHOTO_MODEL_CANDIDATES.md` and added 5 regressions in `tests/test_model_provenance.py` (**119 passing Python tests**).
+- Implemented on isolated branch `work/mel-75-model-provenance` (`--no-track` over `10a3095`); live worker qualification (`F05`/`F06`) and remote Linear sync remain open.
+- See [model provenance receipt](docs/project/checkpoints/2026-11-10-model-provenance.md).
+
+
 ## Unreleased corpus tooling checkpoint · 2026-11-10
 
 - Added versioned 60-slot protocol/split design and explicit rights/hash/group/ROI inventory.

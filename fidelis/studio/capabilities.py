@@ -7,6 +7,7 @@ from pathlib import Path
 import platform
 import shutil
 
+from fidelis.studio.provenance import audit_model_provenance
 from fidelis.studio.store import sha256
 
 
@@ -46,4 +47,5 @@ def inventory(repo_root, app_home=None):
             'ncnn_executable':engine.is_file() and os.access(engine,os.X_OK),
             'torch_importable':importlib.util.find_spec('torch') is not None,
             'nvidia_smi_present':shutil.which('nvidia-smi') is not None,
-            'candidates':models, 'registered_models':registered}
+            'candidates':models, 'registered_models':registered,
+            'model_provenance':audit_model_provenance(repo_root, app_home)}

@@ -401,20 +401,22 @@
       "title": "Record candidate model hashes and usage terms",
       "parent": "F05",
       "milestone": "M1",
-      "state": "Todo",
-      "implementation": "not_started",
+      "state": "In Review",
+      "implementation": "implemented_provenance_verified_in_review",
+      "linear_sync_pending": true,
       "depends_on": [],
       "role": "Model research",
       "scope": "Prepare explicit candidate weight/runtime provenance and production suitability records.",
       "acceptance": "Real sources/revisions/weight hashes and separate terms are recorded; missing bytes or unclear terms are not represented as certified.",
-      "evidence": "Can prepare the manifest/review before live inference.",
+      "evidence": "work/mel-75-model-provenance (base 10a3095): config/model-provenance-v1.json; fidelis/studio/provenance.py; fidelis/studio/capabilities.py; scripts/audit-model-provenance.py; docs/PHOTO_MODEL_CANDIDATES.md; tests/test_model_provenance.py",
       "priority": 3,
       "linear": {
         "id": "MEL-75",
         "uuid": "12cd0547-12cb-4b88-a963-1ff7e76bc14e",
         "url": "https://linear.app/melato/issue/MEL-75/f05-b-record-candidate-model-hashes-and-usage-terms",
         "title": "F05-B \u00b7 Record candidate model hashes and usage terms"
-      }
+      },
+      "verification_checkpoint": "docs/project/checkpoints/2026-11-10-model-provenance.md"
     },
     {
       "id": "F07-A",
@@ -642,6 +644,6 @@
       "linear_id": "fb26feb5-8122-40cb-a6e1-01a83b4f542c"
     }
   ],
-  "latest_checkpoint": "docs/project/checkpoints/2026-11-10-corpus-inventory.md",
-  "checkpoint_base_commit": "c15d10d49bd3c2baae23c2bd9e27a5fa3cd3f328"
+  "latest_checkpoint": "docs/project/checkpoints/2026-11-10-model-provenance.md",
+  "checkpoint_base_commit": "10a30950c93783729d0c051fa84e7effd74011dc"
 }

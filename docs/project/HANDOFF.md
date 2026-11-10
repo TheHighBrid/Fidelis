@@ -88,3 +88,14 @@ regression assets, zero production-eligible cases and 60 unfilled slots. F12-A
 remains In Progress; the production corpus is not frozen. See the
 [corpus checkpoint](checkpoints/2026-11-10-corpus-inventory.md). Next: real corpus/permission/ROI review before tuning;
 confidence-mask interfaces and browser/device review can proceed independently.
+
+## Model provenance & terms delivery · 2026-11-10
+
+F05-B adds `config/model-provenance-v1.json`, `fidelis/studio/provenance.py`,
+`scripts/audit-model-provenance.py`, `capabilities.inventory()` provenance reporting,
+updated `docs/PHOTO_MODEL_CANDIDATES.md`, and 5 regressions in
+`tests/test_model_provenance.py` on `work/mel-75-model-provenance` (`--no-track`
+over `10a3095`). **119 Python tests pass**; pending review/merge and Linear `MEL-75`
+sync. See the [model provenance receipt](checkpoints/2026-11-10-model-provenance.md).
+Next independent work: `F08-B` same-host browser/device acceptance, `F09`
+confidence-mask interfaces, and real cleared photo/model provisioning (`F12` / `F05-A`).

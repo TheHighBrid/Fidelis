@@ -45,7 +45,8 @@ the tracked module/file mismatch; a controlled-runtime regression now exercises 
   apply needs ledger/job inspection; cache quotas and live/device acceptance remain open.
   No automatic ambiguous retry is allowed.
 - Graph hashes do not verify actual worker checkpoint bytes or compatible terms.
-  Model licences, node/runtime revisions and weight integrity require separate evidence.
+  Model licences, node/runtime revisions and weight integrity require separate
+  evidence (see `config/model-provenance-v1.json` and `scripts/audit-model-provenance.py`).
 - Old README/changelog promotion, speed and quality statements are historical;
   current acceptance must trace to actual images, devices, recipes and a code SHA.
 
