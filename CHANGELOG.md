@@ -1,5 +1,19 @@
 # Fidelis Changelog
 
+## Unreleased colour-managed alpha and 16-bit export · 2026-11-10
+
+- Added `fidelis/postprocess/managed_export.py` and CLI `scripts/export-master.py`
+  for `F11` / `MEL-65` standalone groundwork (`compose_managed_passes`,
+  `export_verified_master`, `load_managed_pass`).
+- Supports EXIF orientation (`1..8`) normalization, straight-alpha PNG/TIFF
+  preservation, validated LittleCMS / `float64` Matrix-TRC ICC conversions
+  (`preserve`, `srgb`, `custom`), true `uint16` working/export precision with
+  truthful `container_precision_exceeds_source` disclosure, and zero default grain
+  (`grain_strength=0.0`).
+- Added 6 fixture and CLI round-trip tests in `tests/test_managed_export.py` and
+  documented the contract in `docs/MANAGED_EXPORT.md`. Studio HTTP/store ingest
+  and live `F06` evaluation remain open (`F11` stays `In Progress`).
+
 ## Unreleased mask suggestion interface · 2026-11-10
 
 - Added source-bound class probability import, explicit label routing and conservative confidence/boundary gates.

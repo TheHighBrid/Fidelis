@@ -32,6 +32,7 @@ The native CLI remains a separate, preserved lane rather than a hidden replaceme
 | Existing pipeline | `fidelis/core/`, `fidelis/modules/` | Legacy orchestration, profiling, optional restoration | Known audit defects; not the Studio source of truth |
 | Tiling | `fidelis/engine/tiler.py`, `streaming.py` | Tested overlap and row-streamed fusion | No guarantee of model visual fidelity |
 | Composition | `fidelis/postprocess/regions.py` | Linear-light sRGB blend, confidence and exact locks | uint8 RGB input, explicit masks |
+| Managed export | `fidelis/postprocess/managed_export.py`, `scripts/export-master.py` | EXIF orientation, LittleCMS / float64 Matrix-TRC ICC, straight alpha, 8/16-bit PNG/TIFF | Explicit RGB/RGBA PNG/TIFF passes; Studio upload still RGB8 PNG |
 | Masks | `fidelis/studio/brush.py`, `editor.js` | Native stripe raster and browser parity | Manual masks; not automatic semantics |
 | Persistence | `fidelis/studio/store.py` | SQLite manifests, immutable NPYs, revisions, budgets | Synchronous, single-user; not total-RSS certification |
 | HTTP/UI | `scripts/web-ui.py`, `fidelis/studio/http.py`, `studio.html` | Local review/edit/save/export | Visual/device acceptance pending |
@@ -101,3 +102,9 @@ Imported [mask suggestions](../MASK_SUGGESTIONS.md) use optional `suggestion_*`
 artifacts and `mask_suggestion` review metadata in the existing manifest. Stage
 advances revision without changing active masks/master; accept performs a striped
 fill-only-unclassified merge. Model inference is a separate unqualified boundary.
+
+Standalone [colour-managed, alpha and 16-bit export](../MANAGED_EXPORT.md)
+handles EXIF orientation (`1..8`), straight alpha, ICC transforms (`preserve`,
+`srgb`, `custom`), `uint16` working/export precision without detail
+masquerading, and zero default grain (`F11` partial groundwork; Studio `/regions`
+upload/store paths remain RGB8 PNG until wired separately).

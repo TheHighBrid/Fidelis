@@ -36,6 +36,13 @@ the tracked module/file mismatch; a controlled-runtime regression now exercises 
   model is configured. Declared scores can be confidently wrong and nearest expansion
   is not fine matting. Segmentation labels do not inherently identify seams, logos or zipper teeth.
   Automatic masking remains a candidate, not a guaranteed structural guard.
+- F11 colour-managed, straight-alpha and 8/16-bit precision export
+  (`fidelis/postprocess/managed_export.py`) is verified on synthetic PNG/TIFF
+  fixtures and synthetic RGB Matrix-TRC profiles only. Non-matrix LUT ICC
+  conversions in 16-bit mode fail closed unless explicitly downgraded via
+  `allow_8bit_lut=True`, Studio `/regions` HTTP upload/store paths remain 8-bit
+  untagged sRGB PNG until integrated, and live `F06` outputs plus real
+  display/print visual review remain open.
 - Current inputs are untagged uint8 sRGB RGB PNGs. ICC/alpha/high-precision support
   is not established by the uint16 file container or old colour-fix claims.
 - Stripe allocation limits are not total-RSS measurements. Import decoding and

@@ -225,15 +225,17 @@
       "id": "F11",
       "title": "Implement colour-managed alpha and high-precision exports",
       "milestone": "M2",
-      "state": "Backlog",
-      "implementation": "not_started",
+      "state": "In Progress",
+      "implementation": "partial_colour_alpha_16bit_export_module_cli_fixture_tested",
+      "linear_sync_pending": true,
       "depends_on": [
         "F10"
       ],
       "role": "Colour / export",
       "scope": "Extend current RGB8 path to deliberate ICC, orientation, alpha and real working/export precision.",
       "acceptance": "Colour/alpha/precision round trips and protected-pixel checks pass; no uint16 container masquerades as newly recovered detail; default grain remains off.",
-      "evidence": "fidelis/postprocess/; current PNG export in fidelis/studio/store.py",
+      "evidence": "fidelis/postprocess/managed_export.py; scripts/export-master.py; docs/MANAGED_EXPORT.md; tests/test_managed_export.py; fidelis/postprocess/; current PNG export in fidelis/studio/store.py",
+      "verification_checkpoint": "docs/project/checkpoints/2026-11-10-managed-export.md",
       "priority": 3,
       "linear": {
         "id": "MEL-65",
@@ -643,6 +645,6 @@
       "linear_id": "fb26feb5-8122-40cb-a6e1-01a83b4f542c"
     }
   ],
-  "latest_checkpoint": "docs/project/checkpoints/2026-11-10-mask-suggestions.md",
-  "checkpoint_base_commit": "10a30950c93783729d0c051fa84e7effd74011dc"
+  "latest_checkpoint": "docs/project/checkpoints/2026-11-10-managed-export.md",
+  "checkpoint_base_commit": "f84287993c9bc213dc47859b297a5a275381101d"
 }

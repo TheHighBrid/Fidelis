@@ -11,7 +11,7 @@ This is a committed checkpoint, not a live status feed.
 | Studio code | `feat/region-aware-studio`, open PR #12; latest delivery receipts below |
 | Project coordination | Linear Fidelis Studio, P-MEL-3; existing umbrella MEL-53 linked to GH #11 |
 | Product status | Engineering alpha; no GPU quality certificate or parity claim |
-| Latest runtime work | D01-D04, F07-A and F08-A implemented/tested in PR #12; pending review/merge |
+| Latest runtime work | D01-D04, F07-A, F08-A and F09 in PR #12; F11 (`MEL-65`) standalone export groundwork on `work/mel-65-managed-export` |
 
 ## Implemented achievements
 
@@ -111,3 +111,17 @@ preserves manual masks/protection. **125 Python tests pass.** F09 remains partia
 no automatic segmentation model is configured or quality-qualified. See the
 [mask suggestion checkpoint](checkpoints/2026-11-10-mask-suggestions.md). Next: actual model/label/terms and ROI
 qualification, with browser/device and production corpus gates still open.
+
+## Colour-managed, straight-alpha and 16-bit export groundwork · 2026-11-10
+
+F11 / MEL-65 groundwork on isolated branch `work/mel-65-managed-export` adds
+`fidelis/postprocess/managed_export.py`, CLI `scripts/export-master.py`, and
+the [managed export contract](../MANAGED_EXPORT.md). It normalizes EXIF
+orientations `1..8` without resizing, preserves straight RGBA alpha cleanly across
+PNG/TIFF, performs validated LittleCMS / `float64` Matrix-TRC ICC conversions
+and true 16-bit linear blending without letting `uint16` containers claim new
+source detail, keeps default grain off (`grain_strength=0.0`), and restores
+locked/zero-alpha pixels bit-for-bit after quantization. **131 Python tests pass**
+against synthetic fixtures. `F11` remains `In Progress` (`partial`); Studio HTTP
+ingest/export wiring and live `F06`/`F10` qualification remain open. See the
+[managed export checkpoint](checkpoints/2026-11-10-managed-export.md).

@@ -115,3 +115,14 @@ preserves manual masks/protection. **125 Python tests pass.** F09 remains partia
 no automatic segmentation model is configured or quality-qualified. See the
 [mask suggestion checkpoint](project/checkpoints/2026-11-10-mask-suggestions.md). Next: actual model/label/terms and ROI
 qualification, with browser/device and production corpus gates still open.
+
+## Colour-managed, straight-alpha and 16-bit export groundwork · 2026-11-10
+
+F11 / MEL-65 groundwork on isolated branch `work/mel-65-managed-export` adds
+`fidelis/postprocess/managed_export.py`, CLI `scripts/export-master.py`, and
+`docs/MANAGED_EXPORT.md`. EXIF orientation, straight RGBA alpha, validated ICC
+profiles (`preserve`, `srgb`, `custom`), `float64` linear blending, lossless
+8/16-bit PNG/TIFF round-trips without `uint16` detail masquerading, and zero
+default grain are verified by synthetic fixtures. **131 Python tests pass**;
+Studio HTTP/store ingest wiring and live `F06` evaluation remain open. See the
+[managed export checkpoint](project/checkpoints/2026-11-10-managed-export.md).

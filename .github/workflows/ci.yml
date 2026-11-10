@@ -67,6 +67,9 @@ jobs:
       - name: Source-bound mask suggestion staging and protection tests
         run: python -m unittest discover -s tests -p 'test_mask_suggestions.py'
 
+      - name: Colour-managed alpha and 16-bit precision export tests
+        run: python -m unittest discover -s tests -p 'test_managed_export.py'
+
       - name: Explicit benchmark inventory and freeze contracts
         run: python -m unittest discover -s tests -p 'test_corpus_manifest.py'
 
