@@ -1130,12 +1130,15 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
         pass  # Quiet logs
 
     def do_GET(self):
+        from fidelis.studio.http import dispatch
+        if dispatch(self, CACHE_DIR / "region_jobs"):
+            return
         url = urlparse(self.path)
         if url.path in ["/", "/index.html"]:
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.end_headers()
-            self.wfile.write(HTML_PAGE.encode("utf-8"))
+            self.wfile.write(HTML_PAGE.replace("<body>", '<body><nav style="padding:12px 20px"><a href="/regions" style="color:#d2dabb">Open saved regional review ↗</a></nav>', 1).encode("utf-8"))
         elif url.path == "/api/models":
             models = get_installed_models()
             self.send_response(200)
@@ -1219,6 +1222,9 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
 
     def do_POST(self):
+        from fidelis.studio.http import dispatch
+        if dispatch(self, CACHE_DIR / "region_jobs"):
+            return
         url = urlparse(self.path)
         try:
             content_len = int(self.headers.get("Content-Length", 0))
@@ -1462,7 +1468,7 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
 
-def run_server(port: int = 8765, host: str = "0.0.0.0"):
+def run_server(port: int = 8765, host: str = "0.0.0.0", region_workspace=None, region_store_options=None):
     handler = FidelisRequestHandler
     # Allow port reuse
     socketserver.TCPServer.allow_reuse_address = True
@@ -1483,6 +1489,8 @@ def run_server(port: int = 8765, host: str = "0.0.0.0"):
     if not httpd:
         raise OSError(f"Could not find an open port starting from {port}")
 
+    httpd.region_workspace_root = region_workspace or CACHE_DIR / "region_jobs"
+    httpd.region_store_options = region_store_options or {}
     with httpd:
         display_host = "127.0.0.1" if host in ("0.0.0.0", "") else host
         print(f"\n=======================================================")
@@ -1498,5 +1506,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run Fidelis Web UI.")
     parser.add_argument("-b", "--bind", "--host", default=os.environ.get("HOST", "0.0.0.0"), help="Host interface to bind (default: 0.0.0.0)")
     parser.add_argument("-p", "--port", type=int, default=8765, help="Port to bind (default: 8765)")
+    parser.add_argument("--region-workspace", type=Path, help="Persistent regional job directory")
+    parser.add_argument("--region-disk-mib", type=int, default=2048, help="Regional artifact storage cap in MiB")
+    parser.add_argument("--region-workspace-mib", type=int, default=32, help="Composition stripe workspace allowance in MiB")
+    parser.add_argument("--region-max-pixels", type=int, default=40_000_000, help="Regional image pixel limit")
     args = parser.parse_args()
-    run_server(port=args.port, host=args.bind)
+    if min(args.region_disk_mib, args.region_workspace_mib, args.region_max_pixels) <= 0:
+        parser.error("Regional storage, workspace and pixel limits must be positive")
+    run_server(port=args.port, host=args.bind, region_workspace=args.region_workspace,
+               region_store_options={"disk_budget": args.region_disk_mib * 1024**2,
+                                     "workspace_budget": args.region_workspace_mib * 1024**2,
+                                     "max_pixels": args.region_max_pixels})

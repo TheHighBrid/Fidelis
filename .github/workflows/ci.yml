@@ -59,7 +59,7 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_streaming_tiler.py'
 
       - name: Region protection and reblend export tests
-        run: python -m unittest discover -s tests -p 'test_regions.py'
+        run: python -m unittest discover -s tests -p 'test_region*.py'
 
       - name: CLI tiled upscaling integration tests
         run: python -m unittest discover -s tests -p 'test_tiled_upscale_cli.py'

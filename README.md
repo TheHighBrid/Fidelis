@@ -13,6 +13,12 @@ The first Studio component is available: [region reblending](docs/REGION_REBLEND
 of supplied aligned passes with explicit masks and exact protection of locked base
 pixels. It performs no new model inference or automatic segmentation.
 
+[Persistent regional review](docs/REGIONAL_WORKSPACE.md) is available at `/regions`
+in the existing web studio: import aligned passes/masks, reopen saved jobs, adjust
+regional blends, compare and export. Jobs use checksummed disk artifacts with
+revision conflict checks and configurable storage/composition limits. Brush editing
+and automatic masks remain planned.
+
 Fidelis currently has two deliberately separate lanes:
 
 ### 1. ARM64 local runtime lane
