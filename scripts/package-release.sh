@@ -2,6 +2,7 @@
 set -Eeuo pipefail
 
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
+export COPYFILE_DISABLE=1
 version="${1:-${VERSION:-3.0.0}}"
 version="${version#v}" # Strip leading v if present
 dist_dir="$repo_root/dist"
@@ -17,18 +18,32 @@ archive_base="fidelis-v${version}"
 tar_gz="$dist_dir/${archive_base}.tar.gz"
 zip_out="$dist_dir/${archive_base}.zip"
 
-# Exclude temporary and local development artifacts
+# Exclude temporary, local development, and user workspace artifacts
 exclude_patterns=(
   --exclude='.git'
   --exclude='.venv'
   --exclude='__pycache__'
   --exclude='*.pyc'
+  --exclude='*.pyo'
+  --exclude='*.pyd'
   --exclude='*.old.*'
+  --exclude='.cache'
+  --exclude='.fidelis'
   --exclude='dist'
+  --exclude='runtime'
+  --exclude='models'
+  --exclude='experiments/eval_crops/audition_*'
+  --exclude='experiments/eval_crops/web_audition'
+  --exclude='experiments/self_improvement/outputs'
+  --exclude='experiments/eval_corpus'
   --exclude='fidelis-tile_*'
+  --exclude='*.apk'
+  --exclude='.env'
+  --exclude='.env.*'
   --exclude='.DS_Store'
 )
 
+rm -f "$tar_gz" "$zip_out" "$tar_gz.sha256" "$zip_out.sha256"
 tar -czf "$tar_gz" -C "$repo_root" "${exclude_patterns[@]}" .
 printf 'Created tarball: %s (%s)\n' "$tar_gz" "$(du -h "$tar_gz" | awk '{print $1}')"
 

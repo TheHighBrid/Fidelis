@@ -316,8 +316,8 @@
       "id": "F15",
       "title": "Polish responsive studio and verify packaging",
       "milestone": "M4",
-      "state": "Backlog",
-      "implementation": "not_started",
+      "state": "In Progress",
+      "implementation": "partial",
       "depends_on": [
         "F08",
         "F14"
@@ -325,7 +325,7 @@
       "role": "UX / release engineering",
       "scope": "Complete accessible premium UI, device checks and reproducible install/upgrade/rollback.",
       "acceptance": "Actual M1/Android/browser checks and measured resource budgets; packaging includes intended modules/dependencies and protects saved data on upgrade/rollback.",
-      "evidence": "scripts/package-release.sh; android/; Dockerfile; studio UI",
+      "evidence": "fidelis/studio/packaging.py; scripts/verify-upgrade-rollback.py; scripts/package-release.sh; scripts/package-offline-bundle.sh; Dockerfile; .dockerignore; tests/test_release_packaging.py; tests/test-release-pipeline.sh; docs/RELEASE_PACKAGING.md (archive auditing and workspace upgrade/rollback verified; physical device/GPU budget signoff pending)",
       "priority": 3,
       "linear": {
         "id": "MEL-69",
@@ -643,6 +643,6 @@
       "linear_id": "fb26feb5-8122-40cb-a6e1-01a83b4f542c"
     }
   ],
-  "latest_checkpoint": "docs/project/checkpoints/2026-11-10-mask-suggestions.md",
-  "checkpoint_base_commit": "10a30950c93783729d0c051fa84e7effd74011dc"
+  "latest_checkpoint": "docs/project/checkpoints/2026-11-10-studio-packaging.md",
+  "checkpoint_base_commit": "f84287993c9bc213dc47859b297a5a275381101d"
 }

@@ -36,6 +36,10 @@ the tracked module/file mismatch; a controlled-runtime regression now exercises 
   model is configured. Declared scores can be confidently wrong and nearest expansion
   is not fine matting. Segmentation labels do not inherently identify seams, logos or zipper teeth.
   Automatic masking remains a candidate, not a guaranteed structural guard.
+- F15 archive module/exclusion auditing and SQLite/`.npy` workspace snapshot/rollback
+  are unit- and pipeline-verified (`test_release_packaging.py`, `test-release-pipeline.sh`),
+  but physical Android/tablet checks, live M1/GPU memory budget measurements, and UI
+  keyboard-focus/scroll polish remain open.
 - Current inputs are untagged uint8 sRGB RGB PNGs. ICC/alpha/high-precision support
   is not established by the uint16 file container or old colour-fix claims.
 - Stripe allocation limits are not total-RSS measurements. Import decoding and

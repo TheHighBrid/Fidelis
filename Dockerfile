@@ -29,8 +29,8 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 WORKDIR /app
 
 # Copy dependency specifications first for caching
-COPY requirements.txt ./
-RUN /root/.local/bin/uv pip install --system --no-cache -r requirements.txt \
+COPY requirements.txt requirements-studio.txt ./
+RUN /root/.local/bin/uv pip install --system --no-cache -r requirements.txt -r requirements-studio.txt \
     && /root/.local/bin/uv pip install --system --no-cache onnxruntime opencv-python-headless
 
 # Copy repository sources

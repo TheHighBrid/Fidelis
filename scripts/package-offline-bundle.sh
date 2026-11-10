@@ -2,6 +2,7 @@
 set -Eeuo pipefail
 
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
+export COPYFILE_DISABLE=1
 version="${1:-${VERSION:-3.0.0}}"
 version="${version#v}"
 
@@ -21,14 +22,29 @@ exclude_patterns=(
   --exclude='.venv'
   --exclude='__pycache__'
   --exclude='*.pyc'
+  --exclude='*.pyo'
+  --exclude='*.pyd'
+  --exclude='*.old.*'
+  --exclude='.cache'
+  --exclude='.fidelis'
   --exclude='dist'
+  --exclude='runtime'
+  --exclude='models'
+  --exclude='experiments/eval_crops/audition_*'
+  --exclude='experiments/eval_crops/web_audition'
+  --exclude='experiments/self_improvement/outputs'
+  --exclude='experiments/eval_corpus'
   --exclude='fidelis-tile_*'
+  --exclude='*.apk'
+  --exclude='.env'
+  --exclude='.env.*'
   --exclude='.DS_Store'
 )
 
-tar -czf "$dist_dir/tmp_core.tar.gz" -C "$repo_root" "${exclude_patterns[@]}" .
-tar -xzf "$dist_dir/tmp_core.tar.gz" -C "$bundle_dir"
-rm -f "$dist_dir/tmp_core.tar.gz"
+tmp_core_tar="$(mktemp "${TMPDIR:-/tmp}/fidelis-core-tar.XXXXXX")"
+tar -czf "$tmp_core_tar" -C "$repo_root" "${exclude_patterns[@]}" .
+tar -xzf "$tmp_core_tar" -C "$bundle_dir"
+rm -f "$tmp_core_tar"
 
 # 2. Package model weights
 models_staging="$bundle_dir/offline_models"

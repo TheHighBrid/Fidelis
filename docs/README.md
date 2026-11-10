@@ -25,6 +25,7 @@ Operational references:
 - [Background generation and recovery](ASYNC_GENERATION.md)
 - [Aligned-pass reblend CLI](REGION_REBLEND.md)
 - [Explicit benchmark corpus and freeze](BENCHMARK_CORPUS.md)
+- [Release packaging and upgrade/rollback protection](RELEASE_PACKAGING.md)
 - [Photo model candidates](PHOTO_MODEL_CANDIDATES.md)
 - [Legacy native guide](LEGACY_RUNTIME_GUIDE.md)
 - [VOSR experiment](../experiments/VOSR_FIDELITY_SWEEP.md)

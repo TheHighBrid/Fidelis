@@ -1,5 +1,10 @@
 # Fidelis Changelog
 
+## Unreleased Studio packaging and upgrade/rollback verification · 2026-11-10
+
+- Added `fidelis/studio/packaging.py` and `scripts/verify-upgrade-rollback.py` (`F15` / `MEL-69`) to audit release and offline-bundle archives for required Studio/eval/postprocess modules and forbidden workspace/credential leaks, plus verified SQLite/`.npy` workspace snapshots and atomic rollback across upgrades.
+- Hardened `scripts/package-release.sh`, `scripts/package-offline-bundle.sh`, `Dockerfile`, and `.dockerignore` so `.cache`, `.venv`, `.env*`, and local audition/corpus outputs are excluded and `requirements-studio.txt` is installed in container builds.
+
 ## Unreleased mask suggestion interface · 2026-11-10
 
 - Added source-bound class probability import, explicit label routing and conservative confidence/boundary gates.

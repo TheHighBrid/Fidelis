@@ -11,7 +11,7 @@ This is a committed checkpoint, not a live status feed.
 | Studio code | `feat/region-aware-studio`, open PR #12; latest delivery receipts below |
 | Project coordination | Linear Fidelis Studio, P-MEL-3; existing umbrella MEL-53 linked to GH #11 |
 | Product status | Engineering alpha; no GPU quality certificate or parity claim |
-| Latest runtime work | D01-D04, F07-A and F08-A implemented/tested in PR #12; pending review/merge |
+| Latest runtime work | D01-D04, F07-A, F08-A, F09, F12-A and F15 packaging/upgrade verification implemented/tested; pending review/merge |
 
 ## Implemented achievements
 
@@ -111,3 +111,13 @@ preserves manual masks/protection. **125 Python tests pass.** F09 remains partia
 no automatic segmentation model is configured or quality-qualified. See the
 [mask suggestion checkpoint](checkpoints/2026-11-10-mask-suggestions.md). Next: actual model/label/terms and ROI
 qualification, with browser/device and production corpus gates still open.
+
+## Studio packaging and upgrade/rollback verification · 2026-11-10
+
+F15 (`MEL-69`) hardens release/offline-bundle archive exclusions (`.cache`, `.fidelis`,
+`.env*`), installs `requirements-studio.txt` in `Dockerfile`, adds `.dockerignore`, and
+introduces `fidelis/studio/packaging.py` + `scripts/verify-upgrade-rollback.py` for archive
+module auditing and SQLite/`.npy` workspace snapshot/rollback verification. **129 Python
+tests pass.** F15 remains partial; physical Android/tablet checks, live GPU resource budget
+measurements, and UI keyboard-focus/scroll polish remain open. See the
+[studio packaging checkpoint](checkpoints/2026-11-10-studio-packaging.md).

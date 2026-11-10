@@ -70,6 +70,9 @@ jobs:
       - name: Explicit benchmark inventory and freeze contracts
         run: python -m unittest discover -s tests -p 'test_corpus_manifest.py'
 
+      - name: Release archive auditing and workspace upgrade/rollback tests
+        run: python -m unittest discover -s tests -p 'test_release_packaging.py'
+
       - name: Native image-pixel crop and inspector contracts
         run: python -m unittest discover -s tests -p 'test_native_inspection.py'
 

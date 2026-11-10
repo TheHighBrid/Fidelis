@@ -115,3 +115,13 @@ preserves manual masks/protection. **125 Python tests pass.** F09 remains partia
 no automatic segmentation model is configured or quality-qualified. See the
 [mask suggestion checkpoint](project/checkpoints/2026-11-10-mask-suggestions.md). Next: actual model/label/terms and ROI
 qualification, with browser/device and production corpus gates still open.
+
+## Studio packaging and upgrade/rollback verification · 2026-11-10
+
+F15 (`MEL-69`) hardens release/offline-bundle archive exclusions (`.cache`, `.fidelis`,
+`.env*`), installs `requirements-studio.txt` in `Dockerfile`, adds `.dockerignore`, and
+introduces `fidelis/studio/packaging.py` + `scripts/verify-upgrade-rollback.py` for archive
+module auditing and SQLite/`.npy` workspace snapshot/rollback verification. **129 Python
+tests pass.** F15 remains partial; physical Android/tablet checks, live GPU resource budget
+measurements, and UI keyboard-focus/scroll polish remain open. See the
+[studio packaging checkpoint](project/checkpoints/2026-11-10-studio-packaging.md).

@@ -101,3 +101,5 @@ Imported [mask suggestions](../MASK_SUGGESTIONS.md) use optional `suggestion_*`
 artifacts and `mask_suggestion` review metadata in the existing manifest. Stage
 advances revision without changing active masks/master; accept performs a striped
 fill-only-unclassified merge. Model inference is a separate unqualified boundary.
+
+[Release packaging and upgrade/rollback protection](../RELEASE_PACKAGING.md) (`fidelis/studio/packaging.py` and `scripts/verify-upgrade-rollback.py`) audits release/offline archives against required Studio modules and forbidden `.cache`/`.env*` paths, and creates SQLite online backups plus SHA-256-verified `.npy` snapshots for atomic workspace rollback.
