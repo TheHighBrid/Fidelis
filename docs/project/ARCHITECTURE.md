@@ -36,6 +36,7 @@ The native CLI remains a separate, preserved lane rather than a hidden replaceme
 | Persistence | `fidelis/studio/store.py` | SQLite manifests, immutable NPYs, revisions, budgets | Synchronous, single-user; not total-RSS certification |
 | HTTP/UI | `scripts/web-ui.py`, `fidelis/studio/http.py`, `studio.html` | Local review/edit/save/export | Visual/device acceptance pending |
 | Background generation | `fidelis/studio/generation.py`, optional server workflow | Durable bounded worker, scoped local cancel and same-run resume | Protocol-tested; no global GPU cancel; aggregate cache quota pending |
+| Batch orchestration | `fidelis/studio/batch.py`, `scripts/batch-run.py` | Single-owner SQLite recipes, crash recovery, paid-work lock, disk/cost budgets | Fixture/CLI tested; live F06 worker & F11 export wiring open |
 | Texture bridge | `fidelis/studio/comfy.py`, `scripts/generate-texture.py` | Graph schema preflight, run ledger and polling | Fixture/protocol tested; no certified model graph |
 | Capabilities | `capabilities.py`, `scripts/backend-doctor.py` | Installed/checksummed versus declared | Availability is not quality certification |
 | Evaluation | `fidelis/eval/`, experiments and scripts | Existing metrics/corpus tooling | Frozen production corpus/true perceptual evidence pending |
@@ -101,3 +102,9 @@ Imported [mask suggestions](../MASK_SUGGESTIONS.md) use optional `suggestion_*`
 artifacts and `mask_suggestion` review metadata in the existing manifest. Stage
 advances revision without changing active masks/master; accept performs a striped
 fill-only-unclassified merge. Model inference is a separate unqualified boundary.
+
+Resumable [bounded batch processing](../BATCH_PROCESSING.md) persists
+per-image recipes, deterministic `run_id` identities, paid-submission review
+boundaries (`needs_review`), bounded workers (`1..4`), and disk/cost budgets
+via single-owner SQLite (`F14` partial groundwork; live `F06` worker wiring and
+measured device resource budgets remain open).

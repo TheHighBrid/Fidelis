@@ -11,7 +11,7 @@ This is a committed checkpoint, not a live status feed.
 | Studio code | `feat/region-aware-studio`, open PR #12; latest delivery receipts below |
 | Project coordination | Linear Fidelis Studio, P-MEL-3; existing umbrella MEL-53 linked to GH #11 |
 | Product status | Engineering alpha; no GPU quality certificate or parity claim |
-| Latest runtime work | D01-D04, F07-A and F08-A implemented/tested in PR #12; pending review/merge |
+| Latest runtime work | D01-D04, F07-A, F08-A and F09 in PR #12; F14 (`MEL-67`) resumable batch runner on `work/mel-67-resumable-batch` |
 
 ## Implemented achievements
 
@@ -111,3 +111,17 @@ preserves manual masks/protection. **125 Python tests pass.** F09 remains partia
 no automatic segmentation model is configured or quality-qualified. See the
 [mask suggestion checkpoint](checkpoints/2026-11-10-mask-suggestions.md). Next: actual model/label/terms and ROI
 qualification, with browser/device and production corpus gates still open.
+
+## Resumable bounded batch groundwork · 2026-11-10
+
+F14 / MEL-67 on isolated branch `work/mel-67-resumable-batch` adds
+`fidelis/studio/batch.py` (`BatchRunner`, `BatchItemContext`), CLI
+`scripts/batch-run.py`, and [the batch contract](../BATCH_PROCESSING.md). It
+persists per-image recipes and deterministic `run_id` values in single-owner
+SQLite (`batch.lock` via `fcntl.flock`), recovers crashes without duplicate
+paid submissions (`needs_review`), bounds concurrency (`1..4`) and disk/cost
+budgets, checks source/output SHA-256 integrity, and logs full retry history.
+**129 Python tests pass** with mock workers and offline handlers. `F14` moves to
+`In Progress` (`partial`); live `F06` worker wiring and `F11` high-precision
+export pipelines remain open. See the
+[batch checkpoint](checkpoints/2026-11-10-resumable-batch.md).

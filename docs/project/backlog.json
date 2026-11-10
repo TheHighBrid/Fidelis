@@ -294,8 +294,9 @@
       "id": "F14",
       "title": "Deliver resumable bounded batch processing",
       "milestone": "M4",
-      "state": "Backlog",
-      "implementation": "not_started",
+      "state": "In Progress",
+      "implementation": "partial_resumable_batch_coordinator_cli_fixture_tested",
+      "linear_sync_pending": true,
       "depends_on": [
         "F07",
         "F11"
@@ -303,7 +304,8 @@
       "role": "Batch / orchestration",
       "scope": "Persist per-image recipes and states through interrupted production batches.",
       "acceptance": "Batch resumes without duplicate paid work, silent data loss or unbounded memory/disk concurrency; per-item failures and retries remain visible.",
-      "evidence": "existing native batch/audition lane; future Studio async job contracts",
+      "evidence": "fidelis/studio/batch.py; scripts/batch-run.py; docs/BATCH_PROCESSING.md; tests/test_batch_runner.py; existing native batch/audition lane; future Studio async job contracts",
+      "verification_checkpoint": "docs/project/checkpoints/2026-11-10-resumable-batch.md",
       "priority": 3,
       "linear": {
         "id": "MEL-67",
@@ -643,6 +645,6 @@
       "linear_id": "fb26feb5-8122-40cb-a6e1-01a83b4f542c"
     }
   ],
-  "latest_checkpoint": "docs/project/checkpoints/2026-11-10-mask-suggestions.md",
-  "checkpoint_base_commit": "10a30950c93783729d0c051fa84e7effd74011dc"
+  "latest_checkpoint": "docs/project/checkpoints/2026-11-10-resumable-batch.md",
+  "checkpoint_base_commit": "f84287993c9bc213dc47859b297a5a275381101d"
 }

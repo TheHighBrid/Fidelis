@@ -115,3 +115,13 @@ preserves manual masks/protection. **125 Python tests pass.** F09 remains partia
 no automatic segmentation model is configured or quality-qualified. See the
 [mask suggestion checkpoint](project/checkpoints/2026-11-10-mask-suggestions.md). Next: actual model/label/terms and ROI
 qualification, with browser/device and production corpus gates still open.
+
+## Resumable bounded batch groundwork · 2026-11-10
+
+F14 / MEL-67 on isolated branch `work/mel-67-resumable-batch` adds
+`fidelis/studio/batch.py`, CLI `scripts/batch-run.py`, and
+`docs/BATCH_PROCESSING.md`. Crash recovery without duplicate paid work,
+bounded concurrency, disk/cost budgets, and visible retry histories pass
+**129 Python tests** with offline/mock workers; live `F06` worker wiring and
+measured device resource runs remain open. See the
+[batch checkpoint](project/checkpoints/2026-11-10-resumable-batch.md).

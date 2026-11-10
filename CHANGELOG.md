@@ -1,5 +1,19 @@
 # Fidelis Changelog
 
+## Unreleased resumable bounded batch runner · 2026-11-10
+
+- Added `fidelis/studio/batch.py` (`BatchRunner`, `BatchItemContext`) and CLI
+  `scripts/batch-run.py` (`enqueue`, `run`, `status`) for `F14` / `MEL-67`
+  groundwork.
+- Persists per-image recipes, source SHA-256 checks, and deterministic `run_id`
+  values in single-owner SQLite storage (`batch.lock` via `fcntl.flock`);
+  recovers interrupted runs without duplicating committed/paid submissions
+  (`needs_review`), enforces bounded workers (`1..4`), retry caps, and disk/cost
+  budgets, and logs full per-item attempt histories.
+- Added 4 fixture and CLI tests in `tests/test_batch_runner.py` and documented
+  contracts in `docs/BATCH_PROCESSING.md`. Live `F06` worker and `F11` export
+  integration remain open (`F14` stays `In Progress`).
+
 ## Unreleased mask suggestion interface · 2026-11-10
 
 - Added source-bound class probability import, explicit label routing and conservative confidence/boundary gates.

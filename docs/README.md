@@ -21,6 +21,7 @@ Operational references:
 - [Regional workspace and brush editing](REGIONAL_WORKSPACE.md)
 - [Native pixel inspection](NATIVE_INSPECTION.md)
 - [Imported mask suggestions](MASK_SUGGESTIONS.md)
+- [Resumable bounded batch processing](BATCH_PROCESSING.md)
 - [ComfyUI texture adapter](COMFY_TEXTURE_BACKEND.md)
 - [Background generation and recovery](ASYNC_GENERATION.md)
 - [Aligned-pass reblend CLI](REGION_REBLEND.md)

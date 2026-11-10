@@ -36,6 +36,11 @@ the tracked module/file mismatch; a controlled-runtime regression now exercises 
   model is configured. Declared scores can be confidently wrong and nearest expansion
   is not fine matting. Segmentation labels do not inherently identify seams, logos or zipper teeth.
   Automatic masking remains a candidate, not a guaranteed structural guard.
+- F14 resumable bounded batch processing (`fidelis/studio/batch.py`,
+  `scripts/batch-run.py`) is verified using mock workers and offline
+  `packshot_verify` / `deterministic_bicubic` handlers only. Live `F06` ComfyUI
+  batch submission, `F11` high-precision batch outputs, and real sustained
+  device memory/thermal measurements remain open until qualified.
 - Current inputs are untagged uint8 sRGB RGB PNGs. ICC/alpha/high-precision support
   is not established by the uint16 file container or old colour-fix claims.
 - Stripe allocation limits are not total-RSS measurements. Import decoding and
