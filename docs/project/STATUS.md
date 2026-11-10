@@ -11,7 +11,7 @@ This is a committed checkpoint, not a live status feed.
 | Studio code | `feat/region-aware-studio`, open PR #12; latest delivery receipts below |
 | Project coordination | Linear Fidelis Studio, P-MEL-3; existing umbrella MEL-53 linked to GH #11 |
 | Product status | Engineering alpha; no GPU quality certificate or parity claim |
-| Latest runtime work | D01-D04, F07-A and F08-A implemented/tested in PR #12; pending review/merge |
+| Latest runtime work | D01-D04, F07-A, F08-A and F09 in PR #12; F10 (`MEL-64`) groundwork on `work/mel-64-roi-drift-screening` |
 
 ## Implemented achievements
 
@@ -111,3 +111,17 @@ preserves manual masks/protection. **125 Python tests pass.** F09 remains partia
 no automatic segmentation model is configured or quality-qualified. See the
 [mask suggestion checkpoint](checkpoints/2026-11-10-mask-suggestions.md). Next: actual model/label/terms and ROI
 qualification, with browser/device and production corpus gates still open.
+
+## Structural ROI & drift screening groundwork · 2026-11-10
+
+F10 / MEL-64 groundwork on isolated branch `work/mel-64-roi-drift-screening`
+adds `fidelis/postprocess/roi_protection.py`, CLI `scripts/screen-roi-drift.py`,
+and the [ROI protection & drift contract](../ROI_DRIFT_SCREENING.md). Declared
+ROI locks (`preserve`) and explicit `override="lock"` / `"unlock"` rules preserve
+existing user `protected` masks, secondary Sobel contrast attenuation stays
+bounded under `edge_guard` (`sobel_is_semantic_proof=False`), and equal-dimension
+screening flags local internal shifts without resizing away mismatches.
+**129 Python tests pass** against synthetic fixtures. F10 remains `In Progress`
+(`partial`); live F06 candidates, OCR text checks, and cleared F12 ROI corpus
+gates remain open. See the
+[ROI drift screening checkpoint](checkpoints/2026-11-10-roi-drift-screening.md).

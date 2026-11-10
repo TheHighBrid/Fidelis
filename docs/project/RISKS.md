@@ -36,6 +36,12 @@ the tracked module/file mismatch; a controlled-runtime regression now exercises 
   model is configured. Declared scores can be confidently wrong and nearest expansion
   is not fine matting. Segmentation labels do not inherently identify seams, logos or zipper teeth.
   Automatic masking remains a candidate, not a guaranteed structural guard.
+- F10 structural ROI protection and internal drift screening (`fidelis/postprocess/roi_protection.py`)
+  are synthetic-fixture-tested only. Sobel gradient attenuation (`edge_guard`) and
+  normalized cross-correlation patch matching are heuristics, not semantic proof of
+  legible text, intact logos, or uncorrupted garment hardware; unannotated defects,
+  semantic hallucinations without spatial shift, and live F06 texture outputs over cleared
+  F12 ROI cases remain untested until real inference, OCR, and visual gates run.
 - Current inputs are untagged uint8 sRGB RGB PNGs. ICC/alpha/high-precision support
   is not established by the uint16 file container or old colour-fix claims.
 - Stripe allocation limits are not total-RSS measurements. Import decoding and

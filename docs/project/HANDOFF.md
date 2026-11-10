@@ -97,3 +97,15 @@ preserves manual masks/protection. **125 Python tests pass.** F09 remains partia
 no automatic segmentation model is configured or quality-qualified. See the
 [mask suggestion checkpoint](checkpoints/2026-11-10-mask-suggestions.md). Next: actual model/label/terms and ROI
 qualification, with browser/device and production corpus gates still open.
+
+## Structural ROI & drift screening groundwork · 2026-11-10
+
+F10 / MEL-64 groundwork on isolated branch `work/mel-64-roi-drift-screening`
+adds `fidelis/postprocess/roi_protection.py`, CLI `scripts/screen-roi-drift.py`,
+and [ROI protection & drift screening](../ROI_DRIFT_SCREENING.md). Explicit
+`preserve` ROIs and `override` precedence preserve user `protected` masks,
+secondary Sobel attenuation remains strictly bounded (`sobel_is_semantic_proof=False`),
+and equal-dimension screening catches local interior shifts and verifies
+bit-exact `protected` locks on composed `master`s. **129 Python tests pass**
+using fixtures; live F06 texture runs and cleared F12 ROI benchmarks remain open.
+See the [ROI drift screening checkpoint](checkpoints/2026-11-10-roi-drift-screening.md).

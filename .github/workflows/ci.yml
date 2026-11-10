@@ -67,6 +67,9 @@ jobs:
       - name: Source-bound mask suggestion staging and protection tests
         run: python -m unittest discover -s tests -p 'test_mask_suggestions.py'
 
+      - name: Structural ROI protection and internal drift screening tests
+        run: python -m unittest discover -s tests -p 'test_roi_protection.py'
+
       - name: Explicit benchmark inventory and freeze contracts
         run: python -m unittest discover -s tests -p 'test_corpus_manifest.py'
 

@@ -32,6 +32,7 @@ The native CLI remains a separate, preserved lane rather than a hidden replaceme
 | Existing pipeline | `fidelis/core/`, `fidelis/modules/` | Legacy orchestration, profiling, optional restoration | Known audit defects; not the Studio source of truth |
 | Tiling | `fidelis/engine/tiler.py`, `streaming.py` | Tested overlap and row-streamed fusion | No guarantee of model visual fidelity |
 | Composition | `fidelis/postprocess/regions.py` | Linear-light sRGB blend, confidence and exact locks | uint8 RGB input, explicit masks |
+| ROI & drift guard | `fidelis/postprocess/roi_protection.py`, `scripts/screen-roi-drift.py` | Explicit ROI locks, bounded Sobel heuristic, local shift & lock screening | Explicit ROIs (`corpus_manifest.py`), matching dimensions |
 | Masks | `fidelis/studio/brush.py`, `editor.js` | Native stripe raster and browser parity | Manual masks; not automatic semantics |
 | Persistence | `fidelis/studio/store.py` | SQLite manifests, immutable NPYs, revisions, budgets | Synchronous, single-user; not total-RSS certification |
 | HTTP/UI | `scripts/web-ui.py`, `fidelis/studio/http.py`, `studio.html` | Local review/edit/save/export | Visual/device acceptance pending |
@@ -101,3 +102,9 @@ Imported [mask suggestions](../MASK_SUGGESTIONS.md) use optional `suggestion_*`
 artifacts and `mask_suggestion` review metadata in the existing manifest. Stage
 advances revision without changing active masks/master; accept performs a striped
 fill-only-unclassified merge. Model inference is a separate unqualified boundary.
+
+Structural [ROI protection and internal drift screening](../ROI_DRIFT_SCREENING.md)
+translates declared ROI rectangles and explicit `override` choices into exact
+`protected` locks, bounded secondary Sobel `edge_guard` attenuation
+(`sobel_is_semantic_proof=False`), and equal-dimension local shift/coherence
+screens (`F10` partial groundwork; live F06 candidates and F12 corpus gates remain open).

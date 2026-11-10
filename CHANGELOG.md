@@ -1,5 +1,18 @@
 # Fidelis Changelog
 
+## Unreleased structural ROI protection and drift screener · 2026-11-10
+
+- Added `fidelis/postprocess/roi_protection.py` and CLI `scripts/screen-roi-drift.py`
+  for `F10` / `MEL-64` groundwork (`build_roi_protection_masks`, `screen_internal_drift`).
+- Supports canonical benchmark ROI kinds (`fidelis/eval/corpus_manifest.py`),
+  explicit override precedence (`override="lock"` / `"unlock"` while monotonically
+  preserving existing user `protected` masks), bounded secondary Sobel `edge_guard`
+  attenuation (`sobel_is_semantic_proof=False`), equal-dimension local shift and
+  edge-coherence screening, and bit-exact lock verification on composed `master` outputs.
+- Added regression tests in `tests/test_roi_protection.py` and documented contracts
+  in `docs/ROI_DRIFT_SCREENING.md`. Live F06 candidate quality, OCR verification, and
+  cleared F12 ROI evaluation remain open (`F10` stays `In Progress`).
+
 ## Unreleased mask suggestion interface · 2026-11-10
 
 - Added source-bound class probability import, explicit label routing and conservative confidence/boundary gates.
