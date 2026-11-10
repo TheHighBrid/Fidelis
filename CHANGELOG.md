@@ -1,5 +1,14 @@
 # Fidelis Changelog
 
+## Unreleased corpus rights and ROI manifest checkpoint · 2026-11-10
+
+- Added `fidelis/eval/corpus_manifest.py` and `scripts/validate-corpus-manifest.py` implementing the F12-A / MEL-79 schema, 30/30 calibration vs. held-out split freeze, consent/model-release checks, path-traversal/split-leakage guards, and disk SHA-256/dimension verification.
+- Added `experiments/corpus_manifest.json` freezing the 60 planned production corpus slots (`0/60` available, `60` missing across 5 categories) separately from the 8 checksummed tracked `regression_assets`.
+- Recorded 108 passing Python tests (including 6 new manifest/CLI tests in `tests/test_corpus_manifest.py`), CLI `--verify-files` validation, and `docs/CORPUS_MANIFEST.md`.
+- Implemented on isolated branch `work/mel-79-corpus-roi-manifest` (`--no-track` over `c15d10d`); licensed photo acquisition (`F12`) and live comparator benchmarking (`F13`) remain open.
+- See [corpus manifest receipt](docs/project/checkpoints/2026-11-10-corpus-manifest.md).
+
+
 ## Unreleased native inspection checkpoint · 2026-11-10
 
 - Added revision-pinned, unresampled RGB crop responses and a read-only paired inspector.

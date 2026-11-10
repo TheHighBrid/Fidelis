@@ -79,3 +79,15 @@ Node geometry/DOM contracts; real browser/touch visual acceptance is separate.
 Pending PR #12 review/merge. See the [native inspection receipt](checkpoints/2026-11-10-native-inspection.md).
 Next: F08-B browser/device acceptance and F12-A corpus/ROI preparation. Live model
 quality, confidence masks and resource/release gates remain open.
+
+## Corpus rights & ROI manifest delivery · 2026-11-10
+
+F12-A adds `fidelis/eval/corpus_manifest.py`, `experiments/corpus_manifest.json`
+(frozen 60 slots: 30 calibration / 30 held-out, `0/60` available, separating the 8
+tracked regression assets), `scripts/validate-corpus-manifest.py`, and
+`tests/test_corpus_manifest.py` on `work/mel-79-corpus-roi-manifest` (`--no-track`
+over `c15d10d`). **108 Python tests pass**. Pending review/merge and Linear `MEL-79`
+sync. See the [corpus manifest receipt](checkpoints/2026-11-10-corpus-manifest.md).
+Next independent work: `F05-B` candidate weight provenance and `F08-B` same-host
+browser/device visual acceptance; `F12` photo acquisition and `F05-A`/`F06` live
+worker gates remain open.

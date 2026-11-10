@@ -11,7 +11,7 @@ This is a committed checkpoint, not a live status feed.
 | Studio code | `feat/region-aware-studio`, open PR #12; latest delivery receipts below |
 | Project coordination | Linear Fidelis Studio, P-MEL-3; existing umbrella MEL-53 linked to GH #11 |
 | Product status | Engineering alpha; no GPU quality certificate or parity claim |
-| Latest runtime work | D01-D04, F07-A and F08-A implemented/tested in PR #12; pending review/merge |
+| Latest runtime work | D01-D04, F07-A and F08-A in PR #12 (`c15d10d`); F12-A manifest implemented/tested on `work/mel-79-corpus-roi-manifest`, pending PR/Linear sync |
 
 ## Implemented achievements
 
@@ -93,3 +93,15 @@ Node geometry/DOM contracts; real browser/touch visual acceptance is separate.
 Pending PR #12 review/merge. See the [native inspection receipt](checkpoints/2026-11-10-native-inspection.md).
 Next: F08-B browser/device acceptance and F12-A corpus/ROI preparation. Live model
 quality, confidence masks and resource/release gates remain open.
+
+## Corpus rights & ROI manifest delivery · 2026-11-10
+
+F12-A adds `fidelis/eval/corpus_manifest.py`, `experiments/corpus_manifest.json`
+(frozen 60 slots: 30 calibration / 30 held-out, `0/60` available, separating 8 tracked
+regression assets), `scripts/validate-corpus-manifest.py`, and
+`tests/test_corpus_manifest.py` on isolated branch `work/mel-79-corpus-roi-manifest`
+(`--no-track` over `c15d10d`). **108 Python tests pass**, plus `--verify-files` CLI
+and existing HTTP/smoke checks; pending PR review and remote Linear `MEL-79` sync.
+See the [corpus manifest receipt](checkpoints/2026-11-10-corpus-manifest.md).
+Next independent work: `F05-B` weight provenance and `F08-B` same-host browser/device
+acceptance; licensed photo acquisition (`F12`) and live worker gates remain open.

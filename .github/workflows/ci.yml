@@ -82,6 +82,11 @@ jobs:
       - name: Local server and deployment boundary tests
         run: python -m unittest discover -s tests -p 'test_local_server_defaults.py'
 
+      - name: Corpus rights, split, and ROI manifest tests
+        run: |
+          python -m unittest discover -s tests -p 'test_corpus_manifest.py'
+          python scripts/validate-corpus-manifest.py --verify-files
+
       - name: Web UI server integration tests
         run: bash tests/test-web-ui.sh
 

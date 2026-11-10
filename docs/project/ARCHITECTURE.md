@@ -38,7 +38,7 @@ The native CLI remains a separate, preserved lane rather than a hidden replaceme
 | Background generation | `fidelis/studio/generation.py`, optional server workflow | Durable bounded worker, scoped local cancel and same-run resume | Protocol-tested; no global GPU cancel; aggregate cache quota pending |
 | Texture bridge | `fidelis/studio/comfy.py`, `scripts/generate-texture.py` | Graph schema preflight, run ledger and polling | Fixture/protocol tested; no certified model graph |
 | Capabilities | `capabilities.py`, `scripts/backend-doctor.py` | Installed/checksummed versus declared | Availability is not quality certification |
-| Evaluation | `fidelis/eval/`, experiments and scripts | Existing metrics/corpus tooling | Frozen production corpus/true perceptual evidence pending |
+| Evaluation | `fidelis/eval/`, `experiments/corpus_manifest.json`, validator scripts | Metrics, corpus tooling, and frozen 60-slot rights/ROI manifest (`0/60` populated) | Licensed 60-case photography and held-out comparator outputs pending |
 
 ## Persisted and API contracts
 
@@ -92,3 +92,5 @@ for the current tradeoffs. The detailed technical plan remains in
 Current F07-A queue and crash/cancellation contracts: [Background generation](../ASYNC_GENERATION.md).
 
 Native read-only crop endpoint and paired inspector: [Inspection contract](../NATIVE_INSPECTION.md). Crops are revision-pinned, bounded to 512 px per side and never resampled by the server.
+
+Frozen 60-case corpus rights/split/ROI schema and validator: [Corpus manifest](../CORPUS_MANIFEST.md).

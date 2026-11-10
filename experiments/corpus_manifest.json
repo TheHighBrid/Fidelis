@@ -1,0 +1,2511 @@
+{
+  "schema_version": 1,
+  "manifest_purpose": "Frozen 60-case calibration/held-out Studio corpus inventory (F12-A / MEL-79).",
+  "split_frozen": true,
+  "split_policy": {
+    "total_cases": 60,
+    "calibration": 30,
+    "held_out": 30,
+    "per_category": 12,
+    "per_category_split": 6,
+    "note": "Split assignments and slot definitions are frozen before tuning; missing assets cannot be substituted with regression crops."
+  },
+  "cases": [
+    {
+      "case_id": "por_deep_skin_studio",
+      "category": "portraits",
+      "split": "calibration",
+      "availability": "missing",
+      "expected_subject": "Studio portrait, deep skin tone, natural pores and catchlights",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": true,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "eyes_mouth",
+          "label": "Eyes, iris catchlights, teeth",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "por_medium_skin_daylight",
+      "category": "portraits",
+      "split": "calibration",
+      "availability": "missing",
+      "expected_subject": "Daylight editorial portrait, medium skin tone and flyaway hair",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": true,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "hairline",
+          "label": "Soft hairline and stray strands",
+          "roi_type": "hair_edge",
+          "must_lock_base": false,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "por_fair_freckles_closeup",
+      "category": "portraits",
+      "split": "calibration",
+      "availability": "missing",
+      "expected_subject": "Close-up portrait, fair skin tone with freckles and moles",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": true,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "facial_marks",
+          "label": "Moles and fine cheek texture",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "por_olive_shallow_dof",
+      "category": "portraits",
+      "split": "calibration",
+      "availability": "missing",
+      "expected_subject": "Editorial portrait with shallow depth-of-field bokeh behind head",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": true,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "bokeh_bg",
+          "label": "Out-of-focus background gradient",
+          "roi_type": "background_edge",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "por_elderly_character_lines",
+      "category": "portraits",
+      "split": "calibration",
+      "availability": "missing",
+      "expected_subject": "Mature subject portrait with periorbital creases and beard stubble",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": true,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "eye_lines",
+          "label": "Preserved expression lines and gaze",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "por_warm_mixed_tungsten",
+      "category": "portraits",
+      "split": "calibration",
+      "availability": "missing",
+      "expected_subject": "Warm indoor tungsten portrait retaining subtle amber cast",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": true,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "skin_tone",
+          "label": "Cheek skin reflectance without cool shift",
+          "roi_type": "skin_zone",
+          "must_lock_base": false,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "por_held_rich_melanin_rim",
+      "category": "portraits",
+      "split": "held_out",
+      "availability": "missing",
+      "expected_subject": "Rim-lit portrait with specular forehead highlights and braids",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": true,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "eyes_landmarks",
+          "label": "Facial landmarks and catchlights",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "por_held_east_asian_softbox",
+      "category": "portraits",
+      "split": "held_out",
+      "availability": "missing",
+      "expected_subject": "Softbox studio beauty crop, natural eyelid crease and lip grain",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": true,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "eyelid_lips",
+          "label": "Eyelids, lashes and lip texture",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "por_held_south_asian_outdoor",
+      "category": "portraits",
+      "split": "held_out",
+      "availability": "missing",
+      "expected_subject": "Outdoor shade portrait with jewelry earrings and veil edge",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": true,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "earring_metal",
+          "label": "Gold earring prongs and stone reflections",
+          "roi_type": "hardware",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "por_held_glasses_reflection",
+      "category": "portraits",
+      "split": "held_out",
+      "availability": "missing",
+      "expected_subject": "Eyewear portrait testing bridge geometry and cornea reflections",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": true,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "eyewear_frame",
+          "label": "Frame hinges and temple inscription",
+          "roi_type": "hardware",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "por_held_group_dual_focus",
+      "category": "portraits",
+      "split": "held_out",
+      "availability": "missing",
+      "expected_subject": "Two-subject fashion frame with near/far focal plane drop-off",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": true,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "background_subject",
+          "label": "Defocused secondary face consistency",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "por_held_high_iso_backstage",
+      "category": "portraits",
+      "split": "held_out",
+      "availability": "missing",
+      "expected_subject": "Backstage higher-ISO candid portrait without waxy skin smoothing",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": true,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "skin_microtexture",
+          "label": "Natural cheek grain vs smoothing",
+          "roi_type": "skin_zone",
+          "must_lock_base": false,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "app_tailored_wool_blazer",
+      "category": "apparel_model",
+      "split": "calibration",
+      "availability": "missing",
+      "expected_subject": "Editorial lookbook wool blazer with crisp lapel roll and cuff buttons",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": true,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "lapel_stitch",
+          "label": "Pick-stitch lapel and horn buttons",
+          "roi_type": "stitch",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "app_silk_slip_drape",
+      "category": "apparel_model",
+      "split": "calibration",
+      "availability": "missing",
+      "expected_subject": "Model wearing bias-cut silk dress on seamless studio cyc",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": true,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face_id",
+          "label": "Model facial identity region",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "app_graphic_tee_screenprint",
+      "category": "apparel_model",
+      "split": "calibration",
+      "availability": "missing",
+      "expected_subject": "On-model heavyweight cotton tee with multi-line chest typography",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": true,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [
+        "MELATO MILANO"
+      ],
+      "critical_rois": [
+        {
+          "roi_id": "chest_print",
+          "label": "Printed chest typography",
+          "roi_type": "text",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "app_biker_jacket_hardware",
+      "category": "apparel_model",
+      "split": "calibration",
+      "availability": "missing",
+      "expected_subject": "Model in cropped leather jacket with diagonal zip and snap studs",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": true,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "asym_zip",
+          "label": "Diagonal metal zipper track",
+          "roi_type": "zipper",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "app_knit_cardigan_collar",
+      "category": "apparel_model",
+      "split": "calibration",
+      "availability": "missing",
+      "expected_subject": "Half-body knit cardigan frame testing buttonholes and collar rib",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": true,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "placket_buttons",
+          "label": "Ribbed placket seams and buttons",
+          "roi_type": "stitch",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "app_sheer_organza_overlay",
+      "category": "apparel_model",
+      "split": "calibration",
+      "availability": "missing",
+      "expected_subject": "Layered translucent organza sleeve over skin forearm",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": true,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "sheer_sleeve",
+          "label": "Transparent sleeve weave over arm",
+          "roi_type": "hair_edge",
+          "must_lock_base": false,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "app_held_trench_epaulette",
+      "category": "apparel_model",
+      "split": "held_out",
+      "availability": "missing",
+      "expected_subject": "Gabardine trench coat full lookbook frame with belt buckle and logo",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": true,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [
+        "MELATO"
+      ],
+      "critical_rois": [
+        {
+          "roi_id": "buckle_logo",
+          "label": "Woven label and horn belt buckle",
+          "roi_type": "logo",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "app_held_denim_selvedge",
+      "category": "apparel_model",
+      "split": "held_out",
+      "availability": "missing",
+      "expected_subject": "Model denim jacket with contrast bar-tacks and shank buttons",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": true,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "metal_shanks",
+          "label": "Debossed shank buttons and pocket tacks",
+          "roi_type": "hardware",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "app_held_pleated_skirt",
+      "category": "apparel_model",
+      "split": "held_out",
+      "availability": "missing",
+      "expected_subject": "Fine accordion-pleated skirt testing silhouette and pleat geometry",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": true,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "pleat_edges",
+          "label": "Repeated knife-pleat folds",
+          "roi_type": "garment_fit",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "app_held_athleisure_seam",
+      "category": "apparel_model",
+      "split": "held_out",
+      "availability": "missing",
+      "expected_subject": "Flatlock technical knit seams and reflective chest mark on model",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": true,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [
+        "ATELIER"
+      ],
+      "critical_rois": [
+        {
+          "roi_id": "reflective_mark",
+          "label": "Reflective transfer logo",
+          "roi_type": "logo",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "app_held_sequin_evening",
+      "category": "apparel_model",
+      "split": "held_out",
+      "availability": "missing",
+      "expected_subject": "Beaded/sequin bodice requiring specular glint fidelity without bokeh invention",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": true,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "sequin_grid",
+          "label": "Aligned sequin attachment grid",
+          "roi_type": "hardware",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "app_held_herringbone_coat",
+      "category": "apparel_model",
+      "split": "held_out",
+      "availability": "missing",
+      "expected_subject": "Long herringbone overcoat testing coarse weave orientation across torso",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": true,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "chevron_weave",
+          "label": "Continuous herringbone directional weave",
+          "roi_type": "textile_weave",
+          "must_lock_base": false,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "tex_charmeuse_satin",
+      "category": "textiles",
+      "split": "calibration",
+      "availability": "missing",
+      "expected_subject": "Ivory charmeuse satin bias drape with subtle highlight roll-off",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "satin_sheen",
+          "label": "Specular fold highlight without plasticizing",
+          "roi_type": "textile_weave",
+          "must_lock_base": false,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "tex_cashmere_cable_knit",
+      "category": "textiles",
+      "split": "calibration",
+      "availability": "missing",
+      "expected_subject": "Heathered oatmeal cashmere cable-knit swatch",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "yarn_twist",
+          "label": "Ply twist and loft halo fibers",
+          "roi_type": "textile_weave",
+          "must_lock_base": false,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "tex_cotton_twill_chino",
+      "category": "textiles",
+      "split": "calibration",
+      "availability": "missing",
+      "expected_subject": "Sand-dyed 2/1 cotton twill weave macro crop",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "diagonal_wale",
+          "label": "Diagonal twill wale continuity",
+          "roi_type": "textile_weave",
+          "must_lock_base": false,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "tex_full_grain_leather",
+      "category": "textiles",
+      "split": "calibration",
+      "availability": "missing",
+      "expected_subject": "Aniline black calfskin leather panel showing irregular natural grain",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "grain_irregularity",
+          "label": "Non-repeating pebble pore structure",
+          "roi_type": "textile_weave",
+          "must_lock_base": false,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "tex_raw_indigo_denim",
+      "category": "textiles",
+      "split": "calibration",
+      "availability": "missing",
+      "expected_subject": "14oz raw indigo denim warp/weft slub texture",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "slub_warp",
+          "label": "Indigo warp and ecru weft crossings",
+          "roi_type": "textile_weave",
+          "must_lock_base": false,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "tex_boucle_tweed",
+      "category": "textiles",
+      "split": "calibration",
+      "availability": "missing",
+      "expected_subject": "Multicolour boucle tweed fabric testing yarn color fidelity",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "tweed_dye",
+          "label": "Interwoven coloured slub yarns",
+          "roi_type": "textile_weave",
+          "must_lock_base": false,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "tex_held_linen_slub",
+      "category": "textiles",
+      "split": "held_out",
+      "availability": "missing",
+      "expected_subject": "Unbleached heavyweight linen swatch with organic flax slubs",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "flax_fibers",
+          "label": "Irregular warp thickness transitions",
+          "roi_type": "textile_weave",
+          "must_lock_base": false,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "tex_held_suede_nap",
+      "category": "textiles",
+      "split": "held_out",
+      "availability": "missing",
+      "expected_subject": "Deep espresso goat suede testing velvety short nap direction",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "suede_pile",
+          "label": "Fine directional brushed nap",
+          "roi_type": "textile_weave",
+          "must_lock_base": false,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "tex_held_jacquard_brocade",
+      "category": "textiles",
+      "split": "held_out",
+      "availability": "missing",
+      "expected_subject": "Tonal floral silk jacquard testing repeating motif registration",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "jacquard_motif",
+          "label": "Woven pattern edges vs background satin",
+          "roi_type": "stitch",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "tex_held_merino_rib",
+      "category": "textiles",
+      "split": "held_out",
+      "availability": "missing",
+      "expected_subject": "Fine 2x2 merino jersey rib stretch transition",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "rib_columns",
+          "label": "Wale column parallelism",
+          "roi_type": "textile_weave",
+          "must_lock_base": false,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "tex_held_chantilly_lace",
+      "category": "textiles",
+      "split": "held_out",
+      "availability": "missing",
+      "expected_subject": "Openwork Chantilly lace net over contrasting backing",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "hex_mesh",
+          "label": "Hexagonal tulle net holes without infill",
+          "roi_type": "hardware",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "tex_held_technical_ripstop",
+      "category": "textiles",
+      "split": "held_out",
+      "availability": "missing",
+      "expected_subject": "Matte nylon micro-ripstop grid swatch",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "ripstop_grid",
+          "label": "Raised crosshatch reinforcement grid",
+          "roi_type": "textile_weave",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "mac_two_way_brass_zip",
+      "category": "macros",
+      "split": "calibration",
+      "availability": "missing",
+      "expected_subject": "Brushed brass zipper teeth and slider pull tab macro",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [
+        "YKK 5"
+      ],
+      "critical_rois": [
+        {
+          "roi_id": "zip_teeth",
+          "label": "Interlocking teeth spacing and pull stamp",
+          "roi_type": "zipper",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "mac_woven_neck_label",
+      "category": "macros",
+      "split": "calibration",
+      "availability": "missing",
+      "expected_subject": "Satin neck label sewn with folded miter corners",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [
+        "MADE IN ITALY"
+      ],
+      "critical_rois": [
+        {
+          "roi_id": "woven_brand",
+          "label": "Micro-woven serif lettering",
+          "roi_type": "logo",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "mac_debossed_leather_stamp",
+      "category": "macros",
+      "split": "calibration",
+      "availability": "missing",
+      "expected_subject": "Blind-debossed leather creed with gold foil micro-type",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [
+        "MILANO 1984"
+      ],
+      "critical_rois": [
+        {
+          "roi_id": "foil_stamp",
+          "label": "Foil serif character geometry",
+          "roi_type": "logo",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "mac_twin_needle_topstitch",
+      "category": "macros",
+      "split": "calibration",
+      "availability": "missing",
+      "expected_subject": "Double-needle felled seam with exact stitch-per-inch count",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "topstitch_holes",
+          "label": "Needle punctures and twisted thread",
+          "roi_type": "stitch",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "mac_keyhole_buttonhole",
+      "category": "macros",
+      "split": "calibration",
+      "availability": "missing",
+      "expected_subject": "Tailored gimp-reinforced keyhole buttonhole and corozo button",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "purl_stitch",
+          "label": "Dense gimp buttonhole bartack",
+          "roi_type": "stitch",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "mac_engraved_clasp_bevel",
+      "category": "macros",
+      "split": "calibration",
+      "availability": "missing",
+      "expected_subject": "Palladium-plated handbag turn-lock clasp with laser engraving",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [
+        "FIDELIS"
+      ],
+      "critical_rois": [
+        {
+          "roi_id": "bevel_engraving",
+          "label": "Chamfered edge reflection and engraving",
+          "roi_type": "hardware",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "mac_held_care_label_symbols",
+      "category": "macros",
+      "split": "held_out",
+      "availability": "missing",
+      "expected_subject": "Printed satin care tag with laundry icons and composition text",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [
+        "100% SILK"
+      ],
+      "critical_rois": [
+        {
+          "roi_id": "care_text",
+          "label": "Fine care icons and small percentages",
+          "roi_type": "care_label",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "mac_held_concealed_nylon_zip",
+      "category": "macros",
+      "split": "held_out",
+      "availability": "missing",
+      "expected_subject": "Invisible coil zipper closed seam in silk crepe",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "coil_line",
+          "label": "Seam kissing edge along invisible track",
+          "roi_type": "zipper",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "mac_held_chain_strap_links",
+      "category": "macros",
+      "split": "held_out",
+      "availability": "missing",
+      "expected_subject": "Interlinked curb metal strap with edge-painted leather weaving",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "chain_links",
+          "label": "Specular link bevels and paint edge",
+          "roi_type": "hardware",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "mac_held_chain_embroidery",
+      "category": "macros",
+      "split": "held_out",
+      "availability": "missing",
+      "expected_subject": "Monogram chain-stitch embroidery on heavyweight fleece",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [
+        "MLT"
+      ],
+      "critical_rois": [
+        {
+          "roi_id": "loop_stitch",
+          "label": "Individual chain embroidery loops",
+          "roi_type": "stitch",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "mac_held_shoe_welt_stitch",
+      "category": "macros",
+      "split": "held_out",
+      "availability": "missing",
+      "expected_subject": "Goodyear storm welt perimeter stitching on calfskin boot",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "welt_pitch",
+          "label": "Sole welt stitch pitch and burnished edge",
+          "roi_type": "stitch",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "mac_held_watch_buckle_pin",
+      "category": "macros",
+      "split": "held_out",
+      "availability": "missing",
+      "expected_subject": "Brushed steel tang buckle and leather keeper stitching",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [
+        "SWISS"
+      ],
+      "critical_rois": [
+        {
+          "roi_id": "steel_brush",
+          "label": "Brushed satin grain and engraved back",
+          "roi_type": "hardware",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "pak_white_cyc_handbag",
+      "category": "packshot_edge",
+      "split": "calibration",
+      "availability": "missing",
+      "expected_subject": "Ecommerce handbag packshot on pure white backdrop with contact shadow",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "white_backdrop",
+          "label": "Pure neutral backdrop restraint",
+          "roi_type": "background_edge",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "pak_black_studio_watch",
+      "category": "packshot_edge",
+      "split": "calibration",
+      "availability": "missing",
+      "expected_subject": "Watch product on intentional deep black backdrop (non-black-tile test)",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [
+        "CHRONO"
+      ],
+      "critical_rois": [
+        {
+          "roi_id": "black_bg",
+          "label": "Legitimate dark studio backdrop",
+          "roi_type": "background_edge",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "pak_alpha_cutout_sneaker",
+      "category": "packshot_edge",
+      "split": "calibration",
+      "availability": "missing",
+      "expected_subject": "Cutout product silhouette testing crisp perimeter edge preservation",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "silhouette_edge",
+          "label": "Clean cutout perimeter without halo",
+          "roi_type": "alpha_edge",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "pak_low_light_evening_bag",
+      "category": "packshot_edge",
+      "split": "calibration",
+      "availability": "missing",
+      "expected_subject": "Low-light moody still life testing shadow noise vs banding",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "shadow_rolloff",
+          "label": "Smooth dark shadow tonal gradient",
+          "roi_type": "shadow_rolloff",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "pak_clear_perfume_flacon",
+      "category": "packshot_edge",
+      "split": "calibration",
+      "availability": "missing",
+      "expected_subject": "Transparent glass bottle over graded backdrop with embossed label",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [
+        "EXTRAIT"
+      ],
+      "critical_rois": [
+        {
+          "roi_id": "flacon_type",
+          "label": "Frosted bottle typography and glass caustic",
+          "roi_type": "text",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "pak_matte_box_packaging",
+      "category": "packshot_edge",
+      "split": "calibration",
+      "availability": "missing",
+      "expected_subject": "Luxury rigid paper box testing subtle spot-UV foil micro-type",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [
+        "ARCHIVE EDITION"
+      ],
+      "critical_rois": [
+        {
+          "roi_id": "box_foil",
+          "label": "Spot-UV paper typography and crease",
+          "roi_type": "text",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "pak_held_white_shirt_shadow",
+      "category": "packshot_edge",
+      "split": "held_out",
+      "availability": "missing",
+      "expected_subject": "Ghost-mannequin poplin shirt on seamless grey backdrop",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "collar_edge",
+          "label": "Crisp collar edge vs background shadow",
+          "roi_type": "background_edge",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "pak_held_dark_velvet_packshot",
+      "category": "packshot_edge",
+      "split": "held_out",
+      "availability": "missing",
+      "expected_subject": "Midnight velvet pump on charcoal sweep testing shadow separation",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "velvet_shadow",
+          "label": "Velvet edge separation without crushed halo",
+          "roi_type": "shadow_rolloff",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "pak_held_tinted_sunglasses",
+      "category": "packshot_edge",
+      "split": "held_out",
+      "availability": "missing",
+      "expected_subject": "Semi-transparent acetate sunglasses over warm paper backdrop",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [
+        "UV400"
+      ],
+      "critical_rois": [
+        {
+          "roi_id": "lens_tint",
+          "label": "Semi-transparent lens transmission hue",
+          "roi_type": "background_edge",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "pak_held_sunglass_case_grain",
+      "category": "packshot_edge",
+      "split": "held_out",
+      "availability": "missing",
+      "expected_subject": "Matte pebbled case testing edge-paint bevel and blind stamp",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [
+        "MELATO"
+      ],
+      "critical_rois": [
+        {
+          "roi_id": "case_stamp",
+          "label": "Debossed case brand mark",
+          "roi_type": "logo",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "pak_held_high_key_jewelry",
+      "category": "packshot_edge",
+      "split": "held_out",
+      "availability": "missing",
+      "expected_subject": "High-key platinum ring over bright gradient shadow",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [
+        "Pt950"
+      ],
+      "critical_rois": [
+        {
+          "roi_id": "hallmark",
+          "label": "Inner band hallmark engraving",
+          "roi_type": "text",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    },
+    {
+      "case_id": "pak_held_archival_print_scan",
+      "category": "packshot_edge",
+      "split": "held_out",
+      "availability": "missing",
+      "expected_subject": "Moderately noisy flat-lay editorial lookbook tear-sheet scan",
+      "rights": {
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Pending licensed/consented source acquisition."
+      },
+      "source": {
+        "relative_path": null,
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
+      },
+      "target": {
+        "scale": null,
+        "expected_width": null,
+        "expected_height": null
+      },
+      "known_text": [
+        "AUTUMN / WINTER"
+      ],
+      "critical_rois": [
+        {
+          "roi_id": "tear_headline",
+          "label": "Printed editorial caption and halftone dots",
+          "roi_type": "text",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ]
+    }
+  ],
+  "regression_assets": [
+    {
+      "asset_id": "fabric_weave",
+      "relative_path": "tests/fixtures/fabric_weave.png",
+      "role": "regression_fixture_only",
+      "counts_toward_60_case_corpus": false,
+      "origin": "synthetic_test_fixture",
+      "rights_cleared": false,
+      "rights_note": "Regression/fixture asset only; not cleared as held-out/calibration Studio benchmark corpus.",
+      "sha256": "af92bc9873b5492ed58827e770b87e51412cdafefaf0b9692d4200f163bc20ab",
+      "width": 256,
+      "height": 256,
+      "mode": "RGB",
+      "format": "PNG",
+      "bytes": 1394
+    },
+    {
+      "asset_id": "portrait_skin",
+      "relative_path": "tests/fixtures/portrait_skin.png",
+      "role": "regression_fixture_only",
+      "counts_toward_60_case_corpus": false,
+      "origin": "synthetic_test_fixture",
+      "rights_cleared": false,
+      "rights_note": "Regression/fixture asset only; not cleared as held-out/calibration Studio benchmark corpus.",
+      "sha256": "61e5cf53caf817e108f29e823419896e0c83a4718f761e317101f497fb1cbe78",
+      "width": 256,
+      "height": 256,
+      "mode": "RGB",
+      "format": "PNG",
+      "bytes": 41497
+    },
+    {
+      "asset_id": "product_hard_edges",
+      "relative_path": "tests/fixtures/product_hard_edges.png",
+      "role": "regression_fixture_only",
+      "counts_toward_60_case_corpus": false,
+      "origin": "synthetic_test_fixture",
+      "rights_cleared": false,
+      "rights_note": "Regression/fixture asset only; not cleared as held-out/calibration Studio benchmark corpus.",
+      "sha256": "f359733001a56045193e4eb789e99da69bb30bad779ab7711a178f76cd8b03b7",
+      "width": 256,
+      "height": 256,
+      "mode": "RGB",
+      "format": "PNG",
+      "bytes": 1476
+    },
+    {
+      "asset_id": "fashion_fabric_real",
+      "relative_path": "experiments/eval_crops/fashion_fabric_real.png",
+      "role": "regression_fixture_only",
+      "counts_toward_60_case_corpus": false,
+      "origin": "internal_eval_crop",
+      "rights_cleared": false,
+      "rights_note": "Regression/fixture asset only; not cleared as held-out/calibration Studio benchmark corpus.",
+      "sha256": "077a8b160032e0a0b7b415219cc38820d8b0268b130055cd5e51a494d6c0fc7e",
+      "width": 200,
+      "height": 200,
+      "mode": "RGB",
+      "format": "PNG",
+      "bytes": 81155
+    },
+    {
+      "asset_id": "portrait_skin_real",
+      "relative_path": "experiments/eval_crops/portrait_skin_real.png",
+      "role": "regression_fixture_only",
+      "counts_toward_60_case_corpus": false,
+      "origin": "internal_eval_crop",
+      "rights_cleared": false,
+      "rights_note": "Regression/fixture asset only; not cleared as held-out/calibration Studio benchmark corpus.",
+      "sha256": "b4a45272f520bbfbb669a118a8a0caa78a6e98a5d5446c1152048d25843bfc84",
+      "width": 150,
+      "height": 150,
+      "mode": "RGB",
+      "format": "PNG",
+      "bytes": 44733
+    },
+    {
+      "asset_id": "product_edges_real",
+      "relative_path": "experiments/eval_crops/product_edges_real.png",
+      "role": "regression_fixture_only",
+      "counts_toward_60_case_corpus": false,
+      "origin": "internal_eval_crop",
+      "rights_cleared": false,
+      "rights_note": "Regression/fixture asset only; not cleared as held-out/calibration Studio benchmark corpus.",
+      "sha256": "7438b31b49304bcd9bc9f460347dd38bfb35e81802a81a6917beb97b54628c38",
+      "width": 250,
+      "height": 250,
+      "mode": "RGB",
+      "format": "PNG",
+      "bytes": 108849
+    },
+    {
+      "asset_id": "user_test_blonde",
+      "relative_path": "experiments/eval_crops/user_test_blonde.png",
+      "role": "regression_fixture_only",
+      "counts_toward_60_case_corpus": false,
+      "origin": "internal_eval_crop",
+      "rights_cleared": false,
+      "rights_note": "Regression/fixture asset only; not cleared as held-out/calibration Studio benchmark corpus.",
+      "sha256": "7e983c8332ec7e475dd88571f38892e363323321b467652c4776791a1e4ca525",
+      "width": 1022,
+      "height": 1024,
+      "mode": "RGB",
+      "format": "PNG",
+      "bytes": 973868
+    },
+    {
+      "asset_id": "user_test_darkhair",
+      "relative_path": "experiments/eval_crops/user_test_darkhair.png",
+      "role": "regression_fixture_only",
+      "counts_toward_60_case_corpus": false,
+      "origin": "internal_eval_crop",
+      "rights_cleared": false,
+      "rights_note": "Regression/fixture asset only; not cleared as held-out/calibration Studio benchmark corpus.",
+      "sha256": "af8dbccf5c05443bedab5d89790564f84ff8544888813b7f56549aeb2b790b95",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGB",
+      "format": "PNG",
+      "bytes": 1103459
+    }
+  ]
+}
