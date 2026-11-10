@@ -11,7 +11,7 @@ This is a committed checkpoint, not a live status feed.
 | Studio code | `feat/region-aware-studio`, `5f32fba`, open PR #12 |
 | Project coordination | Linear Fidelis Studio, P-MEL-3; existing umbrella MEL-53 linked to GH #11 |
 | Product status | Engineering alpha; no GPU quality certificate or parity claim |
-| Latest runtime work | D01-D04 implemented/tested in PR #12; pending review/merge |
+| Latest runtime work | D01-D04 and F07-A implemented/tested in PR #12; pending review/merge |
 
 ## Implemented achievements
 
@@ -76,3 +76,12 @@ review/merge. The latest full Python run passed **77 tests**. See the
 [2026-11-10 integrity receipt](checkpoints/2026-11-10-pipeline-integrity.md)
 for changes, compatibility requirements, verification and remaining live gates.
 Next independent work: F07-A asynchronous execution and F08-A native crop inspection.
+
+## Background generation delivery · 2026-11-10
+
+F07-A adds the opt-in durable queue, editor generation/status controls, scoped local
+cancellation and explicit same-run recovery. **92 Python tests pass**; fixtures do
+not certify live model quality. Pending review/merge in PR #12. See the
+[async checkpoint](checkpoints/2026-11-10-async-generation.md) for evidence, resource limits and recovery boundaries.
+Next implementation: F08-A native-pixel inspection. Live worker, device acceptance
+and aggregate generated-cache retention remain open.

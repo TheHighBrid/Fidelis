@@ -40,8 +40,10 @@ the tracked module/file mismatch; a controlled-runtime regression now exercises 
   codecs still require memory, especially on 8GB Apple Silicon.
 - Existing Docker/server packaging is not an authenticated public service. Regional
   loopback checks do not certify inherited routes or a production deployment.
-- Run identity/reconciliation exists, but a bounded asynchronous worker and scoped
-  cancellation are incomplete. No automatic ambiguous retry is allowed.
+- F07-A adds a fixture-tested bounded worker and scoped local cancellation, pending
+  review/merge. Submitted GPU work can continue after local cancellation. Crash during
+  apply needs ledger/job inspection; cache quotas and live/device acceptance remain open.
+  No automatic ambiguous retry is allowed.
 - Graph hashes do not verify actual worker checkpoint bytes or compatible terms.
   Model licences, node/runtime revisions and weight integrity require separate evidence.
 - Old README/changelog promotion, speed and quality statements are historical;

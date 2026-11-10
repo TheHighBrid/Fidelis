@@ -1468,7 +1468,8 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
 
-def run_server(port: int = 8765, host: str = "127.0.0.1", region_workspace=None, region_store_options=None):
+def run_server(port: int = 8765, host: str = "127.0.0.1", region_workspace=None, region_store_options=None, texture_workflow=None,
+               generation_root=None, comfy_address="http://127.0.0.1:8188"):
     handler = FidelisRequestHandler
     # Allow port reuse
     socketserver.TCPServer.allow_reuse_address = True
@@ -1491,6 +1492,19 @@ def run_server(port: int = 8765, host: str = "127.0.0.1", region_workspace=None,
 
     httpd.region_workspace_root = region_workspace or CACHE_DIR / "region_jobs"
     httpd.region_store_options = region_store_options or {}
+    httpd.generation_queue = None
+    if texture_workflow is not None:
+        from fidelis.studio.store import JobStore
+        from fidelis.studio.generation import GenerationQueue
+        try:
+            bundle = json.loads(Path(texture_workflow).read_text(encoding="utf-8"))
+            httpd.region_store = JobStore(httpd.region_workspace_root, **httpd.region_store_options)
+            httpd.generation_queue = GenerationQueue(
+                generation_root or CACHE_DIR / "async_generation", httpd.region_store, bundle,
+                address=comfy_address)
+        except BaseException:
+            httpd.server_close()
+            raise
     with httpd:
         display_host = "127.0.0.1" if host in ("0.0.0.0", "") else host
         print(f"\n=======================================================")
@@ -1501,6 +1515,9 @@ def run_server(port: int = 8765, host: str = "127.0.0.1", region_workspace=None,
             httpd.serve_forever()
         except KeyboardInterrupt:
             print("\nShutting down server.")
+        finally:
+            if httpd.generation_queue is not None:
+                httpd.generation_queue.close()
 
 def build_argument_parser():
     parser = argparse.ArgumentParser(description="Run Fidelis Web UI.")
@@ -1510,6 +1527,9 @@ def build_argument_parser():
     parser.add_argument("--region-disk-mib", type=int, default=2048, help="Regional artifact storage cap in MiB")
     parser.add_argument("--region-workspace-mib", type=int, default=32, help="Composition stripe workspace allowance in MiB")
     parser.add_argument("--region-max-pixels", type=int, default=40_000_000, help="Regional image pixel limit")
+    parser.add_argument("--texture-workflow", type=Path, help="Trusted local ComfyUI workflow bundle; opt in to background generation")
+    parser.add_argument("--generation-root", type=Path, help="Durable generation queue directory")
+    parser.add_argument("--comfy-address", default="http://127.0.0.1:8188", help="Explicit loopback ComfyUI address")
     return parser
 
 
@@ -1521,4 +1541,6 @@ if __name__ == "__main__":
     run_server(port=args.port, host=args.bind, region_workspace=args.region_workspace,
                region_store_options={"disk_budget": args.region_disk_mib * 1024**2,
                                      "workspace_budget": args.region_workspace_mib * 1024**2,
-                                     "max_pixels": args.region_max_pixels})
+                                     "max_pixels": args.region_max_pixels},
+               texture_workflow=args.texture_workflow, generation_root=args.generation_root,
+               comfy_address=args.comfy_address)

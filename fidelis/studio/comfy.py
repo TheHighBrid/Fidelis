@@ -25,6 +25,11 @@ class BackendUnavailable(RuntimeError):
     pass
 
 
+class GenerationCancelled(RuntimeError):
+    """Local polling abandoned; remote work may still be running."""
+    pass
+
+
 class SubmissionUnknown(RuntimeError):
     pass
 
@@ -162,7 +167,11 @@ class ComfyTextureBackend:
         except (httpx.HTTPError, ValueError) as error:
             return {'reachable': False, 'reason': type(error).__name__, 'live_inference_verified': False}
 
-    def run(self, source_rgb, bundle, *, run_id=None, deadline_seconds=300):
+    def run(self, source_rgb, bundle, *, run_id=None, deadline_seconds=300, cancelled=None):
+        def check_cancelled():
+            if cancelled is not None and cancelled():
+                raise GenerationCancelled("Local generation cancelled; no global interrupt sent")
+        check_cancelled()
         if not isinstance(source_rgb, np.ndarray) or source_rgb.dtype != np.uint8 or source_rgb.ndim != 3 or source_rgb.shape[2] != 3:
             raise ValueError('Texture input must be uint8 RGB')
         if not 0 < source_rgb.shape[0] * source_rgb.shape[1] <= 40_000_000:
@@ -178,6 +187,7 @@ class ComfyTextureBackend:
         if record is None:
             try:
                 schema = self._json('GET', '/object_info')
+                check_cancelled()
             except (httpx.HTTPError, ValueError) as error:
                 raise BackendUnavailable('Local ComfyUI is unavailable; no generation was submitted') from error
             graph = validate_workflow(bundle, schema)
@@ -191,11 +201,13 @@ class ComfyTextureBackend:
             except sqlite3.IntegrityError as error:
                 raise SubmissionUnknown('Another caller reserved this run ID; resume it without resubmitting') from error
             try:
+                check_cancelled()
                 image = io.BytesIO()
                 Image.fromarray(source_rgb).save(image, format='PNG')
                 uploaded = self._json('POST', '/upload/image', files={'image': (f'fidelis_{run_id}.png', image.getvalue(), 'image/png')}, data={'overwrite': 'false', 'type': 'input'})
                 subfolder = uploaded.get('subfolder', '')
                 graph[bundle['input_node']]['inputs']['image'] = (subfolder + '/' if subfolder else '') + uploaded['name']
+                check_cancelled()
                 record['status'] = 'submitting'
                 self._save(record)
                 try:
@@ -229,7 +241,9 @@ class ComfyTextureBackend:
                 return np.array(image.convert('RGB')), record
         deadline = time.monotonic() + deadline_seconds
         while time.monotonic() < deadline:
+            check_cancelled()
             item = self._json('GET', '/history/' + record['prompt_id']).get(record['prompt_id'])
+            check_cancelled()
             if item:
                 status = item.get('status', {})
                 if status.get('status_str') == 'error':

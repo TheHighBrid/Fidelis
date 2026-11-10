@@ -86,7 +86,9 @@ a new UUID only when intentionally requesting a new generation.
 `--deadline` limits polling time (default 300 seconds); individual HTTP calls have
 their own timeout. Pending runs remain submitted in SQLite and can be polled later.
 No global `/interrupt` call is sent, because it could stop another user's job.
-Cancellation and a fully asynchronous worker queue remain F07 work.
+The optional [background queue](ASYNC_GENERATION.md) adds durable local scheduling
+and local cancellation. It never globally interrupts ComfyUI; live F07 acceptance
+remains open.
 
 ## Failure handling and persistence
 

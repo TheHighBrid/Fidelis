@@ -121,7 +121,14 @@ def dispatch(handler, workspace_root):
         if handler.command == "GET":
             if parts == ["api", "regions", "jobs"]:
                 _json(handler, 200, {"jobs": [_public(job) for job in store.list()],
+                                      "generation_enabled": getattr(handler.server, "generation_queue", None) is not None,
                                       "profiles": {name: asdict(blend) for name, blend in PROFILES.items()}})
+            elif len(parts) in (5, 6) and parts[:3] == ["api", "regions", "jobs"] and parts[4] == "generations":
+                queue = getattr(handler.server, "generation_queue", None)
+                if queue is None:
+                    _json(handler, 503, {"error": "Generation is not configured; select a trusted workflow at server startup"})
+                else:
+                    _json(handler, 200, {"tasks": queue.list(parts[3])} if len(parts) == 5 else queue.get(parts[3], parts[5]))
             elif len(parts) == 4 and parts[:3] == ["api", "regions", "jobs"]:
                 _json(handler, 200, _public(store.get(parts[3])))
             elif len(parts) == 5 and parts[:3] == ["api", "regions", "jobs"] and parts[4] == "mask-data":
@@ -187,6 +194,17 @@ def dispatch(handler, workspace_root):
                 manifest = store.create(base, texture, masks=masks, blend=PROFILES[profile],
                                         label=data.get("label", "Untitled"), profile=profile)
                 _json(handler, 201, _public(manifest))
+            elif len(parts) in (5, 7) and parts[:3] == ["api", "regions", "jobs"] and parts[4] == "generations":
+                queue = getattr(handler.server, "generation_queue", None)
+                if queue is None:
+                    _json(handler, 503, {"error": "Generation is not configured; no generation submitted"})
+                elif len(parts) == 5:
+                    _json(handler, 202, queue.enqueue(parts[3], data.get("expected_revision")))
+                elif parts[6] in ("cancel", "resume"):
+                    operation = queue.cancel if parts[6] == "cancel" else queue.resume
+                    _json(handler, 200, operation(parts[3], parts[5]))
+                else:
+                    _json(handler, 404, {"error": "Unknown generation operation"})
             elif len(parts) == 5 and parts[:3] == ["api", "regions", "jobs"] and parts[4] == "reblend":
                 values = data.get("blend")
                 if not isinstance(values, dict):

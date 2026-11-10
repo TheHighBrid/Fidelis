@@ -145,7 +145,7 @@
       "role": "Job orchestration",
       "scope": "Extend existing run identity/reconciliation into a bounded async worker and cancellation path.",
       "acceptance": "Requests stay responsive; restart and cancel outcomes are scoped to the owned job; unknown submission cannot trigger duplicate generation; no global interruption of unrelated work.",
-      "evidence": "fidelis/studio/comfy.py; docs/COMFY_TEXTURE_BACKEND.md",
+      "evidence": "fidelis/studio/comfy.py; docs/COMFY_TEXTURE_BACKEND.md; F07-A bounded worker/local cancellation protocol-tested in PR #12; live acceptance remains open",
       "priority": 2,
       "linear": {
         "id": "MEL-61",
@@ -421,20 +421,21 @@
       "title": "Build bounded async execution and ownership-safe cancellation",
       "parent": "F07",
       "milestone": "M1",
-      "state": "Todo",
-      "implementation": "not_started",
+      "state": "In Review",
+      "implementation": "implemented_protocol_tested_in_review",
       "depends_on": [],
       "role": "Job orchestration",
       "scope": "Design and implement worker responsiveness, job ownership and scoped cancel against existing backend contracts.",
       "acceptance": "Deterministic queue/cancel/restart tests pass without globally interrupting an unrelated ComfyUI job; live acceptance remains on parent F07.",
-      "evidence": "Fixture-driven implementation can proceed independently of the GPU quality gate.",
+      "evidence": "fidelis/studio/generation.py; tests/test_generation_queue.py; docs/ASYNC_GENERATION.md; docs/project/checkpoints/2026-11-10-async-generation.md",
       "priority": 2,
       "linear": {
         "id": "MEL-77",
         "uuid": "07bd7ef6-adb4-4997-b0c5-f9b540142d47",
         "url": "https://linear.app/melato/issue/MEL-77/f07-a-build-bounded-async-execution-and-ownership-safe-cancellation",
         "title": "F07-A \u00b7 Build bounded async execution and ownership-safe cancellation"
-      }
+      },
+      "verification_checkpoint": "docs/project/checkpoints/2026-11-10-async-generation.md"
     },
     {
       "id": "F08-A",
@@ -639,6 +640,6 @@
       "linear_id": "fb26feb5-8122-40cb-a6e1-01a83b4f542c"
     }
   ],
-  "latest_checkpoint": "docs/project/checkpoints/2026-11-10-pipeline-integrity.md",
-  "checkpoint_base_commit": "f95f5772f96e0059651f86b8dadc22dad73265ca"
+  "latest_checkpoint": "docs/project/checkpoints/2026-11-10-async-generation.md",
+  "checkpoint_base_commit": "2c55c79a36bed64f7b8e459b9bc885311afc8141"
 }

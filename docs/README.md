@@ -20,6 +20,7 @@ Operational references:
 
 - [Regional workspace and brush editing](REGIONAL_WORKSPACE.md)
 - [ComfyUI texture adapter](COMFY_TEXTURE_BACKEND.md)
+- [Background generation and recovery](ASYNC_GENERATION.md)
 - [Aligned-pass reblend CLI](REGION_REBLEND.md)
 - [Photo model candidates](PHOTO_MODEL_CANDIDATES.md)
 - [Legacy native guide](LEGACY_RUNTIME_GUIDE.md)

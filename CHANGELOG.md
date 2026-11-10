@@ -1,5 +1,15 @@
 # Fidelis Changelog
 
+## Unreleased background generation checkpoint · 2026-11-10
+
+- Added an opt-in durable local generation queue with scoped status/cancel/resume API and editor controls.
+- Preserved run identity across timeouts/restarts and revision-safe candidate application.
+- Local cancellation blocks late application without global ComfyUI interruption; remote work may continue.
+- Recorded 92 passing Python tests, web HTTP/static smoke and editor syntax checks.
+- In Review in PR #12; live/device acceptance and generated-cache quota/retention remain open.
+- See [async receipt](docs/project/checkpoints/2026-11-10-async-generation.md).
+
+
 ## Unreleased pipeline integrity checkpoint · 2026-11-10
 
 - Corrected unsigned provenance status, large-input tiler execution and explicit runtime selection.

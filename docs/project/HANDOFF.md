@@ -61,3 +61,12 @@ review/merge. The latest full Python run passed **77 tests**. See the
 [2026-11-10 integrity receipt](checkpoints/2026-11-10-pipeline-integrity.md)
 for changes, compatibility requirements, verification and remaining live gates.
 Next independent work: F07-A asynchronous execution and F08-A native crop inspection.
+
+## Background generation delivery · 2026-11-10
+
+F07-A adds the opt-in durable queue, editor generation/status controls, scoped local
+cancellation and explicit same-run recovery. **92 Python tests pass**; fixtures do
+not certify live model quality. Pending review/merge in PR #12. See the
+[async checkpoint](checkpoints/2026-11-10-async-generation.md) for evidence, resource limits and recovery boundaries.
+Next implementation: F08-A native-pixel inspection. Live worker, device acceptance
+and aggregate generated-cache retention remain open.
