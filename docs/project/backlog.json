@@ -247,14 +247,16 @@
       "title": "Freeze rights-cleared corpus and comparator runners",
       "milestone": "M3",
       "state": "In Progress",
-      "implementation": "partial",
+      "implementation": "partial_corpus_inventory_and_comparator_runners_fixture_tested",
+      "linear_sync_pending": true,
       "depends_on": [
         "F05"
       ],
       "role": "Evaluation / evidence",
       "scope": "Build 60-case rights/hash/ROI inventory, frozen 30/30 split and reproducible comparisons.",
       "acceptance": "Coverage and permissions documented; each output separate; settings/cost/time/hash recorded; real comparators distinguished from unavailable evidence.",
-      "evidence": "fidelis/eval/; experiments/eval_crops/; docs/project/QUALITY_GATES.md; explicit F12-A inventory/freeze tooling verified; production corpus and comparators remain missing",
+      "evidence": "fidelis/eval/comparators.py; scripts/run-comparators.py; docs/COMPARATOR_RUNNERS.md; tests/test_comparators.py; fidelis/eval/; experiments/eval_crops/; docs/project/QUALITY_GATES.md; explicit F12-A inventory/freeze tooling verified; production corpus and live comparators remain missing",
+      "verification_checkpoint": "docs/project/checkpoints/2026-11-10-comparator-runners.md",
       "priority": 3,
       "linear": {
         "id": "MEL-63",
@@ -643,6 +645,6 @@
       "linear_id": "fb26feb5-8122-40cb-a6e1-01a83b4f542c"
     }
   ],
-  "latest_checkpoint": "docs/project/checkpoints/2026-11-10-mask-suggestions.md",
-  "checkpoint_base_commit": "10a30950c93783729d0c051fa84e7effd74011dc"
+  "latest_checkpoint": "docs/project/checkpoints/2026-11-10-comparator-runners.md",
+  "checkpoint_base_commit": "f84287993c9bc213dc47859b297a5a275381101d"
 }

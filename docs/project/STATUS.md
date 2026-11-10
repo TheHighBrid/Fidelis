@@ -11,7 +11,7 @@ This is a committed checkpoint, not a live status feed.
 | Studio code | `feat/region-aware-studio`, open PR #12; latest delivery receipts below |
 | Project coordination | Linear Fidelis Studio, P-MEL-3; existing umbrella MEL-53 linked to GH #11 |
 | Product status | Engineering alpha; no GPU quality certificate or parity claim |
-| Latest runtime work | D01-D04, F07-A and F08-A implemented/tested in PR #12; pending review/merge |
+| Latest runtime work | D01-D04, F07-A, F08-A and F09 in PR #12; F12 (`MEL-63`) comparator runners on `work/mel-63-comparator-runners` |
 
 ## Implemented achievements
 
@@ -111,3 +111,18 @@ preserves manual masks/protection. **125 Python tests pass.** F09 remains partia
 no automatic segmentation model is configured or quality-qualified. See the
 [mask suggestion checkpoint](checkpoints/2026-11-10-mask-suggestions.md). Next: actual model/label/terms and ROI
 qualification, with browser/device and production corpus gates still open.
+
+## Comparator runners & blind scoring groundwork · 2026-11-10
+
+F12 / MEL-63 on isolated branch `work/mel-63-comparator-runners` adds
+`fidelis/eval/comparators.py`, CLI `scripts/run-comparators.py`, and
+[comparator runners](../COMPARATOR_RUNNERS.md). It emits single full-resolution
+images per comparator (`interpolation`, imported pre-rendered outputs, explicit
+`"unavailable"` / `"skipped_remote_disallowed"` / `"failed"` statuses without
+simulated results), rejects target dimension mismatches without resizing,
+computes reference-labelled metrics, and builds/scores randomized blind A/B
+ballots with 95% bootstrap confidence intervals. **129 Python tests pass** with
+synthetic locks, mock comparators, and regression assets. `F12` remains
+`In Progress`; production corpus clearance (`0/60`) and real comparator runs remain
+open. See the
+[comparator checkpoint](checkpoints/2026-11-10-comparator-runners.md).

@@ -36,6 +36,11 @@ the tracked module/file mismatch; a controlled-runtime regression now exercises 
   model is configured. Declared scores can be confidently wrong and nearest expansion
   is not fine matting. Segmentation labels do not inherently identify seams, logos or zipper teeth.
   Automatic masking remains a candidate, not a guaranteed structural guard.
+- F12 comparator runners (`fidelis/eval/comparators.py`,
+  `scripts/run-comparators.py`) are verified using synthetic frozen locks,
+  mock comparators, and the tracked 8-case regression inventory only. Production
+  coverage (`0/60` production cases eligible), live local/commercial comparator
+  runs, and human blind pairwise reviews remain unexecuted.
 - Current inputs are untagged uint8 sRGB RGB PNGs. ICC/alpha/high-precision support
   is not established by the uint16 file container or old colour-fix claims.
 - Stripe allocation limits are not total-RSS measurements. Import decoding and

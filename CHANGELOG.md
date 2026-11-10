@@ -1,5 +1,20 @@
 # Fidelis Changelog
 
+## Unreleased reproducible comparator runners and blind scoring · 2026-11-10
+
+- Added `fidelis/eval/comparators.py` and CLI `scripts/run-comparators.py`
+  (`run`, `summarize-blind`) for `F12` / `MEL-63` comparator execution and
+  pairwise review scoring.
+- Enforces single-image full-resolution outputs per comparator (`interpolation`,
+  `selected_deterministic_base`, `fidelis`, `vosr_challenger`, `pinned_clarity`,
+  `dated_krea`), explicit `"unavailable"` / `"skipped_remote_disallowed"` /
+  `"failed"` receipts without fabricated scores, target-dimension mismatch
+  rejection, `measure_pipeline_metrics` reference tagging, and blind A/B ballot
+  generation + 95% bootstrap CI summarization.
+- Added 4 fixture and CLI tests in `tests/test_comparators.py` and documented
+  contracts in `docs/COMPARATOR_RUNNERS.md`. Cleared 60-case corpus assets and
+  actual comparator runs remain open (`F12` stays `In Progress`).
+
 ## Unreleased mask suggestion interface · 2026-11-10
 
 - Added source-bound class probability import, explicit label routing and conservative confidence/boundary gates.

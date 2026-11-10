@@ -97,3 +97,14 @@ preserves manual masks/protection. **125 Python tests pass.** F09 remains partia
 no automatic segmentation model is configured or quality-qualified. See the
 [mask suggestion checkpoint](checkpoints/2026-11-10-mask-suggestions.md). Next: actual model/label/terms and ROI
 qualification, with browser/device and production corpus gates still open.
+
+## Comparator runners & blind scoring groundwork · 2026-11-10
+
+F12 / MEL-63 on isolated branch `work/mel-63-comparator-runners` adds
+`fidelis/eval/comparators.py`, CLI `scripts/run-comparators.py`, and
+[comparator runners](../COMPARATOR_RUNNERS.md). Separate full-resolution
+comparator PNGs, remote permission checks, unavailable/failure accounting,
+reference-aware metrics, and blind A/B ballots with 95% bootstrap CIs pass
+**129 Python tests** on fixtures and regression assets. Cleared 60-case photos
+and live comparators remain open. See the
+[comparator checkpoint](checkpoints/2026-11-10-comparator-runners.md).

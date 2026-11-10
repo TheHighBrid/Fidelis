@@ -38,7 +38,7 @@ The native CLI remains a separate, preserved lane rather than a hidden replaceme
 | Background generation | `fidelis/studio/generation.py`, optional server workflow | Durable bounded worker, scoped local cancel and same-run resume | Protocol-tested; no global GPU cancel; aggregate cache quota pending |
 | Texture bridge | `fidelis/studio/comfy.py`, `scripts/generate-texture.py` | Graph schema preflight, run ledger and polling | Fixture/protocol tested; no certified model graph |
 | Capabilities | `capabilities.py`, `scripts/backend-doctor.py` | Installed/checksummed versus declared | Availability is not quality certification |
-| Evaluation | `fidelis/eval/`, experiments and scripts | Existing metrics/corpus tooling | Frozen production corpus/true perceptual evidence pending |
+| Evaluation | `fidelis/eval/`, experiments and scripts | Corpus freeze, comparator runners, blind scoring and metrics | Frozen 60-case corpus & live comparators pending |
 
 ## Persisted and API contracts
 
@@ -101,3 +101,9 @@ Imported [mask suggestions](../MASK_SUGGESTIONS.md) use optional `suggestion_*`
 artifacts and `mask_suggestion` review metadata in the existing manifest. Stage
 advances revision without changing active masks/master; accept performs a striped
 fill-only-unclassified merge. Model inference is a separate unqualified boundary.
+
+Reproducible [comparator runners](../COMPARATOR_RUNNERS.md) evaluate locked
+corpora (`F12-A`) into single full-resolution PNGs per comparator without
+fabricated unavailable results and generate blind randomized A/B review ballots
+with 95% bootstrap confidence intervals (`F12` `In Progress` until production
+assets and comparator outputs exist).
