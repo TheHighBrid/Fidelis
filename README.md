@@ -1,268 +1,99 @@
 # Fidelis
 
-Fidelis is an image-restoration project for natural fashion and product photography. Its standard is **credible photographic detail**, not aggressive sharpening: skin should remain skin, fabric should retain believable weave, and seams, logos, hardware, faces, and geometry should not be redrawn.
+Photographic restoration for fashion, portraits and product imagery. Fidelis aims
+to add believable detail while preserving identity, garment construction, logos,
+hardware, colour, lighting and depth of field.
 
-## Project direction
+**Current stage: engineering alpha. Competitive parity is not established.**
+The target combines Clarity-style controlled texture reconstruction with editable
+regional protection inspired by the requested Krea workflow. That is a product
+objective, not a claim of equivalent output today.
 
-The [Fidelis Studio execution plan](docs/FIDELIS_STUDIO_PLAN.md) defines the
-region-aware enhancement roadmap, benchmark gates, cost corrections, and ordered
-implementation tasks. [Current task evidence](docs/FIDELIS_STUDIO_TASKS.md) tracks
-what is implemented versus planned. Competitive parity is not yet established.
+## Start here
 
-The first Studio component is available: [region reblending](docs/REGION_REBLEND.md)
-of supplied aligned passes with explicit masks and exact protection of locked base
-pixels. It performs no new model inference or automatic segmentation.
+| Reader | Read first |
+| --- | --- |
+| New developer or AI agent | [Onboarding](ONBOARDING.md), [agent directives](AGENTS.md), [handoff](docs/project/HANDOFF.md) |
+| Product/design contributor | [Vision and final product](docs/project/VISION.md), [blueprint](PLAN_BLUEPRINT.md) |
+| Contributor choosing work | [Current status](docs/project/STATUS.md), [roadmap](docs/project/ROADMAP.md), [Linear project](https://linear.app/melato/project/fidelis-studio-a057f366fa71) |
+| Reviewer | [Contribution workflow](CONTRIBUTING.md), [quality gates](docs/project/QUALITY_GATES.md), [known risks](docs/project/RISKS.md) |
+| Maintainer | [Architecture](docs/project/ARCHITECTURE.md), [collaboration](docs/project/COLLABORATION.md), [decisions](docs/project/DECISIONS.md) |
 
-[Persistent regional review](docs/REGIONAL_WORKSPACE.md) is available at `/regions`
-in the existing web studio: import aligned passes/masks, reopen saved jobs, adjust
-regional blends, compare and export. Jobs use checksummed disk artifacts with
-revision conflict checks and configurable storage/composition limits. Protect/skin/hair/fabric painting, erase, undo/redo and preview zoom are included.
-Automatic masks and live GPU quality validation remain outstanding.
+The complete reading map is in [docs/README.md](docs/README.md).
 
-The optional [local ComfyUI texture bridge](docs/COMFY_TEXTURE_BACKEND.md) accepts a
-locally supplied exported workflow, validates available nodes and resumes saved
-submissions without automatically sending another run after a timeout. Its protocol
-is tested; generated image quality has not been certified.
+## Branch and release reality
 
-Fidelis currently has two deliberately separate lanes:
+The audited baseline on `main` is `0f10ca6`. The Studio implementation is on
+`feat/region-aware-studio`, code snapshot `5f32fba`, in [PR #12](https://github.com/TheHighBrid/Fidelis/pull/12).
+Documentation may be published on `main` before that code merges. Checkout the
+Studio branch to use its editor/backend modules. A package version string or a
+historical changelog entry is not proof of production readiness.
 
-### 1. ARM64 local runtime lane
+| Implemented in the Studio branch | Still needs acceptance or implementation |
+| --- | --- |
+| Linear-light composition with exact protected base pixels | Live model/workflow quality validation |
+| Persistent jobs, checksums, revisions and storage limits | Asynchronous inference queue and cancellation |
+| Protect/skin/hair/fabric painting, erase and unsaved undo/redo | Visual/device acceptance and native-pixel inspection |
+| Regional comparison, preview zoom and PNG export | Automatic confidence-gated segmentation and structural detection |
+| Local ComfyUI protocol adapter and resumable run IDs | Colour-managed alpha/high-precision export and benchmark parity |
 
-Target hardware:
+At `5f32fba`, **62 local Python tests passed**, plus web UI integration, smoke and
+JavaScript syntax checks. These establish tested behaviours, not GPU image quality.
+The audited development executor has no configured ComfyUI worker/model weights.
+The [status ledger](docs/project/STATUS.md) records limits, provenance and next work.
 
-- Android 16 / Termux (`aarch64`)
-- Snapdragon 8 Gen 2 / Adreno 740
-- Turnip/Freedreno Vulkan
-- NCNN/Vulkan inference
-- single-image and folder batch processing
+## Development quick start
 
-The existing RealSR-NCNN Android integration proves that a native ARM64/Vulkan CLI is practical. `4xNomos8kSC` remains a reproducible baseline model, **not the accepted final quality target**. Visual testing showed synthetic/checkerboard-like texture and overprocessed skin/fabric on some photographs, so Fidelis will not optimize around Nomos simply because it runs locally.
-
-The CLI can register compatible NCNN candidates with SHA-256 provenance, verify registered model integrity, select any installed candidate, and audition several models against the exact same source image. Each audition produces standalone PNGs plus a machine-readable evidence manifest, turning local model research into a reproducible comparison instead of a code-editing exercise.
-
-### 2. Quality-reference lane
-
-VOSR is being used as an external quality reference to establish what Fidelis should reproduce before choosing or converting the final local model.
-
-Current experiment:
-
-- official VOSR 1.4B multi-step checkpoint
-- fixed seed and 25 steps
-- deterministic VAE mode
-- wavelet colour alignment
-- three controlled fidelity profiles
-- no sharpening
-- no face restoration
-- no source blending
-- no synthetic grain
-- no secondary SR pass
-
-The previous Fidelis 2.1 source-fusion finishing stage was rejected because it softened useful micro-detail and reduced the value of the VOSR restoration.
-
-## Current quality experiment
-
-The canonical Colab notebook is:
-
-`notebooks/Fidelis_VOSR_MultiStep_Sweep_Colab.ipynb`
-
-It evaluates the same source through:
-
-| Profile | CFG | Weak condition | Intent |
-| --- | ---: | ---: | --- |
-| Natural | 0.50 | 0.10 | More reconstruction freedom |
-| Fidelity | 1.25 | 0.18 | Balance detail recovery and source loyalty |
-| Strict | 1.75 | 0.23 | Strong source loyalty |
-
-The sweep script is:
-
-`experiments/vosr-fidelity-sweep.sh`
-
-A run is considered successful only when every profile creates a verified non-empty PNG. Upstream VOSR can catch an image-level exception and still exit with status `0`, so Fidelis never treats the subprocess return code alone as proof of success.
-
-## Quality acceptance gate
-
-A candidate is judged in this order:
-
-1. **Identity and geometry**: faces, hands, body proportions, garment construction, seams, logos and hardware must not drift.
-2. **Skin**: recover believable pores and tonal variation without repeated dots, gritty pore synthesis, waxy smoothing or invented blemishes.
-3. **Fabric**: weave, rib, denim, leather, velour and knit texture must follow the real folds and material surface rather than forming a repeated enhancement pattern.
-4. **Fine edges**: hair and garment edges may become clearer without halos or invented strands.
-5. **Tonal realism**: highlights and shadows should remain photographic rather than locally over-contrasted.
-6. **Background restraint**: smooth surfaces should stay smooth; new wall/floor texture is a failure.
-
-Sharpness alone never wins a comparison.
-
-## Decision rule
-
-- If a VOSR multi-step profile materially improves skin/fabric realism over the good VOSR 2.0 one-step reference while preserving geometry, it becomes the external Fidelis quality target.
-- If multi-step VOSR does not materially beat the one-step reference, stop spending compute on it.
-- After the reference is locked, focus engineering effort on the lightest ARM64-compatible model or conversion that reproduces the winning visual behavior.
-
-## Native CLI & Runtimes
-
-### Android / Termux (Snapdragon 8 Gen 2 / Adreno 740)
-```bash
-pkg install -y git
-git clone https://github.com/TheHighBrid/Fidelis.git
-cd Fidelis
-./install.sh
-fidelis doctor
-```
-
-### macOS (Apple Silicon GPU / Vulkan)
 ```bash
 git clone https://github.com/TheHighBrid/Fidelis.git
 cd Fidelis
-bash scripts/install-macos-runtime.sh
-fidelis doctor
+git switch feat/region-aware-studio
 ```
 
-Commands:
+Create a project `.venv` and install the development dependencies as documented in
+[Onboarding](ONBOARDING.md). Then:
 
 ```bash
-fidelis doctor
-fidelis models
-fidelis model-add PhotoCandidate ./candidate.param ./candidate.bin
-fidelis model-info PhotoCandidate
-fidelis upscale input.jpg output.png [--model PhotoCandidate]
-fidelis upscale input.jpg output.png --tiled
-fidelis batch ./input ./output --model PhotoCandidate
-fidelis audition input.jpg ./audition [MODEL ...]
-fidelis batch-audition ./photos ./lookbook [MODEL ...]
-fidelis detect-drift ./audition [--strict]
-fidelis heatmap source.jpg upscaled.png -o heatmap.png
-fidelis benchmark-macos [INPUT] [OUTPUT_DIR]
-fidelis evaluate ./audition
-fidelis report ./audition -o ./audition/report.html
-fidelis eval-crops
-fidelis ui [-p 8765]
+.venv/bin/python scripts/web-ui.py --bind 127.0.0.1 --port 8765
 ```
 
-### Studio Web UI (`fidelis ui`)
-Launch the zero-dependency browser studio running locally on `http://127.0.0.1:8765`:
-- **Dual Comparison Modes**: Switch effortlessly between:
-  - `Source vs Model`: Direct 4x upscaled comparison against the original source.
-  - `Model vs Model`: Compare two models side-by-side (e.g. `RealeSR-general-v3` vs `DF2K`) with dual differential metrics.
-- **Drag-and-drop upload** for any JPEG, PNG, or WebP photo.
-- **Interactive before/after split slider** with real-time responsive dragging.
-- **100% and 200% native pixel zoom** for inspecting skin pores, fabric weave, and fine edge roll-off.
-- **Quality Inspection HUD**: Real-time evaluation of SSIM, PSNR, color drift, background restraint, edge shift, gradient coherence, and the **Fidelis Rule #1 drift badge** (`PASS (STABLE)`).
-
-### Visual Drift & Hallucination Heatmaps (`fidelis heatmap`)
-Generate false-color thermal heatmaps highlighting where a model modifies an image:
-- Combines pixel-level luminance deltas with Sobel edge frequency shifts.
-- Employs an overlay mode to pinpoint exactly which facial contours, seams, or textures were altered or hallucinated.
-
-### Apple Silicon Hardware Benchmark (`fidelis benchmark-macos`)
-Profile local inference throughput directly on macOS (Metal/Vulkan):
-- Measures wall-clock inference latency per model and throughput (Megapixels/sec).
-- Measures exact hardware peak resident memory footprint (RSS RAM in MB) via macOS system kernel counters.
-- Generates machine-readable `macos_benchmark.json` and a visual HTML audition report.
-
-### Batch Audition & Lookbook Generation (`fidelis batch-audition`)
-Audit entire collections or multi-shot shoots:
-- Automatically audits each photograph in an input folder across all installed or shortlisted models.
-- Generates standalone output PNGs and manifest provenance for each shot.
-- Compiles an interactive, self-contained `lookbook.html` master portfolio with cross-class aggregate scores and side-by-side model switchers.
-
-### Geometric & Identity Drift Detector (`fidelis detect-drift`)
-Enforces Fidelis Quality Rule #1 mathematically:
-- **Gradient Direction Coherence**: Verifies edge tangents preserve authentic source orientation rather than inventing new contours.
-- **Structural Displacement**: Computes mean and 98th-percentile edge shifts (in native pixels) via Euclidean distance transforms.
-- **Hallucinated Edge Percentage**: Identifies artificial high-frequency textures generated in flat source regions.
-- **Fail-Closed Gate**: The `--strict` flag fails non-zero on any model exhibiting identity shift or geometric deformation.
-
-### Seamless Tiled Upscaling (`--tiled`)
-Upscale high-resolution images of arbitrary dimensions without GPU memory limits:
-- Automatically divides the image into overlapping tiles (configurable tile size, default 256px, 32px overlap).
-- Blends overlapping tile seams using a **2D smooth cosine window function** (\(w(x) = \sin^2(\frac{\pi x}{2})\)), eliminating tile grid boundaries and edge artifacts.
-
-`fidelis models` prints usable installed model names. The default stays `ESRGAN-Nomos8kSC` for backwards compatibility, but it can be overridden per command with `--model` or for a session with `FIDELIS_MODEL=<name>`.
-
-`fidelis model-add` installs a 4x NCNN candidate atomically and records the SHA-256 hashes of its `x4.param` and `x4.bin` files. `fidelis model-info` verifies those registered hashes against the live files before reporting provenance. If a registered model is changed outside the registry, Fidelis rejects it until it is explicitly re-added.
-
-`fidelis audition` runs one source through every usable installed model, or through an explicit shortlist, and writes one standalone PNG per model into the output folder. It does not create a collage or alter the generated outputs.
-
-A successful audition also writes `manifest.json` containing the exact input hash, local engine hash, each model's provenance, and each output's byte count and SHA-256 hash. Starting a new audition invalidates any previous manifest in that output directory, and a new manifest is published only after every selected model produces a non-empty output. A failed rerun therefore cannot leave an old success manifest behind.
-
-## Curated photo candidates
-
-Fidelis keeps a small checksum-locked candidate catalog in `config/photo-candidates.tsv`. The first shortlist is:
-
-- `RealeSR-general-v3`: mobile/general first priority
-- `RealSR-DF2K`: heavier photo-fidelity comparator
-- `ESRGAN-Remacri`: balanced community comparator, evaluation-only until its model license is resolved
-
-List them:
+Open `http://127.0.0.1:8765/regions`. Import aligned, untagged 8-bit sRGB RGB PNG
+passes, optionally import NPZ masks, or paint regions from scratch. This path
+reblends supplied passes; it does not automatically generate a new texture.
 
 ```bash
-bash scripts/install-photo-candidate.sh list
+.venv/bin/python -m unittest discover -s tests -p 'test_*.py' -v
+.venv/bin/python scripts/backend-doctor.py
 ```
 
-Install the first mobile candidate without hunting for model files manually:
+The doctor reports availability without installing models or submitting generation.
+[Regional editing](docs/REGIONAL_WORKSPACE.md) and the [local texture adapter](docs/COMFY_TEXTURE_BACKEND.md)
+cover their exact contracts. Never expose the current local studio as a public
+service. The explicit loopback bind is required by the current deployment policy.
 
-```bash
-bash scripts/install-photo-candidate.sh RealeSR-general-v3
-```
+## Native ARM64 lane
 
-The installer downloads from an immutable upstream revision, verifies both `x4.param` and `x4.bin` against pinned SHA-256 values, installs through the existing atomic model registry, and records source revision plus candidate role in the model metadata. A checksum mismatch fails before an existing model can be replaced.
+Fidelis retains the NCNN/Vulkan CLI for Android/Termux and the Apple Silicon
+runtime work. Generative quality research remains separate from native runtime
+certification. Models are candidates until auditioned on the target device.
 
-### One-command device benchmark
+See [native setup and commands](docs/LEGACY_RUNTIME_GUIDE.md),
+[photo-model candidates](docs/PHOTO_MODEL_CANDIDATES.md), and the
+[VOSR experiment record](experiments/VOSR_FIDELITY_SWEEP.md). Nomos is not the accepted
+final quality target; previous synthetic texture and softened source-fusion results
+must not be reintroduced without evidence.
 
-For the actual Android/ARM64 gate, run one source through the first mobile candidate and the Nomos baseline:
+## Product and project records
 
-```bash
-bash scripts/benchmark-photo-candidates.sh source.jpg ./benchmark
-```
+- [Plan blueprint](PLAN_BLUEPRINT.md): strategy, boundaries and operating model.
+- [Detailed execution plan](docs/FIDELIS_STUDIO_PLAN.md): technical assumptions and F01-F17 acceptance scope.
+- [Roadmap and checkpoints](docs/project/ROADMAP.md): milestone exit criteria.
+- [Linear project](https://linear.app/melato/project/fidelis-studio-a057f366fa71): assignments, dependencies and current coordination.
+- [GitHub umbrella #11](https://github.com/TheHighBrid/Fidelis/issues/11), linked to Linear `MEL-53`: cross-system entry point.
 
-The benchmark automatically installs a missing curated candidate through the checksum-locked installer, writes one standalone PNG per model, and creates `benchmark.json` with source/engine/model/output hashes, host architecture and kernel, per-model inference time, and total elapsed time.
+GitHub owns versioned specifications, code and evidence; Linear owns coordination.
+There is no claimed automatic synchronization of all documents or task state.
+No contributor, deadline, meeting or product milestone is invented to fill a board.
 
-A failed rerun invalidates the previous benchmark evidence. Even if the underlying engine exits with status `0`, Fidelis refuses success unless every selected model produces a non-empty output.
-
-The research rationale, exact verified hashes, licensing notes, larger benchmark command, and three-class visual protocol are in `docs/PHOTO_MODEL_CANDIDATES.md`.
-
-## Reliability
-
-Fidelis intentionally fails closed around image generation. The repository includes regression coverage for:
-
-- the VOSR case where image processing can fail while the process still exits successfully
-- actual weak-conditioning profile injection
-- output PNG verification and manifest creation
-- local model selection, default-model override, and missing-model rejection
-- atomic candidate registration and registered-model integrity verification
-- reproducible multi-model audition manifests with input, engine, model, and output hashes
-- stale audition manifest invalidation when a rerun fails
-- checksum-locked curated model installation and replacement rejection on source tampering
-- one-command device benchmark evidence, candidate auto-install, runtime timing, and fake-success rejection
-
-Run locally:
-
-```bash
-bash tests/smoke-test.sh
-bash tests/test-cli-model-selection.sh
-bash tests/test-photo-candidate-installer.sh
-bash tests/test-photo-candidate-benchmark.sh
-bash tests/test-audition-report.sh
-bash tests/test-batch-audition.sh
-bash tests/test-fidelity-metrics.sh
-bash tests/test-detect-drift.sh
-bash tests/test-web-ui.sh
-bash tests/test-release-pipeline.sh
-bash tests/test-vosr-sweep.sh
-```
-
-GitHub Actions runs these checks on pull requests and `main` updates.
-
-## Principles
-
-- Preserve natural tonal texture and edge roll-off.
-- Prefer source fidelity over invented detail.
-- Do not enable face restoration by default.
-- Do not hide failed inference behind a successful wrapper exit.
-- Keep upstream models and runtimes outside Git.
-- Pin upstream revisions needed for reproducibility.
-- Treat external generative models as quality references until they prove practical for the ARM64 target.
-
-## Upstream projects
-
-The local ARM64 foundation currently wraps the runtime from [RealSR-NCNN-Android](https://github.com/tumuyan/RealSR-NCNN-Android). The quality-reference experiment uses [VOSR](https://github.com/cswry/VOSR). Review upstream licenses and the license of every selected model before commercial distribution.
+Code is under [MIT](LICENSE). Every external runtime/checkpoint/LoRA/segmentation
+weight has separate terms that must be verified before distribution or promotion.

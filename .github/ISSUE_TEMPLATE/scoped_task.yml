@@ -1,0 +1,33 @@
+name: Scoped delivery task
+description: Define a bounded deliverable with acceptance and dependency evidence.
+title: "[Task] "
+body:
+  - type: input
+    id: tracking
+    attributes:
+      label: Existing F-ID or Linear issue
+      description: Reuse the existing plan item rather than creating a competing tracker.
+  - type: textarea
+    id: objective
+    attributes:
+      label: Objective and scope
+      description: Describe the user result, intended boundaries and suggested responsibility. Do not assign an unconfirmed owner.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance evidence
+      description: Separate implementation, fixture tests, live inference, visual acceptance and release requirements.
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies and touched contracts
+      description: Link prerequisites and name files, APIs or storage/model contracts that need coordination.
+  - type: textarea
+    id: validation
+    attributes:
+      label: Verification and constraints
+      description: State relevant checks and any real hardware, access, image-rights or budget constraint.

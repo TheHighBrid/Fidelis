@@ -1,4 +1,8 @@
-# Region reblend: initial working component
+# Standalone region reblend CLI
+
+For integrated painting and saved jobs, see [Regional workspace](REGIONAL_WORKSPACE.md).
+This document describes the original file-based CLI, which remains available; its
+full-frame memory limits differ from the newer disk-backed Studio path.
 
 This CLI composites existing precision and generated passes. It does not generate
 texture, run segmentation, resize images, or recover hidden details. It is the

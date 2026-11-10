@@ -1,6 +1,9 @@
 # Fidelis Studio task ledger
 
-Updated 2026-11-10. Canonical scope and task definitions:
+Updated 2026-11-10. Implementation checkpoint, not a release ledger. F01-F04
+are implemented on the Studio branch and are In Review in Linear while PR #12
+remains open. Read [current status](project/STATUS.md) and the [roadmap](project/ROADMAP.md)
+for takeover and milestone acceptance. Canonical scope and task definitions:
 [execution plan](FIDELIS_STUDIO_PLAN.md).
 
 ## Current milestone

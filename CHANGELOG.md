@@ -1,5 +1,22 @@
 # Fidelis Changelog
 
+## Unreleased Studio engineering checkpoint · 2026-11-10
+
+Implementation remains in open PR #12 on `feat/region-aware-studio` at `5f32fba`.
+This section is not a production release announcement.
+
+- Added protected region composition, persistent artifacts/revisions and storage budgets.
+- Added manual masks, paint/erase, unsaved undo/redo and regional review/export.
+- Added a protocol-tested local ComfyUI adapter, run identity/reconciliation and runtime doctor.
+- Recorded 62 local Python tests plus web UI integration/smoke/JS checks at that SHA.
+- Published contributor documentation, a formal handoff and the Linear Fidelis project.
+- Live GPU quality, device acceptance, automatic masks, managed precision exports,
+  held-out competitive benchmarks and release gates remain open.
+
+The historical sections below are retained from earlier repository notes. Their
+quality, timing, model-promotion and zero-drift language is not renewed certification.
+Use `docs/project/STATUS.md` and actual evidence for current claims.
+
 ## [3.1.0] - 2026-10-25
 
 ### Added

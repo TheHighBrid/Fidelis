@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Fidelis execution board
+    url: https://linear.app/melato/project/fidelis-studio-a057f366fa71
+    about: Reuse an existing F-ID or defect before creating duplicate work.
+  - name: Contributor onboarding
+    url: https://github.com/TheHighBrid/Fidelis/blob/main/ONBOARDING.md
+    about: Read current branch, evidence and contribution directives.

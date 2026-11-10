@@ -1,6 +1,11 @@
 # Fidelis Studio: quality and execution plan
 
-Version: 1.0 | 2026-11-10 | Status: implementation started, competitive parity unproven.
+Version: 1.1 | 2026-11-10 | Status: engineering alpha, competitive parity unproven.
+
+Start with the [documentation map](README.md), [current status](project/STATUS.md)
+and [Linear project](https://linear.app/melato/project/fidelis-studio-a057f366fa71).
+This is the detailed scope/acceptance contract; implementation status is tracked
+separately. Studio code remains in open PR #12 until merged.
 
 ## 1. Product commitment
 
@@ -134,9 +139,11 @@ queued, running(stage), awaiting_review, completed, failed, cancelled. Persist s
 artifacts; recover unfinished work after restart. Serialize GPU model loading and
 inference. Support cancellation, deadline, atomic outputs and graceful shutdown.
 
-Comfy client: open websocket before submission, correlate every event by prompt
-ID, handle execution_error/interrupted/cache-hit events, add deadline and polling
-reconciliation, isolate per-job upload names and retain subfolder/type metadata.
+Comfy client: reserve recipe/run identity before submission, persist prompt IDs,
+and use bounded history polling/reconciliation. The current adapter takes that
+polling route. If WebSocket progress is added, connect before submission and
+correlate every event by prompt ID; handle error/interrupted/cache-hit events.
+Isolate per-job upload names and retain subfolder/type metadata.
 Cloud client: schema snapshots, supported scale checks, capability probes, download
 size/time limits, validated output shape/transform, request ID persistence, cost
 reservation and reconciliation. An ambiguous timeout must not trigger a second
@@ -246,13 +253,17 @@ M4 F14-F16 daily production release. Do not mark M1 complete from mocked provide
 
 ## 10. Immediate execution and evidence policy
 
-Start F02/F03 now with supplied aligned passes and explicit masks, without model
-downloads, paid calls, invented segmentation or replacing working CLI behaviour.
-This provides a real, testable compositing capability while separating model quality
-experiments from application correctness. Next implement F04 and wire F08 preview
-editing, then promote one backend only after its integration test passes.
-Track current results in `docs/FIDELIS_STUDIO_TASKS.md`. Failed experiments retain
-their settings and reason; never repeatedly ask the owner to retest a known failure.
+F01-F04 implementation is complete on the Studio branch and awaits review/merge.
+F05-F08 have capability, transport, run-identity and editor work, but still require
+live model/device/async acceptance. The original isolated compositor-first batch
+has been delivered; do not repeat it as new work.
+
+Use `docs/project/STATUS.md` for the concise checkpoint, the existing task ledger
+for implementation details, and the Linear F-ID issues for current coordination.
+The committed `docs/project/backlog.json` maps actual issue IDs and acceptance.
+The owner requested documentation/management setup before the next gate; no live
+model or paid inference is started as part of that setup. Failed experiments retain
+their settings and reason; never repeatedly ask the owner to retest known failures.
 
 ## Primary references checked 2026-11-10
 
