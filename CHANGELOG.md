@@ -1,5 +1,15 @@
 # Fidelis Changelog
 
+## Unreleased mask suggestion interface · 2026-11-10
+
+- Added source-bound class probability import, explicit label routing and conservative confidence/boundary gates.
+- Added persisted staging/preview/accept/discard; active master stays unchanged until acceptance.
+- Fill-only-unclassified merge preserves manual masks, erasures, edge guards and protection.
+- Recorded 125 passing Python tests, HTTP/static smoke and editor syntax checks.
+- F09 remains partial: no configured/qualified automatic segmentation model or live accuracy result.
+- See [suggestion receipt](docs/project/checkpoints/2026-11-10-mask-suggestions.md).
+
+
 ## Unreleased corpus tooling checkpoint · 2026-11-10
 
 - Added versioned 60-slot protocol/split design and explicit rights/hash/group/ROI inventory.

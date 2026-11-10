@@ -106,3 +106,12 @@ regression assets, zero production-eligible cases and 60 unfilled slots. F12-A
 remains In Progress; the production corpus is not frozen. See the
 [corpus checkpoint](project/checkpoints/2026-11-10-corpus-inventory.md). Next: real corpus/permission/ROI review before tuning;
 confidence-mask interfaces and browser/device review can proceed independently.
+
+## Mask suggestion interface · 2026-11-10
+
+F09 adds source-bound imported probabilities, confidence/ambiguity gating, persisted
+preview and explicit accept/discard. Acceptance fills only untouched areas and
+preserves manual masks/protection. **125 Python tests pass.** F09 remains partial;
+no automatic segmentation model is configured or quality-qualified. See the
+[mask suggestion checkpoint](project/checkpoints/2026-11-10-mask-suggestions.md). Next: actual model/label/terms and ROI
+qualification, with browser/device and production corpus gates still open.

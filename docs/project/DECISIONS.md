@@ -47,3 +47,16 @@ unrelated prompts. Revision-checked JobStore commits remain authoritative; the
 queue preserves the synchronous CLI. Cross-database exactly-once apply recovery,
 aggregate generated-cache quotas and live/device certification remain open.
 See [queue contract](../ASYNC_GENERATION.md).
+
+## Imported mask suggestion boundary · 2026-11-10
+
+F09 first adds a model-independent probability/review interface rather than shipping
+invented weights or declaring generic segmentation labels structural protection.
+Source/model/transform declarations bind imported scores. One staged proposal uses
+optional artifacts in the existing versioned JobStore: budgets, cleanup and atomic
+revisions remain shared. Staging does not alter active masks; accept fills only
+untouched fields, and edits after staging invalidate acceptance. Old manifest readers
+can ignore optional metadata/artifact keys; no existing mask representation changes.
+Actual automatic inference and fine boundary refinement require separate weight,
+label/terms, registration, accuracy and resource evidence. See the
+[suggestion contract](../MASK_SUGGESTIONS.md).

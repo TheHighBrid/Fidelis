@@ -302,6 +302,98 @@ class JobStore:
                 self._cleanup(db)
                 raise
 
+    def stage_suggestion(self, job_id, scores, receipt, *, expected_revision,
+                         threshold=.90, margin=.15, boundary=1):
+        from fidelis.studio.suggestions import build_suggestion
+        if type(expected_revision) is not int:
+            raise ValueError('expected_revision must be an integer')
+        with self._transaction() as db:
+            manifest = self._read(db, job_id)
+            if manifest['revision'] != expected_revision:
+                raise RevisionConflict('Job changed; reload before staging a suggestion')
+            if manifest['profile'] == 'packshot_strict':
+                raise ValueError('Packshot Strict does not accept semantic texture suggestions')
+            artifacts = manifest['artifacts'].copy()
+            for descriptor in artifacts.values():
+                self._array(descriptor, verify=True)
+            low, record = build_suggestion(scores, receipt,
+                            base_sha256=artifacts['base']['sha256'], dimensions=manifest['dimensions'],
+                            threshold=threshold, margin=margin, boundary=boundary)
+            width, height = manifest['dimensions']
+            self._cleanup(db)
+            self._check_budget(db, width*height*4*5 + 5*256)
+            try:
+                staged = self._suggestion_arrays(artifacts, low, width, height)
+                artifacts = {key:value for key,value in artifacts.items() if not key.startswith('suggestion_')}
+                artifacts.update(staged)
+                record.update(id=uuid.uuid4().hex, status='staged', based_on_revision=expected_revision,
+                              staged_revision=expected_revision+1)
+                manifest.update(revision=expected_revision+1, artifacts=artifacts, mask_suggestion=record,
+                                updated_at=datetime.now(timezone.utc).isoformat())
+                db.execute('UPDATE jobs SET manifest=? WHERE id=?', (json.dumps(manifest),job_id))
+                return manifest
+            except BaseException:
+                self._cleanup(db)
+                raise
+
+    def resolve_suggestion(self, job_id, *, expected_revision, accept):
+        if type(expected_revision) is not int or type(accept) is not bool:
+            raise ValueError('Expected an integer revision and boolean accept')
+        with self._transaction() as db:
+            manifest = self._read(db, job_id)
+            if manifest['revision'] != expected_revision:
+                raise RevisionConflict('Job changed; reopen before resolving a suggestion')
+            record = manifest.get('mask_suggestion')
+            if not record or record['status'] != 'staged':
+                raise ValueError('No staged mask suggestion')
+            if accept and record['staged_revision'] != expected_revision:
+                raise RevisionConflict('Suggestion is stale after another edit; discard or import a new one')
+            artifacts = manifest['artifacts'].copy()
+            if accept:
+                for descriptor in artifacts.values():
+                    self._array(descriptor, verify=True)
+            width, height = manifest['dimensions']
+            self._cleanup(db)
+            self._check_budget(db, width*height*(5*4+3)+6*256 if accept else 0)
+            try:
+                if accept:
+                    artifacts.update(self._suggestion_arrays(artifacts, None, width, height, merge=True))
+                    artifacts['master'] = self._render(artifacts, RegionBlend(**manifest['blend']))
+                artifacts = {key:value for key,value in artifacts.items() if not key.startswith('suggestion_')}
+                record.update(status='accepted' if accept else 'discarded', resolved_revision=expected_revision+1)
+                manifest.update(revision=expected_revision+1, artifacts=artifacts,
+                                updated_at=datetime.now(timezone.utc).isoformat())
+                db.execute('UPDATE jobs SET manifest=? WHERE id=?', (json.dumps(manifest),job_id))
+                return manifest
+            except BaseException:
+                self._cleanup(db)
+                raise
+
+    def _suggestion_arrays(self, artifacts, low, width, height, merge=False):
+        from fidelis.studio.suggestions import FIELDS, fill_unclassified, upsample_stripe
+        originals = {name:self._array(artifacts[name]) for name in MASK_NAMES if name in artifacts} if merge else {}
+        proposed = {name:self._array(artifacts['suggestion_'+name]) for name in FIELDS} if merge else {}
+        paths = {name:self.root/'artifacts'/f'{uuid.uuid4().hex}.npy' for name in FIELDS}
+        outputs = {name:np.lib.format.open_memmap(path, mode='w+', dtype=np.float32,
+                                                shape=(height,width)) for name,path in paths.items()}
+        try:
+            for y in range(0,height,self._rows(width)):
+                end = min(height,y+self._rows(width))
+                if merge:
+                    stripe = fill_unclassified({name:array[y:end] for name,array in originals.items()},
+                                                {name:array[y:end] for name,array in proposed.items()})
+                else:
+                    stripe = upsample_stripe(low,width,height,y,end)
+                for name,array in outputs.items():
+                    array[y:end] = stripe[name]
+            for array in outputs.values():
+                array.flush()
+        finally:
+            outputs.clear()
+        return {('' if merge else 'suggestion_')+name:asdict(ImageArtifact(
+                        str(path.relative_to(self.root)),sha256(path),[height,width],
+                        'float32','mask-0-1',path.stat().st_size)) for name,path in paths.items()}
+
     def _paint(self, artifacts, strokes):
         height, width = artifacts['base']['shape'][:2]
         original = {name: self._array(artifacts[name]) for name in EDIT_FIELDS if name in artifacts}
@@ -342,11 +434,13 @@ class JobStore:
                     layers[name] = base64.b64encode(encoded).decode('ascii')
             return {'width': shape[1], 'height': shape[0], 'layers': layers}
 
-    def mask_preview(self, job_id, expected_revision, pixel_limit=1_000_000):
+    def mask_preview(self, job_id, expected_revision, pixel_limit=1_000_000, *, suggestion=False):
         with self._transaction() as db:
             manifest = self._read(db, job_id)
             if manifest['revision'] != expected_revision:
                 raise RevisionConflict('Mask revision changed; reopen the job')
+            if suggestion and manifest.get('mask_suggestion',{}).get('status') != 'staged':
+                raise ValueError('No staged suggestion preview')
             width, height = manifest['dimensions']
             stride = max(1, int(np.ceil(np.sqrt(width * height / pixel_limit))))
             shape = ((height + stride - 1)//stride, (width + stride - 1)//stride)
@@ -354,9 +448,10 @@ class JobStore:
             colors = {'skin': (239, 90, 90), 'hair': (241, 196, 80),
                       'fabric': (91, 202, 132), 'protected': (92, 145, 255)}
             for name, color in colors.items():
-                if name not in manifest['artifacts']:
+                artifact_name = ('suggestion_' if suggestion else '')+name
+                if artifact_name not in manifest['artifacts']:
                     continue
-                mask = self._array(manifest['artifacts'][name], verify=True)[::stride, ::stride]
+                mask = self._array(manifest['artifacts'][artifact_name], verify=True)[::stride, ::stride]
                 opacity = mask * .6
                 preview[...,:3] = preview[...,:3] * (1-opacity[...,None]) + np.array(color) * opacity[...,None]
                 preview[...,3] += (255 - preview[...,3]) * opacity

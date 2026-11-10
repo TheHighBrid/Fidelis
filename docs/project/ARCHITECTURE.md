@@ -96,3 +96,8 @@ Native read-only crop endpoint and paired inspector: [Inspection contract](../NA
 The explicit [benchmark inventory](../BENCHMARK_CORPUS.md) is separate from legacy
 corpus discovery/synthetic generation; only validated reviewed production records
 can enter an unsigned benchmark lock.
+
+Imported [mask suggestions](../MASK_SUGGESTIONS.md) use optional `suggestion_*`
+artifacts and `mask_suggestion` review metadata in the existing manifest. Stage
+advances revision without changing active masks/master; accept performs a striped
+fill-only-unclassified merge. Model inference is a separate unqualified boundary.

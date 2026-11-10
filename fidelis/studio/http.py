@@ -94,7 +94,8 @@ def _masks(value, shape):
 
 
 def _public(manifest):
-    return {key: value for key, value in manifest.items() if key != "artifacts"}
+    return {**{key: value for key, value in manifest.items() if key != "artifacts"},
+            "base_artifact_sha256": manifest["artifacts"]["base"]["sha256"]}
 
 
 def dispatch(handler, workspace_root):
@@ -161,9 +162,10 @@ def dispatch(handler, workspace_root):
             elif len(parts) == 5 and parts[:3] == ["api", "regions", "jobs"] and parts[4] == "mask-data":
                 query = parse_qs(url.query)
                 _json(handler, 200, store.mask_data(parts[3], int(query.get("revision", ["0"])[0])))
-            elif len(parts) == 5 and parts[:3] == ["api", "regions", "jobs"] and parts[4] == "mask-preview":
+            elif len(parts) == 5 and parts[:3] == ["api", "regions", "jobs"] and parts[4] in ("mask-preview", "suggestion-preview"):
                 query = parse_qs(url.query)
-                array = store.mask_preview(parts[3], int(query.get("revision", ["0"])[0]))
+                array = store.mask_preview(parts[3], int(query.get("revision", ["0"])[0]),
+                                           suggestion=parts[4] == "suggestion-preview")
                 encoded = io.BytesIO()
                 Image.fromarray(array).save(encoded, format="PNG")
                 handler.send_response(200)
@@ -232,6 +234,18 @@ def dispatch(handler, workspace_root):
                     _json(handler, 200, operation(parts[3], parts[5]))
                 else:
                     _json(handler, 404, {"error": "Unknown generation operation"})
+            elif len(parts) == 5 and parts[:3] == ["api", "regions", "jobs"] and parts[4] == "mask-suggestions":
+                from fidelis.studio.suggestions import decode_scores
+                scores = decode_scores(_bytes(data['scores']))
+                manifest = store.stage_suggestion(parts[3], scores, data['receipt'],
+                           expected_revision=data.get('expected_revision'),
+                           threshold=data.get('threshold',.90), margin=data.get('margin',.15),
+                           boundary=data.get('boundary',1))
+                _json(handler, 201, _public(manifest))
+            elif len(parts) == 5 and parts[:3] == ["api", "regions", "jobs"] and parts[4] in ("accept-suggestion", "discard-suggestion"):
+                manifest = store.resolve_suggestion(parts[3], expected_revision=data.get('expected_revision'),
+                           accept=parts[4] == 'accept-suggestion')
+                _json(handler, 200, _public(manifest))
             elif len(parts) == 5 and parts[:3] == ["api", "regions", "jobs"] and parts[4] == "reblend":
                 values = data.get("blend")
                 if not isinstance(values, dict):

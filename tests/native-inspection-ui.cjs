@@ -8,6 +8,7 @@ class Element{
  set id(value){this._id=value;elements.set(value,this);}
  get id(){return this._id;}
  addEventListener(type,handler){this.handlers[type]=handler;}
+ removeAttribute(key){delete this.attributes[key];}
  setAttribute(key,value){this.attributes[key]=value;}
  append(...children){this.children.push(...children);}
  replaceChildren(...children){this.children=children;}
@@ -55,5 +56,17 @@ function finish(images){for(const image of images){const params=new URL(image.ur
  // A partial failed pair stays hidden, rather than showing an old base/result.
  elements.get('inspectNative').onclick();const bad=pending.slice(4);finish([bad[0]]);bad[1].onerror();await flush();
  assert.equal(elements.get('nativeScroll').hidden,true);assert.equal(elements.get('nativePair').children.length,0);assert.match(elements.get('nativeStatus').textContent,/reload the job/);
- console.log('Inspector DOM contracts passed: paired replacement, zoom, split, unsaved state, reset and failure.');
+ // Suggestion controls require explicit review and retain unsaved work.
+ run(`history.done.push({unsaved:true});history.dirty=true;dirtyBlend=true;busy=false;`);
+ await elements.get('stageSuggestion').onclick();
+ assert.match(elements.get('error').textContent,/Save or discard unsaved edits/);
+ assert.equal(run('history.done.length'),1);assert.equal(run('dirtyBlend'),true);
+ run(`setJob({id:'job-c',revision:2,dimensions:[12,8],label:'C',profile:'luxury_apparel',blend:{skin:0,hair:0,fabric:0,edge_protection:0},mask_suggestion:{status:'staged',staged_revision:2,score_acceptance_fraction:.25}});controls();`);
+ assert.equal(elements.get('acceptSuggestion').disabled,false);
+ elements.get('showSuggestion').checked=true;elements.get('showSuggestion').onchange();
+ assert.equal(elements.get('suggestionOverlay').hidden,false);assert.match(elements.get('suggestionOverlay').src,/suggestion-preview\?revision=2/);
+ run('current.revision=3;controls()');assert.equal(elements.get('acceptSuggestion').disabled,true);assert.equal(elements.get('discardSuggestion').disabled,false);
+ elements.get('paintMode').value='paint';elements.get('paintMode').handlers.change();
+ assert.equal(elements.get('suggestionOverlay').hidden,true);
+ console.log('Inspector and suggestion DOM contracts passed: paired loading, scales, unsaved state, review gates and stale rejection.');
 })().catch(error=>{console.error(error);process.exitCode=1});

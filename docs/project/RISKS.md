@@ -32,7 +32,9 @@ the tracked module/file mismatch; a controlled-runtime regression now exercises 
 
 - The chosen precision base can itself invent detail. Exact protection only
   preserves that base, not a hypothetical perfect original.
-- Segmentation labels do not inherently identify seams, logos or zipper teeth.
+- F09 imported probability gating/review is fixture-tested; no actual automatic
+  model is configured. Declared scores can be confidently wrong and nearest expansion
+  is not fine matting. Segmentation labels do not inherently identify seams, logos or zipper teeth.
   Automatic masking remains a candidate, not a guaranteed structural guard.
 - Current inputs are untagged uint8 sRGB RGB PNGs. ICC/alpha/high-precision support
   is not established by the uint16 file container or old colour-fix claims.

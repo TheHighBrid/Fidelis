@@ -180,8 +180,8 @@
       "id": "F09",
       "title": "Qualify confidence-gated automatic segmentation",
       "milestone": "M2",
-      "state": "Backlog",
-      "implementation": "not_started",
+      "state": "In Progress",
+      "implementation": "partial_imported_probability_review_interface_fixture_tested",
       "depends_on": [
         "F05",
         "F08"
@@ -189,14 +189,15 @@
       "role": "Vision / masks",
       "scope": "Suggest editable semantic masks using cleared actual model candidates.",
       "acceptance": "Actual labels and terms verified; annotated collars/cuffs/hair and product cases evaluated; unknown regions stay protected; full-resolution refinement fits measured resources.",
-      "evidence": "docs/FIDELIS_STUDIO_PLAN.md sections 3-4; current manual mask contract",
+      "evidence": "fidelis/studio/suggestions.py; store.py staging/review; scripts/mask-suggestion.py; tests/test_mask_suggestions.py; actual model/label/terms/ROI/resource qualification pending; docs/project/checkpoints/2026-11-10-mask-suggestions.md",
       "priority": 3,
       "linear": {
         "id": "MEL-62",
         "uuid": "2046a088-7acc-4969-9eed-8e48fa269ad0",
         "url": "https://linear.app/melato/issue/MEL-62/f09-qualify-confidence-gated-automatic-segmentation",
         "title": "F09 \u00b7 Qualify confidence-gated automatic segmentation"
-      }
+      },
+      "verification_checkpoint": "docs/project/checkpoints/2026-11-10-mask-suggestions.md"
     },
     {
       "id": "F10",
@@ -642,6 +643,6 @@
       "linear_id": "fb26feb5-8122-40cb-a6e1-01a83b4f542c"
     }
   ],
-  "latest_checkpoint": "docs/project/checkpoints/2026-11-10-corpus-inventory.md",
-  "checkpoint_base_commit": "c15d10d49bd3c2baae23c2bd9e27a5fa3cd3f328"
+  "latest_checkpoint": "docs/project/checkpoints/2026-11-10-mask-suggestions.md",
+  "checkpoint_base_commit": "10a30950c93783729d0c051fa84e7effd74011dc"
 }
