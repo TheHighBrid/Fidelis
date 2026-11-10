@@ -97,3 +97,14 @@ preserves manual masks/protection. **125 Python tests pass.** F09 remains partia
 no automatic segmentation model is configured or quality-qualified. See the
 [mask suggestion checkpoint](checkpoints/2026-11-10-mask-suggestions.md). Next: actual model/label/terms and ROI
 qualification, with browser/device and production corpus gates still open.
+
+## Held-out quality acceptance protocol · 2026-11-10
+
+F13 (`MEL-66`) adds `fidelis/eval/quality_acceptance.py` and
+`scripts/evaluate-quality-acceptance.py` to enforce reproducibility receipts,
+calibration/held-out split isolation, zero critical fidelity defects, Wilson and
+bootstrap 95% CIs, per-target/per-category thresholds, and explicit owner signoff
+gating. **129 Python tests pass.** F13 remains partial until the cleared 60-case
+production corpus, live comparator outputs, human blind ballots, and owner creative
+signoff are recorded. See the
+[held-out acceptance checkpoint](checkpoints/2026-11-10-held-out-acceptance.md).

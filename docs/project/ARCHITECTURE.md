@@ -101,3 +101,5 @@ Imported [mask suggestions](../MASK_SUGGESTIONS.md) use optional `suggestion_*`
 artifacts and `mask_suggestion` review metadata in the existing manifest. Stage
 advances revision without changing active masks/master; accept performs a striped
 fill-only-unclassified merge. Model inference is a separate unqualified boundary.
+
+[Held-out quality acceptance](../QUALITY_ACCEPTANCE.md) (`fidelis/eval/quality_acceptance.py` and `scripts/evaluate-quality-acceptance.py`) validates reproducibility receipts, blocks calibration/held-out split contamination and critical fidelity defects, computes Wilson and bootstrap 95% CIs across comparator targets and categories, and caps status at `awaiting_owner_signoff` until explicit owner creative approval is recorded.

@@ -36,6 +36,9 @@ the tracked module/file mismatch; a controlled-runtime regression now exercises 
   model is configured. Declared scores can be confidently wrong and nearest expansion
   is not fine matting. Segmentation labels do not inherently identify seams, logos or zipper teeth.
   Automatic masking remains a candidate, not a guaranteed structural guard.
+- F13 held-out acceptance protocol and CI calculations are unit-tested (`test_quality_acceptance.py`),
+  but real held-out acceptance remains blocked on the 60-case rights-cleared corpus,
+  live Clarity/Krea comparator outputs, human blind ballots, and owner creative signoff.
 - Current inputs are untagged uint8 sRGB RGB PNGs. ICC/alpha/high-precision support
   is not established by the uint16 file container or old colour-fix claims.
 - Stripe allocation limits are not total-RSS measurements. Import decoding and

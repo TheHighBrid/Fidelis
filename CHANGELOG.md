@@ -1,5 +1,9 @@
 # Fidelis Changelog
 
+## Unreleased held-out quality acceptance protocol · 2026-11-10
+
+- Added `fidelis/eval/quality_acceptance.py` and `scripts/evaluate-quality-acceptance.py` (`F13` / `MEL-66`) to enforce reproducibility receipts, calibration/held-out split isolation, zero critical fidelity defects, Wilson and bootstrap 95% confidence intervals, per-target (`>=80%` preference+ties, `>=50%` wins) and per-category (`>=60%` preference+ties) thresholds, and explicit owner creative signoff gating.
+
 ## Unreleased mask suggestion interface · 2026-11-10
 
 - Added source-bound class probability import, explicit label routing and conservative confidence/boundary gates.
