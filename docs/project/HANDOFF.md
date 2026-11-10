@@ -51,5 +51,13 @@ Nomos and source-fusion history. One full-resolution output per file.
 ## Current review work
 
 Read the risk register for the legacy large-input import, provenance, metric-label
-and network-bind findings. These are documented defects/limitations, not silently
-fixed by this handoff. The [backlog snapshot](backlog.json) maps actual Linear links.
+and network-bind findings. These inherited findings now have a fixture-tested
+implementation in PR #12, pending review/merge; see the latest receipt below. The [backlog snapshot](backlog.json) maps actual Linear links.
+
+## Latest pipeline integrity delivery
+
+D01-D04 are implemented and fixture-tested on the Studio branch, pending PR #12
+review/merge. The latest full Python run passed **77 tests**. See the
+[2026-11-10 integrity receipt](checkpoints/2026-11-10-pipeline-integrity.md)
+for changes, compatibility requirements, verification and remaining live gates.
+Next independent work: F07-A asynchronous execution and F08-A native crop inspection.

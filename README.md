@@ -97,3 +97,11 @@ No contributor, deadline, meeting or product milestone is invented to fill a boa
 
 Code is under [MIT](LICENSE). Every external runtime/checkpoint/LoRA/segmentation
 weight has separate terms that must be verified before distribution or promotion.
+
+## Latest pipeline integrity delivery
+
+D01-D04 are implemented and fixture-tested on the Studio branch, pending PR #12
+review/merge. The latest full Python run passed **77 tests**. See the
+[2026-11-10 integrity receipt](docs/project/checkpoints/2026-11-10-pipeline-integrity.md)
+for changes, compatibility requirements, verification and remaining live gates.
+Next independent work: F07-A asynchronous execution and F08-A native crop inspection.

@@ -1468,7 +1468,7 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
 
-def run_server(port: int = 8765, host: str = "0.0.0.0", region_workspace=None, region_store_options=None):
+def run_server(port: int = 8765, host: str = "127.0.0.1", region_workspace=None, region_store_options=None):
     handler = FidelisRequestHandler
     # Allow port reuse
     socketserver.TCPServer.allow_reuse_address = True
@@ -1495,21 +1495,26 @@ def run_server(port: int = 8765, host: str = "0.0.0.0", region_workspace=None, r
         display_host = "127.0.0.1" if host in ("0.0.0.0", "") else host
         print(f"\n=======================================================")
         print(f" Fidelis Studio Web UI is running at:")
-        print(f" http://{display_host}:{current_port} (all interfaces: {host})")
+        print(f" http://{display_host}:{current_port} (bind address: {host})")
         print(f"=======================================================\n")
         try:
             httpd.serve_forever()
         except KeyboardInterrupt:
             print("\nShutting down server.")
 
-if __name__ == "__main__":
+def build_argument_parser():
     parser = argparse.ArgumentParser(description="Run Fidelis Web UI.")
-    parser.add_argument("-b", "--bind", "--host", default=os.environ.get("HOST", "0.0.0.0"), help="Host interface to bind (default: 0.0.0.0)")
+    parser.add_argument("-b", "--bind", "--host", default=os.environ.get("HOST", "127.0.0.1"), help="Host interface to bind (default: 127.0.0.1; HOST explicitly overrides)")
     parser.add_argument("-p", "--port", type=int, default=8765, help="Port to bind (default: 8765)")
     parser.add_argument("--region-workspace", type=Path, help="Persistent regional job directory")
     parser.add_argument("--region-disk-mib", type=int, default=2048, help="Regional artifact storage cap in MiB")
     parser.add_argument("--region-workspace-mib", type=int, default=32, help="Composition stripe workspace allowance in MiB")
     parser.add_argument("--region-max-pixels", type=int, default=40_000_000, help="Regional image pixel limit")
+    return parser
+
+
+if __name__ == "__main__":
+    parser = build_argument_parser()
     args = parser.parse_args()
     if min(args.region_disk_mib, args.region_workspace_mib, args.region_max_pixels) <= 0:
         parser.error("Regional storage, workspace and pixel limits must be positive")

@@ -70,6 +70,12 @@ jobs:
       - name: Optional face detector fallback tests
         run: python -m unittest discover -s tests -p 'test_face_fallback.py'
 
+      - name: Instrumented pipeline integrity and metric reference tests
+        run: python -m unittest discover -s tests -p 'test_pipeline_integrity.py'
+
+      - name: Local server and deployment boundary tests
+        run: python -m unittest discover -s tests -p 'test_local_server_defaults.py'
+
       - name: Web UI server integration tests
         run: bash tests/test-web-ui.sh
 

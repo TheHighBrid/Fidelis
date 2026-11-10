@@ -71,3 +71,11 @@ benchmark selection remain later evidence checkpoints. No paid calls or model
 quality certification were part of this batch. The current executor has no PyTorch,
 NVIDIA tooling, NCNN runtime/candidate weights, ComfyUI worker or cloud keys. See
 `COMFY_TEXTURE_BACKEND.md` for the adapter contract and readiness evidence.
+
+## Pipeline integrity supplement · 2026-11-10
+
+D01-D04 are implemented with 77 passing Python tests and the existing shell checks,
+awaiting PR #12 review/merge. See the [delivery receipt](project/checkpoints/2026-11-10-pipeline-integrity.md)
+for exact scope, fixtures, nullable metrics and unsigned provenance. Earlier 62-test
+counts above describe their historical snapshot. Next: scoped F07-A/F08-A work;
+worker/model and device acceptance remain open.

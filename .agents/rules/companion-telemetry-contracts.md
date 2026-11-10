@@ -22,4 +22,11 @@ When instrumenting companion agents (Fidelis, Allo, Pedit) that communicate with
      - `vram_peak_mb`: float
      - `processing_time_per_megapixel`: float
      - `c2pa_status`: string (`signed`, `unsigned`, `manifest_generated`)
-     - `psnr`, `ssim`, `lpips_proxy`: float quality metrics
+     - `psnr`, `ssim`: measured floats, or JSON `null` when unavailable
+     - `lpips` / `lpips_proxy`: JSON `null` unless the named implementation is actually computed
+     - `gradient_distance_proxy`: measured gradient-coherence complement under its own name
+     - `metric_context`: schema version, reference/comparison method, availability and reason when missing
+   - Never fill missing measurements with plausible constants. A gradient-derived
+     value must not be labelled LPIPS. Source-consistency measurements must be
+     distinguished from paired ground-truth accuracy. Numeric `*_ms` timing values
+     keep their unit; any compatibility alias must name the same unit explicitly.

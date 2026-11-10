@@ -1,5 +1,14 @@
 # Fidelis Changelog
 
+## Unreleased pipeline integrity checkpoint · 2026-11-10
+
+- Corrected unsigned provenance status, large-input tiler execution and explicit runtime selection.
+- Defaulted local HTTP/Compose publication to loopback and removed public firewall/deployment promotion.
+- Replaced invented metric defaults/pseudo-LPIPS with nullable measurements and explicit reference context.
+- Corrected RGB handling and physical CIE76 colour differences; added optional paired ground-truth CLI input.
+- Recorded 77 passing Python tests plus shell checks. See [receipt](docs/project/checkpoints/2026-11-10-pipeline-integrity.md).
+- Pending PR #12 review/merge; no live inference or production release certification.
+
 ## Unreleased Studio engineering checkpoint · 2026-11-10
 
 Implementation remains in open PR #12 on `feat/region-aware-studio` at `5f32fba`.

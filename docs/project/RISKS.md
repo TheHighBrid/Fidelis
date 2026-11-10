@@ -1,7 +1,7 @@
 # Risk, blocker and defect register
 
 Snapshot: source audit of `5f32fba`, 2026-11-10. This document records known work;
-it does not quietly fix runtime behaviour or imply that every path was exercised.
+the original findings remain the historical baseline, not a claim that every path was exercised.
 The four D-items are actionable source-confirmed findings with direct evidence in
 `backlog.json` and their Linear issue bodies. Their release blockers are linked.
 
@@ -17,7 +17,7 @@ The four D-items are actionable source-confirmed findings with direct evidence i
 The metric finding includes gradient-derived pseudo-LPIPS, numeric fallback
 quality defaults, and RGB/BGR/reference semantics requiring correction. These
 must not become published quality evidence. The import finding is established by
-the tracked module/file mismatch; a runtime reproduction is still part of its fix.
+the tracked module/file mismatch; a controlled-runtime regression now exercises the actual subprocess path.
 
 ## Capability and acceptance blockers
 
@@ -53,3 +53,12 @@ Use the defect template with exact source/runtime evidence, scope and acceptance
 Do not call a source finding a measured exploit or a model-quality result. Record
 false alarms and rejected hypotheses as such. An issue closes only with its
 regression/evidence receipt, delivery SHA and any remaining limitation.
+
+## D01-D04 resolution checkpoint
+
+All four findings have implementations and regression evidence in the Studio
+branch, pending review/merge in PR #12. They remain inherited defects on the audited
+main runtime until delivery merges. See the [integrity receipt](checkpoints/2026-11-10-pipeline-integrity.md).
+The full Python suite passed 77 tests. Null metric compatibility, physical Delta E
+recalibration and the local container/client boundary are explicit in that receipt.
+No real inference, public service deployment or competitive quality was certified.

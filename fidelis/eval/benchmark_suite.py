@@ -69,8 +69,10 @@ class BenchmarkSuite:
 
     @staticmethod
     def compute_cielab_delta_e(img1: np.ndarray, img2: np.ndarray) -> float:
-        lab1 = cv2.cvtColor(img1, cv2.COLOR_RGB2LAB).astype(np.float32)
-        lab2 = cv2.cvtColor(img2, cv2.COLOR_RGB2LAB).astype(np.float32)
+        # Float RGB [0,1] produces physical L* [0,100], a*, b* units.
+        # uint8 Lab is encoded/scaled and is not a CIE76 coordinate system.
+        lab1 = cv2.cvtColor(img1.astype(np.float32) / 255.0, cv2.COLOR_RGB2LAB)
+        lab2 = cv2.cvtColor(img2.astype(np.float32) / 255.0, cv2.COLOR_RGB2LAB)
         # Euclidean distance in CIE L*a*b* color space
         delta = np.sqrt(np.sum((lab1 - lab2) ** 2, axis=2))
         return float(np.mean(delta))

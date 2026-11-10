@@ -11,7 +11,7 @@ This is a committed checkpoint, not a live status feed.
 | Studio code | `feat/region-aware-studio`, `5f32fba`, open PR #12 |
 | Project coordination | Linear Fidelis Studio, P-MEL-3; existing umbrella MEL-53 linked to GH #11 |
 | Product status | Engineering alpha; no GPU quality certificate or parity claim |
-| Documentation task | Repository handoff and Linear coordination setup; no next-gate runtime implementation |
+| Latest runtime work | D01-D04 implemented/tested in PR #12; pending review/merge |
 
 ## Implemented achievements
 
@@ -62,9 +62,17 @@ a material change in setup/evidence.
 
 ## Next work and checkpoint
 
-The owner requested this documentation/management setup before the next gate.
-No new model or paid inference is started here. Contributors can independently
-prepare corpus/weight provenance, fix documented core defects, implement scoped
-async work and native crop inspection. A real compatible worker/model is required
+Documentation/management setup is published. D01-D04 now have a regression-tested
+implementation in the Studio branch. No new model or paid inference was started.
+Contributors can independently prepare corpus/weight provenance and implement
+scoped async work and native crop inspection. A real compatible worker/model is required
 before F05/F06 live quality acceptance. Complete a checkpoint receipt for the next
 actual code or quality change and update its existing Linear issue.
+
+## Latest pipeline integrity delivery
+
+D01-D04 are implemented and fixture-tested on the Studio branch, pending PR #12
+review/merge. The latest full Python run passed **77 tests**. See the
+[2026-11-10 integrity receipt](checkpoints/2026-11-10-pipeline-integrity.md)
+for changes, compatibility requirements, verification and remaining live gates.
+Next independent work: F07-A asynchronous execution and F08-A native crop inspection.

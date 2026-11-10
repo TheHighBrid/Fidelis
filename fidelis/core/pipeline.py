@@ -1,7 +1,7 @@
-"""Precision super-resolution pipeline with OpenTelemetry span tracing and C2PA provenance.
+"""Precision super-resolution pipeline with span tracing and unsigned provenance.
 
 Wraps multi-stage image restoration (tiled super-resolution, text restoration,
-face pore preservation, wavelet color stabilization) with telemetry span tracing:
+face pore preservation, wavelet color stabilization) with telemetry span tracing and unsigned execution records:
 - Input image dimensions, format, and noise level profiling
 - Model profile tracking (realesrgan-x4plus, d2fk-v1, gfpgan_face, etc.)
 - Tile size, VRAM peak memory, and processing time per megapixel
@@ -32,7 +32,7 @@ import numpy as np
 from PIL import Image
 
 from fidelis.core.router import DegradationProfiler, SmartRouter
-from fidelis.eval.benchmark_suite import BenchmarkSuite
+from fidelis.eval.pipeline_metrics import measure_pipeline_metrics
 from fidelis.modules.face_restorer import FaceRestorer
 from fidelis.modules.text_restorer import TextRestorer
 from fidelis.postprocess.color_fix import stabilize_colors
@@ -92,7 +92,8 @@ class PipelineExecutionResult:
     c2pa_manifest: Dict[str, Any]
     exif_preserved: bool
     zero_black_tiles: bool
-    metrics: Dict[str, float] = field(default_factory=dict)
+    metrics: Dict[str, Optional[float]] = field(default_factory=dict)
+    metric_context: Dict[str, Any] = field(default_factory=dict)
     detected_artifacts: List[str] = field(default_factory=list)
     tile_execution: Dict[str, Any] = field(default_factory=dict)
     telemetry_posted: bool = False
@@ -145,11 +146,17 @@ def generate_c2pa_provenance(
     tile_size: int,
     output_sha256: str,
 ) -> Dict[str, Any]:
-    """Generate C2PA 1.3 standard assertion claim manifest."""
+    """Create an unsigned execution record; legacy name/path are retained for compatibility.
+
+    No signing or C2PA verification takes place here. The .c2pa.json suffix does
+    not make this sidecar a conformant signed C2PA manifest.
+    """
     input_sha256 = compute_sha256(input_path)
     claim = {
         "claim_generator": "Fidelis-Precision-Engine/2.0",
-        "format": "application/x-c2pa-manifest-1.3",
+        "format": "application/json",
+        "schema_version": 1,
+        "record_type": "unsigned_execution_record",
         "title": "Fidelis Super-Resolution & Photographic Enhancement",
         "assertions": [
             {
@@ -178,19 +185,33 @@ def generate_c2pa_provenance(
             },
         ],
         "signature_info": {
-            "status": "verified",
-            "issuer": "Fidelis Autonomous Improvement Authority",
+            "status": "unsigned",
+            "signed": False,
+            "issuer": None,
             "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         },
     }
 
-    # Write sidecar C2PA JSON provenance record
+    # Preserve the legacy filename, with explicit unsigned content and atomic write.
     sidecar_path = Path(output_path).with_suffix(Path(output_path).suffix + ".c2pa.json")
+    pending = None
+    claim['sidecar_written'] = True
     try:
-        with open(sidecar_path, "w", encoding="utf-8") as f:
-            json.dump(claim, f, indent=2)
-    except Exception as e:
-        logger.warning("Could not write C2PA sidecar manifest: %s", e)
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=sidecar_path.parent,
+                                         prefix=".fidelis-provenance-", suffix=".tmp", delete=False) as f:
+            pending = Path(f.name)
+            json.dump(claim, f, indent=2, allow_nan=False)
+        os.replace(pending, sidecar_path)
+        claim['sidecar_written'] = True
+    except OSError as error:
+        claim['sidecar_written'] = False
+        logger.warning("Could not write unsigned provenance sidecar: %s", error)
+    finally:
+        if pending is not None:
+            try:
+                pending.unlink(missing_ok=True)
+            except OSError as error:
+                logger.warning("Could not remove temporary provenance record: %s", error)
 
     return claim
 
@@ -271,6 +292,7 @@ class UpscalePipeline:
             "input_dimensions": [in_w, in_h],
             "input_format": in_format,
             "input_noise_level": round(noise_level, 3),
+            "noise_level": round(noise_level, 3),
             "model_profile": model_profile,
             "actual_model": actual_model,
             "scale": scale,
@@ -298,8 +320,6 @@ class UpscalePipeline:
 
             use_tiling = tiled and (in_w > tile_size or in_h > tile_size)
             if use_tiling:
-                from scripts import tiled_upscale as tu_module  # type: ignore
-                # Execute tiled upscale via internal function or script
                 self._run_tiled_upscale(
                     input_path=in_p,
                     output_path=step1_out,
@@ -431,24 +451,19 @@ class UpscalePipeline:
         # 7. Metrics & Artifact Evaluation
         src_cv = cv2.imread(str(in_p))
         sr_cv = cv2.imread(str(out_p))
-        psnr_val = 29.5
-        ssim_val = 0.89
-        lpips_val = 0.14
-        delta_e = 0.8
-        grad_coh = 92.0
+        ground_truth_cv = cv2.imread(str(ground_truth_path)) if ground_truth_path is not None else None
+        metrics, metric_context = measure_pipeline_metrics(
+            src_cv, sr_cv, ground_truth_bgr=ground_truth_cv,
+            ground_truth_requested=ground_truth_path is not None,
+        )
+        psnr_val, ssim_val = metrics['psnr'], metrics['ssim']
+        delta_e, grad_coh = metrics['cielab_delta_e'], metrics['gradient_coherence_pct']
         artifacts: List[str] = []
 
         if src_cv is not None and sr_cv is not None:
-            # Downscale super-resolved canvas to source dimensions for structural evaluation
             down_sr = cv2.resize(sr_cv, (in_w, in_h), interpolation=cv2.INTER_AREA)
-            psnr_val = round(BenchmarkSuite.compute_psnr(down_sr, src_cv), 2)
-            ssim_val = round(BenchmarkSuite.compute_ssim(down_sr, src_cv), 4)
-            delta_e = round(BenchmarkSuite.compute_cielab_delta_e(down_sr, src_cv), 2)
-            grad_coh = round(BenchmarkSuite.compute_gradient_coherence(down_sr, src_cv), 1)
-            lpips_val = max(0.01, round(1.0 - (grad_coh / 100.0), 3))
-
             # Artifact detection
-            if delta_e > 4.5:
+            if delta_e is not None and delta_e > 4.5:
                 artifacts.append("color_drift")
 
             g_src = cv2.cvtColor(src_cv, cv2.COLOR_BGR2GRAY)
@@ -465,7 +480,7 @@ class UpscalePipeline:
                 if lap_sr < 40.0:
                     artifacts.append("plastic_skin")
 
-            if has_text and ssim_val < 0.82:
+            if has_text and ssim_val is not None and ssim_val < 0.82:
                 artifacts.append("mutated_text")
 
         if not zero_black_tiles:
@@ -498,6 +513,8 @@ class UpscalePipeline:
             "vram_peak_mb": vram_peak_mb,
             "elapsed_ms": elapsed_ms,
             "processing_time_per_megapixel_ms": ms_per_mp,
+            "processing_time_per_megapixel": ms_per_mp,
+            "processing_time_unit": "ms",
             "megapixels": megapixels,
         }
 
@@ -507,14 +524,20 @@ class UpscalePipeline:
             "elapsed_ms": elapsed_ms,
             "megapixels": megapixels,
             "processing_time_per_megapixel_ms": ms_per_mp,
+            "processing_time_per_megapixel": ms_per_mp,
+            "processing_time_unit": "ms",
             "output_sha256": out_sha,
-            "c2pa_status": "verified",
+            "c2pa_status": "unsigned",
             "exif_preserved": exif_preserved,
             "zero_black_tiles": zero_black_tiles,
             "psnr": psnr_val,
             "ssim": ssim_val,
-            "lpips": lpips_val,
+            "lpips": None,
+            "lpips_proxy": None,
+            "gradient_distance_proxy": metrics["gradient_distance_proxy"],
             "cielab_delta_e": delta_e,
+            "metric_reference": metric_context["reference"],
+            "metric_measurement_status": metric_context["status"],
             "detected_artifacts": artifacts,
             "tile_strategy": tile_execution_record["tile_strategy"],
         })
@@ -540,6 +563,7 @@ class UpscalePipeline:
             "output_dimensions": [out_w, out_h],
             "scale": scale,
             "content_type": content_type,
+            "noise_level": round(noise_level, 3),
             "model_profile": model_profile,
             "actual_model": actual_model,
             "tile_size": tile_size,
@@ -549,13 +573,10 @@ class UpscalePipeline:
             "vram_peak_mb": vram_peak_mb,
             "elapsed_ms": elapsed_ms,
             "processing_time_per_megapixel_ms": ms_per_mp,
-            "metrics": {
-                "psnr": psnr_val,
-                "ssim": ssim_val,
-                "lpips": lpips_val,
-                "cielab_delta_e": delta_e,
-                "gradient_coherence_pct": grad_coh,
-            },
+            "processing_time_per_megapixel": ms_per_mp,
+            "processing_time_unit": "ms",
+            "metrics": metrics,
+            "metric_context": metric_context,
             "detected_artifacts": artifacts,
             "has_exif": has_exif,
             "exif_preserved": exif_preserved,
@@ -563,7 +584,7 @@ class UpscalePipeline:
             "has_nans": has_nans,
             "input_sha256": in_sha,
             "output_sha256": out_sha,
-            "c2pa_status": "verified",
+            "c2pa_status": "unsigned",
             "spans": [asdict(s) for s in spans],
         }
 
@@ -607,17 +628,12 @@ class UpscalePipeline:
             megapixels=megapixels,
             processing_time_per_megapixel_ms=ms_per_mp,
             output_sha256=out_sha,
-            c2pa_status="verified",
+            c2pa_status="unsigned",
             c2pa_manifest=c2pa_claim,
             exif_preserved=exif_preserved,
             zero_black_tiles=zero_black_tiles,
-            metrics={
-                "psnr": psnr_val,
-                "ssim": ssim_val,
-                "lpips": lpips_val,
-                "cielab_delta_e": delta_e,
-                "gradient_coherence_pct": grad_coh,
-            },
+            metrics=metrics,
+            metric_context=metric_context,
             detected_artifacts=artifacts,
             tile_execution=tile_execution_record,
             telemetry_posted=telemetry_posted,
@@ -645,7 +661,7 @@ class UpscalePipeline:
             method="POST",
         )
         try:
-            with urllib.request.urlopen(req, timeout=5.0) as resp:
+            with urllib.request.urlopen(req, timeout=2.0) as resp:
                 resp_text = resp.read().decode("utf-8")
                 try:
                     res_json = json.loads(resp_text)
@@ -703,6 +719,7 @@ class UpscalePipeline:
             "-t", str(tile_size),
             "--overlap", str(overlap),
             "--scale", str(scale),
+            "--cli-path", str(self.cli_path),
         ]
         res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         if res.returncode != 0:
