@@ -13,6 +13,7 @@ Features:
 
 import argparse
 import base64
+import binascii
 import html
 import http.server
 import io
@@ -28,7 +29,7 @@ import time
 import traceback
 import uuid
 from urllib.parse import parse_qs, urlparse
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CACHE_DIR = REPO_ROOT / ".cache" / "web_outputs"
@@ -69,6 +70,40 @@ try:
     HAS_FIDELIS = True
 except Exception as e:
     HAS_FIDELIS = False
+
+# Bound memory use before JSON parsing, image decoding, or model execution.
+MAX_REQUEST_BYTES = 32 * 1024 * 1024
+MAX_IMAGE_PIXELS = 16_000_000
+IMAGE_ENDPOINTS = {"/api/profile", "/api/upscale", "/api/compare", "/api/audition"}
+
+
+class UploadError(ValueError):
+    def __init__(self, message, status=400):
+        super().__init__(message)
+        self.status = status
+
+
+def decode_upload(data):
+    if not isinstance(data, dict) or not isinstance(data.get("image"), str):
+        raise UploadError("Provide an image as a base64 string.")
+    encoded = data["image"].split(",", 1)[-1]
+    try:
+        payload = base64.b64decode(encoded, validate=True)
+    except (ValueError, binascii.Error) as exc:
+        raise UploadError("The image contains invalid base64 data.") from exc
+    try:
+        with Image.open(io.BytesIO(payload)) as image:
+            if image.format not in {"JPEG", "PNG", "WEBP"}:
+                raise UploadError("Choose a JPEG, PNG, or WebP image.")
+            if image.width * image.height > MAX_IMAGE_PIXELS:
+                raise UploadError("The source image must be 16 megapixels or smaller.", 413)
+            image.verify()
+    except (Image.DecompressionBombError, Image.DecompressionBombWarning) as exc:
+        raise UploadError("The source image is too large.", 413) from exc
+    except (UnidentifiedImageError, OSError, SyntaxError) as exc:
+        raise UploadError("The uploaded file is not a valid image.") from exc
+    return payload
+
 
 def get_installed_models():
     cli = shutil.which("fidelis") or str(REPO_ROOT / "bin/fidelis")
@@ -127,7 +162,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
   }
   .workspace {
     display: grid;
-    grid-template-columns: 320px 1fr;
+    grid-template-columns: 320px minmax(0, 1fr);
     gap: 20px;
     flex: 1;
   }
@@ -322,6 +357,22 @@ HTML_PAGE = r"""<!DOCTYPE html>
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
   }
+  .viewer-panel, .sidebar { min-width: 0; }
+  .viewer-toolbar { flex-wrap: wrap; gap: 12px; }
+  .viewer-toolbar > div { flex-wrap: wrap; min-width: 0; }
+  .btn:disabled, .tool-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .split-slider { touch-action: none; }
+  .split-handle { width: 44px; height: 44px; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .processing-status { display: none; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+  @media (max-width: 600px) {
+    body { padding: 12px; }
+    .header { align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+    .header h1 { font-size: 20px; }
+    .viewport { min-height: 320px; }
+    .tool-btn, select { min-height: 44px; }
+    .metric-item { max-width: 100%; flex-wrap: wrap; overflow-wrap: anywhere; }
+  }
   @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
@@ -339,11 +390,11 @@ HTML_PAGE = r"""<!DOCTYPE html>
   <div class="sidebar">
     <div class="panel">
       <h3>1. Select Source Photo</h3>
-      <div class="dropzone" id="dropzone" onclick="document.getElementById('file-input').click()">
+      <div class="dropzone" id="dropzone" role="button" tabindex="0" aria-label="Choose source photo" onclick="document.getElementById('file-input').click()">
         <strong>Click or drop photo here</strong>
-        <p>JPG, PNG, WebP (high or low-res)</p>
+        <p>JPG, PNG, WebP · up to 16 MP / 23 MiB</p>
       </div>
-      <input type="file" id="file-input" style="display:none;" accept="image/*">
+      <input type="file" id="file-input" style="display:none;" accept="image/jpeg,image/png,image/webp">
       
       <div style="margin-top: 12px; font-size: 12px; color: var(--text-muted);">Or load standard evaluation crop:</div>
       <div class="sample-btns">
@@ -486,14 +537,19 @@ HTML_PAGE = r"""<!DOCTYPE html>
         <span id="badge-right" class="badge" style="background:#21262d; border:1px solid var(--border); font-size:11px; display:none;">Right: Output</span>
       </div>
       <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-        <button class="tool-btn active" onclick="setZoom('fit')">Fit</button>
-        <button class="tool-btn" onclick="setZoom('100')">100%</button>
-        <button class="tool-btn" onclick="setZoom('200')">200% Grid</button>
+        <button class="tool-btn active" data-zoom="fit" onclick="setZoom('fit')">Fit</button>
+        <button class="tool-btn" data-zoom="100" onclick="setZoom('100')">100%</button>
+        <button class="tool-btn" data-zoom="200" onclick="setZoom('200')">200% Grid</button>
         <button id="btn-download" class="tool-btn" style="display:none; background:#238636; color:#ffffff; font-weight:600; cursor:pointer;" onclick="downloadResultImage()">Download PNG</button>
         <a id="btn-open-tab" class="tool-btn" style="display:none; text-decoration: none; color: inherit;" target="_blank">View Full Image</a>
       </div>
     </div>
 
+    <div class="processing-status" id="processing-status" role="status" aria-live="polite">
+      <span id="processing-message"></span>
+      <span id="processing-elapsed" aria-hidden="true"></span>
+      <button class="tool-btn" onclick="showLoading(true)">Show details</button>
+    </div>
     <div class="viewport" id="viewport">
       <div class="loading-overlay" id="loading">
         <div class="spinner"></div>
@@ -510,7 +566,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
         <div class="split-before" id="split-before">
           <img id="img-before" alt="Source">
         </div>
-        <div class="split-slider" id="split-slider">
+        <div class="split-slider" id="split-slider" role="slider" tabindex="0" aria-label="Comparison split" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" aria-orientation="horizontal">
           <div class="split-handle">&#8646;</div>
         </div>
       </div>
@@ -533,10 +589,14 @@ HTML_PAGE = r"""<!DOCTYPE html>
 <script>
 let currentSourceData = null;
 let currentSourceFile = null;
-let isDraggingSlider = false;
+let sliderPointer = null;
+let splitPosition = 50;
+let isProcessing = false;
+let processingTimer = null;
 let currentCompareMode = 'single';
 
 function setCompareMode(mode) {
+  if (isProcessing) return;
   currentCompareMode = mode;
   document.getElementById('mode-single-btn').classList.toggle('active', mode === 'single');
   document.getElementById('mode-dual-btn').classList.toggle('active', mode === 'dual');
@@ -580,6 +640,12 @@ loadSelfImprovementStatus();
 
 // Drag and drop
 const dropzone = document.getElementById('dropzone');
+dropzone.addEventListener('keydown', e => {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    if (!isProcessing) document.getElementById('file-input').click();
+  }
+});
 ['dragenter', 'dragover'].forEach(name => {
   dropzone.addEventListener(name, e => { e.preventDefault(); dropzone.classList.add('dragover'); });
 });
@@ -596,13 +662,27 @@ document.getElementById('file-input').addEventListener('change', e => {
 });
 
 function handleFile(file) {
+  if (isProcessing) return;
+  if (!/\.(jpe?g|png|webp)$/i.test(file.name) ||
+      (file.type && !['image/jpeg', 'image/png', 'image/webp'].includes(file.type))) {
+    alert('Choose a JPEG, PNG, or WebP image.');
+    return;
+  }
+  // Base64 expands the image by one third; reserve room for JSON options.
+  if (file.size > 23 * 1024 * 1024) {
+    alert('Choose an image smaller than 23 MiB.');
+    return;
+  }
   currentSourceFile = file;
   const reader = new FileReader();
   reader.onload = ev => {
+    if (currentSourceFile !== file) return;
+    document.getElementById('profiler-panel').style.display = 'none';
     currentSourceData = ev.target.result;
     showSourcePreview(currentSourceData);
     profileImage(currentSourceData);
   };
+  reader.onerror = () => alert('The image could not be read.');
   reader.readAsDataURL(file);
 }
 
@@ -614,6 +694,7 @@ function profileImage(dataUrl) {
   })
   .then(r => r.json())
   .then(data => {
+    if (dataUrl !== currentSourceData) return;
     if (data.width) {
       document.getElementById('profiler-panel').style.display = 'block';
       document.getElementById('prof-dim').textContent = `${data.width}x${data.height} px`;
@@ -671,12 +752,19 @@ function onPresetChange() {
 }
 
 function loadSample(sampleName) {
+  if (isProcessing) return;
   fetch('/api/sample/' + sampleName).then(r => r.blob()).then(blob => {
     handleFile(new File([blob], sampleName, { type: "image/png" }));
   });
 }
 
 function showSourcePreview(b64) {
+  currentOutputBase64 = null;
+  currentDownloadUrl = null;
+  currentViewUrl = null;
+  document.getElementById('btn-download').style.display = 'none';
+  document.getElementById('btn-open-tab').style.display = 'none';
+  document.getElementById('metrics-bar').style.display = 'none';
   document.getElementById('empty-state').style.display = 'none';
   const box = document.getElementById('split-box');
   box.style.display = 'inline-block';
@@ -750,6 +838,7 @@ function downloadResultImage() {
 }
 
 function runUpscale() {
+  if (isProcessing) return;
   if (!currentSourceData) return alert('Please load an image first.');
   const preset = document.getElementById('preset-select').value;
   const model = document.getElementById('model-select').value;
@@ -765,7 +854,7 @@ function runUpscale() {
   const loadText = portrait
     ? `Flagship ${preset}: Restoring skin pores & facial fidelity (w=${fidelity.toFixed(2)})...`
     : `Flagship ${preset}: Enhancing via ${model}...`;
-  showLoading(true, loadText);
+  beginProcessing(loadText);
   fetch('/api/upscale', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -784,7 +873,7 @@ function runUpscale() {
     })
   }).then(async r => {
     const data = await r.json().catch(() => ({ error: 'Server error (HTTP ' + r.status + ')' }));
-    showLoading(false);
+    finishProcessing();
     if (!r.ok || data.error) return alert('Upscale failed: ' + (data.error || 'Unknown error'));
 
     const titlePrefix = portrait ? `Portrait Pore Engine (${preset})` : `${preset} - ${model}`;
@@ -839,12 +928,13 @@ function runUpscale() {
       }
     }
   }).catch(err => {
-    showLoading(false);
+    finishProcessing();
     alert('Network error connecting to Fidelis server: ' + err.message);
   });
 }
 
 function runCompare() {
+  if (isProcessing) return;
   if (!currentSourceData) return alert('Please load an image first.');
   const preset = document.getElementById('preset-select').value;
   const modelA = document.getElementById('model-a-select').value;
@@ -861,7 +951,7 @@ function runCompare() {
   const loadText = portrait
     ? `Comparing ${modelA} vs ${modelB} with pore restoration...`
     : `Comparing ${modelA} vs ${modelB}...`;
-  showLoading(true, loadText);
+  beginProcessing(loadText);
   fetch('/api/compare', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -881,7 +971,7 @@ function runCompare() {
     })
   }).then(async r => {
     const data = await r.json().catch(() => ({ error: 'Server error (HTTP ' + r.status + ')' }));
-    showLoading(false);
+    finishProcessing();
     if (!r.ok || data.error) return alert('Comparison failed: ' + (data.error || 'Unknown error'));
 
     document.getElementById('img-before').src = data.output_a;
@@ -938,28 +1028,26 @@ function runCompare() {
     ds.textContent = `A:${stA.split(' ')[0]} | B:${stB.split(' ')[0]}`;
     ds.className = 'status-pill ' + (stA.includes('PASS') && stB.includes('PASS') ? 'status-pass' : (stA.includes('FAIL') || stB.includes('FAIL') ? 'status-fail' : 'status-warn'));
   }).catch(err => {
-    showLoading(false);
+    finishProcessing();
     alert('Comparison network error: ' + err.message);
   });
 }
 
 function runAudition() {
+  if (isProcessing) return;
   if (!currentSourceData) return alert('Please load an image first.');
   const confirmed = confirm(
-    "Auditioning all 4 models will process this entire image across 4 different AI architectures sequentially.\n\n" +
-    "On high-resolution camera photos, this can take a few minutes.\n\n" +
-    "Tip: For instant (~3.7s) single-model enhancement, use the green 'Upscale 4x' button instead.\n\n" +
-    "Do you want to proceed with full audition?"
+    'Process this photo with every installed model? This can take several minutes, depending on image size and hardware.'
   );
   if (!confirmed) return;
-  showLoading(true, 'Auditioning all candidate models... You can dismiss this overlay while it processes.');
+  beginProcessing('Auditioning installed models. Processing time depends on image size and hardware.');
   fetch('/api/audition', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ image: currentSourceData })
   }).then(async r => {
     const data = await r.json().catch(() => ({ error: 'Server error (HTTP ' + r.status + ')' }));
-    showLoading(false);
+    finishProcessing();
     if (!r.ok || data.error) return alert('Audition failed: ' + (data.error || 'Unknown error'));
 
     if (data.report_url) {
@@ -970,19 +1058,20 @@ function runAudition() {
       alert('Audition complete.');
     }
   }).catch(err => {
-    showLoading(false);
+    finishProcessing();
     alert('Audition network error: ' + err.message);
   });
 }
 
 function runSelfImprovement() {
-  showLoading(true, 'Running autonomous self-improvement & calibration cycle across test buckets...');
+  if (isProcessing) return;
+  beginProcessing('Running calibration across evaluation images...');
   fetch('/api/self-improve/run', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' }
   }).then(async r => {
     const data = await r.json().catch(() => ({ error: 'Server error (HTTP ' + r.status + ')' }));
-    showLoading(false);
+    finishProcessing();
     if (!r.ok || data.error) return alert('Self-improvement failed: ' + (data.error || 'Unknown error'));
 
     loadSelfImprovementStatus();
@@ -990,7 +1079,7 @@ function runSelfImprovement() {
       window.open(data.report_url || '/results/experiments/self_improvement/self_improvement_report.html', '_blank');
     }
   }).catch(err => {
-    showLoading(false);
+    finishProcessing();
     alert('Self-improvement network error: ' + err.message);
   });
 }
@@ -1010,9 +1099,42 @@ function loadSelfImprovementStatus() {
 }
 
 function showLoading(show, text) {
-  const el = document.getElementById('loading');
-  el.style.display = show ? 'flex' : 'none';
+  document.getElementById('loading').style.display = show ? 'flex' : 'none';
   if (text) document.getElementById('loading-text').textContent = text;
+}
+
+function beginProcessing(text) {
+  isProcessing = true;
+  document.querySelectorAll('.sidebar button, .sidebar input, .sidebar select').forEach(el => {
+    el.dataset.wasDisabled = String(el.disabled);
+    el.disabled = true;
+  });
+  document.getElementById('dropzone').setAttribute('aria-disabled', 'true');
+  document.getElementById('viewport').setAttribute('aria-busy', 'true');
+  document.getElementById('processing-message').textContent = text;
+  document.getElementById('processing-status').style.display = 'block';
+  const started = Date.now();
+  const updateElapsed = () => {
+    const seconds = Math.floor((Date.now() - started) / 1000);
+    document.getElementById('processing-elapsed').textContent = ` · ${seconds}s elapsed`;
+  };
+  updateElapsed();
+  processingTimer = setInterval(updateElapsed, 1000);
+  showLoading(true, text);
+}
+
+function finishProcessing() {
+  clearInterval(processingTimer);
+  processingTimer = null;
+  isProcessing = false;
+  document.querySelectorAll('.sidebar button, .sidebar input, .sidebar select').forEach(el => {
+    el.disabled = el.dataset.wasDisabled === 'true';
+    delete el.dataset.wasDisabled;
+  });
+  document.getElementById('dropzone').setAttribute('aria-disabled', 'false');
+  document.getElementById('viewport').setAttribute('aria-busy', 'false');
+  document.getElementById('processing-status').style.display = 'none';
+  showLoading(false);
 }
 
 // Split slider logic
@@ -1021,28 +1143,54 @@ const splitBefore = document.getElementById('split-before');
 const splitSlider = document.getElementById('split-slider');
 
 function setSplitPosition(pct) {
-  splitBefore.style.width = pct + '%';
-  splitSlider.style.left = pct + '%';
+  splitPosition = Math.max(0, Math.min(100, pct));
+  splitBefore.style.width = splitPosition + '%';
+  splitSlider.style.left = splitPosition + '%';
+  splitSlider.setAttribute('aria-valuenow', String(Math.round(splitPosition)));
 }
 
-splitSlider.addEventListener('mousedown', () => isDraggingSlider = true);
-window.addEventListener('mouseup', () => isDraggingSlider = false);
-window.addEventListener('mousemove', e => {
-  if (!isDraggingSlider) return;
+function moveSplitPointer(e) {
   const rect = splitBox.getBoundingClientRect();
-  let x = e.clientX - rect.left;
-  let pct = Math.max(0, Math.min(100, (x / rect.width) * 100));
-  setSplitPosition(pct);
+  if (rect.width > 0) setSplitPosition((e.clientX - rect.left) / rect.width * 100);
+}
+
+splitSlider.addEventListener('pointerdown', e => {
+  if (sliderPointer !== null || (e.button !== undefined && e.button !== 0)) return;
+  e.preventDefault();
+  sliderPointer = e.pointerId;
+  splitSlider.setPointerCapture(e.pointerId);
+  moveSplitPointer(e);
+});
+splitSlider.addEventListener('pointermove', e => {
+  if (sliderPointer === e.pointerId) moveSplitPointer(e);
+});
+['pointerup', 'pointercancel', 'lostpointercapture'].forEach(name => {
+  splitSlider.addEventListener(name, e => {
+    if (sliderPointer === e.pointerId) sliderPointer = null;
+  });
+});
+splitSlider.addEventListener('keydown', e => {
+  const positions = {
+    ArrowLeft: splitPosition - 5, ArrowDown: splitPosition - 5,
+    ArrowRight: splitPosition + 5, ArrowUp: splitPosition + 5,
+    Home: 0, End: 100
+  };
+  if (Object.prototype.hasOwnProperty.call(positions, e.key)) {
+    e.preventDefault();
+    setSplitPosition(positions[e.key]);
+  }
 });
 
 function setZoom(mode) {
-  document.querySelectorAll('.viewer-toolbar .tool-btn').forEach(b => b.classList.remove('active'));
-  event.target.classList.add('active');
+  document.querySelectorAll('[data-zoom]').forEach(b => {
+    b.classList.toggle('active', b.dataset.zoom === mode);
+  });
   const vp = document.getElementById('viewport');
   vp.classList.remove('zoom-100', 'zoom-200');
   if (mode === '100') vp.classList.add('zoom-100');
   if (mode === '200') vp.classList.add('zoom-200');
 }
+
 </script>
 </body>
 </html>
@@ -1221,14 +1369,25 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
         url = urlparse(self.path)
         try:
-            content_len = int(self.headers.get("Content-Length", 0))
+            try:
+                content_len = int(self.headers.get("Content-Length", 0))
+            except ValueError as exc:
+                raise UploadError("Invalid Content-Length.") from exc
+            if content_len < 0 or (content_len == 0 and url.path != "/api/self-improve/run"):
+                raise UploadError("A JSON request body is required.")
+            if content_len > MAX_REQUEST_BYTES:
+                raise UploadError("The upload exceeds the 32 MiB request limit.", 413)
             body = self.rfile.read(content_len)
+            try:
+                data = json.loads(body.decode("utf-8")) if body else {}
+            except (ValueError, UnicodeError) as exc:
+                raise UploadError("The request body must be valid JSON.") from exc
+            if not isinstance(data, dict):
+                raise UploadError("The request body must be a JSON object.")
+            img_bytes = decode_upload(data) if url.path in IMAGE_ENDPOINTS else None
             cli = str(REPO_ROOT / "bin/fidelis") if (REPO_ROOT / "bin/fidelis").is_file() else (shutil.which("fidelis") or "fidelis")
 
             if url.path == "/api/profile":
-                data = json.loads(body.decode("utf-8"))
-                raw_b64 = data.get("image", "").split(",")[-1]
-                img_bytes = base64.b64decode(raw_b64)
                 arr = cv2.imdecode(np.frombuffer(img_bytes, dtype=np.uint8), cv2.IMREAD_COLOR)
                 if arr is None:
                     raise ValueError("Failed to decode uploaded image for profiling")
@@ -1256,8 +1415,6 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps(resp).encode("utf-8"))
 
             elif url.path == "/api/upscale":
-                data = json.loads(body.decode("utf-8"))
-                raw_b64 = data.get("image", "").split(",")[-1]
                 preset = data.get("preset", "Smart_Balanced")
                 model = data.get("model", "RealeSR-general-v3")
                 creativity = float(data.get("creativity", 0.50))
@@ -1272,7 +1429,7 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
                 with tempfile.TemporaryDirectory(prefix="fidelis_web_") as tmp:
                     in_p = Path(tmp) / "input.png"
                     out_p = Path(tmp) / "output.png"
-                    in_p.write_bytes(base64.b64decode(raw_b64))
+                    in_p.write_bytes(img_bytes)
 
                     elapsed_ms = execute_restoration(
                         cli, in_p, out_p, model,
@@ -1321,8 +1478,6 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
                     self.wfile.write(json.dumps(resp).encode("utf-8"))
 
             elif url.path == "/api/compare":
-                data = json.loads(body.decode("utf-8"))
-                raw_b64 = data.get("image", "").split(",")[-1]
                 preset = data.get("preset", "Smart_Balanced")
                 model_a = data.get("model_a", "RealeSR-general-v3")
                 model_b = data.get("model_b", "DF2K")
@@ -1339,7 +1494,7 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
                     in_p = Path(tmp) / "input.png"
                     out_a = Path(tmp) / "out_a.png"
                     out_b = Path(tmp) / "out_b.png"
-                    in_p.write_bytes(base64.b64decode(raw_b64))
+                    in_p.write_bytes(img_bytes)
 
                     elapsed_a = execute_restoration(
                         cli, in_p, out_a, model_a,
@@ -1413,15 +1568,13 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
                     self.wfile.write(json.dumps(resp).encode("utf-8"))
 
             elif url.path == "/api/audition":
-                data = json.loads(body.decode("utf-8"))
-                raw_b64 = data.get("image", "").split(",")[-1]
 
                 aud_dir = REPO_ROOT / "experiments/eval_crops/web_audition"
                 shutil.rmtree(aud_dir, ignore_errors=True)
                 aud_dir.mkdir(parents=True, exist_ok=True)
 
                 in_p = aud_dir / "web_input.png"
-                in_p.write_bytes(base64.b64decode(raw_b64))
+                in_p.write_bytes(img_bytes)
 
                 cmd = [cli, "audition", str(in_p), str(aud_dir)]
                 res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
@@ -1455,6 +1608,12 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
             else:
                 self.send_response(404)
                 self.end_headers()
+        except UploadError as e:
+            self.close_connection = True
+            self.send_response(e.status)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
         except Exception as e:
             traceback.print_exc()
             self.send_response(500)

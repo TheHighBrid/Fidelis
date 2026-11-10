@@ -123,8 +123,10 @@ Launch the zero-dependency browser studio running locally on `http://127.0.0.1:8
 - **Dual Comparison Modes**: Switch effortlessly between:
   - `Source vs Model`: Direct 4x upscaled comparison against the original source.
   - `Model vs Model`: Compare two models side-by-side (e.g. `RealeSR-general-v3` vs `DF2K`) with dual differential metrics.
-- **Drag-and-drop upload** for any JPEG, PNG, or WebP photo.
-- **Interactive before/after split slider** with real-time responsive dragging.
+- **Drag-and-drop upload** for JPEG, PNG, or WebP photos up to 16 megapixels and 23 MiB. Invalid files are rejected before processing, with a 32 MiB server request limit.
+- **Interactive before/after split slider** with touch, pen, mouse, and keyboard controls (arrow keys, Home, End).
+- **Processing feedback** keeps elapsed time visible when the overlay is dismissed and prevents duplicate jobs until the current request finishes.
+- **Responsive studio controls** wrap on narrow screens, with larger touch targets and keyboard upload access.
 - **100% and 200% native pixel zoom** for inspecting skin pores, fabric weave, and fine edge roll-off.
 - **Quality Inspection HUD**: Real-time evaluation of SSIM, PSNR, color drift, background restraint, edge shift, gradient coherence, and the **Fidelis Rule #1 drift badge** (`PASS (STABLE)`).
 
