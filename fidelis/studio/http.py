@@ -102,10 +102,11 @@ def dispatch(handler, workspace_root):
         return False
     try:
         _local_request(handler)
-        if url.path == "/regions" and handler.command == "GET":
-            content = (Path(__file__).with_name("studio.html")).read_bytes()
+        if url.path in ("/regions", "/api/regions/editor.js") and handler.command == "GET":
+            is_script = url.path.endswith(".js")
+            content = (Path(__file__).with_name("editor.js" if is_script else "studio.html")).read_bytes()
             handler.send_response(200)
-            handler.send_header("Content-Type", "text/html; charset=utf-8")
+            handler.send_header("Content-Type", "text/javascript; charset=utf-8" if is_script else "text/html; charset=utf-8")
             handler.send_header("Content-Length", str(len(content)))
             handler.send_header("Cache-Control", "no-store")
             handler.end_headers()
@@ -123,6 +124,20 @@ def dispatch(handler, workspace_root):
                                       "profiles": {name: asdict(blend) for name, blend in PROFILES.items()}})
             elif len(parts) == 4 and parts[:3] == ["api", "regions", "jobs"]:
                 _json(handler, 200, _public(store.get(parts[3])))
+            elif len(parts) == 5 and parts[:3] == ["api", "regions", "jobs"] and parts[4] == "mask-data":
+                query = parse_qs(url.query)
+                _json(handler, 200, store.mask_data(parts[3], int(query.get("revision", ["0"])[0])))
+            elif len(parts) == 5 and parts[:3] == ["api", "regions", "jobs"] and parts[4] == "mask-preview":
+                query = parse_qs(url.query)
+                array = store.mask_preview(parts[3], int(query.get("revision", ["0"])[0]))
+                encoded = io.BytesIO()
+                Image.fromarray(array).save(encoded, format="PNG")
+                handler.send_response(200)
+                handler.send_header("Content-Type", "image/png")
+                handler.send_header("Cache-Control", "no-store")
+                handler.send_header("Content-Length", str(encoded.tell()))
+                handler.end_headers()
+                handler.wfile.write(encoded.getvalue())
             elif len(parts) == 5 and parts[:3] == ["api", "regions", "jobs"] and parts[4] in ("preview", "export"):
                 query = parse_qs(url.query)
                 role = query.get("role", ["master"])[0]
@@ -165,7 +180,7 @@ def dispatch(handler, workspace_root):
                 raise ValueError("Request must be a JSON object")
             if parts == ["api", "regions", "jobs"]:
                 base, texture = _image(data["base"], store.max_pixels), _image(data["texture"], store.max_pixels)
-                masks = _masks(data["masks"], base.shape[:2])
+                masks = _masks(data["masks"], base.shape[:2]) if data.get("masks") else {}
                 profile = data.get("profile", "luxury_apparel")
                 if profile not in PROFILES:
                     raise ValueError("Unknown region profile")
@@ -177,7 +192,7 @@ def dispatch(handler, workspace_root):
                 if not isinstance(values, dict):
                     raise ValueError("A blend object is required")
                 manifest = store.reblend(parts[3], expected_revision=data.get("expected_revision"),
-                                         blend=RegionBlend(**values))
+                                         blend=RegionBlend(**values), strokes=data.get("strokes"))
                 _json(handler, 200, _public(manifest))
             elif len(parts) == 5 and parts[:3] == ["api", "regions", "jobs"] and parts[4] == "delete":
                 store.delete(parts[3])

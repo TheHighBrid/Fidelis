@@ -5,9 +5,10 @@ Updated 2026-11-10. Canonical scope and task definitions:
 
 ## Current milestone
 
-M0 foundation and F04 persistent artifacts implemented. F08 review/sliders/comparison
-UI started at `/regions`; brush editing is still planned. No new diffusion backend
-or automatic segmentation is claimed. Existing inference routes remain intact.
+M0 foundation and F04 persistent artifacts implemented. F08 brush/review controls
+are implemented at `/regions`; visual/device validation
+is still outstanding. The local ComfyUI adapter is protocol-tested but no live GPU
+inference or automatic segmentation is claimed. Existing inference routes remain intact.
 
 | Task | Status | Evidence / next deliverable |
 | --- | --- | --- |
@@ -15,10 +16,10 @@ or automatic segmentation is claimed. Existing inference routes remain intact.
 | F02 Region compositor | Complete | `fidelis/postprocess/regions.py`; explicit confidence, normalized overlap, linear-light blending, exact locks |
 | F03 File reblend and recipe | Complete | `scripts/reblend-regions.py`; verified PNG export, hashes and unsigned recipe; `REGION_REBLEND.md` |
 | F04 Artifact contracts and budget storage | Complete | SQLite versioned manifests, immutable checksummed disk artifacts, byte caps, stripe composition, restart/conflict/failure tests |
-| F05 Runtime/model registry audition | Next | Installed capability versus candidate distinction and base-model evidence |
-| F06 Pinned generation adapter | Planned | Live GPU/schema test required, mocks alone insufficient |
-| F07 Durable queue and reconciliation | Planned | Restart/cancel/ambiguous provider result checks |
-| F08 Region brush and reblend UI | In progress | Saved review at `/regions`, blend controls, comparison and export implemented; painting, undo/redo and visual device review remain |
+| F05 Runtime/model registry audition | In progress | `backend-doctor.py` audits checksums/runtime presence; candidates are absent here, so model audition remains pending |
+| F06 Pinned generation adapter | In progress | Local ComfyUI adapter and job/CLI integration implemented; HTTP protocol tests pass; live exported workflow/model validation still required |
+| F07 Durable queue and reconciliation | In progress | Generation run ledger, timeout resume and uncertain-submission reconciliation implemented; async worker/cancellation remain |
+| F08 Region brush and reblend UI | In progress | Protect/skin/hair/fabric painting, erase, undo/redo, preview zoom, revision saves implemented; browser visual/device acceptance remains |
 | F09 Segmentation audition | Planned | License clearance and annotated boundary evaluation |
 | F10 Structural ROI protection | Planned | Explicit logo/seam/hardware masks and drift screening |
 | F11 Colour-managed export | Planned | Alpha, ICC, precision path, export round-trip tests |
@@ -35,13 +36,15 @@ Environment: Linux x86_64, Python 3.12 project `.venv`, NumPy 2.3.5,
 OpenCV headless 5.0.0.93. No model weights or paid cloud inference used.
 
 - `.venv/bin/python -m unittest discover -s tests -p 'test_*.py' -v`:
-  **44 passed**, covering compositor/CLI, persistent job storage, concurrent revision
+  **62 passed**, covering compositor/CLI, persistent job storage, concurrent revision
   conflict, failed-render rollback, schema/checksum/budget validation, HTTP import/
   reopen/reblend/export, request isolation, malformed mask headers, existing tilers
-  and optional face-detector regressions.
+  and optional face-detector regressions. New tests also cover brush persistence and
+  browser/native raster parity, runtime integrity inventory, ComfyUI HTTP protocol
+  state handling and CLI cache reuse. Fixtures do not provide GPU quality evidence.
 - `PATH="$PWD/.venv/bin:$PATH" bash tests/smoke-test.sh`: passed.
 - Existing `tests/test-web-ui.sh` HTTP inference integration: passed.
-- Regional UI JavaScript `node --check`: passed.
+- Regional UI and standalone editor JavaScript `node --check`: passed.
 - `git diff --check`: passed.
 - New regional tests added to the existing Linux/macOS GitHub Actions matrix.
   Remote CI result is separate from these local results.
@@ -50,14 +53,18 @@ The new tests verify routing and exact pixel preservation, not realistic texture
 generation. No benchmark preference, M1/Android latency, or commercial parity
 results have been measured in this batch. The persistent store now composes disk mappings in bounded stripes and streams PNG
 export, but total-process memory including import decoding is not certified for
-8K on the M1. Inputs remain untagged 8-bit sRGB RGB PNGs with explicit NPZ masks.
+8K on the M1. Inputs remain untagged 8-bit sRGB RGB PNGs with imported or painted masks.
 Browser visual review was blocked by the browser-to-local-server connection; HTTP
 flow and JavaScript syntax verification succeeded. See `REGIONAL_WORKSPACE.md`.
 
 ## Next execution batch
 
-F05: audit installed model/runtime capabilities and pin one runnable texture
-backend through F06. Continue F08 with editable region masks and undo/redo against
-the persistent job/revision contracts. Real competitor outputs and production
+F05/F06: obtain a real GPU worker with an exported, compatible model workflow,
+verify installed model bytes/revisions and execute the golden-image audition.
+Complete browser/device acceptance for F08, then add F07 asynchronous execution
+and cancellation. Mask painting no longer requires an externally prepared NPZ. Real competitor
+outputs and production
 benchmark selection remain later evidence checkpoints. No paid calls or model
-quality certification were part of this batch.
+quality certification were part of this batch. The current executor has no PyTorch,
+NVIDIA tooling, NCNN runtime/candidate weights, ComfyUI worker or cloud keys. See
+`COMFY_TEXTURE_BACKEND.md` for the adapter contract and readiness evidence.

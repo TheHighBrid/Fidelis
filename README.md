@@ -16,8 +16,13 @@ pixels. It performs no new model inference or automatic segmentation.
 [Persistent regional review](docs/REGIONAL_WORKSPACE.md) is available at `/regions`
 in the existing web studio: import aligned passes/masks, reopen saved jobs, adjust
 regional blends, compare and export. Jobs use checksummed disk artifacts with
-revision conflict checks and configurable storage/composition limits. Brush editing
-and automatic masks remain planned.
+revision conflict checks and configurable storage/composition limits. Protect/skin/hair/fabric painting, erase, undo/redo and preview zoom are included.
+Automatic masks and live GPU quality validation remain outstanding.
+
+The optional [local ComfyUI texture bridge](docs/COMFY_TEXTURE_BACKEND.md) accepts a
+locally supplied exported workflow, validates available nodes and resumes saved
+submissions without automatically sending another run after a timeout. Its protocol
+is tested; generated image quality has not been certified.
 
 Fidelis currently has two deliberately separate lanes:
 

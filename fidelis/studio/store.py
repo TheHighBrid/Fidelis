@@ -18,6 +18,7 @@ import zlib
 import numpy as np
 
 from fidelis.postprocess.regions import PROFILES, RegionBlend, _mask, _rgb, compose_regions
+from fidelis.studio.brush import EDIT_FIELDS, apply_stripe, validate_strokes
 
 MASK_NAMES = {"skin", "hair", "fabric", "protected", "confidence", "edge_guard"}
 
@@ -224,7 +225,11 @@ class JobStore:
         with self._transaction() as db:
             return [json.loads(row[0]) for row in db.execute("SELECT manifest FROM jobs ORDER BY rowid DESC")]
 
-    def reblend(self, job_id, *, expected_revision, blend, masks=None):
+    def reblend(self, job_id, *, expected_revision, blend, masks=None, strokes=None):
+        if strokes is not None:
+            strokes = validate_strokes(strokes)
+        if strokes and masks is not None:
+            raise ValueError("Cannot replace masks and apply strokes in the same edit")
         if not isinstance(expected_revision, int):
             raise ValueError("expected_revision must be an integer")
         with self._transaction() as db:
@@ -243,6 +248,8 @@ class JobStore:
                 masks = {name: np.asarray(mask) for name, mask in masks.items()}
             estimate = height * width * 3 + 256
             estimate += sum(mask.size * 4 + 256 for mask in (masks or {}).values())
+            if strokes:
+                estimate += len(EDIT_FIELDS) * (height * width * 4 + 256)
             self._cleanup(db)
             self._check_budget(db, estimate)
             try:
@@ -251,9 +258,13 @@ class JobStore:
                     artifacts = {key: value for key, value in artifacts.items() if key not in MASK_NAMES}
                     for name, mask in masks.items():
                         artifacts[name] = self._save(np.asarray(mask, dtype=np.float32), "mask-0-1")
+                if strokes:
+                    artifacts.update(self._paint(artifacts, strokes))
                 artifacts["master"] = self._render(artifacts, blend)
                 manifest.update(revision=expected_revision + 1, blend=asdict(blend), artifacts=artifacts,
                                 updated_at=datetime.now(timezone.utc).isoformat())
+                if strokes:
+                    manifest["last_mask_edit"] = {"revision": expected_revision + 1, "strokes": strokes}
                 db.execute("UPDATE jobs SET manifest=? WHERE id=?", (json.dumps(manifest), job_id))
                 # Cleanup after UPDATE under the same transaction would delete old
                 # files needed if commit fails. Leave garbage for the next operation.
@@ -261,6 +272,98 @@ class JobStore:
             except BaseException:
                 self._cleanup(db)
                 raise
+
+    def replace_texture(self, job_id, texture, *, expected_revision, candidate_recipe):
+        texture = _rgb(texture, 'texture')
+        with self._transaction() as db:
+            manifest = self._read(db, job_id)
+            if manifest['revision'] != expected_revision:
+                raise RevisionConflict('Job changed while generation ran; generated texture remains available separately')
+            if manifest['profile'] == 'packshot_strict':
+                raise ValueError('Packshot Strict cannot accept a generated texture')
+            if list(texture.shape) != manifest['artifacts']['base']['shape']:
+                raise ValueError('Generated texture must use the exact base grid')
+            artifacts = manifest['artifacts'].copy()
+            for descriptor in artifacts.values():
+                self._array(descriptor, verify=True)
+            # Freeze JSON-compatible recipe before any files become visible.
+            recipe = json.loads(json.dumps(candidate_recipe, allow_nan=False))
+            self._cleanup(db)
+            self._check_budget(db, texture.nbytes * 2 + 512)
+            try:
+                artifacts['texture'] = self._save(texture, 'sRGB-uint8')
+                artifacts['master'] = self._render(artifacts, RegionBlend(**manifest['blend']))
+                manifest.update(revision=expected_revision+1, artifacts=artifacts, candidate_recipe=recipe,
+                                inference_executed=bool(recipe.get('inference_executed', False)),
+                                updated_at=datetime.now(timezone.utc).isoformat())
+                db.execute('UPDATE jobs SET manifest=? WHERE id=?', (json.dumps(manifest),job_id))
+                return manifest
+            except BaseException:
+                self._cleanup(db)
+                raise
+
+    def _paint(self, artifacts, strokes):
+        height, width = artifacts['base']['shape'][:2]
+        original = {name: self._array(artifacts[name]) for name in EDIT_FIELDS if name in artifacts}
+        paths = {name: self.root / 'artifacts' / f'{uuid.uuid4().hex}.npy' for name in EDIT_FIELDS}
+        outputs = {name: np.lib.format.open_memmap(path, mode='w+', dtype=np.float32,
+                                                  shape=(height, width)) for name, path in paths.items()}
+        try:
+            rows = self._rows(width)
+            for y in range(0, height, rows):
+                end = min(height, y + rows)
+                fields = {name: np.array(original[name][y:end], copy=True) if name in original else
+                          np.zeros((end-y, width), np.float32) for name in EDIT_FIELDS}
+                apply_stripe(fields, strokes, width, height, y, end)
+                for name, array in outputs.items():
+                    array[y:end] = fields[name]
+            for array in outputs.values():
+                array.flush()
+        finally:
+            outputs.clear()
+        return {name: asdict(ImageArtifact(str(path.relative_to(self.root)), sha256(path),
+                        [height, width], 'float32', 'mask-0-1', path.stat().st_size))
+                for name, path in paths.items()}
+
+    def mask_data(self, job_id, expected_revision, pixel_limit=1_000_000):
+        import base64
+        with self._transaction() as db:
+            manifest = self._read(db, job_id)
+            if manifest['revision'] != expected_revision:
+                raise RevisionConflict('Mask revision changed; reopen the job')
+            width, height = manifest['dimensions']
+            stride = max(1, int(np.ceil(np.sqrt(width * height / pixel_limit))))
+            shape = ((height + stride - 1)//stride, (width + stride - 1)//stride)
+            layers = {}
+            for name in ('skin', 'hair', 'fabric', 'protected'):
+                if name in manifest['artifacts']:
+                    mask = self._array(manifest['artifacts'][name], verify=True)[::stride, ::stride]
+                    encoded = np.clip(np.rint(mask * 255), 0, 255).astype(np.uint8).tobytes()
+                    layers[name] = base64.b64encode(encoded).decode('ascii')
+            return {'width': shape[1], 'height': shape[0], 'layers': layers}
+
+    def mask_preview(self, job_id, expected_revision, pixel_limit=1_000_000):
+        with self._transaction() as db:
+            manifest = self._read(db, job_id)
+            if manifest['revision'] != expected_revision:
+                raise RevisionConflict('Mask revision changed; reopen the job')
+            width, height = manifest['dimensions']
+            stride = max(1, int(np.ceil(np.sqrt(width * height / pixel_limit))))
+            shape = ((height + stride - 1)//stride, (width + stride - 1)//stride)
+            preview = np.zeros((*shape, 4), np.float32)
+            colors = {'skin': (239, 90, 90), 'hair': (241, 196, 80),
+                      'fabric': (91, 202, 132), 'protected': (92, 145, 255)}
+            for name, color in colors.items():
+                if name not in manifest['artifacts']:
+                    continue
+                mask = self._array(manifest['artifacts'][name], verify=True)[::stride, ::stride]
+                opacity = mask * .6
+                preview[...,:3] = preview[...,:3] * (1-opacity[...,None]) + np.array(color) * opacity[...,None]
+                preview[...,3] += (255 - preview[...,3]) * opacity
+            # Convert accumulated premultiplied RGB to straight alpha for PNG.
+            alpha = preview[...,3:4] / 255
+            preview[...,:3] = np.divide(preview[...,:3], alpha, out=np.zeros_like(preview[...,:3]), where=alpha > 0)
+            return np.clip(np.rint(preview), 0, 255).astype(np.uint8)
 
     def delete(self, job_id):
         with self._transaction() as db:

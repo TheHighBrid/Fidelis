@@ -52,7 +52,7 @@ class HttpTests(unittest.TestCase):
         with urlopen(req, timeout=5) as response:
             return response.status, response.read(), response.headers
 
-    def create(self, profile='luxury_apparel'):
+    def create(self, profile='luxury_apparel', with_masks=True):
         def encoded_image(arr):
             stream = io.BytesIO()
             Image.fromarray(arr).save(stream, format='PNG')
@@ -61,6 +61,8 @@ class HttpTests(unittest.TestCase):
         np.savez_compressed(stream, **self.masks)
         payload = dict(base=encoded_image(self.base), texture=encoded_image(self.texture),
                        masks=base64.b64encode(stream.getvalue()).decode(), profile=profile, label='Test job')
+        if not with_masks:
+            del payload['masks']
         status, body, _ = self.request('/api/regions/jobs', payload)
         self.assertEqual(status, 201)
         return json.loads(body)
@@ -85,6 +87,26 @@ class HttpTests(unittest.TestCase):
         self.assertIn(b'Regional Review', self.request('/regions')[1])
         self.assertEqual(self.request(path+'/delete',{})[0],200)
         self.assertEqual(json.loads(self.request('/api/regions/jobs')[1])['jobs'],[])
+
+    def test_paint_from_scratch_save_reopen_and_mask_data(self):
+        job = self.create(with_masks=False)
+        path = '/api/regions/jobs/'+job['id']
+        with Image.open(io.BytesIO(self.request(path+'/export')[1])) as image:
+            np.testing.assert_array_equal(np.array(image),self.base)
+        stroke = {'layer':'fabric','mode':'paint','radius':.4,'opacity':1,'hardness':1,
+                  'points':[[.3,.5],[.8,.5]]}
+        updated=json.loads(self.request(path+'/reblend', {'expected_revision':1,
+                          'blend':{'fabric':1,'skin':0,'hair':0},'strokes':[stroke]})[1])
+        self.assertEqual(updated['revision'],2)
+        masks=json.loads(self.request(path+'/mask-data?revision=2')[1])
+        fabric=np.frombuffer(base64.b64decode(masks['layers']['fabric']),dtype=np.uint8)
+        self.assertEqual(int(fabric.max()),255)
+        self.server.region_store=JobStore(self.temp.name)
+        self.assertEqual(json.loads(self.request(path)[1])['last_mask_edit']['strokes'][0]['layer'],'fabric')
+        with self.assertRaises(HTTPError) as caught:
+            self.request(path+'/mask-data?revision=1')
+        self.assertEqual(caught.exception.code,409)
+        self.assertIn(b'MaskHistory',self.request('/api/regions/editor.js')[1])
 
     def test_cross_origin_and_dns_rebinding_rejected(self):
         with self.assertRaises(PermissionError):

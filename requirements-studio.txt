@@ -1,0 +1,2 @@
+# Optional local ComfyUI bridge; base image dependencies are installed separately.
+httpx==0.28.1

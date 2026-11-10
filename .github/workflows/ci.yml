@@ -26,7 +26,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install test dependencies
-        run: python -m pip install --disable-pip-version-check pillow numpy scipy scikit-image opencv-python-headless pyyaml
+        run: python -m pip install --disable-pip-version-check pillow numpy scipy scikit-image opencv-python-headless pyyaml httpx==0.28.1
 
       - name: Static smoke tests
         run: bash tests/smoke-test.sh
@@ -60,6 +60,9 @@ jobs:
 
       - name: Region protection and reblend export tests
         run: python -m unittest discover -s tests -p 'test_region*.py'
+
+      - name: Local ComfyUI protocol and capability tests
+        run: python -m unittest discover -s tests -p 'test_comfy*.py'
 
       - name: CLI tiled upscaling integration tests
         run: python -m unittest discover -s tests -p 'test_tiled_upscale_cli.py'
