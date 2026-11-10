@@ -11,7 +11,7 @@ This is a committed checkpoint, not a live status feed.
 | Studio code | `feat/region-aware-studio`, open PR #12; latest delivery receipts below |
 | Project coordination | Linear Fidelis Studio, P-MEL-3; existing umbrella MEL-53 linked to GH #11 |
 | Product status | Engineering alpha; no GPU quality certificate or parity claim |
-| Latest runtime work | D01-D04, F07-A and F08-A implemented/tested in PR #12; pending review/merge |
+| Latest runtime work | D01-D04, F07-A, F08-A, F09, F12-A and F16 release readiness gate implemented/tested; pending review/merge |
 
 ## Implemented achievements
 
@@ -111,3 +111,14 @@ preserves manual masks/protection. **125 Python tests pass.** F09 remains partia
 no automatic segmentation model is configured or quality-qualified. See the
 [mask suggestion checkpoint](checkpoints/2026-11-10-mask-suggestions.md). Next: actual model/label/terms and ROI
 qualification, with browser/device and production corpus gates still open.
+
+## Production release readiness gate · 2026-11-10
+
+F16 (`MEL-68`) adds `fidelis/studio/release_readiness.py` and
+`scripts/audit-release-readiness.py` to audit `backlog.json` and release candidate
+manifests against `QUALITY_GATES.md` (`E1..E4` evidence classification, core task and
+defect closure, package SHA-256 verification, held-out quality acceptance, rollback
+readiness, and explicit owner signoff). **129 Python tests pass.** F16 remains partial
+(`E1_fixture_and_protocol_tested`) until upstream merges, live GPU qualification,
+60-case held-out quality acceptance, and owner release signoff complete. See the
+[release readiness checkpoint](checkpoints/2026-11-10-release-readiness.md).

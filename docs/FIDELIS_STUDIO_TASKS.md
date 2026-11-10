@@ -115,3 +115,14 @@ preserves manual masks/protection. **125 Python tests pass.** F09 remains partia
 no automatic segmentation model is configured or quality-qualified. See the
 [mask suggestion checkpoint](project/checkpoints/2026-11-10-mask-suggestions.md). Next: actual model/label/terms and ROI
 qualification, with browser/device and production corpus gates still open.
+
+## Production release readiness gate · 2026-11-10
+
+F16 (`MEL-68`) adds `fidelis/studio/release_readiness.py` and
+`scripts/audit-release-readiness.py` to audit `backlog.json` and release candidate
+manifests against `QUALITY_GATES.md` (`E1..E4` evidence classification, core task and
+defect closure, package SHA-256 verification, held-out quality acceptance, rollback
+readiness, and explicit owner signoff). **129 Python tests pass.** F16 remains partial
+(`E1_fixture_and_protocol_tested`) until upstream merges, live GPU qualification,
+60-case held-out quality acceptance, and owner release signoff complete. See the
+[release readiness checkpoint](project/checkpoints/2026-11-10-release-readiness.md).

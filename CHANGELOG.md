@@ -1,5 +1,9 @@
 # Fidelis Changelog
 
+## Unreleased production release readiness gate · 2026-11-10
+
+- Added `fidelis/studio/release_readiness.py` and `scripts/audit-release-readiness.py` (`F16` / `MEL-68`) to audit `docs/project/backlog.json` and release candidate manifests against `QUALITY_GATES.md` (`E1..E4` evidence classification, core task/defect closure, package SHA-256 verification, held-out quality acceptance, rollback readiness, and explicit owner creative/release signoff).
+
 ## Unreleased mask suggestion interface · 2026-11-10
 
 - Added source-bound class probability import, explicit label routing and conservative confidence/boundary gates.

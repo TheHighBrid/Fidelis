@@ -101,3 +101,5 @@ Imported [mask suggestions](../MASK_SUGGESTIONS.md) use optional `suggestion_*`
 artifacts and `mask_suggestion` review metadata in the existing manifest. Stage
 advances revision without changing active masks/master; accept performs a striped
 fill-only-unclassified merge. Model inference is a separate unqualified boundary.
+
+[Production release readiness](../RELEASE_READINESS.md) (`fidelis/studio/release_readiness.py` and `scripts/audit-release-readiness.py`) evaluates `backlog.json` and release manifests against `QUALITY_GATES.md`, blocking `E4_released` until core tasks (`F01..F15`), defects (`D01..D04`), package SHA-256 digests, held-out quality acceptance, rollback runbooks, and owner signoff are all verified.

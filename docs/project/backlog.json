@@ -338,8 +338,8 @@
       "id": "F16",
       "title": "Publish evidence-backed production release",
       "milestone": "M4",
-      "state": "Backlog",
-      "implementation": "not_started",
+      "state": "In Progress",
+      "implementation": "partial",
       "depends_on": [
         "F13",
         "F15"
@@ -347,7 +347,7 @@
       "role": "Release / product",
       "scope": "Close release gates and publish scope, evidence, known limits and rollback.",
       "acceptance": "Required quality/operational gates met, release SHA and packages linked, blocking defects closed, owner creative/release signoff recorded; merged is not automatically released.",
-      "evidence": "docs/project/QUALITY_GATES.md; CHANGELOG.md; release workflows",
+      "evidence": "fidelis/studio/release_readiness.py; scripts/audit-release-readiness.py; tests/test_release_readiness.py; docs/RELEASE_READINESS.md; docs/project/QUALITY_GATES.md (release dossier auditor verified at E1; live GPU, 60-case held-out acceptance, main merge, and owner signoff pending)",
       "priority": 2,
       "linear": {
         "id": "MEL-68",
@@ -643,6 +643,6 @@
       "linear_id": "fb26feb5-8122-40cb-a6e1-01a83b4f542c"
     }
   ],
-  "latest_checkpoint": "docs/project/checkpoints/2026-11-10-mask-suggestions.md",
-  "checkpoint_base_commit": "10a30950c93783729d0c051fa84e7effd74011dc"
+  "latest_checkpoint": "docs/project/checkpoints/2026-11-10-release-readiness.md",
+  "checkpoint_base_commit": "f84287993c9bc213dc47859b297a5a275381101d"
 }

@@ -36,6 +36,10 @@ the tracked module/file mismatch; a controlled-runtime regression now exercises 
   model is configured. Declared scores can be confidently wrong and nearest expansion
   is not fine matting. Segmentation labels do not inherently identify seams, logos or zipper teeth.
   Automatic masking remains a candidate, not a guaranteed structural guard.
+- F16 release readiness auditing (`test_release_readiness.py`) enforces `E1..E4` gate
+  checks and blocks premature release claims; the repository remains at
+  `E1_fixture_and_protocol_tested` until PR #12 and feature branches merge, live GPU
+  inference and 60-case held-out quality acceptance pass, and owner signoff is recorded.
 - Current inputs are untagged uint8 sRGB RGB PNGs. ICC/alpha/high-precision support
   is not established by the uint16 file container or old colour-fix claims.
 - Stripe allocation limits are not total-RSS measurements. Import decoding and
