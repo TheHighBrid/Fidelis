@@ -4,6 +4,15 @@ Fidelis is an image-restoration project for natural fashion and product photogra
 
 ## Project direction
 
+The [Fidelis Studio execution plan](docs/FIDELIS_STUDIO_PLAN.md) defines the
+region-aware enhancement roadmap, benchmark gates, cost corrections, and ordered
+implementation tasks. [Current task evidence](docs/FIDELIS_STUDIO_TASKS.md) tracks
+what is implemented versus planned. Competitive parity is not yet established.
+
+The first Studio component is available: [region reblending](docs/REGION_REBLEND.md)
+of supplied aligned passes with explicit masks and exact protection of locked base
+pixels. It performs no new model inference or automatic segmentation.
+
 Fidelis currently has two deliberately separate lanes:
 
 ### 1. ARM64 local runtime lane
