@@ -1,9 +1,8 @@
 # Source-bound mask suggestions
 
-This F09 interface accepts **imported class probabilities** and proposes editable
-masks. It does not ship, download or run a segmentation model. Automatic candidate
-selection, actual label/terms qualification and real collar/cuff/hair/product
-accuracy remain open. There is no skin-colour heuristic or guessed hardware class.
+Stage editable masks from imported class probabilities or run the optional local
+SegFormer B0 CLI. Production rights, collar/cuff/hair/product accuracy and
+target-device performance remain under review. [Local audition and setup](SEGFORMER_B0_AUDITION.md).
 
 ## Review in the editor
 
@@ -109,7 +108,7 @@ qualification of any setting.
 
 Use the actual revision returned by each operation. `discard` is a separate
 alternative to `accept`. The describe command supplies actual source binding;
-none of these commands generates probabilities or substitutes a missing model.
+the describe, stage, accept and discard operations use existing probabilities or staged state.
 
 ## Persistence and resource limits
 

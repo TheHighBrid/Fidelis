@@ -162,6 +162,19 @@ class SuggestionTests(unittest.TestCase):
         self.assertEqual(caught.exception.code,403)
         self.assertEqual(json.loads(self.fixture.request(path+'/accept-suggestion',{'expected_revision':2})[1])['revision'],3)
 
+    def test_local_propose_rejects_wrong_weights_without_staging(self):
+        weights = Path(self.fixture.temp.name) / "wrong.onnx"
+        weights.write_bytes(b"wrong weights")
+        cli = Path(__file__).resolve().parents[1] / "scripts/mask-suggestion.py"
+        result = subprocess.run(
+            [sys.executable, str(cli), "propose", "--workspace", self.fixture.temp.name,
+             "--job", self.job["id"], "--expected-revision", "1", "--weights", str(weights)],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("Weights do not match", result.stderr)
+        self.assertEqual(self.store.get(self.job["id"]), self.job)
+
     def test_cli_describe_stage_discard_preserves_source(self):
         root=Path(self.fixture.temp.name);scores=root/'scores.npz';scores.write_bytes(encode(probabilities()))
         meta=root/'receipt.json';meta.write_text(json.dumps(receipt(self.job)))

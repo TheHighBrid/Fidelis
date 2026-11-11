@@ -181,7 +181,7 @@
       "title": "Qualify confidence-gated automatic segmentation",
       "milestone": "M2",
       "state": "In Progress",
-      "implementation": "partial_imported_probability_review_interface_fixture_tested",
+      "implementation": "partial_pinned_b0_cpu_smoke_verified",
       "depends_on": [
         "F05",
         "F08"
@@ -189,7 +189,7 @@
       "role": "Vision / masks",
       "scope": "Suggest editable semantic masks using cleared actual model candidates.",
       "acceptance": "Actual labels and terms verified; annotated collars/cuffs/hair and product cases evaluated; unknown regions stay protected; full-resolution refinement fits measured resources.",
-      "evidence": "fidelis/studio/suggestions.py; store.py staging/review; scripts/mask-suggestion.py; tests/test_mask_suggestions.py; actual model/label/terms/ROI/resource qualification pending; docs/project/checkpoints/2026-11-10-mask-suggestions.md",
+      "evidence": "docs/SEGFORMER_B0_AUDITION.md; pinned model SHA and matching 18 labels; real photo proposal/accept smoke; patch and zipper spill; commercial rights, annotated ROI accuracy and target devices pending",
       "priority": 3,
       "linear": {
         "id": "MEL-62",
@@ -643,6 +643,6 @@
       "linear_id": "fb26feb5-8122-40cb-a6e1-01a83b4f542c"
     }
   ],
-  "latest_checkpoint": "docs/project/checkpoints/2026-11-10-mask-suggestions.md",
-  "checkpoint_base_commit": "10a30950c93783729d0c051fa84e7effd74011dc"
+  "latest_checkpoint": "docs/SEGFORMER_B0_AUDITION.md",
+  "checkpoint_base_commit": "f84287993c9bc213dc47859b297a5a275381101d"
 }

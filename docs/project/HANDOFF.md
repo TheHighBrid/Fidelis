@@ -97,3 +97,10 @@ preserves manual masks/protection. **125 Python tests pass.** F09 remains partia
 no automatic segmentation model is configured or quality-qualified. See the
 [mask suggestion checkpoint](checkpoints/2026-11-10-mask-suggestions.md). Next: actual model/label/terms and ROI
 qualification, with browser/device and production corpus gates still open.
+
+## Local SegFormer B0 audition · 2026-11-10
+
+F09 now has a pinned optional CPU runner and one live photo smoke test.
+The candidate proposed texture on patch and zipper ROIs. A manual patch lock
+preserved every locked pixel. Commercial rights, wider ROI accuracy and
+target-device performance remain open. See the [audition](../SEGFORMER_B0_AUDITION.md).
