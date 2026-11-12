@@ -115,3 +115,11 @@ preserves manual masks/protection. **125 Python tests pass.** F09 remains partia
 no automatic segmentation model is configured or quality-qualified. See the
 [mask suggestion checkpoint](project/checkpoints/2026-11-10-mask-suggestions.md). Next: actual model/label/terms and ROI
 qualification, with browser/device and production corpus gates still open.
+
+## Live-worker and workflow schema preflight · 2026-11-11
+
+F05-A adds explicit owner/access and zero-paid-spend policy validation, secret-safe
+endpoint/workflow redaction guards, and `/system_stats` + `/object_info` workflow
+schema/model-choice preflight (`fidelis/studio/worker_preflight.py`,
+`scripts/worker-preflight.py`). **132 Python tests pass.** See the
+[worker preflight checkpoint](project/checkpoints/2026-11-11-worker-preflight.md).

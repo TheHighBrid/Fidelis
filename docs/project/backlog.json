@@ -382,20 +382,21 @@
       "title": "Prepare a reproducible live-worker preflight",
       "parent": "F05",
       "milestone": "M1",
-      "state": "Backlog",
-      "implementation": "not_started",
+      "state": "In Progress",
+      "implementation": "partial_preflight_tooling_verified_live_worker_pending",
       "depends_on": [],
       "role": "Runtime / infrastructure",
       "scope": "Record an actual worker endpoint, device capability, exported workflow, runtime/node revisions and model availability without placing secrets in the repo.",
       "acceptance": "Doctor and workflow schema preflight run against a real reachable worker; resource owner/access and budget policy are explicit. Current executor has no worker.",
-      "evidence": "Blocked by unavailable worker/access, not by missing fixture code.",
+      "evidence": "config/worker-preflight-policy-v1.json; fidelis/studio/worker_preflight.py; scripts/worker-preflight.py; tests/test_worker_preflight.py; docs/WORKER_PREFLIGHT.md; docs/project/checkpoints/2026-11-11-worker-preflight.md; reachable live GPU worker still pending",
       "priority": 2,
       "linear": {
         "id": "MEL-76",
         "uuid": "f7bc181d-a71c-4dd0-b099-8d5854643423",
         "url": "https://linear.app/melato/issue/MEL-76/f05-a-prepare-a-reproducible-live-worker-preflight",
         "title": "F05-A \u00b7 Prepare a reproducible live-worker preflight"
-      }
+      },
+      "verification_checkpoint": "docs/project/checkpoints/2026-11-11-worker-preflight.md"
     },
     {
       "id": "F05-B",
@@ -643,6 +644,6 @@
       "linear_id": "fb26feb5-8122-40cb-a6e1-01a83b4f542c"
     }
   ],
-  "latest_checkpoint": "docs/SEGFORMER_B0_AUDITION.md",
-  "checkpoint_base_commit": "f84287993c9bc213dc47859b297a5a275381101d"
+  "latest_checkpoint": "docs/project/checkpoints/2026-11-11-worker-preflight.md",
+  "checkpoint_base_commit": "c4cf1bd2d110ddd634b8e78f7ae8cc7fb358b781"
 }

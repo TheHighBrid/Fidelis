@@ -37,7 +37,7 @@ The native CLI remains a separate, preserved lane rather than a hidden replaceme
 | HTTP/UI | `scripts/web-ui.py`, `fidelis/studio/http.py`, `studio.html` | Local review/edit/save/export | Visual/device acceptance pending |
 | Background generation | `fidelis/studio/generation.py`, optional server workflow | Durable bounded worker, scoped local cancel and same-run resume | Protocol-tested; no global GPU cancel; aggregate cache quota pending |
 | Texture bridge | `fidelis/studio/comfy.py`, `scripts/generate-texture.py` | Graph schema preflight, run ledger and polling | Fixture/protocol tested; no certified model graph |
-| Capabilities | `capabilities.py`, `scripts/backend-doctor.py` | Installed/checksummed versus declared | Availability is not quality certification |
+| Capabilities | `capabilities.py`, `worker_preflight.py`, `scripts/backend-doctor.py`, `scripts/worker-preflight.py` | Installed/checksummed versus declared; secret-safe worker/workflow schema preflight | Availability and schema preflight are not quality certification |
 | Evaluation | `fidelis/eval/`, experiments and scripts | Existing metrics/corpus tooling | Frozen production corpus/true perceptual evidence pending |
 
 ## Persisted and API contracts

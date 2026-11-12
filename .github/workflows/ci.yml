@@ -64,6 +64,9 @@ jobs:
       - name: Local ComfyUI protocol and capability tests
         run: python -m unittest discover -s tests -p 'test_comfy*.py'
 
+      - name: Reproducible live-worker and workflow schema preflight tests
+        run: python -m unittest discover -s tests -p 'test_worker_preflight.py'
+
       - name: Source-bound mask suggestion staging and protection tests
         run: python -m unittest discover -s tests -p 'test_mask_suggestions.py'
 

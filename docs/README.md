@@ -22,6 +22,7 @@ Operational references:
 - [Native pixel inspection](NATIVE_INSPECTION.md)
 - [Imported mask suggestions](MASK_SUGGESTIONS.md)
 - [ComfyUI texture adapter](COMFY_TEXTURE_BACKEND.md)
+- [Live-worker and workflow schema preflight](WORKER_PREFLIGHT.md)
 - [Background generation and recovery](ASYNC_GENERATION.md)
 - [Aligned-pass reblend CLI](REGION_REBLEND.md)
 - [Explicit benchmark corpus and freeze](BENCHMARK_CORPUS.md)

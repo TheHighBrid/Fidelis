@@ -1,5 +1,14 @@
 # Fidelis Changelog
 
+## Unreleased live-worker and workflow schema preflight · 2026-11-11
+
+- Added `config/worker-preflight-policy-v1.json`, `fidelis/studio/worker_preflight.py`, and `scripts/worker-preflight.py` (`F05-A` / `MEL-76`).
+- Enforced explicit owner/access metadata, loopback/SSH-tunnel endpoint constraints, zero paid remote spend, and secret-pattern rejection before emitting receipts.
+- Added exported ComfyUI workflow inspection against live `/object_info` (missing node classes, required inputs, and installed checkpoint/VAE/LoRA choices).
+- Recorded 132 passing Python tests, HTTP/static smoke, and editor syntax checks.
+- See [worker preflight receipt](docs/project/checkpoints/2026-11-11-worker-preflight.md).
+
+
 ## Unreleased mask suggestion interface · 2026-11-10
 
 - Added source-bound class probability import, explicit label routing and conservative confidence/boundary gates.

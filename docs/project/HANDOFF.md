@@ -104,3 +104,13 @@ F09 now has a pinned optional CPU runner and one live photo smoke test.
 The candidate proposed texture on patch and zipper ROIs. A manual patch lock
 preserved every locked pixel. Commercial rights, wider ROI accuracy and
 target-device performance remain open. See the [audition](../SEGFORMER_B0_AUDITION.md).
+
+## Live-worker and workflow schema preflight · 2026-11-11
+
+F05-A adds explicit loopback/SSH-tunnel access and zero-paid-spend budget policy
+validation (`config/worker-preflight-policy-v1.json`), secret-safe workflow/receipt
+verification, and live `/system_stats` + `/object_info` node/checkpoint preflight.
+**132 Python tests pass.** See the
+[worker preflight checkpoint](checkpoints/2026-11-11-worker-preflight.md). Next: run
+`scripts/worker-preflight.py --workflow <bundle.json> --require-qualified` against the
+target GPU worker before F05/F06 live inference audition.
