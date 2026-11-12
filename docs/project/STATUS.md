@@ -118,3 +118,10 @@ F09 now has a pinned optional CPU runner and one live photo smoke test.
 The candidate proposed texture on patch and zipper ROIs. A manual patch lock
 preserved every locked pixel. Commercial rights, wider ROI accuracy and
 target-device performance remain open. See the [audition](../SEGFORMER_B0_AUDITION.md).
+
+## Structural ROI locks and screening · 2026-11-12
+
+F10 now supports revision-bound rectangle locks and read-only structural reports.
+The CPU photo replay preserved all 6,461 locked patch and zipper pixels exactly.
+Every pixel outside the locks matched the prior master. Automatic detail detection
+and production-corpus validation remain open. See [structural ROIs](../STRUCTURAL_ROIS.md).

@@ -20,6 +20,8 @@ import numpy as np
 from fidelis.postprocess.regions import PROFILES, RegionBlend, _mask, _rgb, compose_regions
 from fidelis.studio.brush import EDIT_FIELDS, apply_stripe, validate_strokes
 
+from fidelis.studio.structure import measure_region, validate_regions
+
 MASK_NAMES = {"skin", "hair", "fabric", "protected", "confidence", "edge_guard"}
 
 
@@ -225,7 +227,9 @@ class JobStore:
         with self._transaction() as db:
             return [json.loads(row[0]) for row in db.execute("SELECT manifest FROM jobs ORDER BY rowid DESC")]
 
-    def reblend(self, job_id, *, expected_revision, blend, masks=None, strokes=None):
+    def reblend(self, job_id, *, expected_revision, blend, masks=None, strokes=None, lock_regions=None):
+        if lock_regions is not None and (masks is not None or strokes is not None):
+            raise ValueError("Apply structural locks in a separate revision")
         if strokes is not None:
             strokes = validate_strokes(strokes)
         if strokes and masks is not None:
@@ -246,7 +250,11 @@ class JobStore:
             if masks is not None:
                 self._validate_masks(masks, (height, width))
                 masks = {name: np.asarray(mask) for name, mask in masks.items()}
+            if lock_regions is not None:
+                lock_regions = validate_regions(lock_regions, width, height)
             estimate = height * width * 3 + 256
+            if lock_regions:
+                estimate += height * width * 4 + 256
             estimate += sum(mask.size * 4 + 256 for mask in (masks or {}).values())
             if strokes:
                 estimate += len(EDIT_FIELDS) * (height * width * 4 + 256)
@@ -260,9 +268,15 @@ class JobStore:
                         artifacts[name] = self._save(np.asarray(mask, dtype=np.float32), "mask-0-1")
                 if strokes:
                     artifacts.update(self._paint(artifacts, strokes))
+                if lock_regions:
+                    artifacts["protected"] = self._lock_regions(artifacts, lock_regions, width, height)
                 artifacts["master"] = self._render(artifacts, blend)
                 manifest.update(revision=expected_revision + 1, blend=asdict(blend), artifacts=artifacts,
                                 updated_at=datetime.now(timezone.utc).isoformat())
+                if lock_regions:
+                    manifest["last_structural_lock"] = {
+                        "revision": expected_revision + 1, "rectangles": lock_regions,
+                    }
                 if strokes:
                     manifest["last_mask_edit"] = {"revision": expected_revision + 1, "strokes": strokes}
                 db.execute("UPDATE jobs SET manifest=? WHERE id=?", (json.dumps(manifest), job_id))
@@ -393,6 +407,48 @@ class JobStore:
         return {('' if merge else 'suggestion_')+name:asdict(ImageArtifact(
                         str(path.relative_to(self.root)),sha256(path),[height,width],
                         'float32','mask-0-1',path.stat().st_size)) for name,path in paths.items()}
+
+    def inspect_structure(self, job_id, *, expected_revision, regions, target):
+        if target not in ("texture", "master"):
+            raise ValueError("Compare the saved base with texture or master")
+        with self._transaction() as db:
+            job = self._read(db, job_id)
+            if job["revision"] != expected_revision:
+                raise RevisionConflict("Job changed; reload the current revision before inspecting")
+            artifacts = job["artifacts"]
+            base = self._array(artifacts["base"], verify=True)
+            candidate = self._array(artifacts[target], verify=True)
+            if candidate.shape != base.shape:
+                raise ValueError("Comparison requires the exact saved base grid")
+            height, width = base.shape[:2]
+            regions = validate_regions(regions, width, height)
+            return {
+                "id": job_id,
+                "revision": expected_revision,
+                "base_sha256": artifacts["base"]["sha256"],
+                "target": target,
+                "target_sha256": artifacts[target]["sha256"],
+                "regions": [measure_region(base, candidate, box, self._rows(width)) for box in regions],
+            }
+
+    def _lock_regions(self, artifacts, regions, width, height):
+        previous = self._array(artifacts["protected"]) if "protected" in artifacts else None
+        path = self.root / "artifacts" / f"{uuid.uuid4().hex}.npy"
+        output = np.lib.format.open_memmap(path, mode="w+", dtype=np.float32, shape=(height, width))
+        try:
+            rows = self._rows(width)
+            for start in range(0, height, rows):
+                end = min(start + rows, height)
+                output[start:end] = previous[start:end] if previous is not None else 0
+                for x, y, w, h in regions:
+                    top, bottom = max(start, y), min(end, y + h)
+                    if top < bottom:
+                        output[top:bottom, x:x + w] = 1.0
+            output.flush()
+        finally:
+            del output
+        return asdict(ImageArtifact(str(path.relative_to(self.root)), sha256(path),
+                                    [height, width], "float32", "mask-0-1", path.stat().st_size))
 
     def _paint(self, artifacts, strokes):
         height, width = artifacts['base']['shape'][:2]

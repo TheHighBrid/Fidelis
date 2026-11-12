@@ -203,8 +203,8 @@
       "id": "F10",
       "title": "Protect structural ROIs and screen internal drift",
       "milestone": "M2",
-      "state": "Backlog",
-      "implementation": "not_started",
+      "state": "In Progress",
+      "implementation": "partial_explicit_roi_locks_photo_replay_verified",
       "depends_on": [
         "F06",
         "F09"
@@ -212,7 +212,7 @@
       "role": "Vision / fidelity",
       "scope": "Detect or explicitly route logos, seams, zipper/hardware and geometry-sensitive ROIs.",
       "acceptance": "Critical ROI corpus shows no confirmed construction/text/identity mutations; Sobel is a heuristic, not semantic proof; explicit overrides always win.",
-      "evidence": "fidelis/studio/brush.py; docs/project/QUALITY_GATES.md",
+      "evidence": "docs/STRUCTURAL_ROIS.md; patch and zipper locks preserve 6461 pixels; internal edge shift fixture; production corpus and automatic detail detection pending",
       "priority": 3,
       "linear": {
         "id": "MEL-64",
@@ -643,6 +643,6 @@
       "linear_id": "fb26feb5-8122-40cb-a6e1-01a83b4f542c"
     }
   ],
-  "latest_checkpoint": "docs/SEGFORMER_B0_AUDITION.md",
-  "checkpoint_base_commit": "f84287993c9bc213dc47859b297a5a275381101d"
+  "latest_checkpoint": "docs/STRUCTURAL_ROIS.md",
+  "checkpoint_base_commit": "c4cf1bd2d110ddd634b8e78f7ae8cc7fb358b781"
 }

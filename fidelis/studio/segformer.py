@@ -42,6 +42,7 @@ def propose(store, job_id, expected_revision, weights):
     except ImportError as error:
         raise ValueError("Install the optional onnxruntime package for local inference") from error
 
+    ort.disable_telemetry_events()
     options = ort.SessionOptions()
     options.intra_op_num_threads = 2
     options.inter_op_num_threads = 1
