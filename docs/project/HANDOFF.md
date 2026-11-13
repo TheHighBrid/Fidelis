@@ -117,3 +117,8 @@ and production-corpus validation remain open. See [structural ROIs](../STRUCTURA
 The [export checkpoint](checkpoints/2026-11-13-export-and-review.md) covers
 RGB16/alpha CLI reblending, saved batch export and the PR review fixes.
 F11 and F14 remain in progress for browser and live-worker acceptance.
+
+Studio now also offers a 16-bit download from a saved revision. It recomputes
+the linear-light blend directly from the stored passes and masks in bounded
+stripes. See [master export](../STUDIO_EXPORT.md). Managed browser ingest and
+target-device colour acceptance remain open.

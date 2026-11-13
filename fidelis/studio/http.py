@@ -176,15 +176,25 @@ def dispatch(handler, workspace_root):
                 role = query.get("role", ["master"])[0]
                 if role not in ("base", "texture", "master"):
                     raise ValueError("Unsupported image role")
-                # Successful validation and decode occur before sending status 200.
-                with store.open_array(parts[3], role, expected_revision=(
-                        int(query["revision"][0]) if "revision" in query else None)) as array:
+                depth = query.get("depth", ["8"])
+                if depth not in (["8"], ["16"]):
+                    raise ValueError("Export depth must be 8 or 16")
+                revision = int(query["revision"][0]) if "revision" in query else None
+                if depth == ["16"]:
+                    if parts[4] != "export" or role != "master" or not revision or revision < 1:
+                        raise ValueError("16-bit export requires a saved master revision")
+                    opened = store.open_master16(parts[3], revision)
+                else:
+                    opened = store.open_array(parts[3], role, expected_revision=revision)
+                # Successful validation and composition occur before status 200.
+                with opened as array:
                     handler.send_response(200)
                     handler.send_header("Content-Type", "image/png")
                     handler.send_header("Cache-Control", "no-store")
                     handler.send_header("X-Content-Type-Options", "nosniff")
                     if parts[4] == "export":
-                        handler.send_header("Content-Disposition", 'attachment; filename="fidelis_master.png"')
+                        filename = "fidelis_master_16bit.png" if depth == ["16"] else "fidelis_master.png"
+                        handler.send_header("Content-Disposition", f'attachment; filename="{filename}"')
                         handler.end_headers()
                         write_rgb_png(array, handler.wfile)
                     else:

@@ -39,3 +39,8 @@ permissions and device availability determine elapsed time for the quality lane.
 suite, editor/inspector syntax checks and `git diff --check`. The corpus audit
 reports eight regression assets and zero eligible production cases out of 60.
 The browser connection attempt did not reach the loopback Studio.
+
+The follow-up adds the saved-revision 16-bit Studio download and runs batch
+recovery tests in CI. Its full local suite passed 137 tests, plus HTTP, smoke,
+inspector DOM and offline packaging checks. The 16-bit HTTP test independently
+decodes the master, verifies protected samples and rejects stale revisions.

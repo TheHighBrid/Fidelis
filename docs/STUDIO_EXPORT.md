@@ -24,8 +24,12 @@ recipe records both input depths, any profile conversions, alpha handling and
 the verified output hash. Each export is decoded and checked against the computed
 pixel array before publication.
 
-Studio's browser editor and ComfyUI transport continue to use RGB8. The CLI
-accepts the additional PNG modes above. The CLI loads the full pass into memory.
+Studio's browser editor and ComfyUI transport use RGB8 inputs. The editor's
+**Download 16-bit PNG** option recomputes the saved masks and blend at higher
+precision in stripes, preserving locked pixels at their exact normalized
+values. Save changes before downloading. The rendering requires temporary disk
+space within the configured Studio budget. Use the CLI for alpha, ICC conversion
+or 16-bit inputs. The CLI loads the full pass into memory.
 Measure peak memory on the target machine before using large 16-bit jobs in production.
 
 ## Export a group of saved Studio jobs

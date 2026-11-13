@@ -11,6 +11,7 @@ import json
 from pathlib import Path
 import re
 import sqlite3
+from tempfile import TemporaryFile
 import uuid
 
 import numpy as np
@@ -201,22 +202,48 @@ class JobStore:
             raise BudgetExceeded("Composition workspace cannot fit one scanline")
         return min(256, rows)
 
+    def _render_into(self, artifacts, blend, output, *, verify=False):
+        base = self._array(artifacts["base"], verify=verify)
+        texture = self._array(artifacts["texture"], verify=verify)
+        masks = {name: self._array(artifacts[name], verify=verify)
+                 for name in MASK_NAMES if name in artifacts}
+        rows = self._rows(base.shape[1])
+        for y in range(0, base.shape[0], rows):
+            stripe = slice(y, y + rows)
+            output[stripe], _ = compose_regions(
+                base[stripe], texture[stripe], blend=blend, output_dtype=output.dtype,
+                **{name: mask[stripe] for name, mask in masks.items()})
+        output.flush()
+
     def _render(self, artifacts, blend):
-        base, texture = self._array(artifacts["base"]), self._array(artifacts["texture"])
-        masks = {name: self._array(artifacts[name]) for name in MASK_NAMES if name in artifacts}
+        shape = artifacts["base"]["shape"]
         path = self.root / "artifacts" / f"{uuid.uuid4().hex}.npy"
-        output = np.lib.format.open_memmap(path, mode="w+", dtype=np.uint8, shape=base.shape)
+        output = np.lib.format.open_memmap(path, mode="w+", dtype=np.uint8, shape=tuple(shape))
         try:
-            rows = self._rows(base.shape[1])
-            for y in range(0, base.shape[0], rows):
-                stripe = slice(y, y + rows)
-                output[stripe], _ = compose_regions(base[stripe], texture[stripe], blend=blend,
-                                                    **{name: mask[stripe] for name, mask in masks.items()})
-            output.flush()
+            self._render_into(artifacts, blend, output)
         finally:
             del output
         return asdict(ImageArtifact(str(path.relative_to(self.root)), sha256(path),
-                                    list(base.shape), "uint8", "sRGB-uint8", path.stat().st_size))
+                                    shape, "uint8", "sRGB-uint8", path.stat().st_size))
+
+    @contextmanager
+    def open_master16(self, job_id, expected_revision):
+        """Recompose a saved revision at 16 bits with bounded stripe allocations."""
+        with self._transaction() as db:
+            manifest = self._read(db, job_id)
+            if manifest["revision"] != expected_revision:
+                raise RevisionConflict("Image revision changed; reopen the current job")
+            artifacts = manifest["artifacts"]
+            shape = tuple(artifacts["base"]["shape"])
+            self._cleanup(db)
+            self._check_budget(db, int(np.prod(shape)) * 2)
+            with TemporaryFile(dir=self.root) as temp:
+                output = np.memmap(temp, mode="w+", dtype=np.uint16, shape=shape)
+                try:
+                    self._render_into(artifacts, RegionBlend(**manifest["blend"]), output, verify=True)
+                    yield output
+                finally:
+                    del output
 
     def get(self, job_id):
         with self._transaction() as db:

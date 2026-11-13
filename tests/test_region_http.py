@@ -88,6 +88,23 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(self.request(path+'/delete',{})[0],200)
         self.assertEqual(json.loads(self.request('/api/regions/jobs')[1])['jobs'],[])
 
+    def test_native_precision_export_recomposes_saved_revision(self):
+        import cv2
+
+        job = self.create()
+        path = "/api/regions/jobs/" + job["id"] + "/export"
+        _, png, headers = self.request(path + "?revision=1&depth=16")
+        self.assertIn("16bit", headers["Content-Disposition"])
+        actual = cv2.imdecode(np.frombuffer(png, np.uint8), cv2.IMREAD_UNCHANGED)[:, :, ::-1]
+        self.assertEqual(actual.dtype, np.uint16)
+        np.testing.assert_array_equal(actual[:, :4], self.base[:, :4].astype(np.uint16) * 257)
+        self.assertTrue(np.any(actual[:, 4:] % 257))
+        for query, code in (("?revision=2&depth=16", 409), ("?depth=16", 400),
+                            ("?revision=1&depth=16&role=base", 400)):
+            with self.assertRaises(HTTPError) as error:
+                self.request(path + query)
+            self.assertEqual(error.exception.code, code)
+
     def test_structural_crop_lock_preserves_pixels_and_rejects_stale_revision(self):
         job = self.create()
         path = "/api/regions/jobs/" + job["id"]
