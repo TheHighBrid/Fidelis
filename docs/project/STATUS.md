@@ -125,3 +125,7 @@ F10 now supports revision-bound rectangle locks and read-only structural reports
 The CPU photo replay preserved all 6,461 locked patch and zipper pixels exactly.
 Every pixel outside the locks matched the prior master. Automatic detail detection
 and production-corpus validation remain open. See [structural ROIs](../STRUCTURAL_ROIS.md).
+
+## Studio structural controls · 2026-11-13
+
+The native inspector can check the displayed crop for pixel and strong-edge changes and commit a rectangular lock. It reloads the crop on the new revision. See [Studio crop locks](../STRUCTURAL_ROIS.md#lock-a-crop-in-studio).

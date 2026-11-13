@@ -45,6 +45,11 @@ function finish(images){for(const image of images){const params=new URL(image.ur
  assert.equal(images[1].style.clipPath,'inset(0 50% 0 0)');
  assert.equal(elements.get('nativePair').style.width,'256px');
  assert.equal(run('history.done.length'),1);assert.equal(run('dirtyBlend'),true);
+ assert.equal(elements.get('checkNativeStructure').disabled,false);
+ assert.equal(elements.get('lockNativeStructure').disabled,true);
+ await elements.get('lockNativeStructure').onclick();
+ assert.match(elements.get('error').textContent,/Save or discard unsaved edits/);
+
  elements.get('nativeZoom').value='2';elements.get('nativeZoom').onchange();
  assert.equal(elements.get('nativePair').style.width,'512px');assert.equal(images[0].style.width,'512px');assert.equal(images[1].style.width,'512px');
  elements.get('nativeSplit').value='25';elements.get('nativeSplit').oninput();assert.equal(images[1].style.clipPath,'inset(0 75% 0 0)');
@@ -68,5 +73,26 @@ function finish(images){for(const image of images){const params=new URL(image.ur
  run('current.revision=3;controls()');assert.equal(elements.get('acceptSuggestion').disabled,true);assert.equal(elements.get('discardSuggestion').disabled,false);
  elements.get('paintMode').value='paint';elements.get('paintMode').handlers.change();
  assert.equal(elements.get('suggestionOverlay').hidden,true);
+ // A successful lock uses the displayed crop and reloads it on the new revision.
+ run("current.mask_suggestion=null; $('nativeRole').value='texture';");
+ elements.get('inspectNative').onclick();
+ finish(pending.slice(-2));await flush();
+ const structureRequests=[];
+ context.fetch=async(path,options)=>{
+  structureRequests.push([path, options.body && JSON.parse(options.body)]);
+  const payload=path.endsWith('/inspect-structure')?{regions:[{changed_pixels:4,pixels:96,strong_edge_disagreements:1}]}:
+   path.endsWith('/lock-structure')?{...run('current'),revision:4}:{jobs:[],profiles:{},generation_enabled:false};
+  return {ok:true,json:async()=>payload};
+ };
+ await elements.get('checkNativeStructure').onclick();
+ assert.match(elements.get('nativeStructureStatus').textContent,/4 of 96 pixels/);
+ await elements.get('lockNativeStructure').onclick();
+ assert.deepEqual(structureRequests[0],[ '/api/regions/jobs/job-c/inspect-structure',
+  {expected_revision:3,regions:[[0,0,12,8]],target:'texture'}]);
+ assert.deepEqual(structureRequests[1],[ '/api/regions/jobs/job-c/lock-structure',
+  {expected_revision:3,regions:[[0,0,12,8]]}]);
+ assert.equal(elements.get('nativePanel').hidden,false);
+ assert.equal(elements.get('nativeRole').value,'master');
+ assert.match(pending.at(-1).url,/revision=4/);
  console.log('Inspector and suggestion DOM contracts passed: paired loading, scales, unsaved state, review gates and stale rejection.');
 })().catch(error=>{console.error(error);process.exitCode=1});

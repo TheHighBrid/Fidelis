@@ -212,7 +212,7 @@
       "role": "Vision / fidelity",
       "scope": "Detect or explicitly route logos, seams, zipper/hardware and geometry-sensitive ROIs.",
       "acceptance": "Critical ROI corpus shows no confirmed construction/text/identity mutations; Sobel is a heuristic, not semantic proof; explicit overrides always win.",
-      "evidence": "docs/STRUCTURAL_ROIS.md; patch and zipper locks preserve 6461 pixels; internal edge shift fixture; production corpus and automatic detail detection pending",
+      "evidence": "docs/STRUCTURAL_ROIS.md; patch and zipper locks preserve 6461 pixels; internal edge shift fixture; production corpus and automatic detail detection pending; Studio crop lock and check verified through HTTP and editor tests",
       "priority": 3,
       "linear": {
         "id": "MEL-64",
@@ -644,5 +644,5 @@
     }
   ],
   "latest_checkpoint": "docs/STRUCTURAL_ROIS.md",
-  "checkpoint_base_commit": "c4cf1bd2d110ddd634b8e78f7ae8cc7fb358b781"
+  "checkpoint_base_commit": "5b4d0355c24fd5987404e14f5ef3622b10afd23b"
 }

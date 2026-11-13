@@ -46,3 +46,12 @@ one-pixel edge shift between equally sized images across a stripe boundary.
 The photo replay passed with ONNX Runtime telemetry disabled. The full Python
 suite passed 128 tests with the optional ONNX package absent. Static smoke
 tests passed.
+
+## Lock a crop in Studio
+
+Open **Inspect native pixels** and click or tap the overview to centre a crop.
+Use a 16, 32 or 64 pixel crop for small details, or enter its centre coordinates.
+**Check crop changes** compares the displayed target with the precision base.
+**Lock crop to base** commits the displayed crop at the saved revision and
+reopens the same crop against the new master. Save or discard pending brush
+and blend edits before applying a lock.

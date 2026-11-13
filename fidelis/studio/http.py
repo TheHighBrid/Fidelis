@@ -246,6 +246,26 @@ def dispatch(handler, workspace_root):
                 manifest = store.resolve_suggestion(parts[3], expected_revision=data.get('expected_revision'),
                            accept=parts[4] == 'accept-suggestion')
                 _json(handler, 200, _public(manifest))
+            elif (len(parts) == 5 and parts[:3] == ["api", "regions", "jobs"]
+                  and parts[4] in ("inspect-structure", "lock-structure")):
+                revision = data.get("expected_revision")
+                if type(revision) is not int:
+                    raise ValueError("Expected an integer revision")
+                regions = data.get("regions")
+                if not isinstance(regions, list) or any(not isinstance(box, list) for box in regions):
+                    raise ValueError("Supply a list of structural rectangles")
+                if parts[4] == "inspect-structure":
+                    report = store.inspect_structure(
+                        parts[3], expected_revision=revision, regions=regions, target=data.get("target"),
+                    )
+                    _json(handler, 200, report)
+                else:
+                    job = store.get(parts[3])
+                    manifest = store.reblend(
+                        parts[3], expected_revision=revision, blend=RegionBlend(**job["blend"]),
+                        lock_regions=regions,
+                    )
+                    _json(handler, 200, _public(manifest))
             elif len(parts) == 5 and parts[:3] == ["api", "regions", "jobs"] and parts[4] == "reblend":
                 values = data.get("blend")
                 if not isinstance(values, dict):

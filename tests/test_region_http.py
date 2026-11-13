@@ -88,6 +88,34 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(self.request(path+'/delete',{})[0],200)
         self.assertEqual(json.loads(self.request('/api/regions/jobs')[1])['jobs'],[])
 
+    def test_structural_crop_lock_preserves_pixels_and_rejects_stale_revision(self):
+        job = self.create()
+        path = "/api/regions/jobs/" + job["id"]
+        payload = {"regions": [[5, 1, 3, 4]], "expected_revision": 1, "target": "master"}
+        _, body, _ = self.request(path + "/inspect-structure", payload)
+        self.assertGreater(json.loads(body)["regions"][0]["changed_pixels"], 0)
+
+        with self.assertRaises(HTTPError) as caught:
+            self.request(path + "/lock-structure", {**payload, "regions": [[11, 1, 2, 4]]})
+        self.assertEqual(caught.exception.code, 400)
+        _, body, _ = self.request(path + "/lock-structure", payload)
+        result = json.loads(body)
+        self.assertEqual(result["revision"], 2)
+        self.assertEqual(result["blend"], job["blend"])
+
+        with self.assertRaises(HTTPError) as caught:
+            self.request(path + "/lock-structure", payload)
+        self.assertEqual(caught.exception.code, 409)
+
+        _, body, _ = self.request(path + "/inspect-structure", {**payload, "expected_revision": 2})
+        self.assertEqual(json.loads(body)["regions"][0]["changed_pixels"], 0)
+        _, encoded, _ = self.request(path + "/export?revision=2")
+        with Image.open(io.BytesIO(encoded)) as image:
+            master = np.array(image)
+        np.testing.assert_array_equal(master[1:5, 5:8], self.base[1:5, 5:8])
+        np.testing.assert_array_equal(master[:, :4], self.base[:, :4])
+        self.assertTrue(np.any(master[:, 8:] != self.base[:, 8:]))
+
     def test_paint_from_scratch_save_reopen_and_mask_data(self):
         job = self.create(with_masks=False)
         path = '/api/regions/jobs/'+job['id']
