@@ -11,15 +11,14 @@ import json
 from pathlib import Path
 import re
 import sqlite3
-import struct
 import uuid
-import zlib
 
 import numpy as np
 
 from fidelis.postprocess.regions import PROFILES, RegionBlend, _mask, _rgb, compose_regions
 from fidelis.studio.brush import EDIT_FIELDS, apply_stripe, validate_strokes
 
+from fidelis.studio.png import write_rgb_png  # Preserve the existing encoder import path.
 from fidelis.studio.structure import measure_region, validate_regions
 
 MASK_NAMES = {"skin", "hair", "fabric", "protected", "confidence", "edge_guard"}
@@ -538,23 +537,3 @@ class JobStore:
                 yield arr
             finally:
                 del arr
-
-
-def write_rgb_png(array, stream):
-    """Encode uint8 RGB scanlines without building a full-frame Pillow copy."""
-    _rgb(array, "PNG image")
-    def chunk(kind, data):
-        stream.write(struct.pack(">I", len(data)))
-        stream.write(kind)
-        stream.write(data)
-        stream.write(struct.pack(">I", zlib.crc32(data, zlib.crc32(kind)) & 0xffffffff))
-    stream.write(b"\x89PNG\r\n\x1a\n")
-    chunk(b"IHDR", struct.pack(">IIBBBBB", array.shape[1], array.shape[0], 8, 2, 0, 0, 0))
-    chunk(b"sRGB", b"\x00")
-    compressor = zlib.compressobj(6)
-    for row in array:
-        encoded = compressor.compress(b"\x00" + row.tobytes())
-        if encoded:
-            chunk(b"IDAT", encoded)
-    chunk(b"IDAT", compressor.flush())
-    chunk(b"IEND", b"")

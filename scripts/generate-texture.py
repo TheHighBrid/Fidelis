@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Generate an aligned texture through an explicitly configured local ComfyUI graph."""
 import argparse
-import hashlib
 import json
 from pathlib import Path
 import sys
@@ -11,7 +10,8 @@ import numpy as np
 from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from fidelis.studio.comfy import ComfyTextureBackend, canonical_hash
+from fidelis.studio.comfy import ComfyTextureBackend
+from fidelis.studio.png import read_rgb8_png
 from fidelis.studio.store import JobStore
 
 
@@ -44,17 +44,11 @@ def main():
             with store.open_array(args.job, 'base', expected_revision=job['revision']) as base:
                 source = np.array(base)
         else:
-            with Image.open(args.source) as image:
-                if image.format != 'PNG' or image.mode != 'RGB' or image.info.get('icc_profile') or image.getexif().get(274, 1) != 1:
-                    raise ValueError('Source must be a normalized, untagged sRGB RGB PNG')
-                if image.width * image.height > 40_000_000:
-                    raise ValueError('Source exceeds pixel limit')
-                source = np.array(image)
-        identity = canonical_hash({'source': hashlib.sha256(source.tobytes()).hexdigest(), 'bundle': bundle,
-                                   'address': args.address})
-        run_id = args.run_id or str(uuid.uuid5(uuid.NAMESPACE_URL, identity))
-        print(f'Generation run ID: {run_id}', file=sys.stderr)
+            with args.source.open('rb') as stream:
+                source = read_rgb8_png(stream)
         backend = ComfyTextureBackend(args.runs, args.address)
+        run_id = args.run_id or backend.default_cli_run_id(source, bundle, args.address)
+        print(f'Generation run ID: {run_id}', file=sys.stderr)
         texture, record = backend.run(source, bundle, run_id=run_id, deadline_seconds=args.deadline)
         args.output.parent.mkdir(parents=True, exist_ok=True)
         pending = args.output.with_suffix(f'.{uuid.uuid4().hex}.pending')

@@ -225,15 +225,15 @@
       "id": "F11",
       "title": "Implement colour-managed alpha and high-precision exports",
       "milestone": "M2",
-      "state": "Backlog",
-      "implementation": "not_started",
+      "state": "In Progress",
+      "implementation": "partial",
       "depends_on": [
         "F10"
       ],
       "role": "Colour / export",
       "scope": "Extend current RGB8 path to deliberate ICC, orientation, alpha and real working/export precision.",
       "acceptance": "Colour/alpha/precision round trips and protected-pixel checks pass; no uint16 container masquerades as newly recovered detail; default grain remains off.",
-      "evidence": "fidelis/postprocess/; current PNG export in fidelis/studio/store.py",
+      "evidence": "docs/project/checkpoints/2026-11-13-export-and-review.md",
       "priority": 3,
       "linear": {
         "id": "MEL-65",
@@ -294,8 +294,8 @@
       "id": "F14",
       "title": "Deliver resumable bounded batch processing",
       "milestone": "M4",
-      "state": "Backlog",
-      "implementation": "not_started",
+      "state": "In Progress",
+      "implementation": "partial",
       "depends_on": [
         "F07",
         "F11"
@@ -303,7 +303,7 @@
       "role": "Batch / orchestration",
       "scope": "Persist per-image recipes and states through interrupted production batches.",
       "acceptance": "Batch resumes without duplicate paid work, silent data loss or unbounded memory/disk concurrency; per-item failures and retries remain visible.",
-      "evidence": "existing native batch/audition lane; future Studio async job contracts",
+      "evidence": "docs/project/checkpoints/2026-11-13-export-and-review.md",
       "priority": 3,
       "linear": {
         "id": "MEL-67",

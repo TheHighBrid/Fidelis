@@ -13,6 +13,7 @@ import numpy as np
 from PIL import Image
 
 from fidelis.studio.inspection import native_crop
+from fidelis.studio.png import PngPixelLimit, read_rgb8_png
 
 from fidelis.postprocess.regions import PROFILES, RegionBlend
 from fidelis.studio.store import MASK_NAMES, BudgetExceeded, JobStore, RevisionConflict, write_rgb_png
@@ -51,14 +52,10 @@ def _bytes(value):
 
 
 def _image(value, max_pixels):
-    with Image.open(io.BytesIO(_bytes(value))) as image:
-        if image.width * image.height > max_pixels:
-            raise BudgetExceeded("Image exceeds configured pixel limit")
-        if image.format != "PNG" or image.mode != "RGB" or image.info.get("icc_profile"):
-            raise ValueError("Supply untagged 8-bit RGB PNGs converted to sRGB")
-        if image.getexif().get(274, 1) != 1:
-            raise ValueError("Normalize image orientation before importing")
-        return np.array(image)
+    try:
+        return read_rgb8_png(io.BytesIO(_bytes(value)), max_pixels=max_pixels)
+    except PngPixelLimit as error:
+        raise BudgetExceeded(str(error)) from error
 
 
 def _masks(value, shape):

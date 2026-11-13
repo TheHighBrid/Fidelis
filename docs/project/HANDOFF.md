@@ -111,3 +111,9 @@ F10 now supports revision-bound rectangle locks and read-only structural reports
 The CPU photo replay preserved all 6,461 locked patch and zipper pixels exactly.
 Every pixel outside the locks matched the prior master. Automatic detail detection
 and production-corpus validation remain open. See [structural ROIs](../STRUCTURAL_ROIS.md).
+
+## Master export and batch delivery · 2026-11-13
+
+The [export checkpoint](checkpoints/2026-11-13-export-and-review.md) covers
+RGB16/alpha CLI reblending, saved batch export and the PR review fixes.
+F11 and F14 remain in progress for browser and live-worker acceptance.

@@ -1,4 +1,5 @@
 """Pixel locks and fail-closed masks are independent of model quality."""
+import io
 from pathlib import Path
 import json
 import subprocess
@@ -7,7 +8,9 @@ import tempfile
 import unittest
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageCms
+
+from fidelis.studio.png import read_export_pass, read_rgb8_png, write_rgb_png
 
 from fidelis.postprocess.regions import PROFILES, RegionBlend, compose_regions
 
@@ -84,6 +87,61 @@ class RegionTests(unittest.TestCase):
             self.assertEqual(len(recipe["output_sha256"]), 64)
             command[-1] = str(root / "missing.npz")
             self.assertNotEqual(subprocess.run(command, capture_output=True).returncode, 0)
+
+    def test_cli_uint16_straight_alpha_and_exact_protection(self):
+        import cv2
+
+        script = Path(__file__).resolve().parents[1] / "scripts/reblend-regions.py"
+        base = np.dstack((self.base.astype(np.uint16) * 251 + 123,
+                          np.full(self.ones.shape, 31415, dtype=np.uint16)))
+        base[:, 0, 3] = 0
+        texture = np.full_like(base[:, :, :3], 53000)
+        protection = np.zeros_like(self.ones)
+        protection[:, 1] = 1
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            for name, pixels, channel_order in (("base", base, [2, 1, 0, 3]),
+                                                ("texture", texture, [2, 1, 0])):
+                self.assertTrue(cv2.imwrite(str(root / f"{name}.png"), pixels[:, :, channel_order]))
+            with (root / "texture.png").open("rb") as stream:
+                with self.assertRaisesRegex(ValueError, "8-bit RGB"):
+                    read_rgb8_png(stream)
+            np.savez(root / "masks.npz", confidence=self.ones, skin=self.ones, protected=protection)
+            output = root / "out.png"
+            command = [sys.executable, str(script), str(root / "base.png"), str(root / "texture.png"),
+                       str(output), "--masks", str(root / "masks.npz"), "--skin", "0.5"]
+            subprocess.run(command, check=True, capture_output=True, text=True)
+            actual = cv2.imread(str(output), cv2.IMREAD_UNCHANGED)[:, :, [2, 1, 0, 3]]
+            self.assertEqual(actual.dtype, np.uint16)
+            np.testing.assert_array_equal(actual[:, :2], base[:, :2])
+            np.testing.assert_array_equal(actual[:, :, 3], base[:, :, 3])
+            values = base[:, 2:, :3] / 65535
+            linear_base = np.where(values <= .04045, values / 12.92, ((values + .055) / 1.055) ** 2.4)
+            linear_mean = (linear_base + ((53000 / 65535 + .055) / 1.055) ** 2.4) / 2
+            self.assertTrue(np.any(actual[:, 2:, :3] % 257 != 0))
+            np.testing.assert_allclose(actual[:, 2:, :3],
+                                       np.rint((1.055 * linear_mean ** (1 / 2.4) - .055) * 65535), atol=1)
+            failure = subprocess.run(command + ["--depth", "8"], capture_output=True, text=True)
+            self.assertNotEqual(failure.returncode, 0)
+            self.assertIn("discard input precision", failure.stderr)
+
+    def test_icc_conversion_requires_explicit_opt_in_and_preserves_alpha(self):
+        rgba = np.dstack((self.base, self.texture[:, :, 0]))
+        icc = ImageCms.ImageCmsProfile(ImageCms.createProfile("sRGB")).tobytes()
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "rgba.png"
+            Image.fromarray(rgba).save(path, icc_profile=icc)
+            with self.assertRaisesRegex(ValueError, "opt into"):
+                read_export_pass(path, allow_alpha=True)
+            result, converted = read_export_pass(path, allow_alpha=True, convert_icc=True)
+            self.assertTrue(converted)
+            np.testing.assert_array_equal(result, rgba)
+
+    def test_rgb8_canonical_export_remains_importable(self):
+        stream = io.BytesIO()
+        write_rgb_png(self.base, stream)
+        stream.seek(0)
+        np.testing.assert_array_equal(read_rgb8_png(stream), self.base)
 
 
 if __name__ == "__main__":

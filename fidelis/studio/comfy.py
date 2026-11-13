@@ -18,6 +18,8 @@ import httpx
 import numpy as np
 from PIL import Image
 
+from fidelis.studio.png import read_rgb8_png
+
 from fidelis.studio.store import sha256
 
 
@@ -167,6 +169,20 @@ class ComfyTextureBackend:
         except (httpx.HTTPError, ValueError) as error:
             return {'reachable': False, 'reason': type(error).__name__, 'live_inference_verified': False}
 
+    def default_cli_run_id(self, source_rgb, bundle, requested_address):
+        source_hash = hashlib.sha256(source_rgb.tobytes()).hexdigest()
+        cli_recipe = {'source': source_hash, 'bundle': bundle, 'address': requested_address}
+        legacy_id = str(uuid.uuid5(uuid.NAMESPACE_URL, canonical_hash(cli_recipe)))
+        legacy = self._get(legacy_id)
+        if legacy and legacy['recipe_hash'] == self._recipe_hash(source_rgb, bundle):
+            return legacy_id
+        cli_recipe['dimensions'] = list(source_rgb.shape)
+        return str(uuid.uuid5(uuid.NAMESPACE_URL, canonical_hash(cli_recipe)))
+
+    def _recipe_hash(self, source_rgb, bundle):
+        return canonical_hash({'source_sha256': hashlib.sha256(source_rgb.tobytes()).hexdigest(),
+                               'bundle': bundle, 'dimensions': list(source_rgb.shape), 'address': self.address})
+
     def run(self, source_rgb, bundle, *, run_id=None, deadline_seconds=300, cancelled=None):
         def check_cancelled():
             if cancelled is not None and cancelled():
@@ -179,8 +195,7 @@ class ComfyTextureBackend:
         if not 0 < deadline_seconds <= 3600:
             raise ValueError('Deadline must be in (0,3600] seconds')
         run_id = str(uuid.UUID(run_id)) if run_id else str(uuid.uuid4())
-        identity = canonical_hash({'source_sha256': hashlib.sha256(source_rgb.tobytes()).hexdigest(),
-                                   'bundle': bundle, 'dimensions': list(source_rgb.shape), 'address': self.address})
+        identity = self._recipe_hash(source_rgb, bundle)
         record = self._get(run_id)
         if record and record['recipe_hash'] != identity:
             raise ValueError('Run ID already belongs to a different recipe or source')
@@ -293,10 +308,7 @@ class ComfyTextureBackend:
         if item.get('type') not in ('output', 'temp') or not isinstance(item.get('filename'), str):
             raise ValueError('Invalid ComfyUI output descriptor')
         encoded = self._request('GET', '/view?' + urlencode({key: item.get(key, '') for key in ('filename', 'subfolder', 'type')}), max_bytes=200*1024**2)
-        with Image.open(io.BytesIO(encoded)) as image:
-            if image.format != 'PNG' or image.size != (expected_shape[1], expected_shape[0]) or image.mode != 'RGB' or image.info.get('icc_profile') or image.getexif().get(274, 1) != 1:
-                raise ValueError('Generated pass changed dimensions/encoding/orientation; no implicit resize is allowed')
-            array = np.array(image)
+        array = read_rgb8_png(io.BytesIO(encoded), expected_size=(expected_shape[1], expected_shape[0]))
         output = self.root / f"{record['id']}.png"
         pending = output.with_suffix(f'.{uuid.uuid4().hex}.pending')
         Image.fromarray(array).save(pending, format='PNG')

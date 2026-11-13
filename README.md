@@ -60,6 +60,8 @@ Create a project `.venv` and install the development dependencies as documented 
 Open `http://127.0.0.1:8765/regions`. Import aligned, untagged 8-bit sRGB RGB PNG
 passes, optionally import NPZ masks, or paint regions from scratch. This path
 reblends supplied passes; it does not automatically generate a new texture.
+See [master exports](docs/STUDIO_EXPORT.md) for 16-bit and alpha workflows and
+resumable export of saved jobs.
 
 ```bash
 .venv/bin/python -m unittest discover -s tests -p 'test_*.py' -v

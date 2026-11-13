@@ -53,8 +53,8 @@ def _rgb(value, name):
 
 def compose_regions(base, texture, *, skin=None, hair=None, fabric=None,
                     protected=None, confidence=None, edge_guard=None,
-                    blend=RegionBlend()):
-    """Return (uint8 sRGB result, float32 effective alpha).
+                    blend=RegionBlend(), output_dtype=None):
+    """Return (sRGB result at requested precision, float32 effective alpha).
 
     Masks are H x W floats in [0,1] on the exact base grid. Overlapping semantic
     probabilities normalize to at most one; unclassified mass stays base.
@@ -63,8 +63,18 @@ def compose_regions(base, texture, *, skin=None, hair=None, fabric=None,
     edge guard is a caller-supplied heuristic, not hardware/seam segmentation.
     This function verifies shape, not internal spatial registration.
     """
-    base = _rgb(base, "base")
-    texture = _rgb(texture, "texture")
+    base = np.asarray(base)
+    texture = np.asarray(texture)
+    for image, name in ((base, "base"), (texture, "texture")):
+        if image.dtype != np.uint16:
+            _rgb(image, name)
+        elif image.ndim != 3 or image.shape[2] != 3 or min(image.shape[:2]) < 1:
+            raise ValueError(f"{name} must have nonempty H x W x 3 shape")
+    target_dtype = np.dtype(output_dtype if output_dtype is not None else base.dtype)
+    if target_dtype not in (np.dtype(np.uint8), np.dtype(np.uint16)) or target_dtype.itemsize < base.dtype.itemsize:
+        raise ValueError("Output must retain at least the base sample precision")
+    source_max = np.iinfo(base.dtype).max
+    output_max = np.iinfo(target_dtype).max
     if base.shape != texture.shape:
         raise ValueError("passes must have identical dimensions; no implicit resizing")
     shape = base.shape[:2]
@@ -81,13 +91,16 @@ def compose_regions(base, texture, *, skin=None, hair=None, fabric=None,
     alpha = np.clip(alpha, 0.0, 1.0)
 
     # A lookup table avoids full-frame transfer-function intermediates for inputs.
-    srgb = np.arange(256, dtype=np.float32) / 255.0
-    lut = np.where(srgb <= .04045, srgb / 12.92, ((srgb + .055) / 1.055) ** 2.4)
-    linear = lut[base] * (1.0 - alpha[..., None]) + lut[texture] * alpha[..., None]
+    def linear_samples(image):
+        sample_max = np.iinfo(image.dtype).max
+        srgb = np.arange(sample_max + 1, dtype=np.float32) / sample_max
+        return np.where(srgb <= .04045, srgb / 12.92, ((srgb + .055) / 1.055) ** 2.4)[image]
+
+    linear = linear_samples(base) * (1.0 - alpha[..., None]) + linear_samples(texture) * alpha[..., None]
     result = np.where(linear <= .0031308, linear * 12.92,
                       1.055 * np.maximum(linear, 0) ** (1 / 2.4) - .055)
-    result = np.clip(np.rint(result * 255), 0, 255).astype(np.uint8)
+    result = np.clip(np.rint(result * output_max), 0, output_max).astype(target_dtype)
     # Hard protection also excludes any quantization or future finishing changes.
     locked = (protected == 1.0) | (alpha == 0.0)
-    result[locked] = base[locked]
+    result[locked] = base[locked].astype(target_dtype) * (output_max // source_max)
     return result, alpha

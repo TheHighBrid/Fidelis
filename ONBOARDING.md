@@ -112,3 +112,8 @@ that requires unavailable access or owner judgment; finish independent work firs
 Enable a trusted local graph explicitly using `--texture-workflow`. Read the
 [background queue guide](docs/ASYNC_GENERATION.md) before using its cancel/resume
 controls; local cancellation does not interrupt submitted GPU work.
+
+## Master export
+
+See [Master exports](docs/STUDIO_EXPORT.md) for ICC, 16-bit and alpha reblending
+through the CLI and resumable export of saved Studio jobs.

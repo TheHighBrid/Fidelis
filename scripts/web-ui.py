@@ -1129,9 +1129,19 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         pass  # Quiet logs
 
+    def dispatch_regions(self):
+        path = urlparse(self.path).path
+        if path != "/regions" and not path.startswith("/api/regions/"):
+            return False
+        try:
+            from fidelis.studio.http import dispatch
+        except ImportError:
+            self.send_error(503, "Regional workspace dependencies unavailable")
+            return True
+        return dispatch(self, CACHE_DIR / "region_jobs")
+
     def do_GET(self):
-        from fidelis.studio.http import dispatch
-        if dispatch(self, CACHE_DIR / "region_jobs"):
+        if self.dispatch_regions():
             return
         url = urlparse(self.path)
         if url.path in ["/", "/index.html"]:
@@ -1222,8 +1232,7 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
 
     def do_POST(self):
-        from fidelis.studio.http import dispatch
-        if dispatch(self, CACHE_DIR / "region_jobs"):
+        if self.dispatch_regions():
             return
         url = urlparse(self.path)
         try:

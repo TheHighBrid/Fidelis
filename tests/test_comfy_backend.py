@@ -1,6 +1,7 @@
 """ComfyUI protocol tests against an HTTP fixture, not GPU inference evidence."""
 import copy
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
+import hashlib
 import io
 import json
 from pathlib import Path
@@ -14,7 +15,7 @@ import uuid
 import numpy as np
 from PIL import Image
 
-from fidelis.studio.comfy import BackendUnavailable,ComfyTextureBackend,SubmissionUnknown,validate_workflow
+from fidelis.studio.comfy import BackendUnavailable,ComfyTextureBackend,SubmissionUnknown,canonical_hash,validate_workflow
 from fidelis.studio.store import JobStore,RevisionConflict
 from fidelis.postprocess.regions import RegionBlend
 
@@ -134,6 +135,20 @@ class ComfyTests(unittest.TestCase):
         self.assertEqual(self.state['submits'],1)
         with Image.open(output) as image:np.testing.assert_array_equal(np.array(image),self.output)
         self.assertEqual(json.loads(output.with_suffix('.png.recipe.json').read_text())['status'],'completed')
+
+    def test_default_cli_identity_distinguishes_same_bytes_and_resumes_old_runs(self):
+        address = self.backend.address
+        old_identity = canonical_hash({'source': hashlib.sha256(self.source.tobytes()).hexdigest(),
+                                       'bundle': BUNDLE, 'address': address})
+        legacy_id = str(uuid.uuid5(uuid.NAMESPACE_URL, old_identity))
+        self.backend.run(self.source, BUNDLE, run_id=legacy_id)
+        self.assertEqual(self.backend.default_cli_run_id(self.source, BUNDLE, address), legacy_id)
+        other_grid = self.source.reshape(12, 8, 3)
+        other_id = self.backend.default_cli_run_id(other_grid, BUNDLE, address)
+        self.assertNotEqual(other_id, legacy_id)
+        self.output = self.output.reshape(12, 8, 3)
+        self.backend.run(other_grid, BUNDLE, run_id=other_id)
+        self.assertEqual(self.state['submits'], 2)
 
     def test_replace_texture_keeps_masks_and_detects_stale_revision(self):
         store=JobStore(Path(self.temp.name)/'jobs')

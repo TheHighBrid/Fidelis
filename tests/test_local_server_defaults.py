@@ -7,7 +7,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 import yaml
 
 ROOT=Path(__file__).resolve().parents[1]
@@ -36,6 +36,22 @@ class LocalDefaultTests(unittest.TestCase):
         with patch.object(web.socketserver,'TCPServer',FakeServer),redirect_stdout(io.StringIO()):
             web.run_server(port=8765)
         self.assertEqual(addresses,[('127.0.0.1',8765)])
+
+    def test_missing_region_dependencies_leave_legacy_get_routes_working(self):
+        import sys
+
+        with patch.dict(sys.modules, {'fidelis.studio.http': None}):
+            for path in ('/', '/api/models'):
+                handler = MagicMock()
+                handler.path = path
+                handler.dispatch_regions.side_effect = lambda: web.FidelisRequestHandler.dispatch_regions(handler)
+                with patch.object(web, 'get_installed_models', return_value=[]):
+                    web.FidelisRequestHandler.do_GET(handler)
+                handler.send_response.assert_called_once_with(200)
+            handler = MagicMock()
+            handler.path = '/regions'
+            self.assertTrue(web.FidelisRequestHandler.dispatch_regions(handler))
+            handler.send_error.assert_called_once_with(503, 'Regional workspace dependencies unavailable')
 
     def test_compose_publishes_host_loopback_only(self):
         config=yaml.safe_load((ROOT/'docker-compose.yml').read_text())
