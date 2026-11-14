@@ -35,10 +35,11 @@ from fidelis.studio.packaging import (
 )
 
 def exclude_preview_path(path):
-    return is_excluded_release_path(path) or path in {
-        "experiments/eval_crops/user_test_blonde.png",
-        "experiments/eval_crops/user_test_darkhair.png",
-    }
+    return (
+        is_excluded_release_path(path)
+        or path == "experiments/eval_crops"
+        or path.startswith("experiments/eval_crops/")
+    )
 
 output = Path(output_dir).resolve()
 output.mkdir()

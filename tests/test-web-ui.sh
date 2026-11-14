@@ -70,7 +70,7 @@ html_out="$(curl -s "http://127.0.0.1:$port/")"
 [[ "$html_out" == *"profiler-panel"* ]]
 [[ "$html_out" == *"portrait-check"* ]]
 [[ "$html_out" == *"fidelity-slider"* ]]
-[[ "$html_out" == *"user_test_blonde.png"* ]]
+[[ "$html_out" == *"portrait_skin.png"* ]]
 
 # Test models API
 models_json="$(curl -s "http://127.0.0.1:$port/api/models")"

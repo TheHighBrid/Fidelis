@@ -347,8 +347,8 @@ HTML_PAGE = r"""<!DOCTYPE html>
       
       <div style="margin-top: 12px; font-size: 12px; color: var(--text-muted);">Or load standard evaluation crop:</div>
       <div class="sample-btns">
-        <button class="btn" onclick="loadSample('user_test_blonde.png')">Blonde Portrait (1022x1024)</button>
-        <button class="btn" onclick="loadSample('user_test_darkhair.png')">Dark Hair Portrait (1024x1024)</button>
+        <button class="btn" onclick="loadSample('portrait_skin.png')">Synthetic Portrait</button>
+        <button class="btn" onclick="loadSample('fabric_weave.png')">Synthetic Fabric</button>
         <button class="btn" onclick="loadSample('portrait_skin_real.png')">Portrait Skin Crop (150x150)</button>
         <button class="btn" onclick="loadSample('fashion_fabric_real.png')">Fashion Fabric Weave (200x200)</button>
         <button class="btn" onclick="loadSample('product_edges_real.png')">Product Metal Hardware (250x250)</button>
