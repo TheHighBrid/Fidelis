@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
-  "snapshot_date": "2026-11-10",
-  "code_snapshot": "5f32fbad22f3a294a878d16be129436c69c5ed06",
+  "snapshot_date": "2026-11-13",
+  "code_snapshot": "978e986e3c6f7c3a8caaf64005ab5d36d2d1ef8a",
   "code_branch": "feat/region-aware-studio",
   "code_pr": "https://github.com/TheHighBrid/Fidelis/pull/12",
   "canonical_spec": "docs/FIDELIS_STUDIO_PLAN.md",
   "coordination_project": "https://linear.app/melato/project/fidelis-studio-a057f366fa71",
   "umbrella": "MEL-53",
-  "note": "Committed coordination snapshot, not a live sync. F01-F04 are implemented in an open PR and are In Review, not released. Owners/dates unset until real.",
+  "note": "Committed coordination snapshot, not a live sync. F01-F04, F05-B, F07-A, F08-A, F11, F14 and D01-D04 are implemented in PR #12 and are In Review, not released. F05, F05-A, F06, F07, F08, F08-B, F09, F10, F12, F12-A, F13, F15 and F16 have verified implementation/protocol/hardware evidence on feat/region-aware-studio while external live GPU/corpus/signoff gates remain open.",
   "items": [
     {
       "id": "F01",
@@ -96,21 +96,22 @@
       "title": "Qualify installed runtimes and select a precision base",
       "milestone": "M1",
       "state": "In Progress",
-      "implementation": "partial",
+      "implementation": "partial_apple_m1_ncnn_audition_verified",
       "depends_on": [
         "F04"
       ],
       "role": "Runtime / model research",
       "scope": "Audit actual capabilities and audition checksum-pinned candidates on target hardware.",
       "acceptance": "At least one selected base has real output, actual weight/runtime hashes and terms, target-device resource evidence and visual fidelity review. Availability alone does not pass.",
-      "evidence": "scripts/backend-doctor.py; fidelis/studio/capabilities.py; config/photo-candidates.tsv",
+      "evidence": "docs/APPLE_M1_PRECISION_BASE_AUDITION.md; docs/project/checkpoints/2026-11-13-apple-m1-base-audition.md; scripts/backend-doctor.py; fidelis/studio/capabilities.py; config/photo-candidates.tsv; config/model-provenance-v1.json; Apple M1 8GB Vulkan NCNN audition across RealeSR-general-v3, RealSR-DF2K and ESRGAN-Remacri recorded; full 60-case corpus and commercial license clearance remain open",
       "priority": 2,
       "linear": {
         "id": "MEL-58",
         "uuid": "75f300b1-9b29-409b-9edb-3005d0265f60",
         "url": "https://linear.app/melato/issue/MEL-58/f05-qualify-installed-runtimes-and-select-a-precision-base",
         "title": "F05 \u00b7 Qualify installed runtimes and select a precision base"
-      }
+      },
+      "verification_checkpoint": "docs/project/checkpoints/2026-11-13-apple-m1-base-audition.md"
     },
     {
       "id": "F06",
@@ -159,7 +160,7 @@
       "title": "Accept editable regional review and native-pixel inspection",
       "milestone": "M2",
       "state": "In Progress",
-      "implementation": "partial",
+      "implementation": "partial_same_host_chromium_cdp_verified",
       "depends_on": [
         "F03",
         "F04"
@@ -167,7 +168,7 @@
       "role": "Studio UX",
       "scope": "Complete acceptance of painted masks, brush tools, revision saves, preview and actual native-pixel inspection.",
       "acceptance": "Mouse/pen/touch/keyboard and stale edits verified on real browser/device; native 100/200% crops distinguish source pixels from preview zoom; no mask protection regression.",
-      "evidence": "fidelis/studio/studio.html; editor.js; brush.py; tests/test_region_brush.py; F08-A native crops/paired inspector protocol and DOM tested in PR #12; F08-B device acceptance remains open",
+      "evidence": "fidelis/studio/studio.html; editor.js; brush.py; tests/test_region_brush.py; F08-A native crops/paired inspector and F08-B same-host Chrome CDP (desktop 1440x900 + touch 390x844, 0 defects) verified in PR #12; physical Android/iOS touch hardware review remains open",
       "priority": 2,
       "linear": {
         "id": "MEL-59",
@@ -204,7 +205,7 @@
       "title": "Protect structural ROIs and screen internal drift",
       "milestone": "M2",
       "state": "In Progress",
-      "implementation": "partial_explicit_roi_locks_photo_replay_verified",
+      "implementation": "partial_explicit_roi_locks_and_drift_screening_verified",
       "depends_on": [
         "F06",
         "F09"
@@ -212,63 +213,66 @@
       "role": "Vision / fidelity",
       "scope": "Detect or explicitly route logos, seams, zipper/hardware and geometry-sensitive ROIs.",
       "acceptance": "Critical ROI corpus shows no confirmed construction/text/identity mutations; Sobel is a heuristic, not semantic proof; explicit overrides always win.",
-      "evidence": "docs/STRUCTURAL_ROIS.md; patch and zipper locks preserve 6461 pixels; internal edge shift fixture; production corpus and automatic detail detection pending; Studio crop lock and check verified through HTTP and editor tests",
+      "evidence": "fidelis/studio/structure.py; fidelis/postprocess/roi_protection.py; scripts/structural-roi.py; scripts/screen-roi-drift.py; tests/test_structural_roi.py; tests/test_roi_protection.py; docs/STRUCTURAL_ROIS.md; docs/ROI_DRIFT_SCREENING.md; docs/project/checkpoints/2026-11-10-roi-drift-screening.md; Studio crop lock/check + phase-correlation/Sobel drift screening verified; 60-case corpus validation and automatic semantic ROI detection remain open",
       "priority": 3,
       "linear": {
         "id": "MEL-64",
         "uuid": "26a13d9f-e61c-41eb-9931-60a12c1afdbc",
         "url": "https://linear.app/melato/issue/MEL-64/f10-protect-structural-rois-and-screen-internal-drift",
         "title": "F10 \u00b7 Protect structural ROIs and screen internal drift"
-      }
+      },
+      "verification_checkpoint": "docs/project/checkpoints/2026-11-10-roi-drift-screening.md"
     },
     {
       "id": "F11",
       "title": "Implement colour-managed alpha and high-precision exports",
       "milestone": "M2",
-      "state": "In Progress",
-      "implementation": "partial",
+      "state": "In Review",
+      "implementation": "implemented_protocol_tested_in_review",
       "depends_on": [
         "F10"
       ],
       "role": "Colour / export",
       "scope": "Extend current RGB8 path to deliberate ICC, orientation, alpha and real working/export precision.",
       "acceptance": "Colour/alpha/precision round trips and protected-pixel checks pass; no uint16 container masquerades as newly recovered detail; default grain remains off.",
-      "evidence": "docs/project/checkpoints/2026-11-13-export-and-review.md",
+      "evidence": "fidelis/studio/png.py; fidelis/postprocess/managed_export.py; scripts/reblend-regions.py; scripts/export-master.py; tests/test_managed_export.py; docs/STUDIO_EXPORT.md; docs/MANAGED_EXPORT.md; docs/project/checkpoints/2026-11-13-export-and-review.md; docs/project/checkpoints/2026-11-10-managed-export.md",
       "priority": 3,
       "linear": {
         "id": "MEL-65",
         "uuid": "a8675dd8-a20e-4cfd-9277-582de6bf8d94",
         "url": "https://linear.app/melato/issue/MEL-65/f11-implement-colour-managed-alpha-and-high-precision-exports",
         "title": "F11 \u00b7 Implement colour-managed alpha and high-precision exports"
-      }
+      },
+      "verification_checkpoint": "docs/project/checkpoints/2026-11-13-export-and-review.md"
     },
     {
       "id": "F12",
       "title": "Freeze rights-cleared corpus and comparator runners",
       "milestone": "M3",
       "state": "In Progress",
-      "implementation": "partial",
+      "implementation": "partial_comparator_runners_implemented_production_corpus_missing",
       "depends_on": [
         "F05"
       ],
       "role": "Evaluation / evidence",
       "scope": "Build 60-case rights/hash/ROI inventory, frozen 30/30 split and reproducible comparisons.",
       "acceptance": "Coverage and permissions documented; each output separate; settings/cost/time/hash recorded; real comparators distinguished from unavailable evidence.",
-      "evidence": "fidelis/eval/; experiments/eval_crops/; docs/project/QUALITY_GATES.md; explicit F12-A inventory/freeze tooling verified; production corpus and comparators remain missing",
+      "evidence": "fidelis/eval/comparators.py; scripts/run-comparators.py; tests/test_comparators.py; docs/COMPARATOR_RUNNERS.md; docs/project/checkpoints/2026-11-10-comparator-runners.md; comparator runners and cost/provenance normalization verified; 60-case rights-cleared photo corpus and live paid API keys remain open",
       "priority": 3,
       "linear": {
         "id": "MEL-63",
         "uuid": "2b705a10-2ccf-4979-9a3b-44ec1839afa2",
         "url": "https://linear.app/melato/issue/MEL-63/f12-freeze-rights-cleared-corpus-and-comparator-runners",
         "title": "F12 \u00b7 Freeze rights-cleared corpus and comparator runners"
-      }
+      },
+      "verification_checkpoint": "docs/project/checkpoints/2026-11-10-comparator-runners.md"
     },
     {
       "id": "F13",
       "title": "Calibrate and pass held-out quality acceptance",
       "milestone": "M3",
-      "state": "Backlog",
-      "implementation": "not_started",
+      "state": "In Progress",
+      "implementation": "partial_evaluator_implemented_live_heldout_pending",
       "depends_on": [
         "F06",
         "F07",
@@ -281,21 +285,22 @@
       "role": "Quality / creative review",
       "scope": "Tune on calibration cases and evaluate blind held-out results against Clarity/Krea.",
       "acceptance": "No critical fidelity defects; agreed threshold protocol, sample sizes/confidence intervals and category failures reported; final creative judgment recorded after concrete evidence.",
-      "evidence": "docs/project/QUALITY_GATES.md; planned benchmark evidence",
+      "evidence": "fidelis/eval/quality_acceptance.py; scripts/evaluate-quality-acceptance.py; tests/test_quality_acceptance.py; docs/QUALITY_ACCEPTANCE.md; docs/project/checkpoints/2026-11-10-held-out-acceptance.md; Wilson 95% CIs, Krippendorff alpha / Cohen kappa, and G1-G6 gates implemented; live 30-case held-out human signoff remains open",
       "priority": 2,
       "linear": {
         "id": "MEL-66",
         "uuid": "0f21cc9e-5bd2-4c21-af8d-7139939f27b3",
         "url": "https://linear.app/melato/issue/MEL-66/f13-calibrate-and-pass-held-out-quality-acceptance",
         "title": "F13 \u00b7 Calibrate and pass held-out quality acceptance"
-      }
+      },
+      "verification_checkpoint": "docs/project/checkpoints/2026-11-10-held-out-acceptance.md"
     },
     {
       "id": "F14",
       "title": "Deliver resumable bounded batch processing",
       "milestone": "M4",
-      "state": "In Progress",
-      "implementation": "partial",
+      "state": "In Review",
+      "implementation": "implemented_protocol_tested_in_review",
       "depends_on": [
         "F07",
         "F11"
@@ -303,21 +308,22 @@
       "role": "Batch / orchestration",
       "scope": "Persist per-image recipes and states through interrupted production batches.",
       "acceptance": "Batch resumes without duplicate paid work, silent data loss or unbounded memory/disk concurrency; per-item failures and retries remain visible.",
-      "evidence": "docs/project/checkpoints/2026-11-13-export-and-review.md",
+      "evidence": "scripts/export-studio-batch.py; tests/test_studio_batch_export.py; fidelis/studio/batch.py; scripts/batch-run.py; tests/test_batch_runner.py; docs/STUDIO_EXPORT.md; docs/BATCH_PROCESSING.md; docs/project/checkpoints/2026-11-13-export-and-review.md; docs/project/checkpoints/2026-11-10-resumable-batch.md",
       "priority": 3,
       "linear": {
         "id": "MEL-67",
         "uuid": "118bfcc4-524b-4933-b416-de3f5162b6b0",
         "url": "https://linear.app/melato/issue/MEL-67/f14-deliver-resumable-bounded-batch-processing",
         "title": "F14 \u00b7 Deliver resumable bounded batch processing"
-      }
+      },
+      "verification_checkpoint": "docs/project/checkpoints/2026-11-13-export-and-review.md"
     },
     {
       "id": "F15",
       "title": "Polish responsive studio and verify packaging",
       "milestone": "M4",
-      "state": "Backlog",
-      "implementation": "not_started",
+      "state": "In Progress",
+      "implementation": "partial_packaging_and_upgrade_rollback_verified_device_budgets_pending",
       "depends_on": [
         "F08",
         "F14"
@@ -325,21 +331,22 @@
       "role": "UX / release engineering",
       "scope": "Complete accessible premium UI, device checks and reproducible install/upgrade/rollback.",
       "acceptance": "Actual M1/Android/browser checks and measured resource budgets; packaging includes intended modules/dependencies and protects saved data on upgrade/rollback.",
-      "evidence": "scripts/package-release.sh; android/; Dockerfile; studio UI",
+      "evidence": "fidelis/studio/packaging.py; scripts/verify-upgrade-rollback.py; scripts/package-release.sh; scripts/package-offline-bundle.sh; Dockerfile; tests/test_release_packaging.py; tests/test-release-pipeline.sh; docs/RELEASE_PACKAGING.md; docs/project/checkpoints/2026-11-10-studio-packaging.md; Apple M1 8GB NCNN budgets and Chrome CDP responsive checks recorded; physical Android device signoff remains open",
       "priority": 3,
       "linear": {
         "id": "MEL-69",
         "uuid": "124df14c-a11e-4ada-8973-73b99ce3c0b5",
         "url": "https://linear.app/melato/issue/MEL-69/f15-polish-responsive-studio-and-verify-packaging",
         "title": "F15 \u00b7 Polish responsive studio and verify packaging"
-      }
+      },
+      "verification_checkpoint": "docs/project/checkpoints/2026-11-10-studio-packaging.md"
     },
     {
       "id": "F16",
       "title": "Publish evidence-backed production release",
       "milestone": "M4",
-      "state": "Backlog",
-      "implementation": "not_started",
+      "state": "In Progress",
+      "implementation": "partial_release_dossier_auditor_implemented_gates_open",
       "depends_on": [
         "F13",
         "F15"
@@ -347,14 +354,15 @@
       "role": "Release / product",
       "scope": "Close release gates and publish scope, evidence, known limits and rollback.",
       "acceptance": "Required quality/operational gates met, release SHA and packages linked, blocking defects closed, owner creative/release signoff recorded; merged is not automatically released.",
-      "evidence": "docs/project/QUALITY_GATES.md; CHANGELOG.md; release workflows",
+      "evidence": "fidelis/studio/release_readiness.py; scripts/audit-release-readiness.py; tests/test_release_readiness.py; docs/RELEASE_READINESS.md; docs/project/checkpoints/2026-11-10-release-readiness.md; fail-closed E1..E4 release readiness dossier auditor verified; remains blocked until PR #12 merges and E2-E4 gates + owner signoff close",
       "priority": 2,
       "linear": {
         "id": "MEL-68",
         "uuid": "8e3d8a5b-eb9c-49db-be1f-2f266a2ea6ea",
         "url": "https://linear.app/melato/issue/MEL-68/f16-publish-evidence-backed-production-release",
         "title": "F16 \u00b7 Publish evidence-backed production release"
-      }
+      },
+      "verification_checkpoint": "docs/project/checkpoints/2026-11-10-release-readiness.md"
     },
     {
       "id": "F17",
@@ -382,40 +390,42 @@
       "title": "Prepare a reproducible live-worker preflight",
       "parent": "F05",
       "milestone": "M1",
-      "state": "Backlog",
-      "implementation": "not_started",
+      "state": "In Progress",
+      "implementation": "partial_preflight_tooling_implemented_live_worker_pending",
       "depends_on": [],
       "role": "Runtime / infrastructure",
       "scope": "Record an actual worker endpoint, device capability, exported workflow, runtime/node revisions and model availability without placing secrets in the repo.",
       "acceptance": "Doctor and workflow schema preflight run against a real reachable worker; resource owner/access and budget policy are explicit. Current executor has no worker.",
-      "evidence": "Blocked by unavailable worker/access, not by missing fixture code.",
+      "evidence": "config/worker-preflight-policy-v1.json; fidelis/studio/worker_preflight.py; scripts/worker-preflight.py; tests/test_worker_preflight.py; docs/WORKER_PREFLIGHT.md; docs/project/checkpoints/2026-11-11-worker-preflight.md; preflight harness and mock worker verified; live ComfyUI GPU worker remains offline",
       "priority": 2,
       "linear": {
         "id": "MEL-76",
         "uuid": "f7bc181d-a71c-4dd0-b099-8d5854643423",
         "url": "https://linear.app/melato/issue/MEL-76/f05-a-prepare-a-reproducible-live-worker-preflight",
         "title": "F05-A \u00b7 Prepare a reproducible live-worker preflight"
-      }
+      },
+      "verification_checkpoint": "docs/project/checkpoints/2026-11-11-worker-preflight.md"
     },
     {
       "id": "F05-B",
       "title": "Record candidate model hashes and usage terms",
       "parent": "F05",
       "milestone": "M1",
-      "state": "Todo",
-      "implementation": "not_started",
+      "state": "In Review",
+      "implementation": "implemented_protocol_tested_in_review",
       "depends_on": [],
       "role": "Model research",
       "scope": "Prepare explicit candidate weight/runtime provenance and production suitability records.",
       "acceptance": "Real sources/revisions/weight hashes and separate terms are recorded; missing bytes or unclear terms are not represented as certified.",
-      "evidence": "Can prepare the manifest/review before live inference.",
+      "evidence": "config/model-provenance-v1.json; fidelis/studio/provenance.py; fidelis/studio/capabilities.py; scripts/audit-model-provenance.py; tests/test_model_provenance.py; docs/project/checkpoints/2026-11-10-model-provenance.md",
       "priority": 3,
       "linear": {
         "id": "MEL-75",
         "uuid": "12cd0547-12cb-4b88-a963-1ff7e76bc14e",
         "url": "https://linear.app/melato/issue/MEL-75/f05-b-record-candidate-model-hashes-and-usage-terms",
         "title": "F05-B \u00b7 Record candidate model hashes and usage terms"
-      }
+      },
+      "verification_checkpoint": "docs/project/checkpoints/2026-11-10-model-provenance.md"
     },
     {
       "id": "F07-A",
@@ -464,20 +474,21 @@
       "title": "Complete same-host browser and target-device acceptance",
       "parent": "F08",
       "milestone": "M2",
-      "state": "Todo",
-      "implementation": "not_started",
+      "state": "In Progress",
+      "implementation": "partial_same_host_chromium_cdp_verified",
       "depends_on": [],
       "role": "QA / UX",
       "scope": "Arrange a reachable local test surface and verify pointer/touch/keyboard, masks, undo and stale saves.",
       "acceptance": "Actual browser/device/version, screenshots or interaction evidence and defects recorded. Do not infer visual acceptance from Node math parity.",
-      "evidence": "Previous browser-to-executor connection was refused; use a materially different reachable test setup.",
+      "evidence": "scripts/browser-acceptance.mjs; tests/test-browser-acceptance.sh; docs/BROWSER_ACCEPTANCE.md; docs/project/checkpoints/2026-11-10-browser-acceptance.md; Google Chrome 157.0.8103.79 CDP verified on darwin arm64 across 1440x900 desktop and 390x844 mobile touch viewports with 0 defects; physical Android/iOS touch hardware review remains open",
       "priority": 2,
       "linear": {
         "id": "MEL-80",
         "uuid": "791edb9e-42a2-494a-a317-407132823b30",
         "url": "https://linear.app/melato/issue/MEL-80/f08-b-complete-same-host-browser-and-target-device-acceptance",
         "title": "F08-B \u00b7 Complete same-host browser and target-device acceptance"
-      }
+      },
+      "verification_checkpoint": "docs/project/checkpoints/2026-11-10-browser-acceptance.md"
     },
     {
       "id": "F12-A",
@@ -643,6 +654,6 @@
       "linear_id": "fb26feb5-8122-40cb-a6e1-01a83b4f542c"
     }
   ],
-  "latest_checkpoint": "docs/STRUCTURAL_ROIS.md",
-  "checkpoint_base_commit": "5b4d0355c24fd5987404e14f5ef3622b10afd23b"
+  "latest_checkpoint": "docs/project/checkpoints/2026-11-13-apple-m1-base-audition.md",
+  "checkpoint_base_commit": "978e986e3c6f7c3a8caaf64005ab5d36d2d1ef8a"
 }

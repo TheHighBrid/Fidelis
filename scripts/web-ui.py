@@ -1149,6 +1149,9 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.end_headers()
             self.wfile.write(HTML_PAGE.replace("<body>", '<body><nav style="padding:12px 20px"><a href="/regions" style="color:#d2dabb">Open saved regional review ↗</a></nav>', 1).encode("utf-8"))
+        elif url.path == "/favicon.ico":
+            self.send_response(204)
+            self.end_headers()
         elif url.path == "/api/models":
             models = get_installed_models()
             self.send_response(200)

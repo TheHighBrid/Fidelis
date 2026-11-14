@@ -17,20 +17,20 @@ inference or automatic segmentation is claimed. Existing inference routes remain
 | --- | --- | --- |
 | F01 Audit and publish plan | Complete | `FIDELIS_STUDIO_PLAN.md`, baseline `0f10ca6`, primary references and corrected claims |
 | F02 Region compositor | Complete | `fidelis/postprocess/regions.py`; explicit confidence, normalized overlap, linear-light blending, exact locks |
-| F03 File reblend and recipe | Complete | `scripts/reblend-regions.py`; verified PNG export, hashes and unsigned recipe; `REGION_REBLEND.md` |
+| F03 File reblend and recipe | Complete | `scripts/reblend-regions.py`; verified PNG export, hashes, 16-bit IHDR guard and unsigned recipe; `REGION_REBLEND.md` |
 | F04 Artifact contracts and budget storage | Complete | SQLite versioned manifests, immutable checksummed disk artifacts, byte caps, stripe composition, restart/conflict/failure tests |
-| F05 Runtime/model registry audition | In progress | `backend-doctor.py` audits checksums/runtime presence; candidates are absent here, so model audition remains pending |
-| F06 Pinned generation adapter | In progress | Local ComfyUI adapter and job/CLI integration implemented; HTTP protocol tests pass; live exported workflow/model validation still required |
-| F07 Durable queue and reconciliation | In progress | Generation run ledger, timeout resume and uncertain-submission reconciliation implemented; async worker/cancellation remain |
-| F08 Region brush and reblend UI | In progress | Protect/skin/hair/fabric painting, erase, undo/redo, preview zoom, revision saves implemented; browser visual/device acceptance remains |
-| F09 Segmentation audition | Planned | License clearance and annotated boundary evaluation |
-| F10 Structural ROI protection | Planned | Explicit logo/seam/hardware masks and drift screening |
-| F11 Colour-managed export | Planned | Alpha, ICC, precision path, export round-trip tests |
-| F12 Corpus and comparator tooling | Planned | 60 licensed/consented cases, frozen 30/30 split |
-| F13 Calibration and blind acceptance | Planned | Actual Clarity/Krea comparisons and category defect report |
-| F14 Batch resilience | Planned | Bounded scheduling and resumable manifests |
-| F15 UI polish and packaging | Planned | Real device, accessibility, upgrade and rollback evidence |
-| F16 Production release | Planned | Quality and operational gates pass before parity claim |
+| F05 Runtime/model registry audition | In progress | `F05-B` provenance manifest (`config/model-provenance-v1.json`) + `F05-A` worker preflight (`scripts/worker-preflight.py`) + Apple M1 8GB NCNN Vulkan hardware audition (`docs/APPLE_M1_PRECISION_BASE_AUDITION.md`); 60-case corpus and commercial license clearance open |
+| F06 Pinned generation adapter | In progress | Local ComfyUI adapter and job/CLI integration implemented (`fidelis/studio/comfy.py`); HTTP protocol tests + dimension-aware `run_id` pass; live exported workflow/model validation still required |
+| F07 Durable queue and reconciliation | In progress | `F07-A` bounded async worker, scoped local cancellation, timeout resume and uncertain-submission reconciliation implemented (`fidelis/studio/generation.py`); live worker acceptance remains open |
+| F08 Region brush and reblend UI | In progress | `F08-A` native 100/200% pixel inspector + `F08-B` same-host Chrome CDP acceptance (`scripts/browser-acceptance.mjs`, 0 defects across desktop 1440×900 & mobile touch 390×844); physical Android/iOS touch review remains open |
+| F09 Segmentation audition | In progress | Source-bound imported probabilities + pinned `Xenova/segformer_b0_clothes` CPU smoke test (`docs/SEGFORMER_B0_AUDITION.md`); commercial terms, annotated ROI accuracy and target devices pending |
+| F10 Structural ROI protection | In progress | Explicit revision-bound structural ROI locks + Studio crop check/lock UI (`fidelis/studio/structure.py`, `docs/STRUCTURAL_ROIS.md`) + phase-correlation/Sobel internal drift screening (`fidelis/postprocess/roi_protection.py`, `docs/ROI_DRIFT_SCREENING.md`); 60-case corpus validation open |
+| F11 Colour-managed export | In review | ICC profile preservation (`sRGB`, `Display P3`, `Adobe RGB`), EXIF orientation normalization, straight-alpha composition and 8-bit/16-bit PNG/TIFF export (`fidelis/postprocess/managed_export.py`, `docs/MANAGED_EXPORT.md`) |
+| F12 Corpus and comparator tooling | In progress | `F12-A` 60-slot schema/freeze auditor (`fidelis/eval/corpus_manifest.py`) + `F12` local NCNN/ComfyUI and opt-in Clarity/Krea comparator runner adapters (`fidelis/eval/comparators.py`, `docs/COMPARATOR_RUNNERS.md`); 60 licensed cases and live paid comparator runs pending |
+| F13 Calibration and blind acceptance | In progress | Held-out quality acceptance evaluator (`fidelis/eval/quality_acceptance.py`, `docs/QUALITY_ACCEPTANCE.md`) with Wilson 95% CIs, Krippendorff's α / Cohen's κ and G1-G6 gates; live 30-case blind human signoff pending |
+| F14 Batch resilience | In review | SQLite-backed resumable batch runner (`fidelis/studio/batch.py`, `docs/BATCH_PROCESSING.md`) with idempotent item keys, uncertain-submission reconciliation and rate-limit circuit breaker |
+| F15 UI polish and packaging | In progress | Reproducible Studio source/offline tarballs, non-root `127.0.0.1` `Dockerfile`, upgrade/rollback verifier (`fidelis/studio/packaging.py`, `docs/RELEASE_PACKAGING.md`) and Chrome CDP UI polish fixes; physical Android device signoff pending |
+| F16 Production release | In progress | Fail-closed `E1..E4` release readiness dossier auditor (`fidelis/studio/release_readiness.py`, `docs/RELEASE_READINESS.md`); remains blocked until PR #12 merges and external `E2..E4` gates + owner signoff close |
 | F17 Optional challengers | Deferred | Separate FLUX/SUPIR/self-hosted adapter after core release |
 
 ## Verification completed
@@ -115,3 +115,29 @@ preserves manual masks/protection. **125 Python tests pass.** F09 remains partia
 no automatic segmentation model is configured or quality-qualified. See the
 [mask suggestion checkpoint](project/checkpoints/2026-11-10-mask-suggestions.md). Next: actual model/label/terms and ROI
 qualification, with browser/device and production corpus gates still open.
+
+## Unified M1–M4 implementation, PR #12 hardening & Apple M1 audition · 2026-11-13
+
+All remaining M1–M4 engineering deliverables (`F05-A`, `F05-B`, `F08-B`, `F10`, `F11`,
+`F12`, `F13`, `F14`, `F15`, `F16`) have been integrated onto `feat/region-aware-studio`
+alongside `F09` (`SegFormer B0` smoke test) and `F10` (`fidelis/studio/structure.py` +
+Studio native-inspector crop check/lock controls):
+
+- **Apple M1 (8 GB) Precision-Base Hardware Audition (`F05` / `MEL-58`)**: Executed real
+  Vulkan NCNN inference across `RealeSR-general-v3`, `RealSR-DF2K`, and `ESRGAN-Remacri`
+  on 4 photographic inputs (`astronaut_nasa_512`, `portrait_skin_real`,
+  `fashion_fabric_real`, `product_edges_real`), recording runtime/weight SHA-256s,
+  latency (`0.52–16.39 s`), `/usr/bin/time -l` peak RSS (`70.9–684.1 MB`),
+  source-consistency metrics, and structural ROI screening (`0.0 px` registration shift).
+  See [`docs/APPLE_M1_PRECISION_BASE_AUDITION.md`](APPLE_M1_PRECISION_BASE_AUDITION.md).
+- **Same-Host Chromium CDP Acceptance (`F08-B` / `MEL-80`)**: Executed real headless
+  Google Chrome (`157.0.8103.79` on `darwin arm64`) over CDP (`scripts/browser-acceptance.mjs`),
+  resolved all 3 minor UI defects (`UX-KEYBOARD-FOCUS-TRAP`, `MISSING-FAVICON-404`,
+  `UX-DESKTOP-CANVAS-SCROLL`), and verified `#checkNativeStructure` / `#lockNativeStructure`
+  with `observed_defects: []`. See [`docs/BROWSER_ACCEPTANCE.md`](BROWSER_ACCEPTANCE.md).
+- **PR #12 Review Hardening**: Rejected 16-bit/non-RGB PNGs via `IHDR` before Pillow
+  truncates (`scripts/reblend-regions.py`, `fidelis/studio/http.py`, `scripts/generate-texture.py`),
+  made `fidelis/__init__.py` lazy on `cv2` and scoped `/regions` dispatch (`scripts/web-ui.py`),
+  and included `source.shape` in `scripts/generate-texture.py` default `run_id`.
+- **Verification**: **185 Python unit tests (`test_*.py`) pass**, plus `tests/smoke-test.sh`,
+  `tests/test-web-ui.sh`, `tests/test-release-pipeline.sh`, and `tests/test-browser-acceptance.sh`.

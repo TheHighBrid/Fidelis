@@ -1,0 +1,338 @@
+{
+  "schema_version": 1,
+  "catalog_id": "fidelis-model-provenance-v1",
+  "updated_at": "2026-11-10",
+  "policy": "Weights, upstream revisions, checksums, and usage terms are tracked separately from quality certification. Missing weights or unverified terms must never be marked certified or production-eligible.",
+  "runtimes": [
+    {
+      "runtime_id": "realsr-ncnn-vulkan-20220728",
+      "role": "native_ncnn_runner",
+      "repository": "https://github.com/nihui/realsr-ncnn-vulkan",
+      "revision": "20220728",
+      "download_url": "https://github.com/nihui/realsr-ncnn-vulkan/releases/download/20220728/realsr-ncnn-vulkan-20220728-macos.zip",
+      "archive_sha256": null,
+      "provenance_status": "tagged_release_archive_unhashed",
+      "license": "MIT",
+      "commercial_status": "cleared_permissive",
+      "installer_script": "scripts/install-macos-runtime.sh"
+    },
+    {
+      "runtime_id": "realesrgan-ncnn-vulkan-20220424",
+      "role": "native_ncnn_runner",
+      "repository": "https://github.com/xinntao/Real-ESRGAN",
+      "revision": "v0.2.5.0",
+      "download_url": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesrgan-ncnn-vulkan-20220424-macos.zip",
+      "archive_sha256": null,
+      "provenance_status": "tagged_release_archive_unhashed",
+      "license": "BSD-3-Clause",
+      "commercial_status": "cleared_permissive",
+      "installer_script": "scripts/install-macos-runtime.sh"
+    }
+  ],
+  "models": [
+    {
+      "model_id": "RealeSR-general-v3",
+      "lane": "native_ncnn",
+      "role": "mobile-general",
+      "provenance_status": "pinned_sha256",
+      "source": {
+        "repository": "https://huggingface.co/tumuyan2/realsr-models",
+        "revision": "0fe68041370150c7695816e229dc982bfc06ed58",
+        "folder": "models-RealeSR-general-v3",
+        "catalog_source": "config/photo-candidates.tsv"
+      },
+      "weights": {
+        "x4.param": "ce766e261369b911c3f3f607266380e6e6133e82699fed5e3b3afa07482c34c1",
+        "x4.bin": "01450f4a79b81c0f1f3eeefc31121167886125c25e41a6d4773e8ec8062528a1"
+      },
+      "local_relative_dir": "runtime/models-RealeSR-general-v3",
+      "terms": {
+        "license": "BSD-3-Clause",
+        "commercial_status": "cleared_permissive",
+        "production_terms_cleared": true,
+        "separate_obligations": "Retain upstream Real-ESRGAN copyright notice and BSD-3-Clause disclaimer when redistributing.",
+        "reference_url": "https://github.com/xinntao/Real-ESRGAN/blob/master/LICENSE",
+        "checked_date": "2026-11-10"
+      },
+      "quality_certified": false,
+      "quality_note": "Candidate for F05/F13 Studio audition; historical script auditions do not certify M3/M4 release."
+    },
+    {
+      "model_id": "RealSR-DF2K",
+      "lane": "native_ncnn",
+      "role": "photo-fidelity",
+      "provenance_status": "pinned_sha256",
+      "source": {
+        "repository": "https://huggingface.co/tumuyan2/realsr-models",
+        "revision": "a7b0161ee1b8c70843b3facce834cdac63118c41",
+        "folder": "models-DF2K",
+        "catalog_source": "config/photo-candidates.tsv"
+      },
+      "weights": {
+        "x4.param": "a7f31e75518ad279c179202bf77da9eca3141124a67e5261d97235849e6cc323",
+        "x4.bin": "a3f5eb53906ef54d5c5d125b2c9dd5f570d9dbb779e3d934df14b5375fd923c1"
+      },
+      "local_relative_dir": "runtime/models-DF2K",
+      "terms": {
+        "license": "Upstream RealSR DF2K terms",
+        "commercial_status": "unverified_terms",
+        "production_terms_cleared": false,
+        "separate_obligations": "Verify upstream RealSR checkpoint distribution rights before any commercial packaging.",
+        "reference_url": "https://github.com/nihui/realsr-ncnn-vulkan",
+        "checked_date": "2026-11-10"
+      },
+      "quality_certified": false,
+      "quality_note": "Heavy comparator candidate in NCNN lane; not quality-certified."
+    },
+    {
+      "model_id": "ESRGAN-Remacri",
+      "lane": "native_ncnn",
+      "role": "balanced-general",
+      "provenance_status": "pinned_sha256",
+      "source": {
+        "repository": "https://huggingface.co/tumuyan2/realsr-models",
+        "revision": "489b523a30aabfb98002b20797ff55fcef6cb1bd",
+        "folder": "models-ESRGAN-Remacri",
+        "catalog_source": "config/photo-candidates.tsv"
+      },
+      "weights": {
+        "x4.param": "859ecba5b3592ecf3e76c93bed65e9f627b5236dd696aae5a84ecf8c93ab65ce",
+        "x4.bin": "a43be595c0d743314c30b50fe7ef188be0c61cc55c46ce81adb79ba4b3c3fb7a"
+      },
+      "local_relative_dir": "runtime/models-ESRGAN-Remacri",
+      "terms": {
+        "license": "Unverified community checkpoint",
+        "commercial_status": "evaluation_only_unverified",
+        "production_terms_cleared": false,
+        "separate_obligations": "Evaluation only until upstream Remacri model license is explicitly confirmed.",
+        "reference_url": "https://huggingface.co/tumuyan2/realsr-models",
+        "checked_date": "2026-11-10"
+      },
+      "quality_certified": false,
+      "quality_note": "Comparator only; unverified commercial terms."
+    },
+    {
+      "model_id": "4x-UltraSharp",
+      "lane": "native_ncnn",
+      "role": "legacy-alias-candidate",
+      "provenance_status": "unpinned_upstream",
+      "source": {
+        "repository": null,
+        "revision": null,
+        "folder": "models-4x-UltraSharp",
+        "catalog_source": null
+      },
+      "weights": {
+        "x4.param": null,
+        "x4.bin": null
+      },
+      "local_relative_dir": "runtime/models-4x-UltraSharp",
+      "terms": {
+        "license": "Unverified community checkpoint",
+        "commercial_status": "unverified_terms",
+        "production_terms_cleared": false,
+        "separate_obligations": "Upstream download revision, checksum pin, and author license remain unverified in repo.",
+        "reference_url": null,
+        "checked_date": "2026-11-10"
+      },
+      "quality_certified": false,
+      "quality_note": "Legacy pipeline alias only; unpinned and unverified."
+    },
+    {
+      "model_id": "ESRGAN-Nomos8kSC",
+      "lane": "native_ncnn",
+      "role": "rejected-negative-comparator",
+      "provenance_status": "unpinned_upstream",
+      "source": {
+        "repository": null,
+        "revision": null,
+        "folder": "models-Nomos8kSC",
+        "catalog_source": null
+      },
+      "weights": {
+        "x4.param": null,
+        "x4.bin": null
+      },
+      "local_relative_dir": "runtime/models-Nomos8kSC",
+      "terms": {
+        "license": "Upstream checkpoint terms require revision pin",
+        "commercial_status": "rejected_quality",
+        "production_terms_cleared": false,
+        "separate_obligations": "Rejected per DECISIONS.md due to synthetic checkerboard texture on skin/fabric; retained solely as negative comparator.",
+        "reference_url": null,
+        "checked_date": "2026-11-10"
+      },
+      "quality_certified": false,
+      "quality_note": "Explicitly rejected as default/target baseline."
+    },
+    {
+      "model_id": "yunet-face-detection-2023mar",
+      "lane": "portrait_onnx",
+      "role": "face-detector-helper",
+      "provenance_status": "unpinned_upstream",
+      "source": {
+        "repository": "https://github.com/opencv/opencv_zoo",
+        "revision": "main (unpinned in Dockerfile)",
+        "download_url": "https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx",
+        "catalog_source": "Dockerfile"
+      },
+      "weights": {
+        "yunet.onnx": null
+      },
+      "local_relative_dir": "models/portrait",
+      "terms": {
+        "license": "MIT",
+        "commercial_status": "cleared_permissive_unpinned_bytes",
+        "production_terms_cleared": false,
+        "separate_obligations": "MIT license is permissive, but Dockerfile must pin a fixed git commit and SHA-256 checksum before release.",
+        "reference_url": "https://github.com/opencv/opencv_zoo/blob/main/models/face_detection_yunet/LICENSE",
+        "checked_date": "2026-11-10"
+      },
+      "quality_certified": false,
+      "quality_note": "Optional portrait detector helper; not an upscaling/restoration quality target."
+    },
+    {
+      "model_id": "codeformer-onnx",
+      "lane": "portrait_onnx",
+      "role": "legacy-face-restoration",
+      "provenance_status": "unpinned_upstream",
+      "source": {
+        "repository": "https://github.com/harisreedhar/Face-Upscalers-ONNX",
+        "revision": "Models",
+        "download_url": "https://github.com/harisreedhar/Face-Upscalers-ONNX/releases/download/Models/codeformer.onnx",
+        "catalog_source": "Dockerfile"
+      },
+      "weights": {
+        "codeformer.onnx": null
+      },
+      "local_relative_dir": "models/portrait",
+      "terms": {
+        "license": "S-Lab License 1.0 (upstream CodeFormer)",
+        "commercial_status": "non_commercial_restricted",
+        "production_terms_cleared": false,
+        "separate_obligations": "Upstream CodeFormer weights under S-Lab License 1.0 restrict commercial deployment; Dockerfile also lacks SHA-256 pin.",
+        "reference_url": "https://github.com/sczhou/CodeFormer/blob/master/LICENSE",
+        "checked_date": "2026-11-10"
+      },
+      "quality_certified": false,
+      "quality_note": "Legacy optional portrait engine; restricted non-commercial upstream terms."
+    },
+    {
+      "model_id": "sdxl-comfy-texture-slot",
+      "lane": "studio_generative",
+      "role": "comfy-texture-candidate",
+      "provenance_status": "not_acquired",
+      "source": {
+        "repository": null,
+        "revision": null,
+        "catalog_source": "docs/COMFY_TEXTURE_BACKEND.md"
+      },
+      "weights": {},
+      "local_relative_dir": null,
+      "terms": {
+        "license": "Depends on selected SDXL base + ControlNet/VAE weights",
+        "commercial_status": "unverified_terms",
+        "production_terms_cleared": false,
+        "separate_obligations": "Record exact checkpoint, VAE, ControlNet hashes and OpenRAIL++/component licenses per exported workflow before F05/F06 certification.",
+        "reference_url": "docs/FIDELIS_STUDIO_PLAN.md",
+        "checked_date": "2026-11-10"
+      },
+      "quality_certified": false,
+      "quality_note": "Operator-supplied ComfyUI graph target; no checkpoint bundled or guessed."
+    },
+    {
+      "model_id": "clarity-upscaler-ref",
+      "lane": "studio_generative",
+      "role": "benchmark-comparator-only",
+      "provenance_status": "not_acquired",
+      "source": {
+        "repository": "https://github.com/philz1337x/clarity-upscaler",
+        "revision": null,
+        "catalog_source": "docs/FIDELIS_STUDIO_PLAN.md"
+      },
+      "weights": {},
+      "local_relative_dir": null,
+      "terms": {
+        "license": "AGPL-3.0 (upstream implementation); hosted Fal schema separate",
+        "commercial_status": "copyleft_agpl_restricted",
+        "production_terms_cleared": false,
+        "separate_obligations": "Do not copy AGPL-3.0 code into this MIT repository; use solely as an external comparator with disclosed billing/settings.",
+        "reference_url": "https://github.com/philz1337x/clarity-upscaler",
+        "checked_date": "2026-11-10"
+      },
+      "quality_certified": false,
+      "quality_note": "External quality benchmark reference only."
+    },
+    {
+      "model_id": "flux-1-dev",
+      "lane": "studio_generative",
+      "role": "deferred-m5-challenger",
+      "provenance_status": "not_acquired",
+      "source": {
+        "repository": "https://huggingface.co/black-forest-labs/FLUX.1-dev",
+        "revision": null,
+        "catalog_source": "docs/FIDELIS_STUDIO_PLAN.md"
+      },
+      "weights": {},
+      "local_relative_dir": null,
+      "terms": {
+        "license": "FLUX.1-dev Non-Commercial License",
+        "commercial_status": "non_commercial_restricted",
+        "production_terms_cleared": false,
+        "separate_obligations": "Model deployment restricted to non-commercial use without separate commercial licensing from Black Forest Labs; distinct from output permissions.",
+        "reference_url": "https://huggingface.co/black-forest-labs/FLUX.1-dev/blob/main/LICENSE.md",
+        "checked_date": "2026-11-10"
+      },
+      "quality_certified": false,
+      "quality_note": "Deferred until M5/F17 after core release."
+    },
+    {
+      "model_id": "Xenova/segformer_b0_clothes",
+      "lane": "studio_segmentation",
+      "role": "f09-segmentation-audition",
+      "provenance_status": "pinned_sha256",
+      "source": {
+        "repository": "https://huggingface.co/Xenova/segformer_b0_clothes",
+        "revision": "a2489ea8e7ec1ee912190546bad31a4906ccca76",
+        "catalog_source": "fidelis/studio/segformer.py"
+      },
+      "weights": {
+        "model.onnx": "02e6f1545475bc549184b6710487555b4b73eb08354cc3a480fb4fab1473a9d3"
+      },
+      "local_relative_dir": "models/segmentation",
+      "terms": {
+        "license": "MIT (original B0 card); ATR dataset terms unverified",
+        "commercial_status": "unclear_terms_review_required",
+        "production_terms_cleared": false,
+        "separate_obligations": "Original B0 card declares MIT, but converted ONNX card omits separate license and ATR training dataset commercial rights remain unfilled; patch/zipper spill requires explicit structural protection.",
+        "reference_url": "https://huggingface.co/mattmdjaga/segformer_b0_clothes/blob/7142c7f9d2be9ee39a47bd2091ad9d5fbe61bb1b/README.md",
+        "checked_date": "2026-11-11"
+      },
+      "quality_certified": false,
+      "quality_note": "CPU smoke-tested in F09 audition (docs/SEGFORMER_B0_AUDITION.md); not production-certified."
+    },
+    {
+      "model_id": "segformer-b2-clothes",
+      "lane": "studio_segmentation",
+      "role": "f09-segmentation-candidate",
+      "provenance_status": "not_acquired",
+      "source": {
+        "repository": "https://huggingface.co/mattmdjaga/segformer_b2_clothes",
+        "revision": null,
+        "catalog_source": "docs/FIDELIS_STUDIO_PLAN.md"
+      },
+      "weights": {},
+      "local_relative_dir": null,
+      "terms": {
+        "license": "other (HuggingFace card metadata)",
+        "commercial_status": "unclear_terms_review_required",
+        "production_terms_cleared": false,
+        "separate_obligations": "Clear ATR dataset and MiT backbone license terms before F09 weight shipping; cannot identify seams, logos, or zippers alone.",
+        "reference_url": "https://huggingface.co/mattmdjaga/segformer_b2_clothes",
+        "checked_date": "2026-11-10"
+      },
+      "quality_certified": false,
+      "quality_note": "Deferred to F09 audition with confidence gating."
+    }
+  ]
+}

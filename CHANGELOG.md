@@ -1,5 +1,13 @@
 # Fidelis Changelog
 
+## Unreleased unified M1–M4 Studio implementation & Apple M1 audition · 2026-11-13
+
+- Integrated all M1–M4 engineering deliverables (`F05-A`, `F05-B`, `F08-B`, `F10`, `F11`, `F12`, `F13`, `F14`, `F15`, `F16`) onto `feat/region-aware-studio` alongside `F09` (`SegFormer B0` smoke test) and `F10` (`fidelis/studio/structure.py` + Studio native-inspector crop check/lock controls).
+- Executed target-device **Apple M1 (8 GB RAM) Vulkan NCNN precision-base audition** (`F05` / `MEL-58`) across `RealeSR-general-v3`, `RealSR-DF2K`, and `ESRGAN-Remacri` on four real photographic inputs (`docs/APPLE_M1_PRECISION_BASE_AUDITION.md`), recording runtime/weight SHA-256s, wall-clock latency (`0.52–16.39 s`), `/usr/bin/time -l` peak RSS (`70.9–684.1 MB`), source-consistency metrics, and structural ROI screening (`0.0 px` registration shift).
+- Executed real headless Google Chrome (`157.0.8103.79` on `darwin arm64`) over CDP (`scripts/browser-acceptance.mjs`), resolved all 3 minor UI defects (`UX-KEYBOARD-FOCUS-TRAP`, `MISSING-FAVICON-404`, `UX-DESKTOP-CANVAS-SCROLL`), and verified `#checkNativeStructure` / `#lockNativeStructure` with `observed_defects: []`.
+- Resolved all 3 PR #12 automated code review findings (`16-bit PNG IHDR` validation before Pillow decode, lazy `cv2` import in `fidelis/__init__.py` + scoped `/regions` dispatch in `scripts/web-ui.py`, and dimension-aware `run_id` hash in `scripts/generate-texture.py`).
+- Recorded **185 passing Python unit tests (`test_*.py`)**, plus `tests/smoke-test.sh`, `tests/test-web-ui.sh`, `tests/test-release-pipeline.sh`, and `tests/test-browser-acceptance.sh`.
+
 ## Unreleased mask suggestion interface · 2026-11-10
 
 - Added source-bound class probability import, explicit label routing and conservative confidence/boundary gates.
