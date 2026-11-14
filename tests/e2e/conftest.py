@@ -27,6 +27,7 @@ def pytest_configure(config: pytest.Config) -> None:
         "tier2: Tier 2 boundary and corner-case E2E tests (F1-F10)",
         "tier3: Tier 3 cross-feature combination E2E tests",
         "tier4: Tier 4 real-world scenario E2E tests",
+        "tier5: Tier 5 adversarial E2E tests",
         "f1: Feature F1 - Explicit 4x Bicubic Comparator",
         "f2: Feature F2 - Scale-Matched Interior Texture Retention Metric",
         "f3: Feature F3 - Oversharpening & Halo Restraint Metric",

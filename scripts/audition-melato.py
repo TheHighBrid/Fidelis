@@ -6,10 +6,12 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import sys
 from typing import Any
 
 from PIL import Image
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from fidelis.engine.restoration_runner import (
     BackendUnavailableError,
     DimensionMismatchError,
