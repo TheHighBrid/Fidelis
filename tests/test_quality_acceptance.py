@@ -11,7 +11,9 @@ from pathlib import Path
 
 from fidelis.eval.quality_acceptance import (
     REQUIRED_CATEGORIES,
+    cohen_kappa,
     evaluate_held_out_acceptance,
+    krippendorff_alpha_nominal,
     wilson_95_ci,
 )
 
@@ -103,6 +105,37 @@ class QualityAcceptanceTests(unittest.TestCase):
         self.assertGreater(lo, 0.65)
         self.assertLess(hi, 0.94)
         self.assertEqual(wilson_95_ci(0, 0), (0.0, 0.0))
+
+    def test_cohen_kappa_and_krippendorff_alpha_nominal(self) -> None:
+        a = ["fidelis_win", "fidelis_win", "tie", "comparator_win", "fidelis_win"]
+        b = ["fidelis_win", "tie", "tie", "comparator_win", "fidelis_win"]
+        self.assertEqual(cohen_kappa(a, a), 1.0)
+        kappa = cohen_kappa(a, b)
+        self.assertIsNotNone(kappa)
+        self.assertGreater(kappa, 0.5)
+        self.assertLess(kappa, 1.0)
+        self.assertIsNone(cohen_kappa([], []))
+
+        units_perfect = [[x, x] for x in a]
+        self.assertEqual(krippendorff_alpha_nominal(units_perfect), 1.0)
+        units_paired = [[x, y] for x, y in zip(a, b)]
+        alpha = krippendorff_alpha_nominal(units_paired)
+        self.assertIsNotNone(alpha)
+        self.assertGreater(alpha, 0.5)
+        self.assertLess(alpha, 1.0)
+
+        sub = _make_complete_submission(owner_status="pending")
+        dual_ballots = []
+        for entry in sub["held_out_ballots"]:
+            dual_ballots.append({**entry, "reviewer_id": "reviewer_1"})
+            dual_ballots.append({**entry, "reviewer_id": "reviewer_2"})
+        sub["held_out_ballots"] = dual_ballots
+        report = evaluate_held_out_acceptance(sub)
+        ira = report["inter_rater_agreement"]
+        self.assertEqual(ira["reviewer_count"], 2)
+        self.assertEqual(ira["overlapping_pair_count"], 60)
+        self.assertEqual(ira["cohen_kappa"], 1.0)
+        self.assertEqual(ira["krippendorff_alpha_nominal"], 1.0)
 
     def test_passing_quantitative_gates_waits_for_owner_signoff_then_accepts(self) -> None:
         pending_sub = _make_complete_submission(owner_status="pending")

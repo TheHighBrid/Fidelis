@@ -22,7 +22,9 @@ protocol defined in [QUALITY_GATES.md](project/QUALITY_GATES.md):
    - Per category (`portrait`, `model_apparel`, `textile`, `macro`, `packshot_edge` — at
      least 6 distinct held-out cases each): `preference_plus_ties_rate >= 0.60`.
    - Reports exact Wilson 95% confidence intervals and deterministic percentile bootstrap
-     95% confidence intervals alongside sample sizes.
+     95% confidence intervals alongside sample sizes, plus inter-rater agreement
+     (`cohen_kappa` and `krippendorff_alpha_nominal`) when `reviewer_id` is supplied across
+     overlapping dual-reviewer ballots.
 5. **Owner Creative Signoff**: When all quantitative gates pass but
    `owner_creative_signoff.status != "approved"`, `overall_status` is capped at
    `awaiting_owner_signoff`.

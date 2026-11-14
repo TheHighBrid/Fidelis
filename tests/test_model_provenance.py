@@ -63,6 +63,9 @@ class ModelProvenanceTests(unittest.TestCase):
             self.assertFalse(m["installed"], m["model_id"])
             self.assertFalse(m["quality_certified"], m["model_id"])
             self.assertIn(m["integrity"], ("missing", "not_acquired"))
+        for rt in report["runtimes"]:
+            self.assertFalse(rt["installed"], rt["runtime_id"])
+            self.assertEqual(rt["integrity"], "missing")
 
     def test_tampered_pinned_bytes_and_unpinned_local_bytes_fail_safely(self) -> None:
         with tempfile.TemporaryDirectory() as home:

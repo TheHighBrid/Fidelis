@@ -14,6 +14,11 @@ SCHEMA_VERSION = 1
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 VALID_PROVENANCE_STATUS = ("pinned_sha256", "unpinned_upstream", "not_acquired")
+VALID_RUNTIME_PROVENANCE_STATUS = (
+    "pinned_sha256",
+    "tagged_release_archive_unhashed",
+    "unpinned_upstream",
+)
 VALID_COMMERCIAL_STATUS = (
     "cleared_permissive",
     "cleared_permissive_unpinned_bytes",
@@ -73,8 +78,27 @@ def validate_provenance_catalog(
 
     runtimes = catalog.get("runtimes")
     models = catalog.get("models")
-    if not isinstance(runtimes, list) or not isinstance(models, list) or not models:
+    if not isinstance(runtimes, list) or not runtimes or not isinstance(models, list) or not models:
         raise ProvenanceError("Provenance catalog requires non-empty 'models' list and 'runtimes' list")
+
+    seen_runtime_ids = set()
+    for rt in runtimes:
+        if not isinstance(rt, dict):
+            raise ProvenanceError("Each runtime entry must be an object")
+        rid = rt.get("runtime_id")
+        if not isinstance(rid, str) or not rid.strip() or rid in seen_runtime_ids:
+            raise ProvenanceError(f"Missing or duplicate runtime_id: {rid!r}")
+        seen_runtime_ids.add(rid)
+        if rt.get("provenance_status") not in VALID_RUNTIME_PROVENANCE_STATUS:
+            raise ProvenanceError(f"{rid}: invalid runtime provenance_status {rt.get('provenance_status')!r}")
+        if rt.get("commercial_status") not in VALID_COMMERCIAL_STATUS:
+            raise ProvenanceError(f"{rid}: invalid runtime commercial_status {rt.get('commercial_status')!r}")
+        if not isinstance(rt.get("revision"), str) or not rt.get("revision").strip():
+            raise ProvenanceError(f"{rid}: runtime requires non-empty revision")
+        for sha_field in ("archive_sha256", "macos_binary_sha256"):
+            sha_val = rt.get(sha_field)
+            if sha_val is not None and (not isinstance(sha_val, str) or not _SHA256_RE.fullmatch(sha_val)):
+                raise ProvenanceError(f"{rid}: malformed {sha_field} {sha_val!r}")
 
     tsv_map = load_tsv_candidates(tsv_path) if tsv_path is not None else None
     seen_ids = set()
@@ -173,6 +197,42 @@ def audit_model_provenance(
     catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
     summary = validate_provenance_catalog(catalog, tsv_path=tsv_path)
 
+    runtime_reports: List[Dict[str, Any]] = []
+    for rt in catalog["runtimes"]:
+        rel_path = rt.get("local_relative_path")
+        expected_sha = rt.get("macos_binary_sha256")
+        rt_installed = False
+        rt_integrity = "missing"
+        actual_sha = None
+        size_bytes = None
+        if isinstance(rel_path, str) and rel_path:
+            bin_path = home / rel_path
+            if bin_path.is_file():
+                rt_installed = True
+                actual_sha = sha256_file(bin_path)
+                size_bytes = bin_path.stat().st_size
+                if expected_sha is None:
+                    rt_integrity = "unpinned_local"
+                elif actual_sha == expected_sha:
+                    rt_integrity = "matched"
+                else:
+                    rt_integrity = "mismatch"
+        runtime_reports.append(
+            {
+                "runtime_id": rt["runtime_id"],
+                "role": rt["role"],
+                "revision": rt["revision"],
+                "provenance_status": rt["provenance_status"],
+                "installed": rt_installed,
+                "integrity": rt_integrity,
+                "actual_sha256": actual_sha,
+                "expected_binary_sha256": expected_sha,
+                "bytes": size_bytes,
+                "license": rt["license"],
+                "commercial_status": rt["commercial_status"],
+            }
+        )
+
     model_reports: List[Dict[str, Any]] = []
     for entry in catalog["models"]:
         rel_dir = entry.get("local_relative_dir")
@@ -254,5 +314,6 @@ def audit_model_provenance(
         "schema_version": SCHEMA_VERSION,
         "catalog_summary": summary,
         "app_home": str(home),
+        "runtimes": runtime_reports,
         "models": model_reports,
     }

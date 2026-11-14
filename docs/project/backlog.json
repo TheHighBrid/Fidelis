@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "snapshot_date": "2026-11-13",
-  "code_snapshot": "978e986e3c6f7c3a8caaf64005ab5d36d2d1ef8a",
+  "code_snapshot": "b9fb6fb0aa26eeca6ef8a52df719c1cfcf4ea261",
   "code_branch": "feat/region-aware-studio",
   "code_pr": "https://github.com/TheHighBrid/Fidelis/pull/12",
   "canonical_spec": "docs/FIDELIS_STUDIO_PLAN.md",
@@ -182,7 +182,7 @@
       "title": "Qualify confidence-gated automatic segmentation",
       "milestone": "M2",
       "state": "In Progress",
-      "implementation": "partial_pinned_b0_cpu_smoke_verified",
+      "implementation": "partial_apple_m1_and_linux_cpu_smoke_verified",
       "depends_on": [
         "F05",
         "F08"
@@ -190,7 +190,7 @@
       "role": "Vision / masks",
       "scope": "Suggest editable semantic masks using cleared actual model candidates.",
       "acceptance": "Actual labels and terms verified; annotated collars/cuffs/hair and product cases evaluated; unknown regions stay protected; full-resolution refinement fits measured resources.",
-      "evidence": "docs/SEGFORMER_B0_AUDITION.md; pinned model SHA and matching 18 labels; real photo proposal/accept smoke; patch and zipper spill; commercial rights, annotated ROI accuracy and target devices pending",
+      "evidence": "docs/SEGFORMER_B0_AUDITION.md; pinned model SHA and matching 18 labels; real photo proposal/accept smoke on Linux x86-64 and Apple M1 8GB (onnxruntime 1.32.0, 0.44-0.83s total wall time, 292.1-378.9 MB peak RSS up to 2048x2048); patch and zipper spill; commercial rights and broader annotated ROI accuracy pending",
       "priority": 3,
       "linear": {
         "id": "MEL-62",

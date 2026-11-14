@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import unittest
 from urllib.error import HTTPError
 from urllib.parse import urlencode
@@ -11,6 +12,7 @@ from urllib.parse import urlencode
 import numpy as np
 from PIL import Image
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 import test_region_http as http_fixture
 from fidelis.postprocess.regions import RegionBlend
 from fidelis.studio.inspection import crop_bounds, native_crop

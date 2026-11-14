@@ -31,7 +31,20 @@ The test used the 512 × 512 scikit-image astronaut sample from v0.25.2. Its PNG
 | Zipper | 241, 323, 13, 122 | 156 / 1,586 |
 | Helmet | 320, 405, 130, 85 | 0 / 11,050 |
 
-Staging preserved the master hash. A manual lock on the patch preserved all 4,875 patch pixels exactly after accepting the proposal against a deliberately different texture pass. Session creation took about 0.15 s and inference about 0.30 s with two intra-op threads in one Linux x86-64 run. These counts describe proposal coverage in one photo. Accuracy across annotated garment boundaries and memory/latency on target devices still need measurement.
+Staging preserved the master hash. A manual lock on the patch preserved all 4,875 patch pixels exactly after accepting the proposal against a deliberately different texture pass. Session creation took about 0.15 s and inference about 0.30 s with two intra-op threads in one Linux x86-64 run.
+
+## Apple M1 (`Darwin arm64`, 8 GB unified memory) target-device benchmark · 2026-11-13
+
+Executed on Apple M1 (`Darwin 25.4.0 arm64`, 8 GB unified memory) with `onnxruntime 1.32.0` (`CPUExecutionProvider`, 2 intra-op threads) and the pinned `Xenova/segformer_b0_clothes` ONNX weights (`~/.local/share/fidelis/models/segmentation/model.onnx`, SHA-256 `02e6f1545475bc549184b6710487555b4b73eb08354cc3a480fb4fab1473a9d3`) via `scripts/mask-suggestion.py propose` under `/usr/bin/time -l`:
+
+| Job / Input | Full-Resolution Grid | Session Creation (`s`) | ONNX Inference (`s`) | Total CLI + Stripe Upsample (`s`) | Peak RSS (`MB`) |
+| :--- | :---: | ---: | ---: | ---: | ---: |
+| `astronaut_512` (`luxury_apparel`) | `512 × 512` (0.26 MP) | `0.0902` | `0.1923` | `0.5339` | `292.06` |
+| `portrait_skin_600` (`editorial_skin`) | `600 × 600` (0.36 MP) | `0.0497` | `0.1708` | `0.4426` | `294.27` |
+| `fashion_fabric_800` (`luxury_apparel`) | `800 × 800` (0.64 MP) | `0.0462` | `0.1706` | `0.4557` | `302.70` |
+| `astronaut_2048` (`luxury_apparel`) | `2048 × 2048` (4.19 MP) | `0.0486` | `0.1697` | `0.8317` | `378.88` |
+
+The Apple M1 run reproduced identical ROI proposal pixel counts on `astronaut_512` (`Hair 2,058 / 2,250`, `Face 0 / 4,875`, `Garment panel 875 / 875`, `Suit patch 3,611 / 4,875`, `Zipper 156 / 1,586`, `Helmet 0 / 11,050`) and completed 4.2 MP (`2048 × 2048`) full-resolution stripe refinement in `0.83 s` at `378.88 MB` peak RSS. Accuracy across a broader annotated garment corpus and commercial rights clearance still need verification.
 
 ## Qualification status
 

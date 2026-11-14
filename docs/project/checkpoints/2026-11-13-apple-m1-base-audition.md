@@ -2,7 +2,7 @@
 
 ## Scope and delivery
 
-F05 / MEL-58 target-device precision-base audition on **Apple M1 (`Darwin 25.4.0 arm64`, 8 GB unified memory)** across `RealeSR-general-v3`, `RealSR-DF2K`, and `ESRGAN-Remacri` using checksum-locked `realsr-ncnn` Vulkan engines (`realesrgan-ncnn-vulkan` SHA-256 `f6fcfbc9...`, `realsr-ncnn-vulkan` SHA-256 `dc6d6998...`).
+F05 / MEL-58 target-device precision-base audition on **Apple M1 (`Darwin 25.4.0 arm64`, 8 GB unified memory)** across `RealeSR-general-v3`, `RealSR-DF2K`, and `ESRGAN-Remacri` using checksum-locked `realsr-ncnn` Vulkan engines (`realesrgan-ncnn-vulkan` SHA-256 `c1c35d92...`, `realsr-binary` SHA-256 `4daca3d6...`, `realsr-ncnn` router SHA-256 `a5fbe36b...`).
 
 ## Evidence recorded
 

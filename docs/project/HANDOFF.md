@@ -125,7 +125,7 @@ target-device colour acceptance remain open.
 
 ## Unified M1–M4 implementation, PR #12 hardening & Apple M1 audition · 2026-11-13
 
-All M1–M4 engineering deliverables (`F05-A`, `F05-B`, `F08-B`, `F10`, `F11`, `F12`, `F13`, `F14`, `F15`, `F16`) are now integrated directly on `feat/region-aware-studio` (PR #12) with **185 passing Python unit tests**, zero-defect Chrome CDP browser acceptance (`tests/test-browser-acceptance.sh`), PR #12 review fixes (`16-bit PNG IHDR` guard, lazy `cv2` import, dimension-aware `run_id`), and target-device Apple M1 (8 GB) Vulkan NCNN precision-base audition evidence (`docs/APPLE_M1_PRECISION_BASE_AUDITION.md`).
+All M1–M4 engineering deliverables (`F05-A`, `F05-B`, `F08-B`, `F10`, `F11`, `F12`, `F13`, `F14`, `F15`, `F16`) are now integrated directly on `feat/region-aware-studio` (PR #12) with **186 passing Python unit tests**, zero-defect Chrome CDP browser acceptance (`tests/test-browser-acceptance.sh`), PR #12 review fixes (`16-bit PNG IHDR` guard, lazy `cv2` import, dimension-aware `run_id`), target-device Apple M1 (8 GB) Vulkan NCNN precision-base audition evidence (`docs/APPLE_M1_PRECISION_BASE_AUDITION.md`), and target-device Apple M1 (8 GB) SegFormer B0 segmentation latency/RSS evidence (`docs/SEGFORMER_B0_AUDITION.md`).
 
 Do **not** re-implement `F05-A`, `F05-B`, `F08-B`, `F10`, `F11`, `F12`, `F13`, `F14`, `F15`, or `F16` from scratch; their modules, CLIs, tests, and docs are already tracked on `feat/region-aware-studio`. Remaining work is strictly external `E2..E4` execution once external assets/workers are provisioned:
 1. Live ComfyUI GPU worker preflight & texture workflow qualification (`F05-A`/`F06`/`F07`).

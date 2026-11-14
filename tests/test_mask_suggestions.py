@@ -12,6 +12,7 @@ from urllib.error import HTTPError
 import zipfile
 
 import numpy as np
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 import test_region_http as http_fixture
 from fidelis.postprocess.regions import RegionBlend
 from fidelis.studio.store import BudgetExceeded,JobStore,RevisionConflict

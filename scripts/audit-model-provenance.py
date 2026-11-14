@@ -34,8 +34,13 @@ def main() -> int:
         by_prov = summary["by_provenance_status"]
         print("Fidelis Model Provenance & Terms Audit")
         print(f"Catalog models:           {summary['model_count']} ({by_prov['pinned_sha256']} SHA-pinned, {by_prov['unpinned_upstream']} unpinned upstream, {by_prov['not_acquired']} not acquired)")
+        print(f"Catalog runtimes:         {summary['runtime_count']}")
         print(f"TSV cross-check passed:   {summary['tsv_cross_checked']}")
         print(f"Inspection root:          {report['app_home']}")
+        for rt in report.get("runtimes", []):
+            print(
+                f"  - [runtime] {rt['runtime_id']:30} | rev={rt['revision']:10} | local={rt['integrity']:14} | terms={rt['commercial_status']}"
+            )
         for m in report["models"]:
             print(
                 f"  - {m['model_id']:28} | prov={m['provenance_status']:17} | local={m['integrity']:14} | terms={m['commercial_status']} | certified={m['quality_certified']}"

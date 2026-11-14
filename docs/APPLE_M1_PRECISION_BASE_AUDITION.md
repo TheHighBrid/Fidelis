@@ -11,8 +11,9 @@ This document records the target-device precision-base audition executed on **Ap
 | Component | Identifier / Path | Pinned Revision | Verified SHA-256 | Size |
 | :--- | :--- | :--- | :--- | ---: |
 | **Host CPU / SoC** | Apple M1 (`Darwin 25.4.0 arm64`) | 8 GB unified memory | — | — |
-| **NCNN Engine (`realesrgan`)** | `~/.local/share/fidelis/runtime/realsr-ncnn/realesrgan-ncnn-vulkan` | `realsr-ncnn-macos-arm64` | `f6fcfbc9aa33c2bd7d1aa4ca0341a018916686522e73b0aaecba14edbf9da06d` | 6,753,904 B |
-| **NCNN Engine (`realsr`)** | `~/.local/share/fidelis/runtime/realsr-ncnn/realsr-ncnn-vulkan` | `realsr-ncnn-macos-arm64` | `dc6d6998f3ba578e0a16a9f0fd15a16e92d4f0a870c2294950cbdf977a4d64dc` | 6,751,856 B |
+| **NCNN Router (`realsr-ncnn`)** | `~/.local/share/fidelis/runtime/realsr-ncnn` | `scripts/install-macos-runtime.sh` | `a5fbe36bcac203e6661225f66e560be39625dead0f7851e3dcd314c29a3387df` | 1,945 B |
+| **NCNN Engine (`realesrgan`)** | `~/.local/share/fidelis/runtime/realesrgan-ncnn-vulkan` (`realesrgan-binary`) | `v0.2.5.0` (`20220424-macos`) | `c1c35d92079085de96b9d547fd7e4464bc8a2e9ccf28d7b8c712d72ade91b7cc` | 26,787,080 B |
+| **NCNN Engine (`realsr`)** | `~/.local/share/fidelis/runtime/realsr-binary` | `20220728` (`20220728-macos`) | `4daca3d6c89f7e24f7fb10a8584cefeccceac0811413908f57e53f724fb86fb0` | 24,094,624 B |
 | **`RealeSR-general-v3` (`.param`)** | `models-RealeSR-general-v3/x4.param` | `0fe68041370150c7695816e229dc982bfc06ed58` | `ce766e261369b911c3f3f607266380e6e6133e82699fed5e3b3afa07482c34c1` | 5,976 B |
 | **`RealeSR-general-v3` (`.bin`)** | `models-RealeSR-general-v3/x4.bin` | `0fe68041370150c7695816e229dc982bfc06ed58` | `01450f4a79b81c0f1f3eeefc31121167886125c25e41a6d4773e8ec8062528a1` | 2,435,272 B |
 | **`RealSR-DF2K` (`.param`)** | `models-DF2K/x4.param` | `a7b0161ee1b8c70843b3facce834cdac63118c41` | `a7f31e75518ad279c179202bf77da9eca3141124a67e5261d97235849e6cc323` | 45,519 B |

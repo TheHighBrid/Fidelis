@@ -16,6 +16,7 @@ from urllib.request import Request, urlopen
 
 import numpy as np
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 import test_comfy_backend as comfy_fixture
 BUNDLE = comfy_fixture.BUNDLE
 from fidelis.postprocess.regions import RegionBlend
