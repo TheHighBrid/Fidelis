@@ -178,11 +178,16 @@ def _mock_comfy_worker(stats_payload: dict, object_info_payload: dict):
 
 class WorkerPreflightTest(unittest.TestCase):
     def test_default_policy_is_valid_and_zero_spend(self):
+        from fidelis.studio.worker_preflight import validate_endpoint_policy
+
         policy = load_worker_preflight_policy()
         self.assertEqual(policy["schema"], "fidelis.worker_preflight_policy.v1")
         self.assertFalse(policy["allow_remote_cloud_fallback"])
         self.assertEqual(policy["budget_policy"]["max_paid_spend_usd"], 0.0)
         self.assertFalse(policy["budget_policy"]["allow_paid_remote_execution"])
+        v6 = validate_endpoint_policy("http://[::1]:8188", policy)
+        self.assertTrue(v6["policy_compliant"])
+        self.assertEqual(v6["endpoint"], "http://[::1]:8188")
 
     def test_reachable_worker_and_compatible_workflow_qualifies_preflight(self):
         bundle = _sample_workflow_bundle()

@@ -281,6 +281,102 @@ class ReleasePackagingAndUpgradeTests(unittest.TestCase):
             self.assertTrue(audit_release_archive(tar_1)["passed"])
             self.assertTrue(audit_release_archive(zip_1)["passed"])
 
+    def test_workspace_snapshot_preserves_sqlite_generation_ledgers_and_cached_pngs(self) -> None:
+        import sqlite3
+        from fidelis.studio.store import sha256
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            region_root = root / "region_jobs"
+            gen_root = root / "generation_runs"
+            snapshot_dir = root / "snapshots" / "pre-sqlite-upgrade"
+
+            store = JobStore(region_root)
+            base = np.full((16, 16, 3), 80, dtype=np.uint8)
+            job = store.create(base, base, label="SQLite Generation Anchor")
+            job_id = job["id"]
+
+            # Populate queue.sqlite3 and runs/generation.sqlite3 + cached PNG in runs/
+            (gen_root / "runs").mkdir(parents=True, exist_ok=True)
+            run_id = "run-" + ("b" * 28)
+            cached_png = gen_root / "runs" / f"{run_id}.png"
+            cached_png.write_bytes(b"\x89PNG\r\n\x1a\ncached-comfy-output")
+            png_sha = sha256(cached_png)
+
+            run_record = {
+                "schema_version": 1,
+                "id": run_id,
+                "status": "completed",
+                "prompt_id": "prompt-123",
+                "workflow_hash": "wf-abc",
+                "output_sha256": png_sha,
+            }
+            with sqlite3.connect(gen_root / "runs" / "generation.sqlite3") as conn:
+                conn.execute(
+                    "CREATE TABLE runs (run_id TEXT PRIMARY KEY, record TEXT NOT NULL)"
+                )
+                conn.execute(
+                    "INSERT INTO runs (run_id, record) VALUES (?, ?)",
+                    (run_id, json.dumps(run_record)),
+                )
+
+            task_id = "task-" + ("c" * 27)
+            task_record = {
+                "schema_version": 1,
+                "id": task_id,
+                "job_id": job_id,
+                "base_revision": 1,
+                "run_id": run_id,
+                "status": "completed",
+                "output_sha256": png_sha,
+            }
+            with sqlite3.connect(gen_root / "queue.sqlite3") as conn:
+                conn.execute(
+                    "CREATE TABLE tasks (idx INTEGER NOT NULL, task_id TEXT PRIMARY KEY, record TEXT NOT NULL)"
+                )
+                conn.execute(
+                    "INSERT INTO tasks (idx, task_id, record) VALUES (?, ?, ?)",
+                    (0, task_id, json.dumps(task_record)),
+                )
+
+            pre_verify = verify_workspace_integrity(region_root, gen_root)
+            self.assertTrue(pre_verify["passed"], msg=pre_verify["errors"])
+            self.assertEqual(pre_verify["generation_run_count"], 1)
+            self.assertEqual(pre_verify["generation_task_count"], 1)
+
+            snap = create_workspace_snapshot(
+                region_root,
+                snapshot_dir,
+                generation_root=gen_root,
+                target_version="3.1.0",
+            )
+            self.assertEqual(
+                snap["integrity"]["state_fingerprint"], pre_verify["state_fingerprint"]
+            )
+
+            # Corrupt/delete SQLite ledgers and cached PNG in live workspace
+            (gen_root / "queue.sqlite3").unlink()
+            (gen_root / "runs" / "generation.sqlite3").unlink()
+            cached_png.unlink()
+
+            mutated_verify = verify_workspace_integrity(region_root, gen_root)
+            self.assertNotEqual(
+                mutated_verify["state_fingerprint"], pre_verify["state_fingerprint"]
+            )
+
+            restored = restore_workspace_snapshot(
+                snapshot_dir,
+                region_root,
+                generation_root=gen_root,
+            )
+            self.assertEqual(
+                restored["state_fingerprint"], pre_verify["state_fingerprint"]
+            )
+            self.assertTrue((gen_root / "queue.sqlite3").is_file())
+            self.assertTrue((gen_root / "runs" / "generation.sqlite3").is_file())
+            self.assertTrue(cached_png.is_file())
+            self.assertEqual(sha256(cached_png), png_sha)
+
 
 if __name__ == "__main__":
     unittest.main()

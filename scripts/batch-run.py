@@ -60,15 +60,18 @@ def main() -> None:
     enq.add_argument("--profile", choices=sorted(PROFILES), default="packshot_strict")
     enq.add_argument("--handler", choices=("packshot_verify", "deterministic_bicubic"), default="packshot_verify")
     enq.add_argument("--scale", type=int, default=1)
-    enq.add_argument("--max-workers", type=int, default=2)
-    enq.add_argument("--disk-budget-mib", type=int, default=2048)
+    enq.add_argument("--max-workers", type=int, default=None)
+    enq.add_argument("--max-items", type=int, default=None)
+    enq.add_argument("--disk-budget-mib", type=int, default=None)
+    enq.add_argument("--max-retries", type=int, default=None)
     enq.add_argument("--cost-budget-usd", type=float, default=None)
 
     run = sub.add_parser("run", help="Run pending/interrupted items cleanly with resume safety")
     run.add_argument("--batch-dir", type=Path, required=True)
-    run.add_argument("--max-workers", type=int, default=2)
-    run.add_argument("--disk-budget-mib", type=int, default=2048)
-    run.add_argument("--max-retries", type=int, default=2)
+    run.add_argument("--max-workers", type=int, default=None)
+    run.add_argument("--max-items", type=int, default=None)
+    run.add_argument("--disk-budget-mib", type=int, default=None)
+    run.add_argument("--max-retries", type=int, default=None)
     run.add_argument("--cost-budget-usd", type=float, default=None)
     run.add_argument("--retry-failed", action="store_true")
 
@@ -77,6 +80,19 @@ def main() -> None:
 
     args = parser.parse_args()
     try:
+        if args.command in ("enqueue", "run"):
+            runner_kwargs: dict[str, object] = {}
+            if args.max_workers is not None:
+                runner_kwargs["max_workers"] = args.max_workers
+            if args.max_items is not None:
+                runner_kwargs["max_items"] = args.max_items
+            if args.disk_budget_mib is not None:
+                runner_kwargs["disk_budget_bytes"] = args.disk_budget_mib * 1024 * 1024
+            if args.max_retries is not None:
+                runner_kwargs["max_retries"] = args.max_retries
+            if args.cost_budget_usd is not None:
+                runner_kwargs["cost_budget_usd"] = args.cost_budget_usd
+
         if args.command == "enqueue":
             if not 1 <= args.scale <= 4:
                 raise ValueError("scale must be in [1, 4]")
@@ -85,7 +101,14 @@ def main() -> None:
             entries = [
                 {
                     "source_path": str(p),
-                    "output_path": str(args.output_dir / f"{p.stem}.png"),
+                    "output_path": str(
+                        args.output_dir
+                        / (
+                            f"{p.stem}{p.suffix.lower()}"
+                            if args.handler == "packshot_verify"
+                            else f"{p.stem}.png"
+                        )
+                    ),
                     "recipe": {
                         "profile": args.profile,
                         "handler": args.handler,
@@ -95,22 +118,11 @@ def main() -> None:
                 }
                 for p in inputs
             ]
-            with BatchRunner(
-                args.batch_dir,
-                max_workers=args.max_workers,
-                disk_budget_bytes=args.disk_budget_mib * 1024 * 1024,
-                cost_budget_usd=args.cost_budget_usd,
-            ) as runner:
+            with BatchRunner(args.batch_dir, **runner_kwargs) as runner:
                 summary = runner.enqueue(entries)
                 print(json.dumps({**summary, "status": runner.status()}, indent=2))
         elif args.command == "run":
-            with BatchRunner(
-                args.batch_dir,
-                max_workers=args.max_workers,
-                disk_budget_bytes=args.disk_budget_mib * 1024 * 1024,
-                max_retries=args.max_retries,
-                cost_budget_usd=args.cost_budget_usd,
-            ) as runner:
+            with BatchRunner(args.batch_dir, **runner_kwargs) as runner:
                 summary = runner.run(_run_offline_handler, retry_failed=args.retry_failed)
                 print(json.dumps(summary, indent=2))
         else:

@@ -423,6 +423,118 @@ class ManagedExportTests(unittest.TestCase):
             )
             self.assertNotEqual(bad.returncode, 0)
 
+    def test_png_colour_tags_trns_rejected_and_lut_profile_blends_in_srgb(self) -> None:
+        from PIL.PngImagePlugin import PngInfo
+        from unittest.mock import patch
+        import fidelis.postprocess.managed_export as me
+
+        arr = np.full((6, 8, 3), [120, 40, 200], dtype=np.uint8)
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+
+            # 1. RGB PNG with tRNS colour-key transparency must be rejected.
+            trns_png = root / "trns_rgb.png"
+            Image.fromarray(arr, "RGB").save(trns_png, format="PNG", transparency=(120, 40, 200))
+            with self.assertRaisesRegex(ValueError, "tRNS"):
+                load_managed_pass(trns_png)
+
+            # 2. PNG with gAMA chunk (and no ICC / sRGB chunk) must be rejected instead of assumed sRGB.
+            gama_png = root / "gama_only.png"
+            info = PngInfo()
+            # gAMA = 1.0 (100000 in 1/100000 units)
+            info.add(b"gAMA", struct.pack(">I", 100000))
+            Image.fromarray(arr, "RGB").save(gama_png, format="PNG", pnginfo=info)
+            with self.assertRaisesRegex(ValueError, "gAMA/cHRM"):
+                load_managed_pass(gama_png)
+
+            # 3. LUT-backed destination profile (parse_matrix_trc_icc -> None) with allow_8bit_lut=True
+            # must convert into sRGB for linear-light blending and back into the destination profile.
+            swapped_icc = _custom_linear_rb_swapped_icc()
+            base_px = np.zeros((4, 6, 3), dtype=np.uint8)
+            base_px[:, :] = [10, 30, 220]  # in swapped_icc: strong Red in sRGB
+            tex_px = np.zeros((4, 6, 3), dtype=np.uint8)
+            tex_px[:, :] = [220, 30, 10]  # in sRGB: strong Red in sRGB
+
+            base_file = root / "base_lut.png"
+            tex_file = root / "tex_srgb.png"
+            base_file.write_bytes(encode_managed_image(base_px, icc_profile=swapped_icc, file_format="png"))
+            Image.fromarray(tex_px, "RGB").save(tex_file, format="PNG")
+
+            base_pass = load_managed_pass(base_file)
+            tex_pass = load_managed_pass(tex_file)
+            skin = np.ones((4, 6), dtype=np.float32)
+            conf = np.ones((4, 6), dtype=np.float32)
+            prot = np.zeros((4, 6), dtype=np.float32)
+            prot[:, :2] = 1.0
+
+            orig_parse = me.parse_matrix_trc_icc
+
+            def fake_parse_lut(icc_bytes: bytes | None):
+                if icc_bytes == swapped_icc:
+                    return None
+                return orig_parse(icc_bytes)
+
+            with patch.object(me, "parse_matrix_trc_icc", side_effect=fake_parse_lut):
+                out_lut, _, meta_lut = compose_managed_passes(
+                    base_pass,
+                    tex_pass,
+                    skin=skin,
+                    confidence=conf,
+                    protected=prot,
+                    blend=RegionBlend(0.5, 0.0, 0.0),
+                    icc_policy="preserve",
+                    allow_8bit_lut=True,
+                )
+
+            self.assertEqual(out_lut.icc_profile, swapped_icc)
+            self.assertEqual(meta_lut["icc_precision_path"]["base"], "littlecms_uint8")
+            # Locked columns preserve exact base pixels in swapped_icc.
+            np.testing.assert_array_equal(out_lut.pixels[:, :2], base_px[:, :2])
+            # Unlocked pixels blended two red-dominant colours (in sRGB) and converted back to swapped_icc
+            # where channel 2 (B slot = R primary) is dominant (> 150) and channel 0 is low (< 50).
+            self.assertGreater(int(out_lut.pixels[0, 4, 2]), 150)
+            self.assertLess(int(out_lut.pixels[0, 4, 0]), 50)
+
+    def test_interior_texture_bypasses_edge_guard_in_managed_passes(self) -> None:
+        base_arr = np.full((6, 9, 4), 200, dtype=np.uint8)
+        base_arr[:2, :, 3] = 0
+        base_arr[2:, :, 3] = 255
+        tex_arr = np.full((6, 9, 3), 40, dtype=np.uint8)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            Image.fromarray(base_arr, mode="RGBA").save(root / "base.png")
+            Image.fromarray(tex_arr, mode="RGB").save(root / "tex.png")
+            base_img = load_managed_pass(root / "base.png")
+            tex_img = load_managed_pass(root / "tex.png")
+
+            fabric = np.ones((6, 9), dtype=np.float32)
+            conf = np.ones((6, 9), dtype=np.float32)
+            edge_guard = np.ones((6, 9), dtype=np.float32)
+            prot = np.zeros((6, 9), dtype=np.float32)
+            prot[:, :3] = 1.0
+            interior = np.zeros((6, 9), dtype=np.float32)
+            interior[:, 6:] = 1.0
+
+            out, eff_alpha, _ = compose_managed_passes(
+                base_img,
+                tex_img,
+                fabric=fabric,
+                protected=prot,
+                confidence=conf,
+                edge_guard=edge_guard,
+                interior_texture=interior,
+                blend=RegionBlend(0.0, 0.0, 1.0, 0.75),
+            )
+            # Zero-alpha rows and protected columns remain bit-exact base
+            np.testing.assert_array_equal(out.pixels[:2, :], base_arr[:2, :])
+            np.testing.assert_array_equal(out.pixels[:, :3], base_arr[:, :3])
+            # Hard-contour columns (rows 2:, cols 3:6) are attenuated by edge_protection
+            np.testing.assert_allclose(eff_alpha[2:, 3:6], 0.25)
+            # Interior texture columns (rows 2:, cols 6:) are not attenuated
+            np.testing.assert_allclose(eff_alpha[2:, 6:], 1.0)
+            np.testing.assert_array_equal(out.pixels[2:, 6:, :3], tex_arr[2:, 6:])
+
 
 if __name__ == "__main__":
     unittest.main()

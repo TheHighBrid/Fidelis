@@ -351,14 +351,24 @@ def normalize_exif_orientation(pixels: np.ndarray, orientation: int) -> np.ndarr
     return np.ascontiguousarray(np.rot90(pixels, k=1))
 
 
-def _read_png_header(path: Path) -> tuple[int, int]:
+def _read_png_header(path: Path) -> tuple[int, int, set[bytes]]:
     data = path.read_bytes()
     if not data.startswith(b"\x89PNG\r\n\x1a\n") or len(data) < 33:
         raise ValueError(f"invalid PNG file: {path}")
     if data[12:16] != b"IHDR":
         raise ValueError(f"PNG missing IHDR chunk: {path}")
     _, _, bit_depth, color_type = struct.unpack(">IIBB", data[16:26])
-    return bit_depth, color_type
+    chunk_types: set[bytes] = set()
+    pos = 8
+    n = len(data)
+    while pos + 8 <= n:
+        length = struct.unpack(">I", data[pos : pos + 4])[0]
+        ctype = data[pos + 4 : pos + 8]
+        chunk_types.add(ctype)
+        pos += 12 + length
+        if ctype == b"IEND":
+            break
+    return bit_depth, color_type, chunk_types
 
 
 def load_managed_pass(path: Path) -> ManagedImage:
@@ -375,7 +385,7 @@ def load_managed_pass(path: Path) -> ManagedImage:
         icc_desc = validate_icc_profile(icc) if icc is not None else "untagged_assumed_sRGB"
 
         if fmt == "PNG":
-            bit_depth, color_type = _read_png_header(path)
+            bit_depth, color_type, chunk_types = _read_png_header(path)
             if color_type not in (2, 6):
                 raise ValueError(
                     f"PNG color type {color_type} in {path.name} is unsupported; "
@@ -383,6 +393,27 @@ def load_managed_pass(path: Path) -> ManagedImage:
                 )
             if bit_depth not in (8, 16):
                 raise ValueError(f"unsupported PNG bit depth {bit_depth} in {path.name}")
+            if b"tRNS" in chunk_types or "transparency" in image.info:
+                raise ValueError(
+                    f"PNG {path.name} uses colour-key transparency (tRNS); "
+                    "convert to straight RGBA alpha before export"
+                )
+            if (
+                icc is None
+                and b"iCCP" not in chunk_types
+                and b"sRGB" not in chunk_types
+                and "srgb" not in image.info
+                and (
+                    b"gAMA" in chunk_types
+                    or b"cHRM" in chunk_types
+                    or "gamma" in image.info
+                    or "chromaticity" in image.info
+                )
+            ):
+                raise ValueError(
+                    f"PNG {path.name} carries non-sRGB gAMA/cHRM colour tags without an ICC profile "
+                    "or sRGB chunk; convert to sRGB or embed an explicit ICC profile"
+                )
             has_alpha = color_type == 6
             if bit_depth == 8:
                 expected_mode = "RGBA" if has_alpha else "RGB"
@@ -567,6 +598,7 @@ def compose_managed_passes(
     protected=None,
     confidence=None,
     edge_guard=None,
+    interior_texture=None,
     blend: RegionBlend = RegionBlend(),
     icc_policy: str = "preserve",
     target_icc: Optional[bytes] = None,
@@ -648,11 +680,16 @@ def compose_managed_passes(
     protected_m = _mask(protected, shape, "protected")
     confidence_m = _mask(confidence, shape, "confidence")
     edge_m = _mask(edge_guard, shape, "edge_guard")
+    if interior_texture is not None:
+        interior_texture_m = _mask(interior_texture, shape, "interior_texture")
+        effective_edge_m = edge_m * (1.0 - interior_texture_m)
+    else:
+        effective_edge_m = edge_m
 
     total = np.maximum(1.0, skin_m + hair_m + fabric_m)
     eff_alpha = (skin_m * blend.skin + hair_m * blend.hair + fabric_m * blend.fabric) / total
     eff_alpha *= confidence_m * (1.0 - protected_m)
-    eff_alpha *= 1.0 - edge_m * blend.edge_protection
+    eff_alpha *= 1.0 - effective_edge_m * blend.edge_protection
     eff_alpha = np.clip(eff_alpha, 0.0, 1.0).astype(np.float64)
 
     max_work = float((1 << working_bits) - 1)
@@ -666,17 +703,37 @@ def compose_managed_passes(
         eff_alpha *= tex_work[..., 3].astype(np.float64) / max_work
 
     working_mt = parse_matrix_trc_icc(dst_profile_for_transform)
+    lut_working_fallback = False
     if working_mt is None:
         if not allow_8bit_lut:
             raise ValueError(
                 "linear-light blending requires a Matrix/TRC working ICC profile "
                 "or allow_8bit_lut=True fallback"
             )
-        working_mt = parse_matrix_trc_icc(srgb_icc_bytes())
+        lut_working_fallback = True
+        srgb_profile = srgb_icc_bytes()
+        working_mt = parse_matrix_trc_icc(srgb_profile)
         assert working_mt is not None
+        base_blend_work, base_icc_path = convert_icc_pixels(
+            _scale_pixels_precision(base.pixels, working_bits),
+            base.icc_profile,
+            srgb_profile,
+            intent=icc_intent,
+            allow_8bit_lut=True,
+        )
+        tex_blend_work, tex_icc_path = convert_icc_pixels(
+            _scale_pixels_precision(texture.pixels, working_bits),
+            texture.icc_profile,
+            srgb_profile,
+            intent=icc_intent,
+            allow_8bit_lut=True,
+        )
+    else:
+        base_blend_work = base_work
+        tex_blend_work = tex_work
 
-    base_rgb01 = base_work[..., :3].astype(np.float64) / max_work
-    tex_rgb01 = tex_work[..., :3].astype(np.float64) / max_work
+    base_rgb01 = base_blend_work[..., :3].astype(np.float64) / max_work
+    tex_rgb01 = tex_blend_work[..., :3].astype(np.float64) / max_work
     lin_base = _linearize_rgb(base_rgb01, working_mt)
     lin_tex = _linearize_rgb(tex_rgb01, working_mt)
     lin_blend = lin_base * (1.0 - eff_alpha[..., None]) + lin_tex * eff_alpha[..., None]
@@ -690,6 +747,14 @@ def compose_managed_passes(
     out_max = float((1 << out_bits) - 1)
     out_dtype = np.uint16 if out_bits == 16 else np.uint8
     out_rgb = np.clip(np.rint(enc_out * out_max), 0, out_max).astype(out_dtype)
+    if lut_working_fallback:
+        out_rgb, _ = convert_icc_pixels(
+            out_rgb,
+            srgb_icc_bytes(),
+            dst_profile_for_transform,
+            intent=icc_intent,
+            allow_8bit_lut=True,
+        )
 
     # Restore locked / unchanged pixels strictly last after quantization & finishing.
     base_target_out = _scale_pixels_precision(base_work[..., :3], out_bits)
