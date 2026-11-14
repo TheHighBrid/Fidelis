@@ -28,6 +28,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--release-manifest",
         type=Path,
+        default=REPO_ROOT / "config" / "release-candidate-v1.json",
         help="Optional release candidate manifest JSON with packages, quality report, rollback, and signoff",
     )
     parser.add_argument(

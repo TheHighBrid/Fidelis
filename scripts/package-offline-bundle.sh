@@ -39,6 +39,7 @@ exclude_patterns=(
   --exclude='.env'
   --exclude='.env.*'
   --exclude='.DS_Store'
+  --exclude='config/release-candidate-v1.json'
 )
 
 tmp_core_tar="$(mktemp "${TMPDIR:-/tmp}/fidelis-core-tar.XXXXXX")"

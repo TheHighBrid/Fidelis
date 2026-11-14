@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "snapshot_date": "2026-11-13",
-  "code_snapshot": "b9fb6fb0aa26eeca6ef8a52df719c1cfcf4ea261",
+  "code_snapshot": "d85578135d4998742b5ce9e207df4b51dfc39241",
   "code_branch": "feat/region-aware-studio",
   "code_pr": "https://github.com/TheHighBrid/Fidelis/pull/12",
   "canonical_spec": "docs/FIDELIS_STUDIO_PLAN.md",
@@ -354,7 +354,7 @@
       "role": "Release / product",
       "scope": "Close release gates and publish scope, evidence, known limits and rollback.",
       "acceptance": "Required quality/operational gates met, release SHA and packages linked, blocking defects closed, owner creative/release signoff recorded; merged is not automatically released.",
-      "evidence": "fidelis/studio/release_readiness.py; scripts/audit-release-readiness.py; tests/test_release_readiness.py; docs/RELEASE_READINESS.md; docs/project/checkpoints/2026-11-10-release-readiness.md; fail-closed E1..E4 release readiness dossier auditor verified; remains blocked until PR #12 merges and E2-E4 gates + owner signoff close",
+      "evidence": "config/release-candidate-v1.json; fidelis/studio/release_readiness.py; scripts/audit-release-readiness.py; tests/test_release_readiness.py; docs/RELEASE_READINESS.md; docs/project/checkpoints/2026-11-10-release-readiness.md; fail-closed E1..E4 release readiness dossier auditor + v3.1.0 release candidate manifest (3 verified archives, rollback runbook, Apple M1 budgets) verified; remains blocked until PR #12 merges and E2-E4 gates + owner signoff close",
       "priority": 2,
       "linear": {
         "id": "MEL-68",
@@ -655,5 +655,5 @@
     }
   ],
   "latest_checkpoint": "docs/project/checkpoints/2026-11-13-apple-m1-base-audition.md",
-  "checkpoint_base_commit": "978e986e3c6f7c3a8caaf64005ab5d36d2d1ef8a"
+  "checkpoint_base_commit": "d85578135d4998742b5ce9e207df4b51dfc39241"
 }

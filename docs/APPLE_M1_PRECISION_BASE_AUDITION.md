@@ -85,3 +85,19 @@ Using both `fidelis.postprocess.roi_protection.screen_internal_drift` (`MEL-64`)
 3. **Why Dual-Mode Routing (`RealSR-DF2K` vs. `RealeSR-general-v3`) & Structural ROI Protection Are Required**:
    - `RealeSR-general-v3` exhibits higher edge-coherence loss on fine woven/embroidered patches and dark fabric (`min_block_coherence = 0.7900` `WARN` on `astronaut_nasa_512`, `PSNR = 30.01 dB` / `ΔE = 3.79` on `fashion_fabric_real`). It is therefore best suited as the **fast interactive preview / mobile-general lane** (`BSD-3-Clause`), whereas `RealSR-DF2K` (`PSNR = 35.12–37.41 dB`, `ΔE = 1.69–2.58`, `0` blocks flagged) and `ESRGAN-Remacri` (`gradient_coherence = 98.93%–99.22%`, lowest ROI edge disagreements) provide superior structural fidelity for photographic masters, subject to commercial license clearance recorded in `config/model-provenance-v1.json`.
    - Even on `RealSR-DF2K` and `ESRGAN-Remacri`, unmasked SR modifies `99.7%+` of logo/text pixels (`4860–4873 / 4875` pixels changed on `suit_patch`), confirming the necessity of Studio's explicit structural ROI locks (`fidelis/studio/structure.py` + `fidelis/postprocess/roi_protection.py`) so protected text, logos, and hardware remain bit-exact to the precision base when generative texture layers are blended.
+
+---
+
+## 6. End-to-End 4.2 MP (`2048 × 2048`) Multi-Pass Studio Pipeline Benchmark on Apple M1 (8 GB)
+
+To verify that all Studio subsystems (`F04`, `F05`, `F09`, `F10`, `F11`, `F14`, `F15`) compose within the Apple M1 (8 GB) memory budget at full 4x resolution (`2048 × 2048`, 4.19 MP), a complete multi-revision pipeline was executed on `astronaut_nasa_512` (`48d3711f1f40fbbd45b2e3720cf1c084b3b873e02bf292da08a312ca67cf2939`):
+
+| Pipeline Stage | Tool / Module | Grid / Revision | Wall Time (`s`) | Peak RSS (`MB`) | Verified Outcome / SHA-256 |
+| :--- | :--- | :---: | ---: | ---: | :--- |
+| **1. Precision Base (4x)** | `realsr-ncnn` (`RealeSR-general-v3`) | `2048 × 2048` | `1.354` | `104.55` | `bb8ef138dc66be9ca201018d066c8db1b286720511848baac0f5a577234afa21` |
+| **2. Texture Candidate (4x)** | `realsr-ncnn` (`ESRGAN-Remacri`) | `2048 × 2048` | `12.968` | `407.70` | `f0bcdaaa63828cf4d74afdef112a8cde7f4f2257a0cd7de7f6bf179d65641b7e` |
+| **3. Job Creation** | `JobStore.create` (`luxury_apparel`) | `rev 1` (`2048 × 2048`) | `0.345` | — | Bounded stripe composition (`256` rows/stripe) |
+| **4. Semantic Mask Proposal & Accept** | `scripts/mask-suggestion.py propose` (`SegFormer B0` ONNX) | `rev 1 → 2 → 3` | `0.799` | `379.03` | Proposed texture spilled into `45,771 / 78,000` patch pixels (`1,806` edge disagreements) and `2,367 / 25,376` zipper pixels (`1` edge disagreement) |
+| **5. Structural ROI Lock (`F10`)** | `scripts/structural-roi.py lock` (`[520,1392,300,260]`, `[964,1292,52,488]`) | `rev 3 → 4` | `0.591` | `158.34` | `0 / 78,000` patch changes (`0` edge disagreements) and `0 / 25,376` zipper changes (`0` edge disagreements); `locked_pixel_mismatches = 0` (`master_max_abs_diff = 0`) across all `103,376` locked pixels |
+| **6. 16-bit + 8-bit Batch Export (`F11`/`F14`)** | `scripts/export-studio-batch.py` | `rev 4` (`16-bit` + `8-bit`) | `1.313` | `170.92` | `16-bit`: `11,006,376 B` (`0ee302f7285d534c...`); `8-bit`: `6,416,504 B` (`1d41fbecbc13fc3d...`) |
+| **7. Workspace Snapshot & Atomic Restore (`F15`)** | `scripts/verify-upgrade-rollback.py snapshot` / `restore` | `8` `.npy` artifacts + SQLite | `0.202` / `0.211` | `22.47` / `22.48` | `passed: true`, `referenced_artifact_count: 8` |

@@ -1,0 +1,60 @@
+{
+  "schema_version": "fidelis.release_candidate.v1",
+  "version": "3.1.0",
+  "release_sha": "d85578135d4998742b5ce9e207df4b51dfc39241",
+  "merged_to_main": false,
+  "packages": [
+    {
+      "path": "dist/fidelis-v3.1.0.tar.gz",
+      "sha256": "6e8bb2a0948b535bf426dc116c702ebb3eaaddfe63b511f9aa750c5ffe064ce2",
+      "require_file_present": false
+    },
+    {
+      "path": "dist/fidelis-v3.1.0.zip",
+      "sha256": "02deee6620a5620cd221ccf3b52509a6e3e058e8e1c26e946e41b8bef026139d",
+      "require_file_present": false
+    },
+    {
+      "path": "dist/fidelis-offline-bundle-v3.1.0.tar.gz",
+      "sha256": "20eb8f24e00ec8b6166a055bfb7a593cea688c8d95096fdf0606cb4d66c2ccfe",
+      "require_file_present": false
+    }
+  ],
+  "quality_gate": {
+    "overall_status": "pending_live_heldout_corpus",
+    "report_sha256": null,
+    "notes": "Evaluator (Wilson 95% CIs, Krippendorff alpha, Cohen kappa, G1-G6 gates) verified; 60-case licensed corpus and 30-case blind dual-reviewer held-out evaluation remain open."
+  },
+  "operational_gate": {
+    "live_worker_verified": false,
+    "device_budgets_measured": true,
+    "upgrade_rollback_verified": true,
+    "evidence": [
+      "docs/APPLE_M1_PRECISION_BASE_AUDITION.md",
+      "docs/SEGFORMER_B0_AUDITION.md",
+      "docs/RELEASE_PACKAGING.md",
+      "docs/BROWSER_ACCEPTANCE.md"
+    ]
+  },
+  "scope_summary": "Fidelis Studio v3.1.0 local region-aware restoration studio: protected linear-light composition (8-bit and 16-bit PNG + alpha/ICC managed export), bounded SQLite/NPY revision storage, SegFormer B0 confidence-gated mask suggestions, explicit structural ROI locks and internal drift screening, resumable batch export, and workspace snapshot/rollback protection.",
+  "known_limits": [
+    "Local loopback HTTP service only (127.0.0.1); not an authenticated multi-tenant cloud service.",
+    "Provenance sidecars are unsigned execution records unless signed and verified with an external C2PA X.509 certificate.",
+    "SegFormer B0 automatic garment segmentation can spill onto embroidered patches and zipper hardware; explicit structural ROI locks or manual protection masks are required.",
+    "Sobel luminance gradient and block phase correlation are geometric/contrast heuristics, not semantic identity or OCR proof.",
+    "RealSR-DF2K, ESRGAN-Remacri, 4x-UltraSharp, and ATR-trained SegFormer B0 weights require commercial license clearance before commercial production deployment; RealeSR-general-v3 is BSD-3-Clause.",
+    "Live ComfyUI GPU texture worker qualification (F05-A/F06/F07), 60-case licensed photographic corpus & comparator runs (F12-A/F12), 30-case blind human signoff (F13), and physical Android/iOS touch hardware review (F08-B/F15) remain open."
+  ],
+  "rollback_plan": {
+    "previous_stable_tag_or_sha": "5315046",
+    "snapshot_command": ".venv/bin/python scripts/verify-upgrade-rollback.py snapshot --region-root .cache/web_outputs/region_jobs --generation-root .cache/generation_runs --snapshot-dir .cache/snapshots/pre-v3.1.0 --target-version 3.1.0",
+    "restore_command": ".venv/bin/python scripts/verify-upgrade-rollback.py restore --snapshot-dir .cache/snapshots/pre-v3.1.0 --region-root .cache/web_outputs/region_jobs --generation-root .cache/generation_runs",
+    "archive_audit_command": ".venv/bin/python scripts/verify-upgrade-rollback.py audit-archive dist/fidelis-v3.1.0.tar.gz"
+  },
+  "owner_release_signoff": {
+    "status": "pending",
+    "creative_owner": null,
+    "release_owner": null,
+    "signed_at": null
+  }
+}

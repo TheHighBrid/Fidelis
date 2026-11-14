@@ -47,6 +47,17 @@ The photo replay passed with ONNX Runtime telemetry disabled. The full Python
 suite passed 128 tests with the optional ONNX package absent. Static smoke
 tests passed.
 
+## 4x Apple M1 (`2048 × 2048`) NCNN + SegFormer B0 replay · 2026-11-13
+
+Executed on Apple M1 (`Darwin 25.4.0 arm64`, 8 GB unified memory) using a `2048 × 2048` `RealeSR-general-v3` precision base (`bb8ef138dc66be9c...`) and a `2048 × 2048` `ESRGAN-Remacri` texture pass (`f0bcdaaa63828cf4...`) with accepted `SegFormer B0` semantic masks:
+
+| 4x Region (`2048 × 2048` grid) | Rectangle `x, y, w, h` | Changed pixels before lock | Changed pixels after lock | Strong-edge disagreements before → after |
+| :--- | :--- | ---: | ---: | ---: |
+| Suit patch (4x) | `520, 1392, 300, 260` | `45,771 / 78,000` | `0 / 78,000` | `1,806 → 0` |
+| Zipper (4x) | `964, 1292, 52, 488` | `2,367 / 25,376` | `0 / 25,376` | `1 → 0` |
+
+Locking both 4x rectangles (`103,376` total pixels) via `scripts/structural-roi.py lock` completed in `0.591 s` at `158.34 MB` peak RSS, reducing `master_max_abs_diff` to `0` (`locked_pixel_mismatches = 0`) across both regions and preserving bit-exact precision-base pixels in the exported 8-bit (`1d41fbecbc13fc3d...`) and 16-bit (`0ee302f7285d534c...`) batch masters. See [Apple M1 precision-base audition](APPLE_M1_PRECISION_BASE_AUDITION.md#6-end-to-end-42-mp-2048--2048-multi-pass-studio-pipeline-benchmark-on-apple-m1-8-gb).
+
 ## Lock a crop in Studio
 
 Open **Inspect native pixels** and click or tap the overview to centre a crop.

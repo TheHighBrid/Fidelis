@@ -41,6 +41,7 @@ exclude_patterns=(
   --exclude='.env'
   --exclude='.env.*'
   --exclude='.DS_Store'
+  --exclude='config/release-candidate-v1.json'
 )
 
 rm -f "$tar_gz" "$zip_out" "$tar_gz.sha256" "$zip_out.sha256"

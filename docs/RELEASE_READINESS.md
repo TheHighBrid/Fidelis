@@ -40,5 +40,6 @@ gate is incomplete.
 
 ## Current Evidence Status
 
+- **Tracked release candidate manifest**: [`config/release-candidate-v1.json`](../config/release-candidate-v1.json) links the verified `v3.1.0` release archives (`dist/fidelis-v3.1.0.tar.gz`, `dist/fidelis-v3.1.0.zip`, `dist/fidelis-offline-bundle-v3.1.0.tar.gz`), explicit scope summary, 6 architectural/operational known limits, `verify-upgrade-rollback.py` snapshot/restore commands against baseline `5315046`, and verified Apple M1 (8 GB) device budgets + upgrade/rollback receipts (`packages.verified_count: 3`, `documentation_and_rollback.rollback_ready: true`).
 - **Current repository level**: `E1_fixture_and_protocol_tested` (`ready_for_release: false`).
-- **Remaining external gates for `E4_released`**: Merge PR #12 (`D01..D04`, `F01..F04`, `F07-A`, `F08-A`) and feature branches (`F05-B`, `F08-B`, `F10`, `F11`, `F12`, `F12-A`, `F13`, `F14`, `F15`), run live GPU worker qualification (`F05-A`, `F06`), complete 60-case held-out quality acceptance (`F13`), and record owner creative/release signoff.
+- **Remaining external gates for `E4_released`**: Merge PR #12 to `main` (`merged_to_main: true`, closing `D01..D04` on `main`), run live ComfyUI GPU texture worker qualification (`F05-A`, `F06`, `F07`), complete 60-case licensed corpus & 30-case blind held-out quality acceptance (`F12-A`, `F12`, `F13`), complete physical Android/iOS touch hardware review (`F08-B`, `F15`), and record owner creative/release signoff.

@@ -180,6 +180,37 @@ class ReleaseReadinessTests(unittest.TestCase):
             )
             self.assertEqual(proc_allow.returncode, 0, msg=proc_allow.stderr)
 
+    def test_tracked_release_candidate_manifest_verifies_packages_and_rollback(self) -> None:
+        backlog_data = json.loads(
+            (REPO_ROOT / "docs" / "project" / "backlog.json").read_text(encoding="utf-8")
+        )
+        manifest_path = REPO_ROOT / "config" / "release-candidate-v1.json"
+        self.assertTrue(manifest_path.is_file())
+        manifest_data = json.loads(manifest_path.read_text(encoding="utf-8"))
+        dossier = evaluate_release_readiness(
+            backlog_data,
+            release_manifest=manifest_data,
+            repo_root=REPO_ROOT,
+        )
+        self.assertFalse(dossier["ready_for_release"])
+        self.assertEqual(
+            dossier["certified_evidence_level"], "E1_fixture_and_protocol_tested"
+        )
+        self.assertEqual(dossier["packages"]["verified_count"], 3)
+        self.assertEqual(dossier["packages"]["errors"], [])
+        self.assertTrue(dossier["documentation_and_rollback"]["scope_summary_present"])
+        self.assertGreaterEqual(
+            dossier["documentation_and_rollback"]["known_limits_count"], 4
+        )
+        self.assertTrue(dossier["documentation_and_rollback"]["rollback_ready"])
+        self.assertTrue(dossier["operational_gate"]["device_budgets_measured"])
+        self.assertTrue(dossier["operational_gate"]["upgrade_rollback_verified"])
+        self.assertFalse(dossier["operational_gate"]["live_worker_verified"])
+        self.assertNotIn("release_packages_unverified", dossier["blocking_reasons"])
+        self.assertNotIn(
+            "scope_limits_or_rollback_plan_incomplete", dossier["blocking_reasons"]
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
