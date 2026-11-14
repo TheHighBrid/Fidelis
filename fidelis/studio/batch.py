@@ -16,6 +16,7 @@ import json
 import math
 import os
 from pathlib import Path
+import shutil
 import sqlite3
 import threading
 import time
@@ -28,6 +29,8 @@ from fidelis.studio.store import BudgetExceeded, sha256
 VALID_STATUSES = frozenset(
     {"pending", "running", "interrupted", "completed", "failed", "needs_review"}
 )
+
+_UNSET: Any = object()
 
 
 @dataclass
@@ -47,18 +50,21 @@ class BatchRunner:
     """Single-owner SQLite-backed batch coordinator with bounded concurrency & budgets."""
 
     SCHEMA_VERSION = 1
+    DEFAULT_MAX_WORKERS = 2
+    DEFAULT_MAX_ITEMS = 5000
+    DEFAULT_DISK_BUDGET_BYTES = 2 * 1024**3
+    DEFAULT_MAX_RETRIES = 2
+    DEFAULT_COST_BUDGET_USD: Optional[float] = None
 
-    def __init__(
-        self,
-        batch_dir: str | Path,
+    @staticmethod
+    def _validate_policy(
         *,
-        max_workers: int = 2,
-        max_items: int = 5000,
-        disk_budget_bytes: int = 2 * 1024**3,
-        max_retries: int = 2,
-        cost_budget_usd: Optional[float] = None,
-        read_only: bool = False,
-    ) -> None:
+        max_workers: int,
+        max_items: int,
+        disk_budget_bytes: int,
+        max_retries: int,
+        cost_budget_usd: Optional[float],
+    ) -> tuple[int, int, int, int, Optional[float]]:
         if type(max_workers) is not int or not 1 <= max_workers <= 4:
             raise ValueError("max_workers must be an integer in [1, 4]")
         if type(max_items) is not int or not 1 <= max_items <= 10_000:
@@ -74,15 +80,37 @@ class BatchRunner:
             or cost_budget_usd < 0
         ):
             raise ValueError("cost_budget_usd must be finite and >= 0")
+        return (
+            max_workers,
+            max_items,
+            disk_budget_bytes,
+            max_retries,
+            float(cost_budget_usd) if cost_budget_usd is not None else None,
+        )
+
+    def __init__(
+        self,
+        batch_dir: str | Path,
+        *,
+        max_workers: int = _UNSET,
+        max_items: int = _UNSET,
+        disk_budget_bytes: int = _UNSET,
+        max_retries: int = _UNSET,
+        cost_budget_usd: Optional[float] = _UNSET,
+        read_only: bool = False,
+    ) -> None:
+        # Validate any explicitly supplied parameters immediately.
+        self._ValidateExplicit(
+            max_workers=max_workers,
+            max_items=max_items,
+            disk_budget_bytes=disk_budget_bytes,
+            max_retries=max_retries,
+            cost_budget_usd=cost_budget_usd,
+        )
 
         self.root = Path(batch_dir)
         self.db_path = self.root / "batch.sqlite3"
         self.tmp_dir = self.root / ".tmp"
-        self.max_workers = max_workers
-        self.max_items = max_items
-        self.disk_budget_bytes = disk_budget_bytes
-        self.max_retries = max_retries
-        self.cost_budget_usd = float(cost_budget_usd) if cost_budget_usd is not None else None
         self.read_only = read_only
         self._lock = threading.RLock()
         self._owner = None
@@ -91,6 +119,15 @@ class BatchRunner:
         if read_only:
             if not self.db_path.is_file():
                 raise FileNotFoundError(f"Batch database not found: {self.db_path}")
+            persisted = self._load_persisted_policy_readonly()
+            self._apply_resolved_policy(
+                persisted=persisted,
+                max_workers=max_workers,
+                max_items=max_items,
+                disk_budget_bytes=disk_budget_bytes,
+                max_retries=max_retries,
+                cost_budget_usd=cost_budget_usd,
+            )
             return
 
         self.root.mkdir(parents=True, exist_ok=True)
@@ -104,10 +141,97 @@ class BatchRunner:
             raise RuntimeError("Another batch runner already owns this batch directory") from exc
 
         try:
-            self._init_and_recover()
+            self._init_and_recover(
+                max_workers=max_workers,
+                max_items=max_items,
+                disk_budget_bytes=disk_budget_bytes,
+                max_retries=max_retries,
+                cost_budget_usd=cost_budget_usd,
+            )
         except BaseException:
             self.close()
             raise
+
+    @classmethod
+    def _ValidateExplicit(
+        cls,
+        *,
+        max_workers: Any,
+        max_items: Any,
+        disk_budget_bytes: Any,
+        max_retries: Any,
+        cost_budget_usd: Any,
+    ) -> None:
+        cls._validate_policy(
+            max_workers=cls.DEFAULT_MAX_WORKERS if max_workers is _UNSET else max_workers,
+            max_items=cls.DEFAULT_MAX_ITEMS if max_items is _UNSET else max_items,
+            disk_budget_bytes=(
+                cls.DEFAULT_DISK_BUDGET_BYTES if disk_budget_bytes is _UNSET else disk_budget_bytes
+            ),
+            max_retries=cls.DEFAULT_MAX_RETRIES if max_retries is _UNSET else max_retries,
+            cost_budget_usd=(
+                cls.DEFAULT_COST_BUDGET_USD if cost_budget_usd is _UNSET else cost_budget_usd
+            ),
+        )
+
+    def _apply_resolved_policy(
+        self,
+        *,
+        persisted: dict[str, Any],
+        max_workers: Any,
+        max_items: Any,
+        disk_budget_bytes: Any,
+        max_retries: Any,
+        cost_budget_usd: Any,
+    ) -> None:
+        resolved_workers = (
+            max_workers
+            if max_workers is not _UNSET
+            else persisted.get("max_workers", self.DEFAULT_MAX_WORKERS)
+        )
+        resolved_items = (
+            max_items
+            if max_items is not _UNSET
+            else persisted.get("max_items", self.DEFAULT_MAX_ITEMS)
+        )
+        resolved_disk = (
+            disk_budget_bytes
+            if disk_budget_bytes is not _UNSET
+            else persisted.get("disk_budget_bytes", self.DEFAULT_DISK_BUDGET_BYTES)
+        )
+        resolved_retries = (
+            max_retries
+            if max_retries is not _UNSET
+            else persisted.get("max_retries", self.DEFAULT_MAX_RETRIES)
+        )
+        resolved_cost = (
+            cost_budget_usd
+            if cost_budget_usd is not _UNSET
+            else persisted.get("cost_budget_usd", self.DEFAULT_COST_BUDGET_USD)
+        )
+        (
+            self.max_workers,
+            self.max_items,
+            self.disk_budget_bytes,
+            self.max_retries,
+            self.cost_budget_usd,
+        ) = self._validate_policy(
+            max_workers=resolved_workers,
+            max_items=resolved_items,
+            disk_budget_bytes=resolved_disk,
+            max_retries=resolved_retries,
+            cost_budget_usd=resolved_cost,
+        )
+
+    def _load_persisted_policy_readonly(self) -> dict[str, Any]:
+        with self._db() as db:
+            tbl = db.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='batch_config'"
+            ).fetchone()
+            if tbl is None:
+                return {}
+            row = db.execute("SELECT config FROM batch_config WHERE id=1").fetchone()
+            return json.loads(row[0]) if row else {}
 
     def __enter__(self) -> "BatchRunner":
         return self
@@ -138,13 +262,50 @@ class BatchRunner:
         finally:
             conn.close()
 
-    def _init_and_recover(self) -> None:
+    def _init_and_recover(
+        self,
+        *,
+        max_workers: Any,
+        max_items: Any,
+        disk_budget_bytes: Any,
+        max_retries: Any,
+        cost_budget_usd: Any,
+    ) -> None:
         # Remove orphaned staging files from prior killed runs under single-owner lock.
         for orphan in self.tmp_dir.iterdir():
             if orphan.is_file():
                 orphan.unlink(missing_ok=True)
 
         with self._db() as db:
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS batch_config ("
+                "id INTEGER PRIMARY KEY CHECK (id = 1), "
+                "config TEXT NOT NULL)"
+            )
+            cfg_row = db.execute("SELECT config FROM batch_config WHERE id=1").fetchone()
+            persisted = json.loads(cfg_row[0]) if cfg_row else {}
+            self._apply_resolved_policy(
+                persisted=persisted,
+                max_workers=max_workers,
+                max_items=max_items,
+                disk_budget_bytes=disk_budget_bytes,
+                max_retries=max_retries,
+                cost_budget_usd=cost_budget_usd,
+            )
+            policy_payload = {
+                "schema_version": self.SCHEMA_VERSION,
+                "max_workers": self.max_workers,
+                "max_items": self.max_items,
+                "disk_budget_bytes": self.disk_budget_bytes,
+                "max_retries": self.max_retries,
+                "cost_budget_usd": self.cost_budget_usd,
+            }
+            db.execute(
+                "INSERT INTO batch_config (id, config) VALUES (1, ?) "
+                "ON CONFLICT(id) DO UPDATE SET config=excluded.config",
+                (json.dumps(policy_payload, allow_nan=False),),
+            )
+
             db.execute(
                 "CREATE TABLE IF NOT EXISTS items ("
                 "idx INTEGER NOT NULL, "
@@ -201,15 +362,34 @@ class BatchRunner:
                 )
             by_recipe_hash = {item["recipe_hash"]: item for item in existing}
             by_output_path = {str(Path(item["output_path"]).resolve()): item for item in existing}
+            all_sources = {str(Path(item["source_path"]).resolve()) for item in existing}
+            all_outputs = set(by_output_path.keys())
+            all_sidecars = {
+                str(Path(f"{Path(item['output_path']).resolve()}.recipe.json"))
+                for item in existing
+            }
             next_idx = max((item["idx"] for item in existing), default=-1) + 1
 
             for entry in entries:
                 src = Path(entry["source_path"]).resolve()
-                dst = Path(entry["output_path"]).resolve()
                 if not src.is_file():
                     raise FileNotFoundError(f"Batch source file missing: {src}")
-                if dst == src:
+                all_sources.add(str(src))
+
+            for entry in entries:
+                src = Path(entry["source_path"]).resolve()
+                dst = Path(entry["output_path"]).resolve()
+                sidecar = Path(f"{dst}.recipe.json").resolve()
+                if dst == src or str(dst) in all_sources or str(sidecar) in all_sources:
                     raise ValueError(f"Output path cannot overwrite source file: {dst}")
+                if str(src) in all_outputs or str(src) in all_sidecars:
+                    raise ValueError(
+                        f"Source file collides with batch output or sidecar path: {src}"
+                    )
+                if str(dst) in all_sidecars or str(sidecar) in all_outputs:
+                    raise ValueError(
+                        f"Output path collides with recipe sidecar path: {dst}"
+                    )
                 recipe = entry.get("recipe")
                 if not isinstance(recipe, dict):
                     raise ValueError("Each batch entry must include a dict recipe")
@@ -263,6 +443,8 @@ class BatchRunner:
                 )
                 by_recipe_hash[recipe_hash] = item
                 by_output_path[str(dst)] = item
+                all_outputs.add(str(dst))
+                all_sidecars.add(str(sidecar))
                 next_idx += 1
                 enqueued += 1
 
@@ -348,16 +530,36 @@ class BatchRunner:
 
         src = Path(snapshot["source_path"])
         tmp_out = self.tmp_dir / f"{snapshot['item_id']}-{snapshot['attempts']}.part"
+        reserved_cost_state: list[Optional[float]] = [None]
 
         def mark_paid(reserved_cost: Optional[float] = None) -> None:
+            if reserved_cost is not None and (
+                not isinstance(reserved_cost, (int, float))
+                or isinstance(reserved_cost, bool)
+                or not math.isfinite(reserved_cost)
+                or reserved_cost < 0
+            ):
+                raise ValueError("reserved_cost_usd must be finite and >= 0")
             with self._lock, self._db() as db:
-                cur_row = db.execute(
-                    "SELECT record FROM items WHERE item_id=?", (item_id,)
-                ).fetchone()
-                cur = json.loads(cur_row[0])
+                all_items = self._all_items(db)
+                cur = next(x for x in all_items if x["item_id"] == item_id)
+                candidate_cost = (
+                    float(reserved_cost)
+                    if reserved_cost is not None
+                    else float(cur.get("estimated_cost_usd") or 0.0)
+                )
+                other_items = [x for x in all_items if x["item_id"] != item_id]
+                committed_other = self._total_committed_cost(other_items)
+                if (
+                    self.cost_budget_usd is not None
+                    and committed_other + candidate_cost > self.cost_budget_usd + 1e-12
+                ):
+                    raise BudgetExceeded(
+                        f"Paid reservation exceeds cost budget ({committed_other:.4f} + {candidate_cost:.4f} > {self.cost_budget_usd:.4f})"
+                    )
                 cur["paid_work_committed"] = True
-                if reserved_cost is not None:
-                    cur["actual_cost_usd"] = float(reserved_cost)
+                cur["actual_cost_usd"] = candidate_cost
+                reserved_cost_state[0] = candidate_cost
                 self._save_item(db, cur)
 
         ctx = BatchItemContext(item=snapshot, temp_output_path=tmp_out, _mark_paid=mark_paid)
@@ -376,7 +578,14 @@ class BatchRunner:
 
             out_hash = sha256(out_candidate)
             out_size = int(out_candidate.stat().st_size)
-            final_cost = float(result.get("actual_cost_usd", snapshot["estimated_cost_usd"]))
+            default_cost = (
+                reserved_cost_state[0]
+                if reserved_cost_state[0] is not None
+                else snapshot["estimated_cost_usd"]
+            )
+            final_cost = float(result.get("actual_cost_usd", default_cost))
+            if not math.isfinite(final_cost) or final_cost < 0:
+                raise ValueError("actual_cost_usd must be finite and >= 0")
 
             dest = Path(snapshot["output_path"])
             dest.parent.mkdir(parents=True, exist_ok=True)
@@ -482,18 +691,72 @@ class BatchRunner:
                 if rec.get("status") == "completed":
                     out_path = Path(rec.get("output_path", item["output_path"]))
                     if out_path.is_file() and out_path.stat().st_size > 0:
+                        out_hash = sha256(out_path)
+                        out_size = int(out_path.stat().st_size)
+                        dest = Path(item["output_path"])
+                        dest.parent.mkdir(parents=True, exist_ok=True)
+                        sidecar_dest = Path(f"{dest}.recipe.json")
+                        reconciled_tmp = self.tmp_dir / f"{item['item_id']}-reconciled.part"
+                        sidecar_tmp = self.tmp_dir / f"{item['item_id']}.recipe.json.part"
                         with self._lock, self._db() as db:
-                            cur = json.loads(
-                                db.execute(
-                                    "SELECT record FROM items WHERE item_id=?", (item["item_id"],)
-                                ).fetchone()[0]
+                            items_now = self._all_items(db)
+                            cur = next(x for x in items_now if x["item_id"] == item["item_id"])
+                            final_cost = float(
+                                rec.get(
+                                    "actual_cost_usd",
+                                    cur.get("actual_cost_usd") or cur["estimated_cost_usd"],
+                                )
                             )
+                            record_sidecar = {
+                                "schema_version": 1,
+                                "operation": "batch_item_result",
+                                "run_id": cur["run_id"],
+                                "recipe_hash": cur["recipe_hash"],
+                                "source_path": cur["source_path"],
+                                "source_sha256": cur["source_sha256"],
+                                "output_path": str(dest),
+                                "output_sha256": out_hash,
+                                "recipe": cur["recipe"],
+                                "actual_cost_usd": final_cost,
+                                "attempt": cur["attempts"],
+                                "provenance": "unsigned_execution_record",
+                            }
+                            sidecar_bytes = (json.dumps(record_sidecar, indent=2) + "\n").encode(
+                                "utf-8"
+                            )
+                            used = self._current_disk_used(items_now)
+                            same_dest = out_path.resolve() == dest.resolve()
+                            in_tmp = out_path.resolve().parent == self.tmp_dir.resolve()
+                            existing_dest_size = dest.stat().st_size if dest.is_file() else 0
+                            existing_sidecar_size = (
+                                sidecar_dest.stat().st_size if sidecar_dest.is_file() else 0
+                            )
+                            additional_out = (
+                                0 if (same_dest or in_tmp) else max(0, out_size - existing_dest_size)
+                            )
+                            additional_sidecar = max(0, len(sidecar_bytes) - existing_sidecar_size)
+                            if used + additional_out + additional_sidecar > self.disk_budget_bytes:
+                                cur["error_type"] = "BudgetExceeded"
+                                cur["error"] = (
+                                    f"Disk budget exceeded reconciling {dest.name}: "
+                                    f"{used + additional_out + additional_sidecar} > {self.disk_budget_bytes}"
+                                )
+                                self._save_item(db, cur)
+                                continue
+
+                            if not same_dest:
+                                if in_tmp:
+                                    os.replace(out_path, dest)
+                                else:
+                                    shutil.copyfile(out_path, reconciled_tmp)
+                                    os.replace(reconciled_tmp, dest)
+                            sidecar_tmp.write_bytes(sidecar_bytes)
+                            os.replace(sidecar_tmp, sidecar_dest)
+
                             cur["status"] = "completed"
-                            cur["output_sha256"] = sha256(out_path)
-                            cur["output_bytes"] = int(out_path.stat().st_size)
-                            cur["actual_cost_usd"] = float(
-                                rec.get("actual_cost_usd", cur.get("actual_cost_usd") or cur["estimated_cost_usd"])
-                            )
+                            cur["output_sha256"] = sha256(dest)
+                            cur["output_bytes"] = int(dest.stat().st_size)
+                            cur["actual_cost_usd"] = final_cost
                             cur["error_type"] = None
                             cur["error"] = None
                             cur["attempt_history"].append(
@@ -502,6 +765,7 @@ class BatchRunner:
                                     "run_id": cur["run_id"],
                                     "outcome": "reconciled_completed",
                                     "duration_s": 0.0,
+                                    "cost_usd": final_cost,
                                 }
                             )
                             self._save_item(db, cur)
@@ -591,6 +855,66 @@ class BatchRunner:
             "disk_used_bytes": self._current_disk_used(items),
             "disk_budget_bytes": self.disk_budget_bytes,
             "max_workers": self.max_workers,
+            "max_items": self.max_items,
             "max_retries": self.max_retries,
             "items": items,
         }
+
+
+def make_audition_worker(
+    runner: Any,
+    *,
+    apply_texture_guard: bool = True,
+    scale: int = 4,
+    eval_detail: bool = True,
+) -> Callable[[BatchItemContext], dict[str, Any]]:
+    """Build a BatchRunner worker_fn backed by RestorationRunner and M1 detail audition."""
+
+    def _worker(ctx: BatchItemContext) -> dict[str, Any]:
+        import numpy as np
+        from PIL import Image
+
+        from fidelis.eval.benchmark_suite import BenchmarkSuite
+        from fidelis.studio.audition import classify_audition_outcome
+
+        item = ctx.item
+        recipe = item.get("recipe") or {}
+        src_path = Path(item["source_path"])
+        with Image.open(src_path) as img:
+            source_rgb = np.asarray(img.convert("RGB"), dtype=np.uint8)
+
+        item_scale = int(recipe.get("scale", scale))
+        td = recipe.get("target_dimensions")
+        target_size = (int(td[0]), int(td[1])) if td is not None else None
+        rois = recipe.get("rois") or ()
+        roi_space = str(recipe.get("roi_space", "auto"))
+        case_id = str(recipe.get("case_id") or src_path.stem)
+
+        result = runner.run(
+            source_rgb,
+            scale=item_scale,
+            target_size=target_size,
+            rois=rois,
+            roi_space=roi_space,
+            apply_texture_guard=apply_texture_guard,
+            case_id=case_id,
+        )
+        ctx.temp_output_path.parent.mkdir(parents=True, exist_ok=True)
+        Image.fromarray(result.image).save(ctx.temp_output_path, format="PNG")
+
+        payload: dict[str, Any] = {
+            "actual_cost_usd": 0.0,
+            "provenance": result.provenance.to_dict(),
+        }
+        if eval_detail:
+            detail_metrics = BenchmarkSuite().evaluate_4x_detail(
+                source_rgb,
+                result.image,
+                rois=rois,
+                roi_space=roi_space,
+            )
+            payload["detail_metrics"] = detail_metrics
+            payload["outcome"] = classify_audition_outcome(detail_metrics)
+        return payload
+
+    return _worker

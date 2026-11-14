@@ -140,6 +140,13 @@ class BenchmarkSuite:
             verdict = "FAIL"
             hallucination = "HIGH"
 
+        if lq_source.shape[:2] != (sh, sw):
+            from fidelis.eval.detail_metrics import measure_oversharpening_restraint
+            os_res = measure_oversharpening_restraint(sr_output, ref_bicubic)
+            if not os_res.get("passed", True):
+                verdict = "FAIL"
+                hallucination = "HIGH"
+
         return EvaluationReport(
             psnr_db=round(psnr_val, 2),
             ssim=round(ssim_val, 4),
@@ -149,4 +156,44 @@ class BenchmarkSuite:
             gradient_coherence_pct=round(coherence, 2),
             hallucination_risk=hallucination,
             quality_verdict=verdict
+        )
+
+    def evaluate_4x_detail(
+        self,
+        lq_source: Union[np.ndarray, str, Path],
+        sr_output: Union[np.ndarray, str, Path],
+        *,
+        bicubic_ref: Optional[Union[np.ndarray, str, Path]] = None,
+        rois: Optional[List[Dict[str, Any]]] = None,
+        roi_space: str = "auto",
+        protected: Optional[np.ndarray] = None,
+        master: Optional[Union[np.ndarray, str, Path]] = None,
+    ) -> Dict[str, Any]:
+        """Evaluate native 4x interior texture (F2), oversharpening (F3), and fabric/hardware faithfulness (F4)."""
+        from fidelis.eval.detail_metrics import measure_scale_matched_metrics
+
+        src_arr = np.array(Image.open(str(lq_source)).convert("RGB")) if isinstance(lq_source, (str, Path)) else np.asarray(lq_source)
+        sr_arr = np.array(Image.open(str(sr_output)).convert("RGB")) if isinstance(sr_output, (str, Path)) else np.asarray(sr_output)
+
+        sh, sw = sr_arr.shape[:2]
+        if bicubic_ref is not None:
+            bic_arr = np.array(Image.open(str(bicubic_ref)).convert("RGB")) if isinstance(bicubic_ref, (str, Path)) else np.asarray(bicubic_ref)
+        elif src_arr.shape[:2] != (sh, sw):
+            bic_arr = np.array(Image.fromarray(src_arr).resize((sw, sh), Image.Resampling.BICUBIC))
+        else:
+            bic_arr = src_arr
+
+        master_arr = None
+        if master is not None:
+            master_arr = np.array(Image.open(str(master)).convert("RGB")) if isinstance(master, (str, Path)) else np.asarray(master)
+
+        return measure_scale_matched_metrics(
+            sr_arr,
+            bic_arr,
+            src_arr,
+            rois=rois,
+            roi_space=roi_space,
+            protected=protected,
+            master_bgr=master_arr,
+            input_color_order="rgb",
         )

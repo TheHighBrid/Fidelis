@@ -480,6 +480,7 @@ def verify_workspace_integrity(
                 unreferenced_files.append(rel)
 
     generation_runs: list[dict[str, Any]] = []
+    generation_tasks: list[dict[str, Any]] = []
     if g_root is not None and g_root.exists():
         runs_dir = g_root / "runs"
         if runs_dir.is_dir():
@@ -508,12 +509,126 @@ def verify_workspace_integrity(
                     }
                 )
 
+        for rel_db in ("generation.sqlite3", "runs/generation.sqlite3"):
+            gen_db = g_root / rel_db
+            if not gen_db.is_file():
+                continue
+            try:
+                conn = sqlite3.connect(f"file:{gen_db}?mode=ro", uri=True, timeout=5)
+                try:
+                    integ = conn.execute("PRAGMA integrity_check;").fetchone()
+                    if not integ or integ[0] != "ok":
+                        errors.append(f"SQLite integrity_check failed on {rel_db}: {integ}")
+                    has_runs = conn.execute(
+                        "SELECT name FROM sqlite_master WHERE type='table' AND name='runs'"
+                    ).fetchone()
+                    rows = (
+                        conn.execute("SELECT run_id, record FROM runs ORDER BY run_id").fetchall()
+                        if has_runs
+                        else []
+                    )
+                finally:
+                    conn.close()
+            except sqlite3.Error as exc:
+                errors.append(f"SQLite error reading {rel_db}: {exc}")
+                rows = []
+
+            for db_run_id, raw_record in rows:
+                try:
+                    payload = json.loads(raw_record)
+                except Exception as exc:
+                    errors.append(f"Generation ledger {rel_db} run {db_run_id}: invalid JSON ({exc})")
+                    continue
+                rec_id = str(payload.get("id", ""))
+                if rec_id != db_run_id:
+                    errors.append(
+                        f"Generation ledger {rel_db} run {db_run_id}: id mismatch ({rec_id!r})"
+                    )
+                expected_out_sha = payload.get("output_sha256")
+                cache_png = gen_db.parent / f"{db_run_id}.png"
+                if payload.get("status") == "completed" or expected_out_sha:
+                    if not cache_png.is_file():
+                        errors.append(
+                            f"Generation ledger {rel_db} run {db_run_id}: missing cached output {cache_png.name}"
+                        )
+                    elif expected_out_sha and _sha256_file(cache_png) != expected_out_sha:
+                        errors.append(
+                            f"Generation ledger {rel_db} run {db_run_id}: cached output sha256 mismatch"
+                        )
+                generation_runs.append(
+                    {
+                        "id": db_run_id,
+                        "ledger": rel_db,
+                        "status": payload.get("status"),
+                        "prompt_id": payload.get("prompt_id"),
+                        "workflow_hash": payload.get("workflow_hash"),
+                        "output_sha256": expected_out_sha,
+                        "record_sha256": hashlib.sha256(
+                            json.dumps(payload, sort_keys=True, separators=(",", ":")).encode(
+                                "utf-8"
+                            )
+                        ).hexdigest(),
+                    }
+                )
+
+        queue_db = g_root / "queue.sqlite3"
+        if queue_db.is_file():
+            try:
+                conn = sqlite3.connect(f"file:{queue_db}?mode=ro", uri=True, timeout=5)
+                try:
+                    integ = conn.execute("PRAGMA integrity_check;").fetchone()
+                    if not integ or integ[0] != "ok":
+                        errors.append(f"SQLite integrity_check failed on queue.sqlite3: {integ}")
+                    has_tasks = conn.execute(
+                        "SELECT name FROM sqlite_master WHERE type='table' AND name='tasks'"
+                    ).fetchone()
+                    q_rows = (
+                        conn.execute(
+                            "SELECT idx, task_id, record FROM tasks ORDER BY idx, task_id"
+                        ).fetchall()
+                        if has_tasks
+                        else []
+                    )
+                finally:
+                    conn.close()
+            except sqlite3.Error as exc:
+                errors.append(f"SQLite error reading queue.sqlite3: {exc}")
+                q_rows = []
+
+            for _idx, db_task_id, raw_record in q_rows:
+                try:
+                    payload = json.loads(raw_record)
+                except Exception as exc:
+                    errors.append(f"Generation queue task {db_task_id}: invalid JSON ({exc})")
+                    continue
+                rec_id = str(payload.get("id", ""))
+                if rec_id != db_task_id:
+                    errors.append(
+                        f"Generation queue task {db_task_id}: id mismatch ({rec_id!r})"
+                    )
+                generation_tasks.append(
+                    {
+                        "id": db_task_id,
+                        "job_id": payload.get("job_id"),
+                        "base_revision": payload.get("base_revision"),
+                        "run_id": payload.get("run_id"),
+                        "status": payload.get("status"),
+                        "output_sha256": payload.get("output_sha256"),
+                        "record_sha256": hashlib.sha256(
+                            json.dumps(payload, sort_keys=True, separators=(",", ":")).encode(
+                                "utf-8"
+                            )
+                        ).hexdigest(),
+                    }
+                )
+
     state_fingerprint = hashlib.sha256(
         json.dumps(
             {
                 "user_version": user_version,
                 "jobs": job_summaries,
                 "generation_runs": generation_runs,
+                "generation_tasks": generation_tasks,
             },
             sort_keys=True,
         ).encode("utf-8")
@@ -530,11 +645,26 @@ def verify_workspace_integrity(
         "unreferenced_artifact_count": len(unreferenced_files),
         "unreferenced_artifacts": unreferenced_files,
         "generation_run_count": len(generation_runs),
+        "generation_task_count": len(generation_tasks),
         "state_fingerprint": state_fingerprint,
         "jobs": job_summaries,
         "generation_runs": generation_runs,
+        "generation_tasks": generation_tasks,
         "errors": errors,
     }
+
+
+def _backup_sqlite_file(src_db: Path, dst_db: Path) -> None:
+    dst_db.parent.mkdir(parents=True, exist_ok=True)
+    src_conn = sqlite3.connect(f"file:{src_db}?mode=ro", uri=True, timeout=30)
+    try:
+        dst_conn = sqlite3.connect(dst_db, timeout=30)
+        try:
+            src_conn.backup(dst_conn)
+        finally:
+            dst_conn.close()
+    finally:
+        src_conn.close()
 
 
 def create_workspace_snapshot(
@@ -568,15 +698,7 @@ def create_workspace_snapshot(
 
     db_src = r_root / "jobs.sqlite3"
     if db_src.is_file():
-        src_conn = sqlite3.connect(f"file:{db_src}?mode=ro", uri=True, timeout=30)
-        try:
-            dst_conn = sqlite3.connect(snap_region / "jobs.sqlite3", timeout=30)
-            try:
-                src_conn.backup(dst_conn)
-            finally:
-                dst_conn.close()
-        finally:
-            src_conn.close()
+        _backup_sqlite_file(db_src, snap_region / "jobs.sqlite3")
 
     artifacts_src = r_root / "artifacts"
     if artifacts_src.is_dir():
@@ -585,12 +707,20 @@ def create_workspace_snapshot(
 
     if g_root is not None and g_root.exists():
         snap_gen.mkdir(parents=True, exist_ok=True)
+        for rel_db in ("generation.sqlite3", "queue.sqlite3", "runs/generation.sqlite3"):
+            src_db = g_root / rel_db
+            if src_db.is_file():
+                _backup_sqlite_file(src_db, snap_gen / rel_db)
+        for png_file in sorted(g_root.glob("*.png")):
+            shutil.copy2(png_file, snap_gen / png_file.name)
         runs_src = g_root / "runs"
         if runs_src.is_dir():
             snap_runs_dst = snap_gen / "runs"
             snap_runs_dst.mkdir(parents=True, exist_ok=True)
             for run_file in sorted(runs_src.glob("*.json")):
                 shutil.copy2(run_file, snap_runs_dst / run_file.name)
+            for png_file in sorted(runs_src.glob("*.png")):
+                shutil.copy2(png_file, snap_runs_dst / png_file.name)
 
     snap_check = verify_workspace_integrity(
         snap_region, snap_gen if (g_root is not None) else None

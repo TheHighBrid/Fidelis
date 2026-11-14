@@ -10,6 +10,7 @@ import unittest
 from pathlib import Path
 
 from fidelis.eval.quality_acceptance import (
+    AcceptanceThresholds,
     REQUIRED_CATEGORIES,
     cohen_kappa,
     evaluate_held_out_acceptance,
@@ -218,6 +219,64 @@ class QualityAcceptanceTests(unittest.TestCase):
                 check=False,
             )
             self.assertEqual(proc_strict.returncode, 2)
+
+    def test_sparse_comparator_ballot_fails_coverage_and_comparator_gates(self) -> None:
+        sub = _make_complete_submission(owner_status="approved")
+        # Keep all 30 ballots for dated_krea, but only 1 winning ballot for pinned_clarity.
+        sub["held_out_ballots"] = [
+            b
+            for b in sub["held_out_ballots"]
+            if b["comparator"] == "dated_krea"
+            or (b["comparator"] == "pinned_clarity" and b["case_id"] == "portrait-07")
+        ]
+        report = evaluate_held_out_acceptance(sub)
+        self.assertFalse(report["quantitative_gates_passed"])
+        self.assertEqual(report["overall_status"], "failed")
+        self.assertFalse(report["comparator_results"]["pinned_clarity"]["passed_thresholds"])
+        self.assertIn("pinned_clarity", report["comparator_failures"])
+        self.assertIn("incomplete_held_out_category_coverage", report["blocking_reasons"])
+
+    def test_automated_detail_gates_optional_and_required(self) -> None:
+        sub = _make_complete_submission(owner_status="approved")
+
+        # Required=True without automated_metrics -> fails closed
+        req_thresholds = AcceptanceThresholds(require_automated_detail_gates=True)
+        missing_rep = evaluate_held_out_acceptance(sub, thresholds=req_thresholds)
+        self.assertFalse(missing_rep["quantitative_gates_passed"])
+        self.assertEqual(missing_rep["overall_status"], "failed")
+        self.assertIn("missing_automated_detail_metrics", missing_rep["blocking_reasons"])
+        self.assertFalse(missing_rep["automated_detail_gates"]["passed"])
+
+        # Passing automated_metrics with required=True -> accepted
+        sub_pass = {
+            **sub,
+            "automated_metrics": {
+                "interior_texture_passed": True,
+                "oversharpen_restraint_passed": True,
+                "fabric_weave_passed": True,
+                "hardware_seam_passed": True,
+            },
+        }
+        pass_rep = evaluate_held_out_acceptance(sub_pass, thresholds=req_thresholds)
+        self.assertTrue(pass_rep["quantitative_gates_passed"])
+        self.assertEqual(pass_rep["overall_status"], "accepted")
+        self.assertTrue(pass_rep["automated_detail_gates"]["passed"])
+
+        # Failing any of F2/F3/F4 fails even when require_automated_detail_gates=False
+        sub_fail = {
+            **sub,
+            "automated_metrics": {
+                "interior_texture_passed": False,
+                "oversharpen_restraint_passed": False,
+                "fabric_weave_passed": True,
+                "hardware_seam_passed": False,
+            },
+        }
+        fail_rep = evaluate_held_out_acceptance(sub_fail)
+        self.assertFalse(fail_rep["quantitative_gates_passed"])
+        self.assertIn("automated_f2_texture_regression", fail_rep["blocking_reasons"])
+        self.assertIn("automated_f3_oversharpening_failed", fail_rep["blocking_reasons"])
+        self.assertIn("automated_f4_fabric_or_hardware_failed", fail_rep["blocking_reasons"])
 
 
 if __name__ == "__main__":

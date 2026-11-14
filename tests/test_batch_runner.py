@@ -321,6 +321,215 @@ class BatchRunnerTests(unittest.TestCase):
             )
             self.assertEqual(json.loads(st.stdout)["counts"]["completed"], 2)
 
+    def test_persisted_budgets_and_packshot_extension_preserved_across_cli_reopen(self) -> None:
+        script = Path(__file__).resolve().parents[1] / "scripts/batch-run.py"
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            in_dir = root / "inputs"
+            in_dir.mkdir(parents=True, exist_ok=True)
+            jpg_path = in_dir / "photo.jpg"
+            arr = np.full((12, 16, 3), 90, dtype=np.uint8)
+            Image.fromarray(arr, "RGB").save(jpg_path, format="JPEG")
+
+            batch_dir = root / "batch"
+            out_dir = root / "out"
+
+            enq = subprocess.run(
+                [
+                    sys.executable,
+                    str(script),
+                    "enqueue",
+                    "--batch-dir",
+                    str(batch_dir),
+                    "--input-dir",
+                    str(in_dir),
+                    "--output-dir",
+                    str(out_dir),
+                    "--handler",
+                    "packshot_verify",
+                    "--max-workers",
+                    "1",
+                    "--max-items",
+                    "10",
+                    "--disk-budget-mib",
+                    "64",
+                    "--max-retries",
+                    "4",
+                    "--cost-budget-usd",
+                    "0.10",
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            enq_payload = json.loads(enq.stdout)["status"]
+            self.assertEqual(enq_payload["disk_budget_bytes"], 64 * 1024 * 1024)
+            self.assertEqual(enq_payload["cost_budget_usd"], 0.10)
+            self.assertEqual(enq_payload["max_workers"], 1)
+            self.assertEqual(enq_payload["max_items"], 10)
+            self.assertEqual(enq_payload["max_retries"], 4)
+
+            # Reopen via 'run' without budget flags: persisted budgets must remain in force.
+            run_res = subprocess.run(
+                [sys.executable, str(script), "run", "--batch-dir", str(batch_dir)],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            run_payload = json.loads(run_res.stdout)
+            self.assertEqual(run_payload["counts"]["completed"], 1)
+            self.assertEqual(run_payload["disk_budget_bytes"], 64 * 1024 * 1024)
+            self.assertEqual(run_payload["cost_budget_usd"], 0.10)
+            self.assertEqual(run_payload["max_workers"], 1)
+            self.assertEqual(run_payload["max_items"], 10)
+            self.assertEqual(run_payload["max_retries"], 4)
+
+            # packshot_verify must keep .jpg extension rather than writing JPEG bytes as .png.
+            self.assertTrue((out_dir / "photo.jpg").is_file())
+            self.assertFalse((out_dir / "photo.png").exists())
+            self.assertEqual((out_dir / "photo.jpg").read_bytes(), jpg_path.read_bytes())
+
+            # Read-only status also reports persisted budgets.
+            st_res = subprocess.run(
+                [sys.executable, str(script), "status", "--batch-dir", str(batch_dir)],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            st_payload = json.loads(st_res.stdout)
+            self.assertEqual(st_payload["disk_budget_bytes"], 64 * 1024 * 1024)
+            self.assertEqual(st_payload["cost_budget_usd"], 0.10)
+
+    def test_paid_reservation_enforces_spend_cap_and_preserves_reserved_cost(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            inputs = self._make_images(root, ("first.png", "second.png"))
+            batch_dir = root / "batch"
+            out_dir = root / "out"
+
+            entries = [
+                {
+                    "source_path": str(inputs[0]),
+                    "output_path": str(out_dir / "first.png"),
+                    "recipe": {"idx": 0},
+                    "estimated_cost_usd": 0.05,
+                },
+                {
+                    "source_path": str(inputs[1]),
+                    "output_path": str(out_dir / "second.png"),
+                    "recipe": {"idx": 1},
+                    "estimated_cost_usd": 0.05,
+                },
+            ]
+            remote_submissions: list[str] = []
+
+            def worker(ctx: BatchItemContext) -> dict:
+                name = Path(ctx.item["source_path"]).name
+                if name == "first.png":
+                    # Reserve 0.12 USD (< 0.15 cap) and omit actual_cost_usd from return dict.
+                    ctx.mark_paid_submitted(0.12)
+                    remote_submissions.append(name)
+                    ctx.temp_output_path.write_bytes(Path(ctx.item["source_path"]).read_bytes())
+                    return {}
+                # Second item was estimated at 0.05, but runtime quote is 0.10 -> 0.12 + 0.10 > 0.15 cap!
+                ctx.mark_paid_submitted(0.10)
+                remote_submissions.append(name)
+                ctx.temp_output_path.write_bytes(Path(ctx.item["source_path"]).read_bytes())
+                return {}
+
+            with BatchRunner(batch_dir, max_workers=1, cost_budget_usd=0.15) as runner:
+                runner.enqueue(entries)
+                summary = runner.run(worker)
+
+            self.assertEqual(remote_submissions, ["first.png"])
+            self.assertEqual(summary["counts"]["completed"], 1)
+            self.assertEqual(summary["counts"]["failed"], 1)
+            self.assertEqual(summary["counts"]["needs_review"], 0)
+            self.assertAlmostEqual(summary["total_cost_usd"], 0.12, places=6)
+            second_item = next(x for x in summary["items"] if x["output_path"].endswith("second.png"))
+            self.assertFalse(second_item["paid_work_committed"])
+            self.assertEqual(second_item["error_type"], "BudgetExceeded")
+
+    def test_cross_item_source_output_collision_and_external_reconcile_publish(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            inputs = self._make_images(root, ("a.png", "b.png"))
+            batch_dir = root / "batch"
+            out_dir = root / "out"
+
+            with BatchRunner(batch_dir, max_workers=1) as runner:
+                # Reject A -> B and B -> C within a single enqueue call.
+                with self.assertRaises(ValueError):
+                    runner.enqueue(
+                        [
+                            {
+                                "source_path": str(inputs[0]),
+                                "output_path": str(inputs[1]),
+                                "recipe": {"step": 1},
+                            },
+                            {
+                                "source_path": str(inputs[1]),
+                                "output_path": str(out_dir / "c.png"),
+                                "recipe": {"step": 2},
+                            },
+                        ]
+                    )
+
+                # Enqueue A -> out/a.png, then reject out/a.png -> out/b.png on a subsequent enqueue.
+                runner.enqueue(
+                    [
+                        {
+                            "source_path": str(inputs[0]),
+                            "output_path": str(out_dir / "a.png"),
+                            "recipe": {"step": 1},
+                            "estimated_cost_usd": 0.10,
+                        }
+                    ]
+                )
+                out_dir.mkdir(parents=True, exist_ok=True)
+                (out_dir / "a.png").write_bytes(inputs[0].read_bytes())
+                with self.assertRaises(ValueError):
+                    runner.enqueue(
+                        [
+                            {
+                                "source_path": str(out_dir / "a.png"),
+                                "output_path": str(out_dir / "b.png"),
+                                "recipe": {"step": 2},
+                            }
+                        ]
+                    )
+                (out_dir / "a.png").unlink()
+
+                # Trigger needs_review on A, then reconcile from a separate backend cache file.
+                def interrupt_worker(ctx: BatchItemContext) -> dict:
+                    ctx.mark_paid_submitted(0.10)
+                    raise SubmissionUnknown("connection reset after submit")
+
+                s1 = runner.run(interrupt_worker)
+                self.assertEqual(s1["counts"]["needs_review"], 1)
+
+                cache_file = root / "cache" / "recovered_run.png"
+                cache_file.parent.mkdir(parents=True, exist_ok=True)
+                cache_file.write_bytes(inputs[0].read_bytes())
+
+                s2 = runner.run(
+                    lambda _ctx: {},
+                    reconcile_fn=lambda _item: {
+                        "status": "completed",
+                        "output_path": str(cache_file),
+                        "actual_cost_usd": 0.10,
+                    },
+                )
+                self.assertEqual(s2["counts"]["completed"], 1)
+                self.assertTrue((out_dir / "a.png").is_file())
+                self.assertTrue((out_dir / "a.png.recipe.json").is_file())
+                self.assertEqual(sha256(out_dir / "a.png"), sha256(cache_file))
+
+                # Subsequent run must pass _verify_completed_integrity() cleanly.
+                s3 = runner.run(lambda _ctx: {})
+                self.assertEqual(s3["counts"]["completed"], 1)
+                self.assertEqual(s3["counts"]["failed"], 0)
+
 
 if __name__ == "__main__":
     unittest.main()
