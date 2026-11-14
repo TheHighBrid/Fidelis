@@ -180,12 +180,10 @@ def evaluate_release_readiness(
                     package_errors.append(
                         f"package {rel_path}: sha256 mismatch ({actual_sha} != {declared_sha})"
                     )
-            elif bool(pkg.get("require_file_present", False)):
-                package_errors.append(f"package {rel_path}: file missing on disk")
             else:
-                file_verified = True
+                package_errors.append(f"package {rel_path}: file missing on disk")
         else:
-            file_verified = True
+            package_errors.append(f"package {rel_path}: no artifact root supplied")
 
         verified_packages.append(
             {

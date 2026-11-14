@@ -68,6 +68,28 @@ export FIDELIS_HOME="$sandbox_home"
 test -x "$sandbox_home/bin/fidelis"
 test -d "$sandbox_home/runtime"
 
+printf '4. Testing commit-pinned local preview packaging...\n'
+source_sha="$(git -C "$repo_root" rev-parse HEAD)"
+for preview in "$work/preview-a" "$work/preview-b"; do
+  bash "$repo_root/scripts/package-local-preview.sh" "$source_sha" "$preview"
+done
+diff -r "$work/preview-a" "$work/preview-b"
+"$python_bin" - "$work/preview-a/preview-receipt.json" "$source_sha" <<'PY'
+import hashlib
+import json
+from pathlib import Path
+import sys
+
+receipt_path = Path(sys.argv[1])
+receipt = json.loads(receipt_path.read_text())
+assert receipt["source_commit"] == sys.argv[2]
+assert receipt["bundled_models"] == []
+assert len(receipt["packages"]) == 2
+for package in receipt["packages"]:
+    archive = receipt_path.parent / package["path"]
+    assert hashlib.sha256(archive.read_bytes()).hexdigest() == package["sha256"]
+PY
+
 # Clean up test distribution files
 rm -f "$repo_root"/dist/*"${test_ver}"*
 

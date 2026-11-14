@@ -17,7 +17,7 @@ gate is incomplete.
 3. **Release SHA & `main` Merge**: Requires a valid 7..40 hex Git commit SHA and
    `merged_to_main: true`.
 4. **Verified Release Packages**: Linked release archives must carry 64-hex SHA-256
-   digests verified against on-disk bytes when present.
+   digests verified against on-disk bytes. Missing archives fail the release gate.
 5. **Held-Out Quality & Operational Gates**: Requires `quality_gate.overall_status == "accepted"`
    with a recorded `report_sha256`, plus verified live worker preflight, target-device
    resource budget measurements, and workspace upgrade/rollback protection.
