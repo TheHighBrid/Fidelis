@@ -187,17 +187,18 @@ class ReleaseReadinessTests(unittest.TestCase):
         manifest_path = REPO_ROOT / "config" / "release-candidate-v1.json"
         self.assertTrue(manifest_path.is_file())
         manifest_data = json.loads(manifest_path.read_text(encoding="utf-8"))
-        dossier = evaluate_release_readiness(
-            backlog_data,
-            release_manifest=manifest_data,
-            repo_root=REPO_ROOT,
-        )
+        with tempfile.TemporaryDirectory() as empty_artifact_root:
+            dossier = evaluate_release_readiness(
+                backlog_data,
+                release_manifest=manifest_data,
+                repo_root=empty_artifact_root,
+            )
         self.assertFalse(dossier["ready_for_release"])
         self.assertEqual(
             dossier["certified_evidence_level"], "E1_fixture_and_protocol_tested"
         )
-        self.assertEqual(dossier["packages"]["verified_count"], 3)
-        self.assertEqual(dossier["packages"]["errors"], [])
+        self.assertEqual(dossier["packages"]["verified_count"], 0)
+        self.assertEqual(len(dossier["packages"]["errors"]), 3)
         self.assertTrue(dossier["documentation_and_rollback"]["scope_summary_present"])
         self.assertGreaterEqual(
             dossier["documentation_and_rollback"]["known_limits_count"], 4
@@ -206,7 +207,7 @@ class ReleaseReadinessTests(unittest.TestCase):
         self.assertTrue(dossier["operational_gate"]["device_budgets_measured"])
         self.assertTrue(dossier["operational_gate"]["upgrade_rollback_verified"])
         self.assertFalse(dossier["operational_gate"]["live_worker_verified"])
-        self.assertNotIn("release_packages_unverified", dossier["blocking_reasons"])
+        self.assertIn("release_packages_unverified", dossier["blocking_reasons"])
         self.assertNotIn(
             "scope_limits_or_rollback_plan_incomplete", dossier["blocking_reasons"]
         )
@@ -218,6 +219,18 @@ class ReleaseReadinessTests(unittest.TestCase):
             pkg.parent.mkdir(parents=True, exist_ok=True)
             payload = bytearray(b"valid-release-archive-bytes")
             declared_sha = hashlib.sha256(bytes(payload)).hexdigest()
+            missing_manifest = _make_complete_manifest(
+                "dist/fidelis-v3.1.0.tar.gz", declared_sha
+            )
+            missing_manifest["packages"][0]["require_file_present"] = False
+            for artifact_root in (root, None):
+                dossier = evaluate_release_readiness(
+                    _make_closed_backlog(),
+                    release_manifest=missing_manifest,
+                    repo_root=artifact_root,
+                )
+                self.assertFalse(dossier["ready_for_release"])
+                self.assertEqual(dossier["blocking_reasons"], ["release_packages_unverified"])
 
             # Corrupt a single byte on disk while require_file_present is False
             payload[-1] ^= 0xFF

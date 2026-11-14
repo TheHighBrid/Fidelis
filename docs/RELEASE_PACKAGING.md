@@ -24,6 +24,22 @@ byte-verified.
 
 ## 2. Archive Auditing & Workspace Snapshot CLI
 
+For a zero-additional-cost local preview, build the two source archives from a
+specific committed tree:
+
+```bash
+bash scripts/package-local-preview.sh "$(git rev-parse HEAD)" ../fidelis-preview
+```
+
+Choose a new output directory. The builder reads the Git commit directly, audits
+both archives, and writes a separate receipt with the source SHA, builder
+versions, and verified archive checksums. For byte-for-byte comparisons use the
+same Python and zlib build. The preview bundles no models or native runtimes.
+Use the [onboarding](../ONBOARDING.md) dependencies and the existing local NCNN
+runtime with the provenance-pinned RealeSR-general-v3 model for inference.
+Preview filenames and receipts are distinct from the official v3.1.0 manifest
+and do not change the production acceptance gates.
+
 Use `scripts/verify-upgrade-rollback.py` (backed by `fidelis/studio/packaging.py`) to
 audit release archives and protect user workspaces before upgrading or rolling back:
 
