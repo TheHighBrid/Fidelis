@@ -43,6 +43,7 @@ Usage:
   fidelis model-info MODEL
   fidelis model-add MODEL PARAM_FILE BIN_FILE [--replace]
   fidelis upscale INPUT OUTPUT [--model MODEL]
+  fidelis product-upscale INPUT.png OUTPUT.png [--model MODEL] [--rois-json FILE]
   fidelis batch INPUT_DIR OUTPUT_DIR [--model MODEL]
   fidelis audition INPUT OUTPUT_DIR [MODEL ...]
   fidelis batch-audition INPUT_DIR OUTPUT_DIR [MODEL ...]
@@ -454,6 +455,12 @@ case "$command" in
     else
       run_upscale "$(canonical_path "$input_file")" "$(canonical_path "$output_file")" "$model"
     fi
+    ;;
+  product-upscale)
+    product_script="$(resolve_script "product-upscale.py")"
+    py="$(resolve_python)"
+    shift
+    exec "$py" "$product_script" "$@"
     ;;
   batch)
     [[ $# -eq 3 || $# -eq 5 ]] || { usage >&2; exit 2; }

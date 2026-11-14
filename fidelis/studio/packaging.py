@@ -44,6 +44,7 @@ REQUIRED_ARCHIVE_PATHS: tuple[str, ...] = (
     "scripts/audit-model-provenance.py",
     "scripts/worker-preflight.py",
     "scripts/screen-roi-drift.py",
+    "scripts/product-upscale.py",
     "scripts/export-master.py",
     "scripts/run-comparators.py",
     "scripts/evaluate-quality-acceptance.py",
