@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "id": "fidelis-photo-corpus-v1",
+  "categories": {
+    "portrait": 12,
+    "model_apparel": 12,
+    "textile": 12,
+    "macro": 12,
+    "packshot_edge": 12
+  },
+  "split": {
+    "calibration": 30,
+    "held_out": 30
+  },
+  "assignment_policy": "six fixed slots per category per split; related subject/product/capture groups cannot cross splits",
+  "coverage_requirements": {
+    "portrait": [
+      "varied lighting and declared skin-tone coverage without inferred ethnicity",
+      "hair boundaries",
+      "depth of field"
+    ],
+    "model_apparel": [
+      "skin and clothing boundaries",
+      "seams and hardware",
+      "multiple poses and materials"
+    ],
+    "textile": [
+      "satin",
+      "knit",
+      "twill",
+      "leather",
+      "denim"
+    ],
+    "macro": [
+      "zipper",
+      "logo",
+      "engraving",
+      "seam"
+    ],
+    "packshot_edge": [
+      "clean background",
+      "shadow gradients",
+      "alpha/input rejection case",
+      "low light"
+    ]
+  },
+  "review_policy": "Human review must confirm coverage, rights and ROI annotations before a lock is used for acceptance. Automated readiness checks structural completeness only.",
+  "comparators": [
+    "interpolation",
+    "bicubic",
+    "selected_deterministic_base",
+    "fidelis",
+    "vosr_challenger",
+    "pinned_clarity",
+    "dated_krea"
+  ],
+  "output_policy": "one full-resolution image per file; unavailable comparator results remain missing"
+}

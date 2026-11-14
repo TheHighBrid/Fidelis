@@ -1,5 +1,62 @@
 # Fidelis Changelog
 
+## Unreleased unified M1–M4 Studio implementation & Apple M1 audition · 2026-11-13
+
+- Integrated all M1–M4 engineering deliverables (`F05-A`, `F05-B`, `F08-B`, `F10`, `F11`, `F12`, `F13`, `F14`, `F15`, `F16`) onto `feat/region-aware-studio` alongside `F09` (`SegFormer B0` smoke test) and `F10` (`fidelis/studio/structure.py` + Studio native-inspector crop check/lock controls).
+- Executed target-device **Apple M1 (8 GB RAM) Vulkan NCNN precision-base audition** (`F05` / `MEL-58`) across `RealeSR-general-v3`, `RealSR-DF2K`, and `ESRGAN-Remacri` on four real photographic inputs (`docs/APPLE_M1_PRECISION_BASE_AUDITION.md`), recording runtime/weight SHA-256s, wall-clock latency (`0.52–16.39 s`), `/usr/bin/time -l` peak RSS (`70.9–684.1 MB`), source-consistency metrics, and structural ROI screening (`0.0 px` registration shift).
+- Executed real headless Google Chrome (`157.0.8103.79` on `darwin arm64`) over CDP (`scripts/browser-acceptance.mjs`), resolved all 3 minor UI defects (`UX-KEYBOARD-FOCUS-TRAP`, `MISSING-FAVICON-404`, `UX-DESKTOP-CANVAS-SCROLL`), and verified `#checkNativeStructure` / `#lockNativeStructure` with `observed_defects: []`.
+- Resolved all 3 PR #12 automated code review findings (`16-bit PNG IHDR` validation before Pillow decode, lazy `cv2` import in `fidelis/__init__.py` + scoped `/regions` dispatch in `scripts/web-ui.py`, and dimension-aware `run_id` hash in `scripts/generate-texture.py`).
+- Recorded **185 passing Python unit tests (`test_*.py`)**, plus `tests/smoke-test.sh`, `tests/test-web-ui.sh`, `tests/test-release-pipeline.sh`, and `tests/test-browser-acceptance.sh`.
+
+## Unreleased mask suggestion interface · 2026-11-10
+
+- Added source-bound class probability import, explicit label routing and conservative confidence/boundary gates.
+- Added persisted staging/preview/accept/discard; active master stays unchanged until acceptance.
+- Fill-only-unclassified merge preserves manual masks, erasures, edge guards and protection.
+- Recorded 125 passing Python tests, HTTP/static smoke and editor syntax checks.
+- F09 remains partial: no configured/qualified automatic segmentation model or live accuracy result.
+- See [suggestion receipt](docs/project/checkpoints/2026-11-10-mask-suggestions.md).
+
+
+## Unreleased corpus tooling checkpoint · 2026-11-10
+
+- Added versioned 60-slot protocol/split design and explicit rights/hash/group/ROI inventory.
+- Added safe audit, unsigned freeze and re-verification commands with leakage and duplicate checks.
+- Audited eight legacy regression assets; no production case or permission was inferred.
+- Recorded 114 passing Python tests and static smoke/compilation checks.
+- F12-A remains partial: 60 production slots and reviewed permissions/coverage are still missing.
+- See [corpus receipt](docs/project/checkpoints/2026-11-10-corpus-inventory.md).
+
+
+## Unreleased native inspection checkpoint · 2026-11-10
+
+- Added revision-pinned, unresampled RGB crop responses and a read-only paired inspector.
+- Added 100/200% CSS-pixel scales, coordinate/overview selection and bounded crop sizes.
+- Preserved unsaved edits; reject stale/mismatched pairs and invalidate old asynchronous loads.
+- Recorded 102 passing Python tests, HTTP/static smoke and JavaScript syntax checks.
+- In Review in PR #12. Actual browser/device rendering and live quality remain open.
+- See [native inspection receipt](docs/project/checkpoints/2026-11-10-native-inspection.md).
+
+
+## Unreleased background generation checkpoint · 2026-11-10
+
+- Added an opt-in durable local generation queue with scoped status/cancel/resume API and editor controls.
+- Preserved run identity across timeouts/restarts and revision-safe candidate application.
+- Local cancellation blocks late application without global ComfyUI interruption; remote work may continue.
+- Recorded 92 passing Python tests, web HTTP/static smoke and editor syntax checks.
+- In Review in PR #12; live/device acceptance and generated-cache quota/retention remain open.
+- See [async receipt](docs/project/checkpoints/2026-11-10-async-generation.md).
+
+
+## Unreleased pipeline integrity checkpoint · 2026-11-10
+
+- Corrected unsigned provenance status, large-input tiler execution and explicit runtime selection.
+- Defaulted local HTTP/Compose publication to loopback and removed public firewall/deployment promotion.
+- Replaced invented metric defaults/pseudo-LPIPS with nullable measurements and explicit reference context.
+- Corrected RGB handling and physical CIE76 colour differences; added optional paired ground-truth CLI input.
+- Recorded 77 passing Python tests plus shell checks. See [receipt](docs/project/checkpoints/2026-11-10-pipeline-integrity.md).
+- Pending PR #12 review/merge; no live inference or production release certification.
+
 ## Unreleased Studio engineering checkpoint · 2026-11-10
 
 Implementation remains in open PR #12 on `feat/region-aware-studio` at `5f32fba`.

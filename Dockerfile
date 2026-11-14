@@ -1,4 +1,4 @@
-# Fidelis Studio - Production Container for OVH Cloud & Linux VPS
+# Fidelis Studio - Local development container; public deployment is not certified
 FROM python:3.12-slim-bookworm
 
 LABEL maintainer="Fidelis Development Team"
@@ -29,8 +29,8 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 WORKDIR /app
 
 # Copy dependency specifications first for caching
-COPY requirements.txt ./
-RUN /root/.local/bin/uv pip install --system --no-cache -r requirements.txt \
+COPY requirements.txt requirements-studio.txt ./
+RUN /root/.local/bin/uv pip install --system --no-cache -r requirements.txt -r requirements-studio.txt \
     && /root/.local/bin/uv pip install --system --no-cache onnxruntime opencv-python-headless
 
 # Copy repository sources
@@ -49,8 +49,9 @@ RUN curl -L -s -o /root/.local/share/fidelis/models/portrait/yunet.onnx \
     && curl -L -C - --fail --retry 3 -o /root/.local/share/fidelis/models/portrait/codeformer.onnx \
     https://github.com/harisreedhar/Face-Upscalers-ONNX/releases/download/Models/codeformer.onnx || true
 
+# Container listens on its network interface for Docker forwarding.
+# Compose publishes only host loopback; this is not a public-service boundary.
 EXPOSE 8080
-EXPOSE 80
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -f http://127.0.0.1:8080/ || exit 1

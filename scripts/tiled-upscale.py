@@ -156,6 +156,7 @@ def main():
     parser.add_argument("-t", "--tile-size", type=int, default=512, help="Tile size in pixels (default: 512)")
     parser.add_argument("--overlap", type=int, default=32, help="Overlap margin in pixels (default: 32)")
     parser.add_argument("--scale", type=int, default=4, help="Scale factor (default: 4)")
+    parser.add_argument("--cli-path", help="Explicit local Fidelis runtime entry point")
     args = parser.parse_args()
 
     tiled_upscale(
@@ -164,7 +165,8 @@ def main():
         model=args.model,
         tile_size=args.tile_size,
         overlap=args.overlap,
-        scale=args.scale
+        scale=args.scale,
+        cli_path=args.cli_path
     )
 
 if __name__ == "__main__":

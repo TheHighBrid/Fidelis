@@ -1,0 +1,46 @@
+{
+  "schema": "fidelis.worker_preflight_policy.v1",
+  "version": "1.0.0",
+  "allowed_schemes": [
+    "http"
+  ],
+  "allowed_hosts": [
+    "127.0.0.1",
+    "localhost",
+    "::1"
+  ],
+  "allow_remote_cloud_fallback": false,
+  "resource_access_policy": {
+    "owner_role": "local-operator",
+    "access_mode": "loopback_or_explicit_ssh_tunnel",
+    "require_explicit_owner": true,
+    "secret_storage_policy": "forbid_repo_secrets"
+  },
+  "budget_policy": {
+    "max_paid_spend_usd": 0.0,
+    "allow_paid_remote_execution": false,
+    "timeout_seconds_range": [
+      0.5,
+      60.0
+    ],
+    "poll_interval_seconds_range": [
+      0.05,
+      10.0
+    ],
+    "max_workflow_nodes": 500
+  },
+  "forbidden_secret_keys": [
+    "access_key",
+    "api_key",
+    "apikey",
+    "auth_token",
+    "authorization",
+    "bearer",
+    "client_secret",
+    "password",
+    "private_key",
+    "secret",
+    "secret_key",
+    "token"
+  ]
+}

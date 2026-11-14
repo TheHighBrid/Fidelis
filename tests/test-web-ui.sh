@@ -53,6 +53,11 @@ for _ in {1..20}; do
 done
 
 # Test HTML root
+origin="http://127.0.0.1:$port"
+[[ "$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: external.example' "$origin/")" == 403 ]]
+[[ "$(curl -s -o /dev/null -w '%{http_code}' --path-as-is "$origin/results/.git/config")" == 404 ]]
+[[ "$(curl -s -o /dev/null -w '%{http_code}' -H 'Origin: https://external.example' -d '{}' "$origin/api/audition")" == 403 ]]
+[[ "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: text/plain' -d '{}' "$origin/api/audition")" == 415 ]]
 html_out="$(curl -s "http://127.0.0.1:$port/")"
 [[ "$html_out" == *"Fidelis Photographic Restoration Studio"* ]]
 [[ "$html_out" == *"mode-single-btn"* ]]
@@ -65,7 +70,7 @@ html_out="$(curl -s "http://127.0.0.1:$port/")"
 [[ "$html_out" == *"profiler-panel"* ]]
 [[ "$html_out" == *"portrait-check"* ]]
 [[ "$html_out" == *"fidelity-slider"* ]]
-[[ "$html_out" == *"user_test_blonde.png"* ]]
+[[ "$html_out" == *"portrait_skin.png"* ]]
 
 # Test models API
 models_json="$(curl -s "http://127.0.0.1:$port/api/models")"
@@ -79,7 +84,7 @@ with open(sys.argv[1], "rb") as f:
     b64 = base64.b64encode(f.read()).decode("ascii")
 with open(sys.argv[2], "w") as out:
     json.dump({"image": f"data:image/png;base64,{b64}"}, out)
-' "$repo_root/experiments/eval_crops/user_test_blonde.png" "$tmp_req"
+' "$repo_root/tests/fixtures/portrait_skin.png" "$tmp_req"
 
 prof_json="$(curl -s -X POST "http://127.0.0.1:$port/api/profile" \
   -H "Content-Type: application/json" \

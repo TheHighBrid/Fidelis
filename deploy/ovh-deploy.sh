@@ -21,21 +21,21 @@ MODE="${1:-}"
 if [[ "$MODE" == "remote" ]]; then
   HOST="${2:-}"
   [[ -n "$HOST" ]] || usage
-  USER="${3:-ubuntu}"
+  deploy_login="${3:-ubuntu}"
 
-  printf 'Connecting to OVHcloud VPS at %s@%s...\n' "$USER" "$HOST"
+  printf 'Connecting to OVHcloud VPS at %s@%s...\n' "$deploy_login" "$HOST"
 
   # Sync repository to remote server
-  ssh -o StrictHostKeyChecking=no "$USER@$HOST" "mkdir -p /home/$USER/fidelis"
-  rsync -avz --exclude='.git' --exclude='.venv' --exclude='dist' ./ "$USER@$HOST:/home/$USER/fidelis/"
+  ssh "$deploy_login@$HOST" "mkdir -p /home/$deploy_login/fidelis"
+  rsync -avz --exclude='.git' --exclude='.venv' --exclude='dist' ./ "$deploy_login@$HOST:/home/$deploy_login/fidelis/"
 
   # Run remote deployment
-  ssh -t "$USER@$HOST" "cd /home/$USER/fidelis && sudo bash deploy/ovh-deploy.sh local"
+  ssh -t "$deploy_login@$HOST" "cd /home/$deploy_login/fidelis && sudo bash deploy/ovh-deploy.sh local"
   exit 0
 fi
 
 if [[ "$MODE" == "local" ]]; then
-  printf '=== Fidelis OVHcloud Production Installer ===\n'
+  printf '=== Fidelis local-only development installer ===\n'
 
   # 1. Ensure Docker & Compose are installed
   if ! command -v docker >/dev/null 2>&1; then
@@ -49,14 +49,8 @@ if [[ "$MODE" == "local" ]]; then
     apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
   fi
 
-  # 2. Configure firewall for port 8080 and 80 (standard HTTP)
-  if command -v ufw >/dev/null 2>&1; then
-    printf 'Opening firewall ports (80, 443, 8080)...\n'
-    ufw allow 80/tcp || true
-    ufw allow 443/tcp || true
-    ufw allow 8080/tcp || true
-    ufw reload || true
-  fi
+  # Host loopback publication is defined in Compose. Do not open public firewall
+  # ports or imply that this development service is authenticated for public use.
 
   # 3. Build and launch container
   printf 'Building and launching Fidelis Studio container...\n'
@@ -64,11 +58,12 @@ if [[ "$MODE" == "local" ]]; then
   docker compose build
   docker compose up -d
 
-  ip="$(curl -s https://api.ipify.org || hostname -I | awk '{print $1}')"
   printf '\n=======================================================\n'
-  printf ' Fidelis Studio is now running on your OVH VPS!\n'
-  printf ' Primary URL:   http://%s\n' "$ip"
-  printf ' Secondary URL: http://%s:8080\n' "$ip"
+  printf ' Fidelis development service is bound to host loopback.\n'
+  printf ' Local URL: http://127.0.0.1:8080\n'
+  printf ' For a remote VPS, use an explicit SSH tunnel to that loopback port.\n'
+  printf ' Regional editing requires same-host loopback access; Docker bridge clients remain restricted.\n'
+  printf ' This is not an authenticated public deployment.\n'
   printf '=======================================================\n'
   exit 0
 fi

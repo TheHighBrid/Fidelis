@@ -1,0 +1,306 @@
+{
+  "schema_version": 1,
+  "protocol_sha256": "a6fccb10ed0a1fce32270a1044e6c96f3f2523e4cd3f8af8c98f83ffb58fb0b0",
+  "slots": [
+    {
+      "id": "portrait-01",
+      "category": "portrait",
+      "split": "calibration"
+    },
+    {
+      "id": "portrait-02",
+      "category": "portrait",
+      "split": "calibration"
+    },
+    {
+      "id": "portrait-03",
+      "category": "portrait",
+      "split": "calibration"
+    },
+    {
+      "id": "portrait-04",
+      "category": "portrait",
+      "split": "calibration"
+    },
+    {
+      "id": "portrait-05",
+      "category": "portrait",
+      "split": "calibration"
+    },
+    {
+      "id": "portrait-06",
+      "category": "portrait",
+      "split": "calibration"
+    },
+    {
+      "id": "portrait-07",
+      "category": "portrait",
+      "split": "held_out"
+    },
+    {
+      "id": "portrait-08",
+      "category": "portrait",
+      "split": "held_out"
+    },
+    {
+      "id": "portrait-09",
+      "category": "portrait",
+      "split": "held_out"
+    },
+    {
+      "id": "portrait-10",
+      "category": "portrait",
+      "split": "held_out"
+    },
+    {
+      "id": "portrait-11",
+      "category": "portrait",
+      "split": "held_out"
+    },
+    {
+      "id": "portrait-12",
+      "category": "portrait",
+      "split": "held_out"
+    },
+    {
+      "id": "model_apparel-01",
+      "category": "model_apparel",
+      "split": "calibration"
+    },
+    {
+      "id": "model_apparel-02",
+      "category": "model_apparel",
+      "split": "calibration"
+    },
+    {
+      "id": "model_apparel-03",
+      "category": "model_apparel",
+      "split": "calibration"
+    },
+    {
+      "id": "model_apparel-04",
+      "category": "model_apparel",
+      "split": "calibration"
+    },
+    {
+      "id": "model_apparel-05",
+      "category": "model_apparel",
+      "split": "calibration"
+    },
+    {
+      "id": "model_apparel-06",
+      "category": "model_apparel",
+      "split": "calibration"
+    },
+    {
+      "id": "model_apparel-07",
+      "category": "model_apparel",
+      "split": "held_out"
+    },
+    {
+      "id": "model_apparel-08",
+      "category": "model_apparel",
+      "split": "held_out"
+    },
+    {
+      "id": "model_apparel-09",
+      "category": "model_apparel",
+      "split": "held_out"
+    },
+    {
+      "id": "model_apparel-10",
+      "category": "model_apparel",
+      "split": "held_out"
+    },
+    {
+      "id": "model_apparel-11",
+      "category": "model_apparel",
+      "split": "held_out"
+    },
+    {
+      "id": "model_apparel-12",
+      "category": "model_apparel",
+      "split": "held_out"
+    },
+    {
+      "id": "textile-01",
+      "category": "textile",
+      "split": "calibration"
+    },
+    {
+      "id": "textile-02",
+      "category": "textile",
+      "split": "calibration"
+    },
+    {
+      "id": "textile-03",
+      "category": "textile",
+      "split": "calibration"
+    },
+    {
+      "id": "textile-04",
+      "category": "textile",
+      "split": "calibration"
+    },
+    {
+      "id": "textile-05",
+      "category": "textile",
+      "split": "calibration"
+    },
+    {
+      "id": "textile-06",
+      "category": "textile",
+      "split": "calibration"
+    },
+    {
+      "id": "textile-07",
+      "category": "textile",
+      "split": "held_out"
+    },
+    {
+      "id": "textile-08",
+      "category": "textile",
+      "split": "held_out"
+    },
+    {
+      "id": "textile-09",
+      "category": "textile",
+      "split": "held_out"
+    },
+    {
+      "id": "textile-10",
+      "category": "textile",
+      "split": "held_out"
+    },
+    {
+      "id": "textile-11",
+      "category": "textile",
+      "split": "held_out"
+    },
+    {
+      "id": "textile-12",
+      "category": "textile",
+      "split": "held_out"
+    },
+    {
+      "id": "macro-01",
+      "category": "macro",
+      "split": "calibration"
+    },
+    {
+      "id": "macro-02",
+      "category": "macro",
+      "split": "calibration"
+    },
+    {
+      "id": "macro-03",
+      "category": "macro",
+      "split": "calibration"
+    },
+    {
+      "id": "macro-04",
+      "category": "macro",
+      "split": "calibration"
+    },
+    {
+      "id": "macro-05",
+      "category": "macro",
+      "split": "calibration"
+    },
+    {
+      "id": "macro-06",
+      "category": "macro",
+      "split": "calibration"
+    },
+    {
+      "id": "macro-07",
+      "category": "macro",
+      "split": "held_out"
+    },
+    {
+      "id": "macro-08",
+      "category": "macro",
+      "split": "held_out"
+    },
+    {
+      "id": "macro-09",
+      "category": "macro",
+      "split": "held_out"
+    },
+    {
+      "id": "macro-10",
+      "category": "macro",
+      "split": "held_out"
+    },
+    {
+      "id": "macro-11",
+      "category": "macro",
+      "split": "held_out"
+    },
+    {
+      "id": "macro-12",
+      "category": "macro",
+      "split": "held_out"
+    },
+    {
+      "id": "packshot_edge-01",
+      "category": "packshot_edge",
+      "split": "calibration"
+    },
+    {
+      "id": "packshot_edge-02",
+      "category": "packshot_edge",
+      "split": "calibration"
+    },
+    {
+      "id": "packshot_edge-03",
+      "category": "packshot_edge",
+      "split": "calibration"
+    },
+    {
+      "id": "packshot_edge-04",
+      "category": "packshot_edge",
+      "split": "calibration"
+    },
+    {
+      "id": "packshot_edge-05",
+      "category": "packshot_edge",
+      "split": "calibration"
+    },
+    {
+      "id": "packshot_edge-06",
+      "category": "packshot_edge",
+      "split": "calibration"
+    },
+    {
+      "id": "packshot_edge-07",
+      "category": "packshot_edge",
+      "split": "held_out"
+    },
+    {
+      "id": "packshot_edge-08",
+      "category": "packshot_edge",
+      "split": "held_out"
+    },
+    {
+      "id": "packshot_edge-09",
+      "category": "packshot_edge",
+      "split": "held_out"
+    },
+    {
+      "id": "packshot_edge-10",
+      "category": "packshot_edge",
+      "split": "held_out"
+    },
+    {
+      "id": "packshot_edge-11",
+      "category": "packshot_edge",
+      "split": "held_out"
+    },
+    {
+      "id": "packshot_edge-12",
+      "category": "packshot_edge",
+      "split": "held_out"
+    }
+  ]
+}

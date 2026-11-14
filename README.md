@@ -32,8 +32,8 @@ historical changelog entry is not proof of production readiness.
 | Implemented in the Studio branch | Still needs acceptance or implementation |
 | --- | --- |
 | Linear-light composition with exact protected base pixels | Live model/workflow quality validation |
-| Persistent jobs, checksums, revisions and storage limits | Asynchronous inference queue and cancellation |
-| Protect/skin/hair/fabric painting, erase and unsaved undo/redo | Visual/device acceptance and native-pixel inspection |
+| Persistent jobs, checksums, revisions and storage limits | Live/device acceptance of queue and cancellation |
+| Protect/skin/hair/fabric painting, erase and unsaved undo/redo | Visual/device acceptance of native inspection |
 | Regional comparison, preview zoom and PNG export | Automatic confidence-gated segmentation and structural detection |
 | Local ComfyUI protocol adapter and resumable run IDs | Colour-managed alpha/high-precision export and benchmark parity |
 
@@ -60,6 +60,8 @@ Create a project `.venv` and install the development dependencies as documented 
 Open `http://127.0.0.1:8765/regions`. Import aligned, untagged 8-bit sRGB RGB PNG
 passes, optionally import NPZ masks, or paint regions from scratch. This path
 reblends supplied passes; it does not automatically generate a new texture.
+See [master exports](docs/STUDIO_EXPORT.md) for 16-bit and alpha workflows and
+resumable export of saved jobs.
 
 ```bash
 .venv/bin/python -m unittest discover -s tests -p 'test_*.py' -v
@@ -97,3 +99,47 @@ No contributor, deadline, meeting or product milestone is invented to fill a boa
 
 Code is under [MIT](LICENSE). Every external runtime/checkpoint/LoRA/segmentation
 weight has separate terms that must be verified before distribution or promotion.
+
+## Latest pipeline integrity delivery
+
+D01-D04 are implemented and fixture-tested on the Studio branch, pending PR #12
+review/merge. The latest full Python run passed **77 tests**. See the
+[2026-11-10 integrity receipt](docs/project/checkpoints/2026-11-10-pipeline-integrity.md)
+for changes, compatibility requirements, verification and remaining live gates.
+Next independent work: F07-A asynchronous execution and F08-A native crop inspection.
+
+## Background generation delivery · 2026-11-10
+
+F07-A adds the opt-in durable queue, editor generation/status controls, scoped local
+cancellation and explicit same-run recovery. **92 Python tests pass**; fixtures do
+not certify live model quality. Pending review/merge in PR #12. See the
+[async checkpoint](docs/project/checkpoints/2026-11-10-async-generation.md) for evidence, resource limits and recovery boundaries.
+Next implementation: F08-A native-pixel inspection. Live worker, device acceptance
+and aggregate generated-cache retention remain open.
+
+## Native inspection delivery · 2026-11-10
+
+F08-A adds read-only, same-grid native crops with 100/200% CSS-pixel comparison,
+revision pinning and stale-load protection. **102 Python tests pass**, including
+Node geometry/DOM contracts; real browser/touch visual acceptance is separate.
+Pending PR #12 review/merge. See the [native inspection receipt](docs/project/checkpoints/2026-11-10-native-inspection.md).
+Next: F08-B browser/device acceptance and F12-A corpus/ROI preparation. Live model
+quality, confidence masks and resource/release gates remain open.
+
+## Corpus inventory delivery · 2026-11-10
+
+F12-A now has versioned protocol/slot design, rights/hash/group/ROI inventory and
+local audit/freeze/verify tooling. **114 Python tests pass.** Actual audit: eight
+regression assets, zero production-eligible cases and 60 unfilled slots. F12-A
+remains In Progress; the production corpus is not frozen. See the
+[corpus checkpoint](docs/project/checkpoints/2026-11-10-corpus-inventory.md). Next: real corpus/permission/ROI review before tuning;
+confidence-mask interfaces and browser/device review can proceed independently.
+
+## Mask suggestion interface · 2026-11-10
+
+F09 adds source-bound imported probabilities, confidence/ambiguity gating, persisted
+preview and explicit accept/discard. Acceptance fills only untouched areas and
+preserves manual masks/protection. **125 Python tests pass.** F09 remains partial;
+no automatic segmentation model is configured or quality-qualified. See the
+[mask suggestion checkpoint](docs/project/checkpoints/2026-11-10-mask-suggestions.md). Next: actual model/label/terms and ROI
+qualification, with browser/device and production corpus gates still open.

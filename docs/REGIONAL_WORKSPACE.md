@@ -10,7 +10,7 @@ Open `http://127.0.0.1:8765/regions`, or use **Open saved regional review** in t
 restoration studio. Import a precision base PNG, an aligned generated candidate
 PNG. Optionally import the NPZ masks described in [REGION_REBLEND.md](REGION_REBLEND.md),
 or leave masks empty and paint regions directly.
-This screen does not generate either pass or automatically classify regions.
+Generation is opt-in through the [background queue](ASYNC_GENERATION.md); automatic region classification remains unavailable.
 
 Choose a starting profile and create a job. Paint protect, skin, hair or fabric
 regions, adjust their blend weights, and save a new revision. Compare the base and final image with the comparison slider,
@@ -36,8 +36,9 @@ work. A save contains at most 100 strokes and 4000 total points.
 
 The mask overlay is quantized and rendered at preview size; native masks are
 rasterized in stripes at full resolution. Browser and native brush mathematics
-have a numerical parity test. Zoom labels refer to preview pixels, not original
-image pixels. Painting must remain disabled until the saved mask data loads.
+have a numerical parity test. Overview zoom labels refer to preview pixels. Use the separate
+[native inspector](NATIVE_INSPECTION.md) to compare genuine saved image pixels at
+100/200% CSS scaling. Painting must remain disabled until the saved mask data loads.
 
 ## Artifact contracts
 
@@ -102,7 +103,8 @@ restoration server's other routes are unchanged; bind the whole app to loopback.
 ## Current boundaries
 
 The review screen supplies persistent brush masks, undo/redo, sliders, comparison
-and export. Automatic segmentation, native image-pixel inspection, asynchronous
-inference and calibrated presets are later tasks. Saves run synchronously; no p95 latency target is claimed.
+and export. Native crop inspection and opt-in background generation now have protocol-tested
+implementations. Automatic segmentation, calibrated presets and live/device
+acceptance remain open. Saves run synchronously; no p95 latency target is claimed.
 JavaScript syntax and real HTTP flows have been tested; visual browser review was
 blocked by the review browser's connection to the local execution server.

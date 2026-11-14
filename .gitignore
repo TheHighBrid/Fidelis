@@ -19,3 +19,8 @@ experiments/eval_corpus/
 *.html
 .DS_Store
 
+
+__pycache__/
+*.py[cod]
+.cache/
+!fidelis/studio/studio.html

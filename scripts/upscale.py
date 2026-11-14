@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CLI utility for instrumented upscaling with span tracing and C2PA provenance."""
+"""CLI utility for instrumented upscaling with span tracing and unsigned provenance records."""
 from __future__ import annotations
 
 import argparse
@@ -16,7 +16,7 @@ from fidelis.core.pipeline import UpscalePipeline
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Instrumented Fidelis upscaling pipeline with span telemetry and C2PA provenance.")
+    parser = argparse.ArgumentParser(description="Instrumented Fidelis upscaling pipeline with span telemetry and unsigned execution records.")
     parser.add_argument("input", type=Path, help="Input image file")
     parser.add_argument("output", type=Path, help="Output image file")
     parser.add_argument("-m", "--model", default="Smart_Balanced", help="Model profile (realesrgan-x4plus, d2fk-v1, gfpgan_face, etc.)")
@@ -32,6 +32,7 @@ def main():
     parser.add_argument("--no-telemetry", action="store_true", help="Disable posting telemetry to kernel endpoint")
     parser.add_argument("--json-manifest", type=Path, help="Optional destination path for JSON telemetry manifest")
 
+    parser.add_argument("--ground-truth", type=Path, help="Aligned reference at native output dimensions; no automatic resize")
     args = parser.parse_args()
 
     pipeline = UpscalePipeline()
@@ -49,6 +50,7 @@ def main():
         color_fix=args.color_fix,
         post_telemetry=not args.no_telemetry,
         telemetry_endpoint=args.telemetry_url,
+        ground_truth_path=args.ground_truth,
     )
 
     print(f"\n=======================================================")
@@ -60,11 +62,16 @@ def main():
     print(f"Tile Size:    {res.tile_size}px (Overlap: {res.overlap}px, Strategy: {res.tile_execution.get('tile_strategy', 'direct')})")
     print(f"Peak VRAM:    {res.vram_peak_mb:.1f} MB")
     print(f"Speed:        {res.processing_time_per_megapixel_ms:.1f} ms/MP ({res.megapixels} MP in {res.elapsed_ms}ms)")
-    print(f"PSNR / SSIM:  {res.metrics.get('psnr', 0.0):.2f} dB / {res.metrics.get('ssim', 0.0):.4f} (LPIPS proxy: {res.metrics.get('lpips', 0.0):.3f})")
+    def measurement(name, digits):
+        value = res.metrics.get(name)
+        return "unavailable" if value is None else f"{value:.{digits}f}"
+    print(f"Metric ref:   {res.metric_context.get('reference', 'unavailable')} ({res.metric_context.get('status', 'unavailable')})")
+    print(f"PSNR / SSIM:  {measurement('psnr', 2)} / {measurement('ssim', 4)}")
+    print(f"Gradient distance proxy: {measurement('gradient_distance_proxy', 3)}; LPIPS: unavailable")
     print(f"Artifacts:    {', '.join(res.detected_artifacts) if res.detected_artifacts else 'None detected'}")
     print(f"Output:       {res.output_path} ({res.output_dimensions[0]}x{res.output_dimensions[1]})")
     print(f"SHA-256:      {res.output_sha256}")
-    print(f"C2PA Status:  {res.c2pa_status.upper()}")
+    print(f"Provenance:   {res.c2pa_status.upper()}")
     print(f"EXIF:         {'Preserved' if res.exif_preserved else 'Not Present/Skipped'}")
     print(f"Telemetry:    {'POSTED (Status: ' + str(res.telemetry_response.get('status')) + ')' if res.telemetry_posted else ('Attempted (' + str(res.telemetry_response.get('status')) + ')' if res.telemetry_response else 'Disabled')}")
     print(f"Spans Traced: {len(res.spans)}")

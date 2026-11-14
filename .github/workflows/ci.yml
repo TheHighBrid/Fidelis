@@ -26,7 +26,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install test dependencies
-        run: python -m pip install --disable-pip-version-check pillow numpy scipy scikit-image opencv-python-headless pyyaml
+        run: python -m pip install --disable-pip-version-check pillow numpy scipy scikit-image opencv-python-headless pyyaml httpx==0.28.1
 
       - name: Static smoke tests
         run: bash tests/smoke-test.sh
@@ -58,11 +58,68 @@ jobs:
       - name: Streamed tiled compositor regression tests
         run: python -m unittest discover -s tests -p 'test_streaming_tiler.py'
 
+      - name: Region protection and reblend export tests
+        run: python -m unittest discover -s tests -p 'test_region*.py'
+
+      - name: Saved master export recovery tests
+        run: python -m unittest discover -s tests -p 'test_studio_batch_export.py'
+
+      - name: Local ComfyUI protocol and capability tests
+        run: python -m unittest discover -s tests -p 'test_comfy*.py'
+
+      - name: Source-bound mask suggestion staging and protection tests
+        run: python -m unittest discover -s tests -p 'test_mask_suggestions.py'
+
+      - name: Explicit benchmark inventory and freeze contracts
+        run: python -m unittest discover -s tests -p 'test_corpus_manifest.py'
+
+      - name: Native image-pixel crop and inspector contracts
+        run: python -m unittest discover -s tests -p 'test_native_inspection.py'
+
+      - name: Durable background generation and cancellation tests
+        run: python -m unittest discover -s tests -p 'test_generation_queue.py'
+
       - name: CLI tiled upscaling integration tests
         run: python -m unittest discover -s tests -p 'test_tiled_upscale_cli.py'
 
       - name: Optional face detector fallback tests
         run: python -m unittest discover -s tests -p 'test_face_fallback.py'
+
+      - name: Instrumented pipeline integrity and metric reference tests
+        run: python -m unittest discover -s tests -p 'test_pipeline_integrity.py'
+
+      - name: Local server and deployment boundary tests
+        run: python -m unittest discover -s tests -p 'test_local_server_defaults.py'
+
+      - name: Structural ROI protection and crop check tests
+        run: python -m unittest discover -s tests -p 'test_structural_roi.py'
+
+      - name: Model provenance and license audit tests
+        run: python -m unittest discover -s tests -p 'test_model_provenance.py'
+
+      - name: Live worker preflight and VRAM budget tests
+        run: python -m unittest discover -s tests -p 'test_worker_preflight.py'
+
+      - name: Internal ROI drift screening and protection tests
+        run: python -m unittest discover -s tests -p 'test_roi_protection.py'
+
+      - name: Color-managed 16-bit and provenance export tests
+        run: python -m unittest discover -s tests -p 'test_managed_export.py'
+
+      - name: Comparator runner adapter and cost normalization tests
+        run: python -m unittest discover -s tests -p 'test_comparators.py'
+
+      - name: Held-out quality acceptance and inter-rater reliability tests
+        run: python -m unittest discover -s tests -p 'test_quality_acceptance.py'
+
+      - name: Resumable batch runner and rate-limit tests
+        run: python -m unittest discover -s tests -p 'test_batch_runner.py'
+
+      - name: Studio packaging, upgrade and rollback verification tests
+        run: python -m unittest discover -s tests -p 'test_release_packaging.py'
+
+      - name: Release readiness dossier and signoff audit tests
+        run: python -m unittest discover -s tests -p 'test_release_readiness.py'
 
       - name: Web UI server integration tests
         run: bash tests/test-web-ui.sh

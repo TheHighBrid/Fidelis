@@ -1,0 +1,302 @@
+"""Local-only HTTP bridge for persistent regional reblending."""
+import base64
+from dataclasses import asdict
+import io
+import ipaddress
+import json
+import math
+from pathlib import Path
+import zipfile
+from urllib.parse import parse_qs, urlparse
+
+import numpy as np
+from PIL import Image
+
+from fidelis.studio.inspection import native_crop
+from fidelis.studio.png import PngPixelLimit, read_rgb8_png
+
+from fidelis.postprocess.regions import PROFILES, RegionBlend
+from fidelis.studio.store import MASK_NAMES, BudgetExceeded, JobStore, RevisionConflict, write_rgb_png
+
+MAX_BODY = 48 * 1024**2
+MAX_PREVIEW_PIXELS = 1_000_000
+
+
+def _json(handler, status, payload):
+    body = json.dumps(payload, allow_nan=False).encode()
+    handler.send_response(status)
+    handler.send_header("Content-Type", "application/json")
+    handler.send_header("Content-Length", str(len(body)))
+    handler.send_header("Cache-Control", "no-store")
+    handler.send_header("X-Content-Type-Options", "nosniff")
+    handler.end_headers()
+    handler.wfile.write(body)
+
+
+def _local_request(handler):
+    if not ipaddress.ip_address(handler.client_address[0]).is_loopback:
+        raise PermissionError("Regional workspace accepts loopback clients only")
+    host = handler.headers.get("Host", "")
+    parsed = urlparse("http://" + host)
+    if parsed.hostname not in ("localhost", "127.0.0.1", "::1"):
+        raise PermissionError("Regional workspace is available through localhost only")
+    origin = handler.headers.get("Origin")
+    if origin is not None and origin != "http://" + host:
+        raise PermissionError("Cross-origin workspace access is not allowed")
+
+
+def _bytes(value):
+    if not isinstance(value, str):
+        raise ValueError("Expected a base64 encoded file")
+    return base64.b64decode(value.split(",", 1)[-1], validate=True)
+
+
+def _image(value, max_pixels):
+    try:
+        return read_rgb8_png(io.BytesIO(_bytes(value)), max_pixels=max_pixels)
+    except PngPixelLimit as error:
+        raise BudgetExceeded(str(error)) from error
+
+
+def _masks(value, shape):
+    raw = _bytes(value)
+    # Inspect decompressed size before NumPy allocates arrays, including zip bombs.
+    with zipfile.ZipFile(io.BytesIO(raw)) as archive:
+        names = archive.namelist()
+        if len(names) > 6 or len(names) != len(set(names)):
+            raise ValueError("Mask archive contains duplicate or excessive entries")
+        if sum(item.file_size for item in archive.infolist()) > math.prod(shape) * 6 * 8 + 8192:
+            raise BudgetExceeded("Decoded mask archive exceeds the image mask budget")
+        for item in archive.infolist():
+            if item.filename not in {name + ".npy" for name in MASK_NAMES}:
+                raise ValueError("Unsupported mask archive entry")
+            with archive.open(item) as stream:
+                version = np.lib.format.read_magic(stream)
+                if version == (1, 0):
+                    dimensions, fortran, dtype = np.lib.format.read_array_header_1_0(stream)
+                elif version == (2, 0):
+                    dimensions, fortran, dtype = np.lib.format.read_array_header_2_0(stream)
+                else:
+                    raise ValueError("Unsupported mask array format")
+                if dimensions != tuple(shape) or dtype.kind not in "uif" or dtype.itemsize > 8:
+                    raise ValueError("Mask array contract does not match the image")
+                if math.prod(dimensions) * dtype.itemsize > item.file_size:
+                    raise ValueError("Truncated mask array")
+    with np.load(io.BytesIO(raw), allow_pickle=False) as data:
+        if "confidence" not in data.files:
+            raise ValueError("Mask archive must contain explicit confidence")
+        result = {name: data[name] for name in data.files}
+    JobStore._validate_masks(result, shape)
+    return result
+
+
+def _public(manifest):
+    return {**{key: value for key, value in manifest.items() if key != "artifacts"},
+            "base_artifact_sha256": manifest["artifacts"]["base"]["sha256"]}
+
+
+def dispatch(handler, workspace_root):
+    """Handle /regions and /api/regions/*; return False for unrelated requests."""
+    url = urlparse(handler.path)
+    if url.path != "/regions" and not url.path.startswith("/api/regions/"):
+        return False
+    try:
+        _local_request(handler)
+        if url.path in ("/regions", "/api/regions/editor.js", "/api/regions/inspection.js") and handler.command == "GET":
+            is_script = url.path.endswith(".js")
+            content = (Path(__file__).with_name(url.path.rsplit("/", 1)[-1] if is_script else "studio.html")).read_bytes()
+            handler.send_response(200)
+            handler.send_header("Content-Type", "text/javascript; charset=utf-8" if is_script else "text/html; charset=utf-8")
+            handler.send_header("Content-Length", str(len(content)))
+            handler.send_header("Cache-Control", "no-store")
+            handler.end_headers()
+            handler.wfile.write(content)
+            return True
+        if not hasattr(handler.server, "region_store"):
+            handler.server.region_store = JobStore(
+                getattr(handler.server, "region_workspace_root", workspace_root),
+                **getattr(handler.server, "region_store_options", {}))
+        store = handler.server.region_store
+        parts = url.path.strip("/").split("/")
+        if handler.command == "GET":
+            if parts == ["api", "regions", "jobs"]:
+                _json(handler, 200, {"jobs": [_public(job) for job in store.list()],
+                                      "generation_enabled": getattr(handler.server, "generation_queue", None) is not None,
+                                      "profiles": {name: asdict(blend) for name, blend in PROFILES.items()}})
+            elif len(parts) in (5, 6) and parts[:3] == ["api", "regions", "jobs"] and parts[4] == "generations":
+                queue = getattr(handler.server, "generation_queue", None)
+                if queue is None:
+                    _json(handler, 503, {"error": "Generation is not configured; select a trusted workflow at server startup"})
+                else:
+                    _json(handler, 200, {"tasks": queue.list(parts[3])} if len(parts) == 5 else queue.get(parts[3], parts[5]))
+            elif len(parts) == 4 and parts[:3] == ["api", "regions", "jobs"]:
+                _json(handler, 200, _public(store.get(parts[3])))
+            elif len(parts) == 5 and parts[:3] == ["api", "regions", "jobs"] and parts[4] == "crop":
+                query = parse_qs(url.query, keep_blank_values=True)
+                required = {"role", "revision", "x", "y", "width", "height"}
+                if set(query) != required or any(len(values) != 1 for values in query.values()):
+                    raise ValueError("Supply one role, revision, x, y, width and height")
+                role = query["role"][0]
+                if role not in ("base", "texture", "master"):
+                    raise ValueError("Unsupported image role")
+                revision = int(query["revision"][0])
+                if revision < 1:
+                    raise ValueError("A positive saved revision is required")
+                rectangle = {key: int(query[key][0]) for key in ("x", "y", "width", "height")}
+                with store.open_array(parts[3], role, expected_revision=revision) as array:
+                    crop = native_crop(array, **rectangle)
+                encoded = io.BytesIO()
+                Image.fromarray(crop).save(encoded, format="PNG")
+                handler.send_response(200)
+                handler.send_header("Content-Type", "image/png")
+                handler.send_header("Content-Length", str(encoded.tell()))
+                handler.send_header("Cache-Control", "no-store")
+                handler.send_header("X-Content-Type-Options", "nosniff")
+                handler.send_header("X-Fidelis-Revision", str(revision))
+                handler.send_header("X-Fidelis-Crop", ",".join(str(rectangle[key]) for key in ("x", "y", "width", "height")))
+                handler.end_headers()
+                handler.wfile.write(encoded.getvalue())
+            elif len(parts) == 5 and parts[:3] == ["api", "regions", "jobs"] and parts[4] == "mask-data":
+                query = parse_qs(url.query)
+                _json(handler, 200, store.mask_data(parts[3], int(query.get("revision", ["0"])[0])))
+            elif len(parts) == 5 and parts[:3] == ["api", "regions", "jobs"] and parts[4] in ("mask-preview", "suggestion-preview"):
+                query = parse_qs(url.query)
+                array = store.mask_preview(parts[3], int(query.get("revision", ["0"])[0]),
+                                           suggestion=parts[4] == "suggestion-preview")
+                encoded = io.BytesIO()
+                Image.fromarray(array).save(encoded, format="PNG")
+                handler.send_response(200)
+                handler.send_header("Content-Type", "image/png")
+                handler.send_header("Cache-Control", "no-store")
+                handler.send_header("Content-Length", str(encoded.tell()))
+                handler.end_headers()
+                handler.wfile.write(encoded.getvalue())
+            elif len(parts) == 5 and parts[:3] == ["api", "regions", "jobs"] and parts[4] in ("preview", "export"):
+                query = parse_qs(url.query)
+                role = query.get("role", ["master"])[0]
+                if role not in ("base", "texture", "master"):
+                    raise ValueError("Unsupported image role")
+                depth = query.get("depth", ["8"])
+                if depth not in (["8"], ["16"]):
+                    raise ValueError("Export depth must be 8 or 16")
+                revision = int(query["revision"][0]) if "revision" in query else None
+                if depth == ["16"]:
+                    if parts[4] != "export" or role != "master" or not revision or revision < 1:
+                        raise ValueError("16-bit export requires a saved master revision")
+                    opened = store.open_master16(parts[3], revision)
+                else:
+                    opened = store.open_array(parts[3], role, expected_revision=revision)
+                # Successful validation and composition occur before status 200.
+                with opened as array:
+                    handler.send_response(200)
+                    handler.send_header("Content-Type", "image/png")
+                    handler.send_header("Cache-Control", "no-store")
+                    handler.send_header("X-Content-Type-Options", "nosniff")
+                    if parts[4] == "export":
+                        filename = "fidelis_master_16bit.png" if depth == ["16"] else "fidelis_master.png"
+                        handler.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+                        handler.end_headers()
+                        write_rgb_png(array, handler.wfile)
+                    else:
+                        # Slice before Pillow to avoid a full-resolution RGB copy.
+                        stride = max(1, math.ceil(math.sqrt(array.shape[0] * array.shape[1] / MAX_PREVIEW_PIXELS)))
+                        preview = Image.fromarray(np.ascontiguousarray(array[::stride, ::stride]))
+                        encoded = io.BytesIO()
+                        preview.save(encoded, format="PNG")
+                        handler.send_header("Content-Length", str(encoded.tell()))
+                        handler.end_headers()
+                        handler.wfile.write(encoded.getvalue())
+            else:
+                _json(handler, 404, {"error": "Unknown workspace endpoint"})
+        elif handler.command == "POST":
+            if handler.headers.get("Content-Type", "").split(";", 1)[0] != "application/json":
+                raise ValueError("Content-Type must be application/json")
+            length = int(handler.headers.get("Content-Length", "0"))
+            if not 0 < length <= MAX_BODY:
+                raise BudgetExceeded("Request exceeds the 48 MiB upload limit")
+            handler.connection.settimeout(30)
+            raw = handler.rfile.read(length)
+            if len(raw) != length:
+                raise ValueError("Incomplete request body")
+            data = json.loads(raw)
+            if not isinstance(data, dict):
+                raise ValueError("Request must be a JSON object")
+            if parts == ["api", "regions", "jobs"]:
+                base, texture = _image(data["base"], store.max_pixels), _image(data["texture"], store.max_pixels)
+                masks = _masks(data["masks"], base.shape[:2]) if data.get("masks") else {}
+                profile = data.get("profile", "luxury_apparel")
+                if profile not in PROFILES:
+                    raise ValueError("Unknown region profile")
+                manifest = store.create(base, texture, masks=masks, blend=PROFILES[profile],
+                                        label=data.get("label", "Untitled"), profile=profile)
+                _json(handler, 201, _public(manifest))
+            elif len(parts) in (5, 7) and parts[:3] == ["api", "regions", "jobs"] and parts[4] == "generations":
+                queue = getattr(handler.server, "generation_queue", None)
+                if queue is None:
+                    _json(handler, 503, {"error": "Generation is not configured; no generation submitted"})
+                elif len(parts) == 5:
+                    _json(handler, 202, queue.enqueue(parts[3], data.get("expected_revision")))
+                elif parts[6] in ("cancel", "resume"):
+                    operation = queue.cancel if parts[6] == "cancel" else queue.resume
+                    _json(handler, 200, operation(parts[3], parts[5]))
+                else:
+                    _json(handler, 404, {"error": "Unknown generation operation"})
+            elif len(parts) == 5 and parts[:3] == ["api", "regions", "jobs"] and parts[4] == "mask-suggestions":
+                from fidelis.studio.suggestions import decode_scores
+                scores = decode_scores(_bytes(data['scores']))
+                manifest = store.stage_suggestion(parts[3], scores, data['receipt'],
+                           expected_revision=data.get('expected_revision'),
+                           threshold=data.get('threshold',.90), margin=data.get('margin',.15),
+                           boundary=data.get('boundary',1))
+                _json(handler, 201, _public(manifest))
+            elif len(parts) == 5 and parts[:3] == ["api", "regions", "jobs"] and parts[4] in ("accept-suggestion", "discard-suggestion"):
+                manifest = store.resolve_suggestion(parts[3], expected_revision=data.get('expected_revision'),
+                           accept=parts[4] == 'accept-suggestion')
+                _json(handler, 200, _public(manifest))
+            elif (len(parts) == 5 and parts[:3] == ["api", "regions", "jobs"]
+                  and parts[4] in ("inspect-structure", "lock-structure")):
+                revision = data.get("expected_revision")
+                if type(revision) is not int:
+                    raise ValueError("Expected an integer revision")
+                regions = data.get("regions")
+                if not isinstance(regions, list) or any(not isinstance(box, list) for box in regions):
+                    raise ValueError("Supply a list of structural rectangles")
+                if parts[4] == "inspect-structure":
+                    report = store.inspect_structure(
+                        parts[3], expected_revision=revision, regions=regions, target=data.get("target"),
+                    )
+                    _json(handler, 200, report)
+                else:
+                    job = store.get(parts[3])
+                    manifest = store.reblend(
+                        parts[3], expected_revision=revision, blend=RegionBlend(**job["blend"]),
+                        lock_regions=regions,
+                    )
+                    _json(handler, 200, _public(manifest))
+            elif len(parts) == 5 and parts[:3] == ["api", "regions", "jobs"] and parts[4] == "reblend":
+                values = data.get("blend")
+                if not isinstance(values, dict):
+                    raise ValueError("A blend object is required")
+                manifest = store.reblend(parts[3], expected_revision=data.get("expected_revision"),
+                                         blend=RegionBlend(**values), strokes=data.get("strokes"))
+                _json(handler, 200, _public(manifest))
+            elif len(parts) == 5 and parts[:3] == ["api", "regions", "jobs"] and parts[4] == "delete":
+                store.delete(parts[3])
+                _json(handler, 200, {"deleted": parts[3]})
+            else:
+                _json(handler, 404, {"error": "Unknown workspace endpoint"})
+        else:
+            _json(handler, 405, {"error": "Method not allowed"})
+    except (BrokenPipeError, ConnectionResetError):
+        return True
+    except RevisionConflict as error:
+        _json(handler, 409, {"error": str(error)})
+    except BudgetExceeded as error:
+        _json(handler, 413, {"error": str(error)})
+    except PermissionError as error:
+        _json(handler, 403, {"error": str(error)})
+    except KeyError:
+        _json(handler, 404, {"error": "Job or required input not found"})
+    except (ValueError, TypeError, OSError, zipfile.BadZipFile) as error:
+        _json(handler, 400, {"error": str(error)})
+    return True

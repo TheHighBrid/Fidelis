@@ -1,0 +1,382 @@
+"""Unit tests for release archive auditing and workspace upgrade/rollback protection (F15 / MEL-69)."""
+
+from __future__ import annotations
+
+import json
+import os
+import subprocess
+import sys
+import tarfile
+import tempfile
+import unittest
+from pathlib import Path
+
+import numpy as np
+
+from fidelis.postprocess.regions import RegionBlend
+from fidelis.studio.packaging import (
+    REQUIRED_ARCHIVE_PATHS,
+    audit_release_archive,
+    create_deterministic_tar_gz,
+    create_deterministic_zip,
+    create_workspace_snapshot,
+    restore_workspace_snapshot,
+    verify_workspace_integrity,
+)
+from fidelis.studio.store import JobStore
+
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+
+
+class ReleasePackagingAndUpgradeTests(unittest.TestCase):
+    def test_audit_release_archive_flags_missing_modules_and_forbidden_leaks(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            archive_path = root / "sample.tar.gz"
+
+            with tarfile.open(archive_path, "w:gz") as tar:
+                for rel in REQUIRED_ARCHIVE_PATHS[:-1]:
+                    src = root / "payload" / rel
+                    src.parent.mkdir(parents=True, exist_ok=True)
+                    src.write_text("# stub\n", encoding="utf-8")
+                    tar.add(src, arcname=rel)
+
+                leaked = root / "payload" / ".cache" / "web_outputs" / "secret.npy"
+                leaked.parent.mkdir(parents=True, exist_ok=True)
+                leaked.write_bytes(b"leak")
+                tar.add(leaked, arcname=".cache/web_outputs/secret.npy")
+
+                env_file = root / "payload" / ".env.production"
+                env_file.write_text("SECRET=1\n", encoding="utf-8")
+                tar.add(env_file, arcname=".env.production")
+
+            report = audit_release_archive(archive_path)
+            self.assertFalse(report["passed"])
+            self.assertEqual(report["missing_required"], [REQUIRED_ARCHIVE_PATHS[-1]])
+            reasons = {item["path"]: item["reason"] for item in report["forbidden_matches"]}
+            self.assertIn(".cache/web_outputs/secret.npy", reasons)
+            self.assertEqual(reasons[".env.production"], "forbidden_env_file")
+
+    def test_clean_release_archive_passes_audit(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            archive_path = root / "clean.tar.gz"
+            with tarfile.open(archive_path, "w:gz") as tar:
+                for rel in REQUIRED_ARCHIVE_PATHS:
+                    src = root / "payload" / rel
+                    src.parent.mkdir(parents=True, exist_ok=True)
+                    src.write_text("# ok\n", encoding="utf-8")
+                    tar.add(src, arcname=f"fidelis-offline-bundle-v3.0.0/{rel}")
+
+            report = audit_release_archive(archive_path, strip_top_level=True)
+            self.assertTrue(report["passed"])
+            self.assertEqual(report["missing_required"], [])
+            self.assertEqual(report["forbidden_matches"], [])
+
+    def test_workspace_snapshot_upgrade_and_atomic_rollback_preserves_jobs_and_runs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            region_root = root / "region_jobs"
+            gen_root = root / "generation_runs"
+            snapshot_dir = root / "snapshots" / "pre-v3.1.0"
+
+            store = JobStore(region_root)
+            base = np.full((24, 24, 3), [30, 60, 90], dtype=np.uint8)
+            texture = np.full((24, 24, 3), [140, 160, 180], dtype=np.uint8)
+            skin = np.zeros((24, 24), dtype=np.float32)
+            skin[4:16, 4:16] = 1.0
+            protect = np.zeros((24, 24), dtype=np.float32)
+            protect[0:6, 0:6] = 1.0
+
+            job = store.create(
+                base,
+                texture,
+                masks={"skin": skin, "protected": protect},
+                blend=RegionBlend(skin=0.75, hair=0.5, fabric=0.25),
+                label="Editorial Upgrade Anchor",
+                profile="luxury_apparel",
+            )
+            job_id = job["id"]
+            with store.open_array(job_id, "master") as arr:
+                original_master = np.array(arr, copy=True)
+
+            runs_dir = gen_root / "runs"
+            runs_dir.mkdir(parents=True, exist_ok=True)
+            run_id = "a" * 32
+            run_record = {
+                "schema_version": 1,
+                "id": run_id,
+                "job_id": job_id,
+                "base_revision": 1,
+                "status": "succeeded",
+                "created_at": "2026-11-10T15:00:00+00:00",
+            }
+            (runs_dir / f"{run_id}.json").write_text(
+                json.dumps(run_record, indent=2) + "\n", encoding="utf-8"
+            )
+
+            pre_verify = verify_workspace_integrity(region_root, gen_root)
+            self.assertTrue(pre_verify["passed"])
+            self.assertEqual(pre_verify["job_count"], 1)
+            self.assertEqual(pre_verify["generation_run_count"], 1)
+
+            snap = create_workspace_snapshot(
+                region_root,
+                snapshot_dir,
+                generation_root=gen_root,
+                target_version="3.1.0",
+            )
+            self.assertEqual(
+                snap["integrity"]["state_fingerprint"], pre_verify["state_fingerprint"]
+            )
+
+            # Simulate post-snapshot mutation during an upgrade that we then roll back
+            updated = store.reblend(
+                job_id,
+                expected_revision=1,
+                blend=RegionBlend(skin=0.1, hair=0.1, fabric=0.1),
+            )
+            self.assertEqual(updated["revision"], 2)
+            (runs_dir / f"{run_id}.json").unlink()
+
+            mutated_verify = verify_workspace_integrity(region_root, gen_root)
+            self.assertNotEqual(
+                mutated_verify["state_fingerprint"], pre_verify["state_fingerprint"]
+            )
+
+            restored = restore_workspace_snapshot(
+                snapshot_dir,
+                region_root,
+                generation_root=gen_root,
+            )
+            self.assertEqual(
+                restored["state_fingerprint"], pre_verify["state_fingerprint"]
+            )
+
+            reopened = JobStore(region_root)
+            restored_job = reopened.get(job_id)
+            self.assertEqual(restored_job["revision"], 1)
+            self.assertEqual(restored_job["label"], "Editorial Upgrade Anchor")
+            with reopened.open_array(job_id, "master") as arr:
+                restored_master = np.array(arr, copy=True)
+            np.testing.assert_array_equal(restored_master, original_master)
+            self.assertTrue((runs_dir / f"{run_id}.json").is_file())
+
+    def test_verify_workspace_detects_corrupted_artifact_and_cli_round_trip(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            region_root = root / "region_jobs"
+            snap_dir = root / "snap"
+
+            store = JobStore(region_root)
+            base = np.zeros((16, 16, 3), dtype=np.uint8)
+            job = store.create(base, base, label="CLI Check")
+
+            script = REPO_ROOT / "scripts" / "verify-upgrade-rollback.py"
+            proc_snap = subprocess.run(
+                [
+                    sys.executable,
+                    str(script),
+                    "snapshot",
+                    "--region-root",
+                    str(region_root),
+                    "--snapshot-dir",
+                    str(snap_dir),
+                    "--target-version",
+                    "3.0.1",
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(proc_snap.returncode, 0, msg=proc_snap.stderr)
+
+            # Corrupt an artifact byte on disk
+            master_rel = job["artifacts"]["master"]["path"]
+            master_path = region_root / master_rel
+            data = bytearray(master_path.read_bytes())
+            data[-1] ^= 0xFF
+            master_path.write_bytes(bytes(data))
+
+            proc_verify_bad = subprocess.run(
+                [
+                    sys.executable,
+                    str(script),
+                    "verify-workspace",
+                    "--region-root",
+                    str(region_root),
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(proc_verify_bad.returncode, 2)
+            bad_payload = json.loads(proc_verify_bad.stdout)
+            self.assertFalse(bad_payload["passed"])
+            self.assertTrue(any("sha256 mismatch" in err for err in bad_payload["errors"]))
+
+            proc_restore = subprocess.run(
+                [
+                    sys.executable,
+                    str(script),
+                    "restore",
+                    "--snapshot-dir",
+                    str(snap_dir),
+                    "--region-root",
+                    str(region_root),
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(proc_restore.returncode, 0, msg=proc_restore.stderr)
+
+            proc_verify_ok = subprocess.run(
+                [
+                    sys.executable,
+                    str(script),
+                    "verify-workspace",
+                    "--region-root",
+                    str(region_root),
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(proc_verify_ok.returncode, 0, msg=proc_verify_ok.stderr)
+
+    def test_deterministic_tar_gz_and_zip_produce_identical_hashes_across_mtimes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            src = root / "src"
+            for rel in REQUIRED_ARCHIVE_PATHS:
+                p = src / rel
+                p.parent.mkdir(parents=True, exist_ok=True)
+                p.write_text(f"# {rel}\n", encoding="utf-8")
+            # Excluded paths should be ignored deterministically
+            (src / "config" / "release-candidate-v1.json").write_text("{}", encoding="utf-8")
+            (src / ".cache" / "leak.npy").parent.mkdir(parents=True, exist_ok=True)
+            (src / ".cache" / "leak.npy").write_bytes(b"secret")
+
+            tar_1 = root / "out1.tar.gz"
+            zip_1 = root / "out1.zip"
+            sha_tar_1 = create_deterministic_tar_gz(src, tar_1)
+            sha_zip_1 = create_deterministic_zip(src, zip_1)
+
+            # Mutate file and directory mtimes and rewrite excluded manifest
+            for p in src.rglob("*"):
+                os.utime(p, (1700000000, 1700000000))
+            (src / "config" / "release-candidate-v1.json").write_text(
+                '{"changed": true}', encoding="utf-8"
+            )
+
+            tar_2 = root / "out2.tar.gz"
+            zip_2 = root / "out2.zip"
+            sha_tar_2 = create_deterministic_tar_gz(src, tar_2)
+            sha_zip_2 = create_deterministic_zip(src, zip_2)
+
+            self.assertEqual(sha_tar_1, sha_tar_2)
+            self.assertEqual(sha_zip_1, sha_zip_2)
+            self.assertTrue(audit_release_archive(tar_1)["passed"])
+            self.assertTrue(audit_release_archive(zip_1)["passed"])
+
+    def test_workspace_snapshot_preserves_sqlite_generation_ledgers_and_cached_pngs(self) -> None:
+        import sqlite3
+        from fidelis.studio.store import sha256
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            region_root = root / "region_jobs"
+            gen_root = root / "generation_runs"
+            snapshot_dir = root / "snapshots" / "pre-sqlite-upgrade"
+
+            store = JobStore(region_root)
+            base = np.full((16, 16, 3), 80, dtype=np.uint8)
+            job = store.create(base, base, label="SQLite Generation Anchor")
+            job_id = job["id"]
+
+            # Populate queue.sqlite3 and runs/generation.sqlite3 + cached PNG in runs/
+            (gen_root / "runs").mkdir(parents=True, exist_ok=True)
+            run_id = "run-" + ("b" * 28)
+            cached_png = gen_root / "runs" / f"{run_id}.png"
+            cached_png.write_bytes(b"\x89PNG\r\n\x1a\ncached-comfy-output")
+            png_sha = sha256(cached_png)
+
+            run_record = {
+                "schema_version": 1,
+                "id": run_id,
+                "status": "completed",
+                "prompt_id": "prompt-123",
+                "workflow_hash": "wf-abc",
+                "output_sha256": png_sha,
+            }
+            with sqlite3.connect(gen_root / "runs" / "generation.sqlite3") as conn:
+                conn.execute(
+                    "CREATE TABLE runs (run_id TEXT PRIMARY KEY, record TEXT NOT NULL)"
+                )
+                conn.execute(
+                    "INSERT INTO runs (run_id, record) VALUES (?, ?)",
+                    (run_id, json.dumps(run_record)),
+                )
+
+            task_id = "task-" + ("c" * 27)
+            task_record = {
+                "schema_version": 1,
+                "id": task_id,
+                "job_id": job_id,
+                "base_revision": 1,
+                "run_id": run_id,
+                "status": "completed",
+                "output_sha256": png_sha,
+            }
+            with sqlite3.connect(gen_root / "queue.sqlite3") as conn:
+                conn.execute(
+                    "CREATE TABLE tasks (idx INTEGER NOT NULL, task_id TEXT PRIMARY KEY, record TEXT NOT NULL)"
+                )
+                conn.execute(
+                    "INSERT INTO tasks (idx, task_id, record) VALUES (?, ?, ?)",
+                    (0, task_id, json.dumps(task_record)),
+                )
+
+            pre_verify = verify_workspace_integrity(region_root, gen_root)
+            self.assertTrue(pre_verify["passed"], msg=pre_verify["errors"])
+            self.assertEqual(pre_verify["generation_run_count"], 1)
+            self.assertEqual(pre_verify["generation_task_count"], 1)
+
+            snap = create_workspace_snapshot(
+                region_root,
+                snapshot_dir,
+                generation_root=gen_root,
+                target_version="3.1.0",
+            )
+            self.assertEqual(
+                snap["integrity"]["state_fingerprint"], pre_verify["state_fingerprint"]
+            )
+
+            # Corrupt/delete SQLite ledgers and cached PNG in live workspace
+            (gen_root / "queue.sqlite3").unlink()
+            (gen_root / "runs" / "generation.sqlite3").unlink()
+            cached_png.unlink()
+
+            mutated_verify = verify_workspace_integrity(region_root, gen_root)
+            self.assertNotEqual(
+                mutated_verify["state_fingerprint"], pre_verify["state_fingerprint"]
+            )
+
+            restored = restore_workspace_snapshot(
+                snapshot_dir,
+                region_root,
+                generation_root=gen_root,
+            )
+            self.assertEqual(
+                restored["state_fingerprint"], pre_verify["state_fingerprint"]
+            )
+            self.assertTrue((gen_root / "queue.sqlite3").is_file())
+            self.assertTrue((gen_root / "runs" / "generation.sqlite3").is_file())
+            self.assertTrue(cached_png.is_file())
+            self.assertEqual(sha256(cached_png), png_sha)
+
+
+if __name__ == "__main__":
+    unittest.main()

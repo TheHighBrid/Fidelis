@@ -73,4 +73,5 @@ No benchmark is promoted using just a successful process exit or wrapper status.
 - Installation, upgrade, backup/export and rollback verified for the packaged path.
 - Owner receives concrete comparison evidence and makes the final creative/release judgment.
 
-No next-gate implementation is undertaken as part of this documentation/coordination task.
+The [explicit corpus lane](../BENCHMARK_CORPUS.md) now audits available assets and
+refuses premature freeze. Its current inventory does not satisfy the 60-case gate.
