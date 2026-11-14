@@ -140,3 +140,16 @@ Studio now also offers a 16-bit download from a saved revision. It recomputes
 the linear-light blend directly from the stored passes and masks in bounded
 stripes. See [master export](../STUDIO_EXPORT.md). Managed browser ingest and
 target-device colour acceptance remain open.
+
+## Saved batch precision and recovery · 2026-11-13
+
+F14 / MEL-67 accepts per-item 8-bit or 16-bit PNG export from saved Studio
+revisions. The resume receipt binds the requested bit depth and accepts older
+8-bit receipts. Output budgets include interrupted staging and temporary
+verification copies. Model-backed batch scheduling remains open.
+See [master export](../STUDIO_EXPORT.md).
+
+Verification: 144 Python tests, web HTTP integration and smoke tests passed.
+A CLI replay from a persisted job created and reused a 16-bit PNG. Independent
+review reproduced a temporary master mapping overlap and identified receipt
+staging ahead of its byte check. Both now have regression coverage.

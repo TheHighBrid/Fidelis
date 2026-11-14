@@ -39,7 +39,7 @@ Create a JSON array using each saved job ID and revision as reported by
 
 ```json
 [
-  {"job_id":"replace-with-saved-job-id","revision":1,"filename":"lookbook-01.png"}
+  {"job_id":"replace-with-saved-job-id","revision":1,"filename":"lookbook-01.png","depth":16}
 ]
 ```
 
@@ -48,12 +48,16 @@ Create a JSON array using each saved job ID and revision as reported by
   --workspace .cache/web_outputs/region_jobs --output-budget-mib 2048
 ```
 
+Each entry may choose `"depth": 8` or `"depth": 16`. The default is 8.
+Resume checks the requested depth against the saved receipt.
+
 Use a dedicated output directory on a local Linux or macOS filesystem that
 supports hard links. The command streams one saved master at a time. It stops at
 the first error and preserves completed items. Rerun the same recipe to verify and
 reuse completed PNGs. Existing mismatched files, stale pending revisions and
 insufficient output space fail with an explicit error. If interrupted between PNG
 and receipt publication, the command can finish publication while the same saved
-revision remains available. A process killed during staging can leave a temporary
+revision remains available and the output budget can fit a temporary verification
+copy. A process killed during staging can leave a temporary
 directory that counts as disk usage until removed. This batch path exports saved
 masters and performs zero inference.

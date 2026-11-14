@@ -16,9 +16,13 @@ def export_batch(store, recipe, output_dir, byte_budget):
     if not isinstance(recipe, list) or not 1 <= len(recipe) <= 1000:
         raise ValueError("Recipe must contain 1 to 1000 saved job revisions")
     names = set()
+    required = {"job_id", "revision", "filename"}
     for item in recipe:
-        if not isinstance(item, dict) or set(item) != {"job_id", "revision", "filename"}:
+        if not isinstance(item, dict) or set(item) - {"depth"} != required:
             raise ValueError("Each entry requires job_id, revision and filename")
+        depth = item.get("depth", 8)
+        if type(depth) is not int or depth not in (8, 16):
+            raise ValueError("Export depth must be 8 or 16")
         name = item["filename"]
         if (not isinstance(name, str) or not name.endswith(".png") or len(name) > 120
                 or not all(c.isascii() and (c.isalnum() or c in "._-") for c in name)
@@ -39,8 +43,14 @@ def export_batch(store, recipe, output_dir, byte_budget):
 def _export_locked(store, recipe, output_dir, byte_budget):
     used = sum(path.stat().st_size for path in output_dir.iterdir()
                if path.is_file() and not path.is_symlink())
+    # A terminated process may leave a staging directory behind.
+    for directory in output_dir.glob(".fidelis-export-*"):
+        if directory.is_dir() and not directory.is_symlink():
+            used += sum(path.stat().st_size for path in directory.iterdir()
+                        if path.is_file() and not path.is_symlink())
     results = []
     for item in recipe:
+        depth = item.get("depth", 8)
         path = output_dir / item["filename"]
         receipt_path = path.with_suffix(".png.recipe.json")
         if path.is_symlink() or receipt_path.is_symlink():
@@ -49,28 +59,36 @@ def _export_locked(store, recipe, output_dir, byte_budget):
             if receipt_path.stat().st_size > 4096:
                 raise ValueError(f"Existing export receipt is too large: {path.name}")
             record = json.loads(receipt_path.read_text(encoding="utf-8"))
-            if (not isinstance(record, dict) or not path.is_file() or any(record.get(key) != value for key, value in item.items())
-                    or record.get("schema_version") != 1 or record.get("output_sha256") != sha256(path)):
+            if (not isinstance(record, dict) or not path.is_file() or any(record.get(key) != value for key, value in item.items() if key != "depth")
+                    or record.get("depth", 8) != depth or record.get("schema_version") != 1
+                    or record.get("output_sha256") != sha256(path)):
                 raise ValueError(f"Existing export receipt does not match: {path.name}")
             results.append({**item, "status": "reused"})
             continue
 
         if path.exists() and not path.is_file():
             raise ValueError(f"Destination is not a file: {path.name}")
-        existing_size = path.stat().st_size if path.exists() else 0
         with TemporaryDirectory(dir=output_dir, prefix=".fidelis-export-") as temp:
             pending = Path(temp) / "master.png"
-            with store.open_array(item["job_id"], "master", expected_revision=item["revision"]) as master:
-                with pending.open("wb") as stream:
-                    write_rgb_png(master, stream, max_bytes=byte_budget - used + existing_size)
-                    stream.flush()
-                    os.fsync(stream.fileno())
-            record = {"schema_version": 1, **item, "output_sha256": sha256(pending),
+            if depth == 16:
+                opened = store.open_master16(item["job_id"], item["revision"])
+            else:
+                opened = store.open_array(item["job_id"], "master", expected_revision=item["revision"])
+            with opened as master:
+                try:
+                    with pending.open("wb") as stream:
+                        write_rgb_png(master, stream, max_bytes=byte_budget - used)
+                        stream.flush()
+                        os.fsync(stream.fileno())
+                finally:
+                    del master  # Release the mapped staging file before opening the next job.
+            record = {"schema_version": 1, **item, "depth": depth, "output_sha256": sha256(pending),
                       "inference_executed": False, "provenance": "unsigned_execution_record"}
             receipt = Path(temp) / "receipt.json"
-            receipt.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
-            if used + pending.stat().st_size - existing_size + receipt.stat().st_size > byte_budget:
+            receipt_bytes = (json.dumps(record, indent=2) + "\n").encode("utf-8")
+            if used + pending.stat().st_size + len(receipt_bytes) > byte_budget:
                 raise ValueError("Batch export exceeds the output directory budget")
+            receipt.write_bytes(receipt_bytes)
             # The hard link publishes complete bytes and refuses to replace a file.
             try:
                 os.link(pending, path)
@@ -82,7 +100,7 @@ def _export_locked(store, recipe, output_dir, byte_budget):
                 os.link(receipt, receipt_path)
                 used += receipt.stat().st_size
             except FileExistsError:
-                if receipt_path.read_bytes() != receipt.read_bytes():
+                if receipt_path.read_bytes() != receipt_bytes:
                     raise ValueError(f"Existing export receipt differs: {path.name}")
         results.append({**item, "status": "exported"})
     return results
