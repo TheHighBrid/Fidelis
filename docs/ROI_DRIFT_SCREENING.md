@@ -38,3 +38,24 @@ Fixture tests verify local shift detection (`>= 1.5 px` warn / `>= 2.5 px` fail)
 exact-lock pixel verification on composed outputs, override precedence, flat
 backdrop stability, and CLI exit contracts. Live model candidate outputs, OCR text
 verification, and cleared 60-case corpus ROI acceptance (`F12`/`F13`) remain open.
+# Opt-in product upscale
+
+```bash
+bin/fidelis product-upscale input.png output.png --model RealeSR-general-v3
+```
+
+Use a normalized 8-bit sRGB RGB PNG. Output is 4× with a cap of 8 million
+output pixels. The command preserves source-derived edge neighborhoods
+exactly against a bicubic baseline and feathers into the model output
+in linear light. For critical logos, seams and hardware, pass
+`--rois-json FILE` with a JSON list of ROI records using the existing
+`id`, `kind`, `policy`, `rect` and optional `override` fields. Rectangles
+are `[x,y,width,height]` in **input** pixels. Automatic edge locking does
+not recognize semantic features. Existing upscale and Studio defaults
+are unchanged.
+
+For fine texture, the product command checks whether the model retains
+source-aligned luminance detail relative to the bicubic baseline. Where
+the model removes that detail, it blends back toward the baseline.
+This check does not establish perceptual quality and does not recover
+detail absent from the source.
