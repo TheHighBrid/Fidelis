@@ -53,3 +53,9 @@ in linear light. For critical logos, seams and hardware, pass
 are `[x,y,width,height]` in **input** pixels. Automatic edge locking does
 not recognize semantic features. Existing upscale and Studio defaults
 are unchanged.
+
+For fine texture, the product command checks whether the model retains
+source-aligned luminance detail relative to the bicubic baseline. Where
+the model removes that detail, it blends back toward the baseline.
+This check does not establish perceptual quality and does not recover
+detail absent from the source.

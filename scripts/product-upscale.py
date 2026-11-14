@@ -23,20 +23,38 @@ MAX_OUTPUT_PIXELS = 8_000_000
 SCALE = 4
 
 
+def texture_confidence(base_gray, candidate):
+    """Reduce the model contribution where it erases source-aligned texture."""
+    candidate_gray = np.asarray(Image.fromarray(candidate).convert("L"), dtype=np.float32)
+    base_detail = base_gray - ndimage.gaussian_filter(base_gray, 2)
+    candidate_detail = candidate_gray - ndimage.gaussian_filter(candidate_gray, 2)
+    source_energy = ndimage.uniform_filter(base_detail * base_detail, size=17)
+    retained = ndimage.uniform_filter(base_detail * candidate_detail, size=17)
+    ratio = retained / np.maximum(source_energy, 0.25)
+    # Flat areas carry too little evidence for a meaningful comparison.
+    confidence = np.where(source_energy >= 0.25, np.clip((ratio - 0.85) / 0.15, 0, 1), 1)
+    return ndimage.gaussian_filter(confidence, 3)
+
+
 def compose_product(base, candidate, rois):
+    if base.shape != candidate.shape:
+        raise ValueError("Product passes must have identical dimensions")
     masks, _ = build_roi_protection_masks(base, rois)
     gray = np.asarray(Image.fromarray(base).convert("L"), dtype=np.float32)
     edges = np.hypot(ndimage.sobel(gray, axis=0), ndimage.sobel(gray, axis=1))
     locked = ndimage.binary_dilation(edges > max(np.percentile(edges, 85), 15), iterations=6)
+    texture_weight = texture_confidence(gray, candidate)
     for roi in rois:
         if roi["override"] == "unlock":
             x, y, w, h = roi["rect"]
             locked[y:y + h, x:x + w] = False
+            texture_weight[y:y + h, x:x + w] = 1
     locked |= masks["protected"] == 1
     confidence = (
         np.clip(ndimage.distance_transform_edt(~locked) / 8, 0, 1).astype(np.float32)
         if locked.any() else np.ones(locked.shape, dtype=np.float32)
     )
+    confidence *= texture_weight
     result = np.empty_like(base)
     for start in range(0, base.shape[0], 128):
         rows = slice(start, start + 128)

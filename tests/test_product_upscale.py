@@ -3,13 +3,34 @@ from pathlib import Path
 import unittest
 
 import numpy as np
+from scipy import ndimage
 
-compose_product = runpy.run_path(
+product = runpy.run_path(
     str(Path(__file__).resolve().parents[1] / "scripts/product-upscale.py")
-)["compose_product"]
+)
+compose_product = product["compose_product"]
 
 
 class ProductUpscaleTests(unittest.TestCase):
+    def test_flattened_faint_texture_is_preserved(self):
+        rng = np.random.default_rng(7)
+        base = np.full((96, 96, 3), 160, dtype=np.uint8)
+        noise = rng.integers(-3, 4, size=(96, 64, 1))
+        base[:, :64] = 160 + noise
+        candidate = np.full_like(base, 160)
+        candidate[:, 80:] = 180
+        result, _ = compose_product(base, candidate, [])
+        np.testing.assert_array_equal(result[16:80, 16:48], base[16:80, 16:48])
+        np.testing.assert_array_equal(result[16:80, 84:], candidate[16:80, 84:])
+
+    def test_guard_allows_texture_that_matches_source(self):
+        rng = np.random.default_rng(9)
+        noise = ndimage.gaussian_filter(rng.normal(size=(64, 64)), 1)
+        base = np.repeat(np.rint(100 + noise * 12).astype(np.uint8)[..., None], 3, axis=2)
+        candidate = base + 10
+        weight = product["texture_confidence"](base[:, :, 0].astype(np.float32), candidate)
+        np.testing.assert_allclose(weight, 1, atol=1e-3)
+
     def test_edge_stays_exact_with_feather_and_candidate_detail(self):
         base = np.full((64, 64, 3), 20, dtype=np.uint8)
         base[:, 32:] = 150
