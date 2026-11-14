@@ -53,6 +53,11 @@ for _ in {1..20}; do
 done
 
 # Test HTML root
+origin="http://127.0.0.1:$port"
+[[ "$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: external.example' "$origin/")" == 403 ]]
+[[ "$(curl -s -o /dev/null -w '%{http_code}' --path-as-is "$origin/results/.git/config")" == 404 ]]
+[[ "$(curl -s -o /dev/null -w '%{http_code}' -H 'Origin: https://external.example' -d '{}' "$origin/api/audition")" == 403 ]]
+[[ "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: text/plain' -d '{}' "$origin/api/audition")" == 415 ]]
 html_out="$(curl -s "http://127.0.0.1:$port/")"
 [[ "$html_out" == *"Fidelis Photographic Restoration Studio"* ]]
 [[ "$html_out" == *"mode-single-btn"* ]]

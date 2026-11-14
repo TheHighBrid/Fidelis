@@ -31,7 +31,14 @@ from fidelis.studio.packaging import (
     audit_release_archive,
     create_deterministic_tar_gz,
     create_deterministic_zip,
+    is_excluded_release_path,
 )
+
+def exclude_preview_path(path):
+    return is_excluded_release_path(path) or path in {
+        "experiments/eval_crops/user_test_blonde.png",
+        "experiments/eval_crops/user_test_darkhair.png",
+    }
 
 output = Path(output_dir).resolve()
 output.mkdir()
@@ -42,7 +49,7 @@ for extension, build in (
     ("zip", create_deterministic_zip),
 ):
     archive = output / f"{name}.{extension}"
-    checksum = build(stage, archive)
+    checksum = build(stage, archive, exclude_fn=exclude_preview_path)
     result = audit_release_archive(archive)
     if not result["passed"] or result["archive_sha256"] != checksum:
         raise SystemExit(f"Archive verification failed: {result}")

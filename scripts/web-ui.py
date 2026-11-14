@@ -1126,6 +1126,18 @@ def execute_restoration(cli, in_p, out_p, model, tiled=False, tile_size=256, por
 
 
 class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
+    timeout = 15
+
+    def allow_local_request(self):
+        from fidelis.studio.http import _local_request
+
+        try:
+            _local_request(self)
+        except (PermissionError, ValueError):
+            self.send_error(403, "Studio accepts same-origin loopback requests only")
+            return False
+        return True
+
     def log_message(self, format, *args):
         pass  # Quiet logs
 
@@ -1141,6 +1153,8 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
         return dispatch(self, CACHE_DIR / "region_jobs")
 
     def do_GET(self):
+        if not self.allow_local_request():
+            return
         if self.dispatch_regions():
             return
         url = urlparse(self.path)
@@ -1172,12 +1186,18 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
                 self.send_response(404)
                 self.end_headers()
         elif url.path.startswith("/results/"):
-            # Serve local HTML reports
-            rel_path = url.path.replace("/results/", "")
+            rel_path = url.path.removeprefix("/results/")
+            if rel_path not in (
+                "experiments/eval_crops/web_audition/report.html",
+                "experiments/self_improvement/self_improvement_report.html",
+            ):
+                self.send_error(404)
+                return
             target = (REPO_ROOT / rel_path).resolve()
-            if target.is_file() and str(target).startswith(str(REPO_ROOT)):
+            if target == REPO_ROOT / rel_path and target.is_file():
                 self.send_response(200)
                 self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Security-Policy", "sandbox; default-src 'none'; img-src data:; style-src 'unsafe-inline'")
                 self.end_headers()
                 self.wfile.write(target.read_bytes())
             else:
@@ -1235,11 +1255,19 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
 
     def do_POST(self):
+        if not self.allow_local_request():
+            return
         if self.dispatch_regions():
             return
         url = urlparse(self.path)
         try:
+            if self.headers.get_content_type() != "application/json":
+                self.send_error(415, "Expected application/json")
+                return
             content_len = int(self.headers.get("Content-Length", 0))
+            if not 0 <= content_len <= 64 * 1024**2:
+                self.send_error(413, "Request body exceeds the upload limit")
+                return
             body = self.rfile.read(content_len)
             cli = str(REPO_ROOT / "bin/fidelis") if (REPO_ROOT / "bin/fidelis").is_file() else (shutil.which("fidelis") or "fidelis")
 
@@ -1433,13 +1461,20 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
             elif url.path == "/api/audition":
                 data = json.loads(body.decode("utf-8"))
                 raw_b64 = data.get("image", "").split(",")[-1]
+                import io
+
+                image_bytes = base64.b64decode(raw_b64, validate=True)
+                with Image.open(io.BytesIO(image_bytes)) as image:
+                    if image.width * image.height > 40_000_000:
+                        raise ValueError("Audition image exceeds the pixel limit")
+                    image.load()
 
                 aud_dir = REPO_ROOT / "experiments/eval_crops/web_audition"
                 shutil.rmtree(aud_dir, ignore_errors=True)
                 aud_dir.mkdir(parents=True, exist_ok=True)
 
                 in_p = aud_dir / "web_input.png"
-                in_p.write_bytes(base64.b64decode(raw_b64))
+                in_p.write_bytes(image_bytes)
 
                 cmd = [cli, "audition", str(in_p), str(aud_dir)]
                 res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
