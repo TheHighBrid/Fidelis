@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import tarfile
@@ -16,6 +17,8 @@ from fidelis.postprocess.regions import RegionBlend
 from fidelis.studio.packaging import (
     REQUIRED_ARCHIVE_PATHS,
     audit_release_archive,
+    create_deterministic_tar_gz,
+    create_deterministic_zip,
     create_workspace_snapshot,
     restore_workspace_snapshot,
     verify_workspace_integrity,
@@ -242,6 +245,41 @@ class ReleasePackagingAndUpgradeTests(unittest.TestCase):
                 check=False,
             )
             self.assertEqual(proc_verify_ok.returncode, 0, msg=proc_verify_ok.stderr)
+
+    def test_deterministic_tar_gz_and_zip_produce_identical_hashes_across_mtimes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            src = root / "src"
+            for rel in REQUIRED_ARCHIVE_PATHS:
+                p = src / rel
+                p.parent.mkdir(parents=True, exist_ok=True)
+                p.write_text(f"# {rel}\n", encoding="utf-8")
+            # Excluded paths should be ignored deterministically
+            (src / "config" / "release-candidate-v1.json").write_text("{}", encoding="utf-8")
+            (src / ".cache" / "leak.npy").parent.mkdir(parents=True, exist_ok=True)
+            (src / ".cache" / "leak.npy").write_bytes(b"secret")
+
+            tar_1 = root / "out1.tar.gz"
+            zip_1 = root / "out1.zip"
+            sha_tar_1 = create_deterministic_tar_gz(src, tar_1)
+            sha_zip_1 = create_deterministic_zip(src, zip_1)
+
+            # Mutate file and directory mtimes and rewrite excluded manifest
+            for p in src.rglob("*"):
+                os.utime(p, (1700000000, 1700000000))
+            (src / "config" / "release-candidate-v1.json").write_text(
+                '{"changed": true}', encoding="utf-8"
+            )
+
+            tar_2 = root / "out2.tar.gz"
+            zip_2 = root / "out2.zip"
+            sha_tar_2 = create_deterministic_tar_gz(src, tar_2)
+            sha_zip_2 = create_deterministic_zip(src, zip_2)
+
+            self.assertEqual(sha_tar_1, sha_tar_2)
+            self.assertEqual(sha_zip_1, sha_zip_2)
+            self.assertTrue(audit_release_archive(tar_1)["passed"])
+            self.assertTrue(audit_release_archive(zip_1)["passed"])
 
 
 if __name__ == "__main__":

@@ -3,6 +3,10 @@ set -Eeuo pipefail
 
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 export COPYFILE_DISABLE=1
+python_bin="$repo_root/.venv/bin/python"
+if [[ ! -x "$python_bin" ]]; then
+  python_bin="$(command -v python3)"
+fi
 version="${1:-${VERSION:-3.0.0}}"
 version="${version#v}"
 
@@ -16,34 +20,20 @@ mkdir -p "$bundle_dir"
 
 printf 'Building Fidelis air-gapped offline bundle (v%s)...\n' "$version"
 
-# 1. Copy core repository files
-exclude_patterns=(
-  --exclude='.git'
-  --exclude='.venv'
-  --exclude='__pycache__'
-  --exclude='*.pyc'
-  --exclude='*.pyo'
-  --exclude='*.pyd'
-  --exclude='*.old.*'
-  --exclude='.cache'
-  --exclude='.fidelis'
-  --exclude='dist'
-  --exclude='runtime'
-  --exclude='models'
-  --exclude='experiments/eval_crops/audition_*'
-  --exclude='experiments/eval_crops/web_audition'
-  --exclude='experiments/self_improvement/outputs'
-  --exclude='experiments/eval_corpus'
-  --exclude='fidelis-tile_*'
-  --exclude='*.apk'
-  --exclude='.env'
-  --exclude='.env.*'
-  --exclude='.DS_Store'
-  --exclude='config/release-candidate-v1.json'
-)
-
+# 1. Copy core repository files via deterministic core archive
 tmp_core_tar="$(mktemp "${TMPDIR:-/tmp}/fidelis-core-tar.XXXXXX")"
-tar -czf "$tmp_core_tar" -C "$repo_root" "${exclude_patterns[@]}" .
+"$python_bin" - "$repo_root" "$tmp_core_tar" <<'PY'
+import sys
+from pathlib import Path
+
+repo_root = Path(sys.argv[1]).resolve()
+if str(repo_root) not in sys.path:
+    sys.path.insert(0, str(repo_root))
+
+from fidelis.studio.packaging import create_deterministic_tar_gz
+
+create_deterministic_tar_gz(repo_root, sys.argv[2])
+PY
 tar -xzf "$tmp_core_tar" -C "$bundle_dir"
 rm -f "$tmp_core_tar"
 
@@ -108,9 +98,37 @@ EOF
 
 chmod +x "$bundle_dir/install-offline.sh"
 
-# 4. Create archive
+# 4. Create deterministic archive
 archive_tar="$dist_dir/${bundle_name}.tar.gz"
-tar -czf "$archive_tar" -C "$dist_dir" "$bundle_name"
+rm -f "$archive_tar" "$archive_tar.sha256"
+"$python_bin" - "$repo_root" "$bundle_dir" "$archive_tar" "$bundle_name" <<'PY'
+import sys
+from pathlib import Path
+
+repo_root = Path(sys.argv[1]).resolve()
+if str(repo_root) not in sys.path:
+    sys.path.insert(0, str(repo_root))
+
+from fidelis.studio.packaging import (
+    FORBIDDEN_ARCHIVE_SEGMENTS,
+    create_deterministic_tar_gz,
+)
+
+
+def _exclude_staged(rel: str) -> bool:
+    parts = rel.replace("\\", "/").strip("/").split("/")
+    return any(
+        seg in FORBIDDEN_ARCHIVE_SEGMENTS or seg.startswith("._") for seg in parts
+    )
+
+
+create_deterministic_tar_gz(
+    sys.argv[2],
+    sys.argv[3],
+    arcname_prefix=sys.argv[4],
+    exclude_fn=_exclude_staged,
+)
+PY
 rm -rf "$bundle_dir"
 
 if ! command -v sha256sum >/dev/null 2>&1 && command -v shasum >/dev/null 2>&1; then

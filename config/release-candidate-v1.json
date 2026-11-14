@@ -1,22 +1,22 @@
 {
   "schema_version": "fidelis.release_candidate.v1",
   "version": "3.1.0",
-  "release_sha": "d85578135d4998742b5ce9e207df4b51dfc39241",
+  "release_sha": "43cb5cf8ee413c0c7196c9f0c1282b11ffd03ae5",
   "merged_to_main": false,
   "packages": [
     {
       "path": "dist/fidelis-v3.1.0.tar.gz",
-      "sha256": "6e8bb2a0948b535bf426dc116c702ebb3eaaddfe63b511f9aa750c5ffe064ce2",
+      "sha256": "b87cd756d2a008305dfe0ccc8cf57aa40ee5fdb03d7d68a45eb262e86875c329",
       "require_file_present": false
     },
     {
       "path": "dist/fidelis-v3.1.0.zip",
-      "sha256": "02deee6620a5620cd221ccf3b52509a6e3e058e8e1c26e946e41b8bef026139d",
+      "sha256": "fa3599941c5a4b8e562cb9d7e199772dc1821f942c90df208feb26bf6dc571ea",
       "require_file_present": false
     },
     {
       "path": "dist/fidelis-offline-bundle-v3.1.0.tar.gz",
-      "sha256": "20eb8f24e00ec8b6166a055bfb7a593cea688c8d95096fdf0606cb4d66c2ccfe",
+      "sha256": "20b9b125baf3e85c84933d472f2773b0645079406a2af0f74a379f43a0571ed7",
       "require_file_present": false
     }
   ],

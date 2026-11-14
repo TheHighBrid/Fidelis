@@ -3,6 +3,10 @@ set -Eeuo pipefail
 
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 export COPYFILE_DISABLE=1
+python_bin="$repo_root/.venv/bin/python"
+if [[ ! -x "$python_bin" ]]; then
+  python_bin="$(command -v python3)"
+fi
 version="${1:-${VERSION:-3.0.0}}"
 version="${version#v}" # Strip leading v if present
 dist_dir="$repo_root/dist"
@@ -18,43 +22,26 @@ archive_base="fidelis-v${version}"
 tar_gz="$dist_dir/${archive_base}.tar.gz"
 zip_out="$dist_dir/${archive_base}.zip"
 
-# Exclude temporary, local development, and user workspace artifacts
-exclude_patterns=(
-  --exclude='.git'
-  --exclude='.venv'
-  --exclude='__pycache__'
-  --exclude='*.pyc'
-  --exclude='*.pyo'
-  --exclude='*.pyd'
-  --exclude='*.old.*'
-  --exclude='.cache'
-  --exclude='.fidelis'
-  --exclude='dist'
-  --exclude='runtime'
-  --exclude='models'
-  --exclude='experiments/eval_crops/audition_*'
-  --exclude='experiments/eval_crops/web_audition'
-  --exclude='experiments/self_improvement/outputs'
-  --exclude='experiments/eval_corpus'
-  --exclude='fidelis-tile_*'
-  --exclude='*.apk'
-  --exclude='.env'
-  --exclude='.env.*'
-  --exclude='.DS_Store'
-  --exclude='config/release-candidate-v1.json'
+rm -f "$tar_gz" "$zip_out" "$tar_gz.sha256" "$zip_out.sha256"
+"$python_bin" - "$repo_root" "$tar_gz" "$zip_out" <<'PY'
+import sys
+from pathlib import Path
+
+repo_root = Path(sys.argv[1]).resolve()
+if str(repo_root) not in sys.path:
+    sys.path.insert(0, str(repo_root))
+
+from fidelis.studio.packaging import (
+    create_deterministic_tar_gz,
+    create_deterministic_zip,
 )
 
-rm -f "$tar_gz" "$zip_out" "$tar_gz.sha256" "$zip_out.sha256"
-tar -czf "$tar_gz" -C "$repo_root" "${exclude_patterns[@]}" .
-printf 'Created tarball: %s (%s)\n' "$tar_gz" "$(du -h "$tar_gz" | awk '{print $1}')"
+create_deterministic_tar_gz(repo_root, sys.argv[2])
+create_deterministic_zip(repo_root, sys.argv[3])
+PY
 
-if command -v zip >/dev/null 2>&1; then
-  tmp_zip_dir="$(mktemp -d "${TMPDIR:-/tmp}/fidelis-zip.XXXXXX")"
-  tar -xzf "$tar_gz" -C "$tmp_zip_dir"
-  (cd "$tmp_zip_dir" && zip -rq "$zip_out" .)
-  rm -rf "$tmp_zip_dir"
-  printf 'Created zip:     %s (%s)\n' "$zip_out" "$(du -h "$zip_out" | awk '{print $1}')"
-fi
+printf 'Created tarball: %s (%s)\n' "$tar_gz" "$(du -h "$tar_gz" | awk '{print $1}')"
+printf 'Created zip:     %s (%s)\n' "$zip_out" "$(du -h "$zip_out" | awk '{print $1}')"
 
 sha256sum "$tar_gz" > "$tar_gz.sha256"
 [[ -f "$zip_out" ]] && sha256sum "$zip_out" > "$zip_out.sha256"

@@ -211,6 +211,56 @@ class ReleaseReadinessTests(unittest.TestCase):
             "scope_limits_or_rollback_plan_incomplete", dossier["blocking_reasons"]
         )
 
+    def test_optional_file_presence_still_fails_closed_on_byte_corruption_or_traversal(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            pkg = root / "dist" / "fidelis-v3.1.0.tar.gz"
+            pkg.parent.mkdir(parents=True, exist_ok=True)
+            payload = bytearray(b"valid-release-archive-bytes")
+            declared_sha = hashlib.sha256(bytes(payload)).hexdigest()
+
+            # Corrupt a single byte on disk while require_file_present is False
+            payload[-1] ^= 0xFF
+            pkg.write_bytes(bytes(payload))
+
+            backlog = _make_closed_backlog()
+            manifest = _make_complete_manifest(
+                "dist/fidelis-v3.1.0.tar.gz", declared_sha, signed=True
+            )
+            manifest["packages"][0]["require_file_present"] = False
+
+            dossier_corrupted = evaluate_release_readiness(
+                backlog, release_manifest=manifest, repo_root=root
+            )
+            self.assertFalse(dossier_corrupted["ready_for_release"])
+            self.assertIn(
+                "release_packages_unverified", dossier_corrupted["blocking_reasons"]
+            )
+            self.assertEqual(dossier_corrupted["packages"]["verified_count"], 0)
+            self.assertEqual(dossier_corrupted["packages"]["on_disk_verified_count"], 0)
+            self.assertTrue(
+                any("sha256 mismatch" in e for e in dossier_corrupted["packages"]["errors"])
+            )
+
+            # Path traversal outside repo_root must also fail closed
+            manifest_traversal = _make_complete_manifest(
+                "../../outside.tar.gz", declared_sha, signed=True
+            )
+            manifest_traversal["packages"][0]["require_file_present"] = False
+            dossier_traversal = evaluate_release_readiness(
+                backlog, release_manifest=manifest_traversal, repo_root=root
+            )
+            self.assertFalse(dossier_traversal["ready_for_release"])
+            self.assertIn(
+                "release_packages_unverified", dossier_traversal["blocking_reasons"]
+            )
+            self.assertTrue(
+                any(
+                    "escapes repository root" in e
+                    for e in dossier_traversal["packages"]["errors"]
+                )
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

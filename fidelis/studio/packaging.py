@@ -9,6 +9,8 @@ and atomic rollback for `JobStore` (`jobs.sqlite3` + `artifacts/*.npy`) and
 
 from __future__ import annotations
 
+import fnmatch
+import gzip
 import hashlib
 import json
 import os
@@ -20,7 +22,7 @@ import uuid
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any, Callable, Mapping, Sequence
 
 
 SCHEMA_VERSION = "fidelis.packaging.v1"
@@ -115,6 +117,164 @@ FORBIDDEN_ARCHIVE_SUFFIXES: tuple[str, ...] = (
     ".pyd",
     ".apk",
 )
+
+
+def is_excluded_release_path(rel_path: str) -> bool:
+    """Return True when a repository-relative path should be excluded from release archives."""
+    norm = rel_path.replace("\\", "/").strip("/")
+    if not norm or norm == ".":
+        return False
+    if norm == "config/release-candidate-v1.json":
+        return True
+    for prefix in FORBIDDEN_ARCHIVE_PREFIXES:
+        stem = prefix.rstrip("/")
+        if norm == stem or norm.startswith(prefix):
+            return True
+    parts = norm.split("/")
+    if any(seg in FORBIDDEN_ARCHIVE_SEGMENTS or seg.startswith("._") for seg in parts):
+        return True
+    if any(norm.endswith(sfx) for sfx in FORBIDDEN_ARCHIVE_SUFFIXES):
+        return True
+    base = parts[-1]
+    if base == ".env" or (base.startswith(".env.") and base != ".env.example"):
+        return True
+    if fnmatch.fnmatch(base, "*.old.*") or fnmatch.fnmatch(base, "fidelis-tile_*"):
+        return True
+    return False
+
+
+def _iter_deterministic_entries(
+    source_dir: Path,
+    *,
+    exclude_fn: Callable[[str], bool] | None = None,
+) -> list[tuple[str, Path]]:
+    root = source_dir.resolve()
+    entries: list[tuple[str, Path]] = []
+    for dirpath, dirnames, filenames in os.walk(root, topdown=True, followlinks=False):
+        cur_dir = Path(dirpath)
+        rel_dir = "" if cur_dir == root else cur_dir.relative_to(root).as_posix()
+
+        kept_dirs: list[str] = []
+        for dname in sorted(dirnames):
+            rel_sub = f"{rel_dir}/{dname}".lstrip("/")
+            if exclude_fn is not None and exclude_fn(rel_sub):
+                continue
+            kept_dirs.append(dname)
+            entries.append((rel_sub, cur_dir / dname))
+        dirnames[:] = kept_dirs
+
+        for fname in sorted(filenames):
+            rel_file = f"{rel_dir}/{fname}".lstrip("/")
+            if exclude_fn is not None and exclude_fn(rel_file):
+                continue
+            entries.append((rel_file, cur_dir / fname))
+
+    entries.sort(key=lambda item: item[0])
+    return entries
+
+
+def create_deterministic_tar_gz(
+    source_dir: str | Path,
+    output_path: str | Path,
+    *,
+    arcname_prefix: str = "",
+    exclude_fn: Callable[[str], bool] | None = is_excluded_release_path,
+) -> str:
+    """Create a reproducible `.tar.gz` archive with fixed timestamps, permissions, and member order."""
+    src_root = Path(source_dir).resolve()
+    out_file = Path(output_path).resolve()
+    out_file.parent.mkdir(parents=True, exist_ok=True)
+    prefix = arcname_prefix.strip("/")
+
+    entries = _iter_deterministic_entries(src_root, exclude_fn=exclude_fn)
+    with out_file.open("wb") as raw_fh:
+        with gzip.GzipFile(
+            filename="", mode="wb", fileobj=raw_fh, compresslevel=9, mtime=0
+        ) as gz_fh:
+            with tarfile.open(
+                mode="w|", fileobj=gz_fh, format=tarfile.GNU_FORMAT
+            ) as tf:
+                if prefix:
+                    root_info = tarfile.TarInfo(name=prefix)
+                    root_info.type = tarfile.DIRTYPE
+                    root_info.mode = 0o755
+                    root_info.mtime = 0
+                    root_info.uid = 0
+                    root_info.gid = 0
+                    root_info.uname = ""
+                    root_info.gname = ""
+                    tf.addfile(root_info)
+                for rel_path, full_path in entries:
+                    arcname = f"{prefix}/{rel_path}" if prefix else rel_path
+                    st = full_path.lstat()
+                    info = tarfile.TarInfo(name=arcname)
+                    info.mtime = 0
+                    info.uid = 0
+                    info.gid = 0
+                    info.uname = ""
+                    info.gname = ""
+                    if full_path.is_symlink():
+                        info.type = tarfile.SYMTYPE
+                        info.mode = 0o777
+                        info.linkname = os.readlink(full_path)
+                        tf.addfile(info)
+                    elif full_path.is_dir():
+                        info.type = tarfile.DIRTYPE
+                        info.mode = 0o755
+                        info.size = 0
+                        tf.addfile(info)
+                    elif full_path.is_file():
+                        info.type = tarfile.REGTYPE
+                        info.mode = 0o755 if os.access(full_path, os.X_OK) else 0o644
+                        info.size = st.st_size
+                        with full_path.open("rb") as f_in:
+                            tf.addfile(info, f_in)
+    return _sha256_file(out_file)
+
+
+def create_deterministic_zip(
+    source_dir: str | Path,
+    output_path: str | Path,
+    *,
+    arcname_prefix: str = "",
+    exclude_fn: Callable[[str], bool] | None = is_excluded_release_path,
+) -> str:
+    """Create a reproducible `.zip` archive with fixed DOS timestamps, Unix modes, and member order."""
+    src_root = Path(source_dir).resolve()
+    out_file = Path(output_path).resolve()
+    out_file.parent.mkdir(parents=True, exist_ok=True)
+    prefix = arcname_prefix.strip("/")
+
+    entries = _iter_deterministic_entries(src_root, exclude_fn=exclude_fn)
+    with zipfile.ZipFile(
+        out_file, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9
+    ) as zf:
+        for rel_path, full_path in entries:
+            arcname = f"{prefix}/{rel_path}" if prefix else rel_path
+            if full_path.is_dir() and not full_path.is_symlink():
+                zinfo = zipfile.ZipInfo(
+                    filename=arcname.rstrip("/") + "/",
+                    date_time=(1980, 1, 1, 0, 0, 0),
+                )
+                zinfo.create_system = 3
+                zinfo.external_attr = (0o040755 << 16) | 0x10
+                zf.writestr(zinfo, b"")
+            elif full_path.is_file() and not full_path.is_symlink():
+                zinfo = zipfile.ZipInfo(
+                    filename=arcname,
+                    date_time=(1980, 1, 1, 0, 0, 0),
+                )
+                zinfo.compress_type = zipfile.ZIP_DEFLATED
+                zinfo.create_system = 3
+                mode = 0o755 if os.access(full_path, os.X_OK) else 0o644
+                zinfo.external_attr = (0o100000 | mode) << 16
+                zf.writestr(
+                    zinfo,
+                    full_path.read_bytes(),
+                    compress_type=zipfile.ZIP_DEFLATED,
+                    compresslevel=9,
+                )
+    return _sha256_file(out_file)
 
 
 def _sha256_file(path: Path) -> str:

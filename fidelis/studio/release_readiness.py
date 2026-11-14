@@ -164,9 +164,15 @@ def evaluate_release_readiness(
             continue
 
         file_verified = False
+        file_present = False
         if root_path is not None:
             candidate = (root_path / rel_path).resolve()
-            if candidate.is_file():
+            if not candidate.is_relative_to(root_path):
+                package_errors.append(
+                    f"package {rel_path}: path escapes repository root"
+                )
+            elif candidate.is_file():
+                file_present = True
                 actual_sha = _sha256_file(candidate)
                 if actual_sha == declared_sha:
                     file_verified = True
@@ -186,6 +192,7 @@ def evaluate_release_readiness(
                 "path": rel_path,
                 "sha256": declared_sha,
                 "verified": file_verified,
+                "file_present": file_present,
             }
         )
 
@@ -276,6 +283,9 @@ def evaluate_release_readiness(
         },
         "packages": {
             "verified_count": sum(1 for p in verified_packages if p["verified"]),
+            "on_disk_verified_count": sum(
+                1 for p in verified_packages if p["verified"] and p["file_present"]
+            ),
             "items": verified_packages,
             "errors": package_errors,
         },
