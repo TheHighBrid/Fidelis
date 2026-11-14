@@ -84,7 +84,7 @@ with open(sys.argv[1], "rb") as f:
     b64 = base64.b64encode(f.read()).decode("ascii")
 with open(sys.argv[2], "w") as out:
     json.dump({"image": f"data:image/png;base64,{b64}"}, out)
-' "$repo_root/experiments/eval_crops/user_test_blonde.png" "$tmp_req"
+' "$repo_root/tests/fixtures/portrait_skin.png" "$tmp_req"
 
 prof_json="$(curl -s -X POST "http://127.0.0.1:$port/api/profile" \
   -H "Content-Type: application/json" \
