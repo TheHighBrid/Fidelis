@@ -84,17 +84,25 @@ def measure_pipeline_metrics(source_bgr, output_bgr, *, ground_truth_bgr=None,
             # Do not turn that absence into a perfect coherence score or a
             # passed fabric gate; the acceptance policy decides separately
             # whether an inapplicable gate blocks a particular review.
+            fabric_coherences = [
+                float(value)
+                for report in fab_reports
+                if (value := report.get('weave_orientation_coherence')) is not None
+            ]
+            fabric_unavailable = bool(
+                fab_reports and len(fabric_coherences) != len(fab_reports)
+            )
             metrics['fabric_weave_coherence'] = (
-                float(min(r['weave_orientation_coherence'] for r in fab_reports))
-                if fab_reports
-                else None
+                min(fabric_coherences) if fabric_coherences and not fabric_unavailable else None
             )
             metrics['fabric_weave_passed'] = (
-                bool(sm['fabric_weave_passed']) if fab_reports else None
+                False if fabric_unavailable else bool(sm['fabric_weave_passed'])
+                if fab_reports else None
             )
             context['fabric_weave'] = {
-                'status': 'measured' if fab_reports else 'not_applicable',
-                'reason': None if fab_reports else 'no_fabric_roi_measured',
+                'status': 'unavailable' if fabric_unavailable else 'measured' if fab_reports else 'not_applicable',
+                'reason': 'fabric_roi_too_small_to_measure' if fabric_unavailable
+                else None if fab_reports else 'no_fabric_roi_measured',
             }
             metrics['hardware_faithfulness_passed'] = (
                 bool(locked_ok and all(r['passed'] for r in hw_reports))
