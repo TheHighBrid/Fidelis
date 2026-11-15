@@ -511,16 +511,16 @@ class RestorationRunner:
                 target_rois,
                 use_sobel_heuristic=use_sobel_heuristic,
             )
-            if np.any(masks["interior_texture"] > 0.0):
-                unlocked_mask = np.zeros((th, tw), dtype=np.float32)
-                for r in target_rois:
-                    if r.get("override") == "unlock":
-                        rx, ry, rw, rh = r["rect"]
-                        unlocked_mask[ry : ry + rh, rx : rx + rw] = 1.0
-                unlocked_mask *= (1.0 - masks["protected"]).astype(np.float32)
-                fabric_mask = np.maximum(masks["interior_texture"], unlocked_mask).astype(np.float32)
-            else:
-                fabric_mask = (1.0 - masks["protected"]).astype(np.float32)
+            # An absent texture ROI is not permission to replace the image.
+            # Only explicitly texture-allowed or unlocked regions can receive
+            # synthetic detail. The remainder stays on the precision base.
+            unlocked_mask = np.zeros((th, tw), dtype=np.float32)
+            for r in target_rois:
+                if r.get("override") == "unlock":
+                    rx, ry, rw, rh = r["rect"]
+                    unlocked_mask[ry : ry + rh, rx : rx + rw] = 1.0
+            unlocked_mask *= (1.0 - masks["protected"]).astype(np.float32)
+            fabric_mask = np.maximum(masks["interior_texture"], unlocked_mask).astype(np.float32)
             confidence_mask = np.where(masks["protected"] < 1.0, 1.0, 0.0).astype(
                 np.float32
             )
