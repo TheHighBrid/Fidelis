@@ -174,5 +174,17 @@ class MetricReferenceTests(unittest.TestCase):
         self.assertTrue(all(value is None for value in metrics.values()))
         self.assertEqual(context['reason'],'measurement_failed')
 
+    def test_scale_matched_skin_only_review_does_not_invent_fabric_measurement(self):
+        metrics, context = measure_pipeline_metrics(
+            self.source, self.output, rois=[
+                {'id': 'skin', 'kind': 'skin', 'policy': 'texture_allowed',
+                 'rect': [8, 8, 24, 24]},
+            ], roi_space='target',
+        )
+        self.assertEqual(context['fabric_weave']['status'], 'not_applicable')
+        self.assertEqual(context['fabric_weave']['reason'], 'no_fabric_roi_measured')
+        self.assertIsNone(metrics['fabric_weave_coherence'])
+        self.assertIsNone(metrics['fabric_weave_passed'])
+
 
 if __name__ == '__main__': unittest.main()

@@ -80,12 +80,22 @@ def measure_pipeline_metrics(source_bgr, output_bgr, *, ground_truth_bgr=None,
             metrics['edge_overshoot'] = float(f3['contour_overshoot_p95'])
             metrics['nyquist_midband_ratio'] = float(f3['contour_nyquist_to_midband_ratio'])
             metrics['halo_restraint_passed'] = bool(sm['oversharpen_restraint_passed'])
+            # A skin- or hardware-only review contains no fabric measurement.
+            # Do not turn that absence into a perfect coherence score or a
+            # passed fabric gate; the acceptance policy decides separately
+            # whether an inapplicable gate blocks a particular review.
             metrics['fabric_weave_coherence'] = (
                 float(min(r['weave_orientation_coherence'] for r in fab_reports))
                 if fab_reports
-                else 1.0
+                else None
             )
-            metrics['fabric_weave_passed'] = bool(sm['fabric_weave_passed'])
+            metrics['fabric_weave_passed'] = (
+                bool(sm['fabric_weave_passed']) if fab_reports else None
+            )
+            context['fabric_weave'] = {
+                'status': 'measured' if fab_reports else 'not_applicable',
+                'reason': None if fab_reports else 'no_fabric_roi_measured',
+            }
             metrics['hardware_faithfulness_passed'] = (
                 bool(locked_ok and all(r['passed'] for r in hw_reports))
                 if hw_reports
