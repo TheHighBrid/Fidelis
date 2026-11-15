@@ -686,6 +686,11 @@ def _backup_sqlite_file(src_db: Path, dst_db: Path) -> None:
         src_conn.close()
 
 
+def _paths_overlap(left: Path, right: Path) -> bool:
+    """Return whether either resolved path contains the other."""
+    return left == right or left in right.parents or right in left.parents
+
+
 def create_workspace_snapshot(
     region_root: str | Path,
     snapshot_dir: str | Path,
@@ -697,6 +702,16 @@ def create_workspace_snapshot(
     r_root = Path(region_root).resolve()
     g_root = Path(generation_root).resolve() if generation_root is not None else None
     snap_root = Path(snapshot_dir).resolve()
+
+    # Snapshot setup clears managed subdirectories before copying.  Allowing the
+    # snapshot directory to be a source (or an ancestor of one) could therefore
+    # erase live workspace data before the snapshot has been verified.
+    sources = [r_root, *([g_root] if g_root is not None else [])]
+    if any(_paths_overlap(snap_root, source) for source in sources):
+        raise ValueError(
+            "Snapshot destination must not overlap a source workspace "
+            "(region_jobs or generation_runs)"
+        )
 
     pre_check = verify_workspace_integrity(r_root, g_root)
     if not pre_check["passed"]:
