@@ -10,6 +10,7 @@ and atomic rollback for `JobStore` (`jobs.sqlite3` + `artifacts/*.npy`) and
 from __future__ import annotations
 
 import fnmatch
+import fcntl
 import gzip
 import hashlib
 import json
@@ -809,6 +810,12 @@ def restore_workspace_snapshot(
     r_root = Path(region_root).resolve()
     g_root = Path(generation_root).resolve() if generation_root is not None else None
 
+    targets = [r_root, *([g_root] if g_root is not None else [])]
+    if any(_paths_overlap(snap_root, target) for target in targets):
+        raise ValueError("Restore destinations must not overlap the snapshot directory")
+    if g_root is not None:
+        _require_generation_worker_inactive(g_root)
+
     _atomic_replace_tree(snap_region, r_root)
     if g_root is not None and snap_gen.exists():
         _atomic_replace_tree(snap_gen, g_root)
@@ -847,3 +854,19 @@ def _atomic_replace_tree(source_dir: Path, target_dir: Path) -> None:
         if not target_dir.exists() and backup.exists():
             os.replace(backup, target_dir)
         raise
+
+
+def _require_generation_worker_inactive(generation_root: Path) -> None:
+    """Fail closed when the queue owner lock is held by a live worker."""
+    lock_path = generation_root / "worker.lock"
+    if not lock_path.exists():
+        return
+    with lock_path.open("a") as lock_file:
+        try:
+            fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise RuntimeError(
+                "Refusing workspace restore while a generation worker is active"
+            ) from exc
+        finally:
+            fcntl.flock(lock_file, fcntl.LOCK_UN)
