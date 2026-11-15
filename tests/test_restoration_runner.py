@@ -25,6 +25,7 @@ from fidelis.engine import (
     create_restoration_runner,
 )
 from fidelis.eval.comparators import run_comparators
+from fidelis.postprocess.regions import RegionBlend
 
 
 def _make_textured_rgb(h: int = 16, w: int = 16, seed: int = 7) -> np.ndarray:
@@ -270,6 +271,28 @@ class RestorationRunnerTests(unittest.TestCase):
                         apply_texture_guard=True, case_id="sample", use_sobel_heuristic=False,
                     )
                     np.testing.assert_array_equal(result.image, base)
+
+    def test_texture_guard_routes_semantic_rois_through_their_blend_channels(self) -> None:
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            src = _make_textured_rgb(16, 16, seed=19)
+            base = np.asarray(Image.fromarray(src).resize((64, 64), Image.Resampling.BICUBIC), dtype=np.uint8)
+            Image.fromarray(np.full_like(base, 255)).save(root / "sample.png")
+            runner = create_restoration_runner("imported", imported_dir=root)
+            result = runner.run(
+                src, scale=4, roi_space="target", case_id="sample", use_sobel_heuristic=False,
+                rois=[
+                    {"id": "skin", "kind": "skin", "policy": "texture_allowed", "rect": [4, 4, 16, 16]},
+                    {"id": "hair", "kind": "hair", "policy": "texture_allowed", "rect": [24, 4, 16, 16]},
+                    {"id": "fabric", "kind": "fabric", "policy": "texture_allowed", "rect": [44, 4, 16, 16]},
+                ],
+                blend=RegionBlend(skin=1.0, hair=0.0, fabric=0.0),
+            )
+            self.assertFalse(np.array_equal(result.image[4:20, 4:20], base[4:20, 4:20]))
+            np.testing.assert_array_equal(result.image[4:20, 24:40], base[4:20, 24:40])
+            np.testing.assert_array_equal(result.image[4:20, 44:60], base[4:20, 44:60])
 
     def test_to_comparator_runner_adapter_contract(self) -> None:
         import tempfile
