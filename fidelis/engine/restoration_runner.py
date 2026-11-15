@@ -20,7 +20,6 @@ from fidelis.postprocess.roi_protection import (
     build_roi_protection_masks,
     screen_internal_drift,
 )
-from fidelis.studio.comfy import ComfyTextureBackend, canonical_hash
 
 
 class DimensionMismatchError(ValueError):
@@ -297,7 +296,7 @@ class ComfyRestorationBackend:
         self,
         bundle: dict[str, Any],
         *,
-        comfy_backend: ComfyTextureBackend | None = None,
+        comfy_backend: Any | None = None,
         root: str | Path | None = None,
         address: str = "http://127.0.0.1:8188",
         model_id: str = "comfyui",
@@ -306,6 +305,10 @@ class ComfyRestorationBackend:
         if comfy_backend is None:
             if root is None:
                 raise ValueError("ComfyRestorationBackend requires comfy_backend or root")
+            # The local Comfy transport depends on optional HTTP packages.  Keep
+            # those packages out of the offline-engine import path; they are
+            # required only when this backend is explicitly selected.
+            from fidelis.studio.comfy import ComfyTextureBackend
             comfy_backend = ComfyTextureBackend(root, address=address)
         self.comfy = comfy_backend
         self.bundle = bundle
@@ -314,6 +317,7 @@ class ComfyRestorationBackend:
         # A graph digest does not attest to model checkpoint bytes. Keep the
         # workflow identity separate and mark weight provenance unavailable
         # until a real checkpoint hash has been independently verified.
+        from fidelis.studio.comfy import canonical_hash
         self.workflow_sha256 = canonical_hash(bundle)
         self.weights_sha256 = "unavailable_unverified"
 
@@ -518,16 +522,33 @@ class RestorationRunner:
             # An absent texture ROI is not permission to replace the image.
             # Only explicitly texture-allowed or unlocked regions can receive
             # synthetic detail. The remainder stays on the precision base.
+            semantic_masks = {
+                name: np.zeros((th, tw), dtype=np.float32)
+                for name in ("skin", "hair", "fabric")
+            }
             unlocked_mask = np.zeros((th, tw), dtype=np.float32)
             for r in target_rois:
+                if r.get("policy") != "texture_allowed" and r.get("override") != "unlock":
+                    continue
+                # Preserve semantic ROI channels so a caller's RegionBlend
+                # controls skin, hair and fabric independently.  A deliberate
+                # unlock for a structural ROI remains explicit permission, but
+                # has no semantic texture class and therefore uses fabric.
+                channel = r["kind"] if r["kind"] in semantic_masks else "fabric"
+                rx, ry, rw, rh = r["rect"]
+                semantic_masks[channel][ry : ry + rh, rx : rx + rw] = 1.0
                 if r.get("override") == "unlock":
-                    rx, ry, rw, rh = r["rect"]
                     unlocked_mask[ry : ry + rh, rx : rx + rw] = 1.0
-            unlocked_mask *= (1.0 - masks["protected"]).astype(np.float32)
-            fabric_mask = np.maximum(masks["interior_texture"], unlocked_mask).astype(np.float32)
-            confidence_mask = np.where(masks["protected"] < 1.0, 1.0, 0.0).astype(
-                np.float32
-            )
+            permitted = np.clip(sum(semantic_masks.values()), 0.0, 1.0) * masks["interior_texture"]
+            # An explicit unlock is a deliberate texture authorization even
+            # when its original policy was preserve, so it cannot depend on
+            # the texture-allowed interior mask. Explicit locks still win at
+            # the final protection boundary below.
+            permitted = np.maximum(permitted, unlocked_mask)
+            permitted *= (1.0 - masks["protected"]).astype(np.float32)
+            for channel in semantic_masks:
+                semantic_masks[channel] *= permitted
+            confidence_mask = permitted.astype(np.float32)
             active_blend = (
                 blend
                 if blend is not None
@@ -536,11 +557,13 @@ class RestorationRunner:
             guarded, _alpha = compose_regions(
                 base_4x,
                 raw_candidate,
-                fabric=fabric_mask,
+                skin=semantic_masks["skin"],
+                hair=semantic_masks["hair"],
+                fabric=semantic_masks["fabric"],
                 protected=masks["protected"],
                 confidence=confidence_mask,
                 edge_guard=masks["edge_guard"],
-                interior_texture=masks["interior_texture"],
+                interior_texture=permitted,
                 blend=active_blend,
             )
             drift_report = screen_internal_drift(
