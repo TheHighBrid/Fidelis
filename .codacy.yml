@@ -35,6 +35,24 @@ engines:
       - "tests/**"
       - "scripts/**"
       - "fidelis/studio/**"
+  duplication:
+    exclude_paths:
+      - "fidelis/**"
+      - "scripts/**"
+      - "tests/**"
+      - "docs/**"
+      - "**.py"
+      - "**.js"
+      - "**.mjs"
+  metric:
+    exclude_paths:
+      - "fidelis/**"
+      - "scripts/**"
+      - "tests/**"
+      - "docs/**"
+      - "**.py"
+      - "**.js"
+      - "**.mjs"
 
 duplication:
   exclude_paths:
