@@ -42,6 +42,11 @@ def _run_offline_handler(ctx: BatchItemContext) -> dict:
             shutil.copyfile(src, ctx.temp_output_path)
             return {"output_path": str(ctx.temp_output_path), "actual_cost_usd": 0.0}
         if handler == "deterministic_bicubic":
+            if im.mode not in ("RGB", "RGBA"):
+                raise ValueError(
+                    "deterministic_bicubic supports only 8-bit RGB or RGBA inputs; "
+                    "convert high-precision or grayscale images explicitly"
+                )
             if im.info.get("icc_profile"):
                 raise ValueError(
                     "deterministic_bicubic requires untagged sRGB input; convert ICC-profiled images first"
