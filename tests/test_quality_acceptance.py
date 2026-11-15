@@ -254,6 +254,17 @@ class QualityAcceptanceTests(unittest.TestCase):
         self.assertIn("pinned_clarity", report["comparator_failures"])
         self.assertIn("incomplete_held_out_category_coverage", report["blocking_reasons"])
 
+    def test_malformed_defects_and_conflicting_case_categories_fail_closed(self) -> None:
+        malformed = _make_complete_submission(owner_status="approved")
+        malformed["held_out_ballots"][0]["critical_defects"] = "text_logo_corruption"
+        malformed_report = evaluate_held_out_acceptance(malformed)
+        self.assertIn("invalid_ballot_records", malformed_report["blocking_reasons"])
+
+        conflicting = _make_complete_submission(owner_status="approved")
+        conflicting["held_out_ballots"][1]["category"] = "macro"
+        conflict_report = evaluate_held_out_acceptance(conflicting)
+        self.assertIn("invalid_ballot_records", conflict_report["blocking_reasons"])
+
     def test_automated_detail_gates_optional_and_required(self) -> None:
         sub = _make_complete_submission(owner_status="approved")
 

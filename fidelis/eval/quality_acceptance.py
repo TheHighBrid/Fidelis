@@ -322,6 +322,7 @@ def evaluate_held_out_acceptance(
     held_out_cases_by_category: dict[str, set[str]] = {
         cat: set() for cat in REQUIRED_CATEGORIES
     }
+    category_by_case: dict[str, str] = {}
 
     cal_set = set(calibration_cases)
 
@@ -348,6 +349,12 @@ def evaluate_held_out_acceptance(
                 f"ballot[{idx}] ({case_id}): unknown category {category!r}"
             )
             continue
+        prior_category = category_by_case.get(case_id)
+        if prior_category is not None and prior_category != category:
+            invalid_ballot_errors.append(
+                f"ballot[{idx}] ({case_id}): category conflicts with {prior_category!r}"
+            )
+            continue
         if outcome not in ("fidelis_win", "tie", "comparator_win"):
             invalid_ballot_errors.append(
                 f"ballot[{idx}] ({case_id}): invalid outcome {outcome!r}"
@@ -360,23 +367,32 @@ def evaluate_held_out_acceptance(
             )
             continue
         seen_ballot_keys.add(ballot_key)
+        category_by_case[case_id] = category
 
         held_out_cases_by_category[category].add(case_id)
 
-        defects = entry.get("critical_defects") or []
-        if isinstance(defects, Sequence) and not isinstance(defects, (str, bytes)):
-            for defect in defects:
-                d_str = str(defect).strip()
-                if d_str:
-                    critical_defects.append(
-                        {
-                            "case_id": case_id,
-                            "category": category,
-                            "comparator": comparator,
-                            "defect": d_str,
-                            "recognized_critical_type": d_str in CRITICAL_DEFECT_TYPES,
-                        }
-                    )
+        defects = entry.get("critical_defects", [])
+        if not isinstance(defects, Sequence) or isinstance(defects, (str, bytes)):
+            invalid_ballot_errors.append(
+                f"ballot[{idx}] ({case_id}): critical_defects must be a list"
+            )
+            continue
+        for defect in defects:
+            if not isinstance(defect, str) or not defect.strip():
+                invalid_ballot_errors.append(
+                    f"ballot[{idx}] ({case_id}): critical_defects must contain nonempty strings"
+                )
+                continue
+            d_str = defect.strip()
+            critical_defects.append(
+                {
+                    "case_id": case_id,
+                    "category": category,
+                    "comparator": comparator,
+                    "defect": d_str,
+                    "recognized_critical_type": d_str in CRITICAL_DEFECT_TYPES,
+                }
+            )
 
         valid_ballots.append(
             {
@@ -445,7 +461,11 @@ def evaluate_held_out_acceptance(
     category_failures: list[str] = []
     missing_coverage_categories: list[str] = []
     for offset, cat in enumerate(REQUIRED_CATEGORIES):
-        cat_ballots = [b for b in valid_ballots if b["category"] == cat]
+        cat_ballots = [
+            b
+            for b in valid_ballots
+            if b["category"] == cat and b["comparator"] in required_comparators
+        ]
         summary = _summarize_ballots(
             cat_ballots, thresholds=thresholds, seed_offset=500 + offset * 10
         )
