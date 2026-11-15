@@ -321,6 +321,35 @@ class BatchRunnerTests(unittest.TestCase):
             )
             self.assertEqual(json.loads(st.stdout)["counts"]["completed"], 2)
 
+    def test_deterministic_bicubic_preserves_alpha_and_normalizes_orientation(self) -> None:
+        script = Path(__file__).resolve().parents[1] / "scripts/batch-run.py"
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            inputs = root / "inputs"
+            inputs.mkdir()
+            rgba = np.zeros((4, 6, 4), dtype=np.uint8)
+            rgba[..., :3] = [20, 40, 60]
+            rgba[:, :3, 3] = 255
+            Image.fromarray(rgba, "RGBA").save(inputs / "cutout.png")
+            portrait = Image.new("RGB", (6, 4), "red")
+            exif = Image.Exif()
+            exif[274] = 6
+            portrait.save(inputs / "rotated.jpg", exif=exif)
+            batch_dir, out_dir = root / "batch", root / "out"
+            subprocess.run(
+                [sys.executable, str(script), "enqueue", "--batch-dir", str(batch_dir),
+                 "--input-dir", str(inputs), "--output-dir", str(out_dir),
+                 "--handler", "deterministic_bicubic", "--scale", "1"],
+                check=True, capture_output=True, text=True,
+            )
+            subprocess.run([sys.executable, str(script), "run", "--batch-dir", str(batch_dir)],
+                           check=True, capture_output=True, text=True)
+            with Image.open(out_dir / "cutout.png") as output:
+                self.assertEqual(output.mode, "RGBA")
+                self.assertEqual(np.asarray(output)[0, 4, 3], 0)
+            with Image.open(out_dir / "rotated.png") as output:
+                self.assertEqual(output.size, (4, 6))
+
     def test_persisted_budgets_and_packshot_extension_preserved_across_cli_reopen(self) -> None:
         script = Path(__file__).resolve().parents[1] / "scripts/batch-run.py"
         with tempfile.TemporaryDirectory() as tmp:
