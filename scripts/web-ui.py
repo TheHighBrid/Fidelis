@@ -1126,10 +1126,10 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
     timeout = 15
 
     def allow_local_request(self):
-        from fidelis.studio.http import _local_request
+        from fidelis.studio.local_request import require_local_request
 
         try:
-            _local_request(self)
+            require_local_request(self)
         except (PermissionError, ValueError):
             self.send_error(403, "Studio accepts same-origin loopback requests only")
             return False
