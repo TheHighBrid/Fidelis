@@ -91,7 +91,9 @@ class RestorationRunnerTests(unittest.TestCase):
         self.assertEqual(fake.seen_shape, (64, 64, 3))
         self.assertEqual(res.image.shape, (64, 64, 3))
         self.assertEqual(res.provenance.backend, "comfyui")
+        self.assertEqual(res.provenance.weights_sha256, "unavailable_unverified")
         self.assertEqual(res.provenance.extra["workflow_sha256"], "wf_abc")
+        self.assertNotEqual(runner.backend.workflow_sha256, runner.backend.weights_sha256)
 
         class _BadShapeComfy(_FakeComfy):
             def run(self, canvas, b, *, run_id=None, deadline_seconds=300):
