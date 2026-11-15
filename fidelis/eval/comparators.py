@@ -578,6 +578,12 @@ def summarize_blind_reviews(
     by_category: dict[str, list[float]] = {}
     critical_defects_subject = 0
     unreviewed = 0
+    requested_pair_ids = {
+        pair_id
+        for pair_id, meta in mapping.items()
+        if {meta.get("left"), meta.get("right")}
+        == {subject_comparator, target_comparator}
+    }
 
     seen_pair_ids: set[str] = set()
     for entry in completed_ballot.get("items", []):
@@ -609,6 +615,11 @@ def summarize_blind_reviews(
         wins.append(is_win)
         pref_ties.append(is_pref_or_tie)
         by_category.setdefault(meta["category"], []).append(is_pref_or_tie)
+
+    # A reviewer may accidentally submit an exported subset rather than the
+    # complete ballot.  Missing answer-key entries are unanswered evidence,
+    # not a smaller sample that can qualify for a passing score.
+    unreviewed += len(requested_pair_ids - seen_pair_ids)
 
     n = len(wins)
     if n == 0 or unreviewed > 0:

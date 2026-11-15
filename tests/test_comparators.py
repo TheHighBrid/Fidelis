@@ -210,6 +210,24 @@ class ComparatorTests(unittest.TestCase):
         self.assertEqual(inc["status"], "incomplete")
         self.assertFalse(inc["meets_proposed_thresholds"])
 
+        # An exported subset is also incomplete; omitted answer-key pairs must
+        # not be treated as evidence that the reviewer completed no ballot.
+        truncated = {"items": [copy.deepcopy(ballot["items"][0])]}
+        first_meta = key_doc["mapping"][truncated["items"][0]["pair_id"]]
+        truncated["items"][0]["choice"] = (
+            "left" if first_meta["left"] == "fidelis" else "right"
+        )
+        truncated_res = summarize_blind_reviews(
+            truncated,
+            key_doc,
+            subject_comparator="fidelis",
+            target_comparator="interpolation",
+        )
+        self.assertEqual(truncated_res["status"], "incomplete")
+        self.assertEqual(truncated_res["sample_count"], 1)
+        self.assertEqual(truncated_res["unreviewed_count"], 29)
+        self.assertFalse(truncated_res["meets_proposed_thresholds"])
+
         # Score fidelis winning on 27/30 and tying on 3/30 with 0 defects -> preliminary pass (n=30 < 100).
         passing_ballot = copy.deepcopy(ballot)
         for idx, item in enumerate(passing_ballot["items"]):
