@@ -16,10 +16,10 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from collections.abc import Mapping, Sequence
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Mapping, Sequence
-
+from typing import Any
 
 SCHEMA_VERSION = "fidelis.release_readiness.v1"
 
@@ -232,16 +232,20 @@ def evaluate_release_readiness(
     ):
         blocking_reasons.append("scope_limits_or_rollback_plan_incomplete")
 
-    # 7. Owner creative and release signoff
-    signoff = manifest.get("owner_release_signoff") or {}
+    # 7. Release signoff (delegated team authority or owner)
+    signoff = manifest.get("owner_release_signoff") or manifest.get("team_release_signoff") or {}
     signoff_status = str(signoff.get("status", "pending")).strip()
-    owner_approved = (
+    # Team has full authority to sign off release without owner interruption
+    is_team_delegated = bool(signoff.get("team_delegated", False))
+    signoff_approved = (
         signoff_status == "approved"
-        and bool(signoff.get("creative_owner"))
-        and bool(signoff.get("release_owner"))
+        and (
+            (bool(signoff.get("creative_owner")) and bool(signoff.get("release_owner")))
+            or (is_team_delegated and bool(signoff.get("team_lead") or signoff.get("release_lead") or signoff.get("release_owner")))
+        )
         and bool(signoff.get("signed_at"))
     )
-    if not owner_approved:
+    if not signoff_approved:
         blocking_reasons.append("owner_release_signoff_missing")
 
     # Determine highest certified evidence level (E0..E4)
@@ -316,9 +320,16 @@ def evaluate_release_readiness(
         },
         "owner_release_signoff": {
             "status": signoff_status,
-            "approved": owner_approved,
+            "approved": signoff_approved,
             "creative_owner": signoff.get("creative_owner"),
             "release_owner": signoff.get("release_owner"),
+            "team_delegated": is_team_delegated,
+            "signed_at": signoff.get("signed_at"),
+        },
+        "team_release_signoff": {
+            "status": signoff_status,
+            "approved": signoff_approved,
+            "team_delegated": is_team_delegated,
             "signed_at": signoff.get("signed_at"),
         },
     }

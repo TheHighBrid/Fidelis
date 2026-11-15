@@ -7,7 +7,8 @@ is semantic identity proof or OCR perfection.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 from scipy import ndimage
@@ -64,9 +65,9 @@ def _luminance(rgb: np.ndarray) -> np.ndarray:
 
 
 def validate_rois(
-    rois: Sequence[Dict[str, Any]],
-    shape: Tuple[int, int],
-) -> List[Dict[str, Any]]:
+    rois: Sequence[dict[str, Any]],
+    shape: tuple[int, int],
+) -> list[dict[str, Any]]:
     """Validate explicit ROI declarations against image (height, width)."""
     if not isinstance(rois, (list, tuple)):
         raise ValueError("rois must be a sequence of ROI dictionaries")
@@ -75,7 +76,7 @@ def validate_rois(
         raise ValueError("shape dimensions must be positive integers")
 
     seen_ids = set()
-    normalized: List[Dict[str, Any]] = []
+    normalized: list[dict[str, Any]] = []
     for entry in rois:
         if not isinstance(entry, dict):
             raise ValueError("Each ROI entry must be a JSON/dict object")
@@ -124,14 +125,14 @@ def validate_rois(
 
 def build_roi_protection_masks(
     base: np.ndarray,
-    rois: Sequence[Dict[str, Any]],
+    rois: Sequence[dict[str, Any]],
     *,
-    existing_protected: Optional[np.ndarray] = None,
-    existing_edge_guard: Optional[np.ndarray] = None,
+    existing_protected: np.ndarray | None = None,
+    existing_edge_guard: np.ndarray | None = None,
     use_sobel_heuristic: bool = False,
     sobel_strength: float = 0.35,
     max_sobel_guard: float = 0.65,
-) -> Tuple[Dict[str, np.ndarray], Dict[str, Any]]:
+) -> tuple[dict[str, np.ndarray], dict[str, Any]]:
     """Build explicit ROI protection masks while preserving override precedence.
 
     Precedence order:
@@ -155,9 +156,9 @@ def build_roi_protection_masks(
 
     roi_locked = np.zeros(shape, dtype=np.float32)
     explicit_unlock = np.zeros(shape, dtype=bool)
-    locked_ids: List[str] = []
-    unlocked_override_ids: List[str] = []
-    forced_lock_ids: List[str] = []
+    locked_ids: list[str] = []
+    unlocked_override_ids: list[str] = []
+    forced_lock_ids: list[str] = []
 
     for roi in norm_rois:
         x, y, w, h = roi["rect"]
@@ -217,10 +218,10 @@ def build_roi_protection_masks(
         sobel_mask[explicit_unlock | (interior_texture == 1.0)] = 0.0
         edge_guard = np.maximum(edge_guard, sobel_mask).astype(np.float32)
 
-    hard_contour_roi_ids: List[str] = []
-    interior_texture_roi_ids: List[str] = []
-    texture_allowed_roi_ids: List[str] = []
-    roi_summary: List[Dict[str, Any]] = []
+    hard_contour_roi_ids: list[str] = []
+    interior_texture_roi_ids: list[str] = []
+    texture_allowed_roi_ids: list[str] = []
+    roi_summary: list[dict[str, Any]] = []
     for roi in norm_rois:
         x, y, w, h = roi["rect"]
         role = classify_roi_role(roi["kind"])
@@ -280,7 +281,7 @@ def _estimate_patch_shift(
     y1: int,
     x1: int,
     search_radius: int,
-) -> Tuple[int, int, float]:
+) -> tuple[int, int, float]:
     """Estimate local integer translation (dx, dy) via zero-mean patch SSD inside reference bounds."""
     height, width = ref_lum.shape
     patch_r = ref_lum[y0:y1, x0:x1]
@@ -329,7 +330,7 @@ def _gradient_coherence(
     gx_c: np.ndarray,
     gy_c: np.ndarray,
     mag_c: np.ndarray,
-) -> Optional[float]:
+) -> float | None:
     edge_mask = mag_r > 15.0
     if not np.any(edge_mask):
         return None
@@ -342,15 +343,15 @@ def screen_internal_drift(
     base: np.ndarray,
     candidate: np.ndarray,
     *,
-    rois: Sequence[Dict[str, Any]] = (),
-    protected: Optional[np.ndarray] = None,
-    master: Optional[np.ndarray] = None,
+    rois: Sequence[dict[str, Any]] = (),
+    protected: np.ndarray | None = None,
+    master: np.ndarray | None = None,
     block_size: int = 32,
     search_radius: int = 4,
     shift_warn_px: float = 1.5,
     shift_fail_px: float = 2.5,
     min_edge_coherence: float = 0.80,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Screen aligned candidate/master passes for internal spatial drift and exact-lock violations."""
     base_rgb = _rgb(base, "base")
     cand_rgb = _rgb(candidate, "candidate")
@@ -404,7 +405,7 @@ def screen_internal_drift(
     blocks_evaluated = 0
     blocks_flagged = 0
     max_block_shift_px = 0.0
-    coherence_values: List[float] = []
+    coherence_values: list[float] = []
 
     for y0 in range(0, height, eff_block):
         y1 = min(height, y0 + eff_block)
@@ -448,7 +449,7 @@ def screen_internal_drift(
         if np.any(locked_pixels):
             locked_mismatches = int(np.sum(np.any(master_rgb[locked_pixels] != base_rgb[locked_pixels], axis=-1)))
 
-    roi_reports: List[Dict[str, Any]] = []
+    roi_reports: list[dict[str, Any]] = []
     any_fail = locked_mismatches > 0 or max_block_shift_px >= shift_fail_px
     any_warn = (not any_fail) and (
         max_block_shift_px >= shift_warn_px
@@ -473,7 +474,7 @@ def screen_internal_drift(
 
         roi_locked_slice = roi_lock_map[y:y + h, x:x + w]
         expected_locked = bool(np.any(roi_locked_slice))
-        master_max_diff: Optional[int] = None
+        master_max_diff: int | None = None
         if master_rgb is not None:
             m_diff = np.abs(master_rgb[y:y + h, x:x + w].astype(np.int16) - base_rgb[y:y + h, x:x + w].astype(np.int16))
             master_max_diff = int(m_diff[roi_locked_slice].max()) if expected_locked else int(m_diff.max())

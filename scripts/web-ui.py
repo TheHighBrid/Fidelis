@@ -13,12 +13,9 @@ Features:
 
 import argparse
 import base64
-import html
 import http.server
-import io
 import json
 import os
-from pathlib import Path
 import shutil
 import socketserver
 import subprocess
@@ -27,7 +24,9 @@ import tempfile
 import time
 import traceback
 import uuid
+from pathlib import Path
 from urllib.parse import parse_qs, urlparse
+
 from PIL import Image
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -58,13 +57,11 @@ except Exception:
 try:
     import cv2
     import numpy as np
-    import fidelis
+
     from fidelis.core.router import SmartRouter, UpscaleMode
-    from fidelis.engine.diffusion_sr import DiffusionPresetsEngine
-    from fidelis.modules.face_restorer import FaceRestorer
+    from fidelis.eval.benchmark_suite import BenchmarkSuite
     from fidelis.modules.text_restorer import TextRestorer
     from fidelis.postprocess.color_fix import stabilize_colors
-    from fidelis.eval.benchmark_suite import BenchmarkSuite
     from fidelis.tune.optimizer import SelfImprovementEngine
     HAS_FIDELIS = True
 except Exception as e:
@@ -1541,8 +1538,8 @@ def run_server(port: int = 8765, host: str = "127.0.0.1", region_workspace=None,
     httpd.region_store_options = region_store_options or {}
     httpd.generation_queue = None
     if texture_workflow is not None:
-        from fidelis.studio.store import JobStore
         from fidelis.studio.generation import GenerationQueue
+        from fidelis.studio.store import JobStore
         try:
             bundle = json.loads(Path(texture_workflow).read_text(encoding="utf-8"))
             httpd.region_store = JobStore(httpd.region_workspace_root, **httpd.region_store_options)
@@ -1553,11 +1550,11 @@ def run_server(port: int = 8765, host: str = "127.0.0.1", region_workspace=None,
             httpd.server_close()
             raise
     with httpd:
-        display_host = "127.0.0.1" if host in ("0.0.0.0", "") else host
-        print(f"\n=======================================================")
-        print(f" Fidelis Studio Web UI is running at:")
+        display_host = "127.0.0.1" if host in ("0.0.0.0", "") else host  # nosec B104  # Display string check only; bind strictly controlled by CLI args
+        print("\n=======================================================")
+        print(" Fidelis Studio Web UI is running at:")
         print(f" http://{display_host}:{current_port} (bind address: {host})")
-        print(f"=======================================================\n")
+        print("=======================================================\n")
         try:
             httpd.serve_forever()
         except KeyboardInterrupt:

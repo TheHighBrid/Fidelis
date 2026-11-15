@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import argparse
 import json
-from pathlib import Path
 import sys
+from pathlib import Path
 
 # Ensure repository root is in sys.path
 repo_root = Path(__file__).resolve().parents[1]
@@ -53,9 +53,9 @@ def main():
         ground_truth_path=args.ground_truth,
     )
 
-    print(f"\n=======================================================")
-    print(f" Fidelis Instrumented Upscaling Completed")
-    print(f"=======================================================")
+    print("\n=======================================================")
+    print(" Fidelis Instrumented Upscaling Completed")
+    print("=======================================================")
     print(f"Input:        {res.input_path} ({res.input_dimensions[0]}x{res.input_dimensions[1]}, {res.input_format})")
     print(f"Noise Level:  {res.input_noise_level:.2f} (MAD wavelet variance)")
     print(f"Profile:      {res.model_profile} (Engine: {res.actual_model})")
@@ -75,7 +75,7 @@ def main():
     print(f"EXIF:         {'Preserved' if res.exif_preserved else 'Not Present/Skipped'}")
     print(f"Telemetry:    {'POSTED (Status: ' + str(res.telemetry_response.get('status')) + ')' if res.telemetry_posted else ('Attempted (' + str(res.telemetry_response.get('status')) + ')' if res.telemetry_response else 'Disabled')}")
     print(f"Spans Traced: {len(res.spans)}")
-    print(f"=======================================================\n")
+    print("=======================================================\n")
 
     if args.json_manifest:
         args.json_manifest.parent.mkdir(parents=True, exist_ok=True)

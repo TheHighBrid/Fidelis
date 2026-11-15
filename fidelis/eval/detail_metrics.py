@@ -7,7 +7,8 @@ candidate to 1x.
 
 from __future__ import annotations
 
-from typing import Any, Mapping, Optional, Sequence
+from collections.abc import Mapping, Sequence
+from typing import Any
 
 import cv2
 import numpy as np
@@ -29,9 +30,9 @@ def _bt709_luminance(rgb: np.ndarray) -> np.ndarray:
 
 
 def _normalize_rois_to_target(
-    rois: Optional[Sequence[Mapping[str, Any]]],
+    rois: Sequence[Mapping[str, Any]] | None,
     target_shape: tuple[int, int],
-    source_shape: Optional[tuple[int, int]] = None,
+    source_shape: tuple[int, int] | None = None,
     roi_space: str = "auto",
 ) -> list[dict[str, Any]]:
     """Normalize ROI dicts (``rect`` or ``bbox``) into target-grid ``rect: [x, y, w, h]``."""
@@ -82,10 +83,10 @@ def _normalize_rois_to_target(
         else:
             continue
 
-        tx = int(round(rx * scale_x))
-        ty = int(round(ry * scale_y))
-        tw_r = int(round(rw * scale_x))
-        th_r = int(round(rh * scale_y))
+        tx = round(rx * scale_x)
+        ty = round(ry * scale_y)
+        tw_r = round(rw * scale_x)
+        th_r = round(rh * scale_y)
 
         if tw_r <= 0 or th_r <= 0:
             continue
@@ -138,7 +139,7 @@ def measure_interior_texture_retention(
     candidate_rgb: np.ndarray,
     bicubic_rgb: np.ndarray,
     *,
-    rois: Optional[Sequence[Mapping[str, Any]]] = None,
+    rois: Sequence[Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """F2: Measure native 4x interior texture variance & mid-band spectral energy vs bicubic."""
     h, w = bicubic_rgb.shape[:2]
@@ -242,7 +243,7 @@ def measure_oversharpening_restraint(
     candidate_rgb: np.ndarray,
     bicubic_rgb: np.ndarray,
     *,
-    rois: Optional[Sequence[Mapping[str, Any]]] = None,
+    rois: Sequence[Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """F3: Detect oversharpening halos, edge overshoot/undershoot, and Nyquist spikes."""
     h, w = bicubic_rgb.shape[:2]
@@ -276,7 +277,7 @@ def measure_oversharpening_restraint(
     mag_ref = np.sqrt(gx * gx + gy * gy)
 
     norm_rois = _normalize_rois_to_target(rois, (h, w), roi_space="target")
-    roi_mask: Optional[np.ndarray] = None
+    roi_mask: np.ndarray | None = None
     if norm_rois:
         roi_mask = np.zeros((h, w), dtype=bool)
         for r in norm_rois:
@@ -348,9 +349,9 @@ def measure_fabric_hardware_faithfulness(
     candidate_rgb: np.ndarray,
     bicubic_rgb: np.ndarray,
     *,
-    rois: Optional[Sequence[Mapping[str, Any]]] = None,
-    protected: Optional[np.ndarray] = None,
-    master_rgb: Optional[np.ndarray] = None,
+    rois: Sequence[Mapping[str, Any]] | None = None,
+    protected: np.ndarray | None = None,
+    master_rgb: np.ndarray | None = None,
 ) -> dict[str, Any]:
     """F4: Measure fabric weave orientation/FFT coherence and hardware/seam zero-drift & zero-overshoot."""
     h, w = bicubic_rgb.shape[:2]
@@ -584,14 +585,14 @@ def measure_fabric_hardware_faithfulness(
 
 
 def measure_scale_matched_metrics(
-    candidate_bgr: Optional[np.ndarray],
-    bicubic_bgr: Optional[np.ndarray],
-    source_bgr: Optional[np.ndarray] = None,
+    candidate_bgr: np.ndarray | None,
+    bicubic_bgr: np.ndarray | None,
+    source_bgr: np.ndarray | None = None,
     *,
-    rois: Optional[Sequence[Mapping[str, Any]]] = None,
+    rois: Sequence[Mapping[str, Any]] | None = None,
     roi_space: str = "auto",
-    protected: Optional[np.ndarray] = None,
-    master_bgr: Optional[np.ndarray] = None,
+    protected: np.ndarray | None = None,
+    master_bgr: np.ndarray | None = None,
     input_color_order: str = "bgr",
 ) -> dict[str, Any]:
     """Compute F2, F3, and F4 scale-matched native-4x metrics against a bicubic reference."""

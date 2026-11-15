@@ -2,12 +2,13 @@
 """Inspect, stage or resolve source-bound mask suggestions."""
 import argparse
 import json
-from pathlib import Path
 import sys
 import zipfile
+from pathlib import Path
+
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from fidelis.studio.store import JobStore
-from fidelis.studio.suggestions import decode_scores,MAX_SCORE_BYTES
+from fidelis.studio.suggestions import MAX_SCORE_BYTES, decode_scores
 
 
 def main():

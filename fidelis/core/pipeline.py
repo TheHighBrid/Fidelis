@@ -10,28 +10,28 @@ face pore preservation, wavelet color stabilization) with telemetry span tracing
 """
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
 import hashlib
 import json
 import logging
 import os
-from pathlib import Path
 import resource
 import shutil
 import subprocess
 import sys
 import tempfile
 import time
-from typing import Any, Dict, List, Optional, Tuple
 import urllib.error
 import urllib.parse
 import urllib.request
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
+from typing import Any
 
 import cv2
 import numpy as np
 from PIL import Image
 
-from fidelis.core.router import DegradationProfiler, SmartRouter
+from fidelis.core.router import DegradationProfiler
 from fidelis.eval.pipeline_metrics import measure_pipeline_metrics
 from fidelis.modules.face_restorer import FaceRestorer
 from fidelis.modules.text_restorer import TextRestorer
@@ -46,15 +46,15 @@ class TelemetrySpan:
     span_id: str
     name: str
     span_type: str
-    parent_id: Optional[str] = None
+    parent_id: str | None = None
     start_time: float = field(default_factory=time.time)
-    end_time: Optional[float] = None
+    end_time: float | None = None
     latency_ms: int = 0
-    attributes: Dict[str, Any] = field(default_factory=dict)
-    error_type: Optional[str] = None
-    error_message: Optional[str] = None
+    attributes: dict[str, Any] = field(default_factory=dict)
+    error_type: str | None = None
+    error_message: str | None = None
 
-    def finish(self, error: Optional[Exception | str] = None) -> None:
+    def finish(self, error: Exception | str | None = None) -> None:
         self.end_time = time.time()
         self.latency_ms = int((self.end_time - self.start_time) * 1000)
         if error:
@@ -65,7 +65,7 @@ class TelemetrySpan:
                 self.error_type = "SpanError"
                 self.error_message = str(error)
 
-    def set_attributes(self, attrs: Dict[str, Any]) -> None:
+    def set_attributes(self, attrs: dict[str, Any]) -> None:
         self.attributes.update(attrs)
 
 
@@ -74,8 +74,8 @@ class PipelineExecutionResult:
     """Complete execution record of an instrumented upscaling pass."""
     input_path: str
     output_path: str
-    input_dimensions: Tuple[int, int]
-    output_dimensions: Tuple[int, int]
+    input_dimensions: tuple[int, int]
+    output_dimensions: tuple[int, int]
     input_format: str
     input_noise_level: float
     model_profile: str
@@ -89,18 +89,18 @@ class PipelineExecutionResult:
     processing_time_per_megapixel_ms: float
     output_sha256: str
     c2pa_status: str
-    c2pa_manifest: Dict[str, Any]
+    c2pa_manifest: dict[str, Any]
     exif_preserved: bool
     zero_black_tiles: bool
-    metrics: Dict[str, Optional[float]] = field(default_factory=dict)
-    metric_context: Dict[str, Any] = field(default_factory=dict)
-    detected_artifacts: List[str] = field(default_factory=list)
-    tile_execution: Dict[str, Any] = field(default_factory=dict)
+    metrics: dict[str, float | None] = field(default_factory=dict)
+    metric_context: dict[str, Any] = field(default_factory=dict)
+    detected_artifacts: list[str] = field(default_factory=list)
+    tile_execution: dict[str, Any] = field(default_factory=dict)
     telemetry_posted: bool = False
-    telemetry_response: Dict[str, Any] = field(default_factory=dict)
-    spans: List[Dict[str, Any]] = field(default_factory=list)
+    telemetry_response: dict[str, Any] = field(default_factory=dict)
+    spans: list[dict[str, Any]] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -145,7 +145,7 @@ def generate_c2pa_provenance(
     scale: int,
     tile_size: int,
     output_sha256: str,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Create an unsigned execution record; legacy name/path are retained for compatibility.
 
     No signing or C2PA verification takes place here. The .c2pa.json suffix does
@@ -219,7 +219,7 @@ def generate_c2pa_provenance(
 class UpscalePipeline:
     """Full-featured, instrumented upscaling pipeline with telemetry and provenance."""
 
-    def __init__(self, cli_path: Optional[str] = None):
+    def __init__(self, cli_path: str | None = None):
         self.cli_path = cli_path or shutil.which("fidelis") or "bin/fidelis"
         self.profiler = DegradationProfiler()
         self.text_restorer = TextRestorer()
@@ -234,15 +234,15 @@ class UpscalePipeline:
         tile_size: int = 512,
         overlap: int = 32,
         tiled: bool = True,
-        portrait: Optional[bool] = None,
+        portrait: bool | None = None,
         fidelity_w: float = 0.70,
         text_preserve: bool = True,
         color_fix: str = "auto",
         preserve_exif: bool = True,
-        run_context: Optional[Any] = None,
+        run_context: Any | None = None,
         post_telemetry: bool = True,
-        telemetry_endpoint: Optional[str] = None,
-        ground_truth_path: Optional[Path | str] = None,
+        telemetry_endpoint: str | None = None,
+        ground_truth_path: Path | str | None = None,
     ) -> PipelineExecutionResult:
         """Execute instrumented upscaling pass wrapped with span tracing."""
         in_p = Path(input_path).resolve()
@@ -250,7 +250,7 @@ class UpscalePipeline:
         out_p.parent.mkdir(parents=True, exist_ok=True)
 
         t_start = time.time()
-        spans: List[TelemetrySpan] = []
+        spans: list[TelemetrySpan] = []
 
         # Start Root Span: upscale_pipeline
         root_span = TelemetrySpan(
@@ -458,7 +458,7 @@ class UpscalePipeline:
         )
         psnr_val, ssim_val = metrics['psnr'], metrics['ssim']
         delta_e, grad_coh = metrics['cielab_delta_e'], metrics['gradient_coherence_pct']
-        artifacts: List[str] = []
+        artifacts: list[str] = []
 
         if src_cv is not None and sr_cv is not None:
             down_sr = cv2.resize(sr_cv, (in_w, in_h), interpolation=cv2.INTER_AREA)
@@ -641,13 +641,17 @@ class UpscalePipeline:
             spans=[asdict(s) for s in spans],
         )
 
-    def _post_telemetry(self, endpoint_url: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    def _post_telemetry(self, endpoint_url: str, payload: dict[str, Any]) -> dict[str, Any]:
         """Post tile execution, PSNR/SSIM, and artifact metrics to /api/telemetry/trace?project=fidelis."""
         url = endpoint_url
         if "?" not in url:
             url = f"{url}?project=fidelis"
         elif "project=" not in url:
             url = f"{url}&project=fidelis"
+
+        parsed_scheme = urllib.parse.urlparse(url).scheme.lower()
+        if parsed_scheme not in ("http", "https"):
+            raise ValueError(f"Telemetry URL must use http or https scheme: {url}")
 
         data = json.dumps(payload).encode("utf-8")
         req = urllib.request.Request(
@@ -661,7 +665,7 @@ class UpscalePipeline:
             method="POST",
         )
         try:
-            with urllib.request.urlopen(req, timeout=2.0) as resp:
+            with urllib.request.urlopen(req, timeout=2.0) as resp:  # nosec B310
                 resp_text = resp.read().decode("utf-8")
                 try:
                     res_json = json.loads(resp_text)

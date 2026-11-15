@@ -8,20 +8,21 @@ cannot automatically trigger duplicate paid execution on resume or retry.
 
 from __future__ import annotations
 
-from concurrent.futures import Future, ThreadPoolExecutor, wait
-from contextlib import contextmanager
-from dataclasses import dataclass
 import fcntl
 import json
 import math
 import os
-from pathlib import Path
 import shutil
 import sqlite3
 import threading
 import time
-from typing import Any, Callable, Optional
 import uuid
+from collections.abc import Callable
+from concurrent.futures import Future, ThreadPoolExecutor, wait
+from contextlib import contextmanager
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
 
 from fidelis.studio.comfy import SubmissionUnknown, canonical_hash
 from fidelis.studio.store import BudgetExceeded, sha256
@@ -39,9 +40,9 @@ class BatchItemContext:
 
     item: dict[str, Any]
     temp_output_path: Path
-    _mark_paid: Callable[[Optional[float]], None]
+    _mark_paid: Callable[[float | None], None]
 
-    def mark_paid_submitted(self, reserved_cost_usd: Optional[float] = None) -> None:
+    def mark_paid_submitted(self, reserved_cost_usd: float | None = None) -> None:
         """Persist commit boundary before invoking a paid or remote submission."""
         self._mark_paid(reserved_cost_usd)
 
@@ -54,7 +55,7 @@ class BatchRunner:
     DEFAULT_MAX_ITEMS = 5000
     DEFAULT_DISK_BUDGET_BYTES = 2 * 1024**3
     DEFAULT_MAX_RETRIES = 2
-    DEFAULT_COST_BUDGET_USD: Optional[float] = None
+    DEFAULT_COST_BUDGET_USD: float | None = None
 
     @staticmethod
     def _validate_policy(
@@ -63,8 +64,8 @@ class BatchRunner:
         max_items: int,
         disk_budget_bytes: int,
         max_retries: int,
-        cost_budget_usd: Optional[float],
-    ) -> tuple[int, int, int, int, Optional[float]]:
+        cost_budget_usd: float | None,
+    ) -> tuple[int, int, int, int, float | None]:
         if type(max_workers) is not int or not 1 <= max_workers <= 4:
             raise ValueError("max_workers must be an integer in [1, 4]")
         if type(max_items) is not int or not 1 <= max_items <= 10_000:
@@ -96,7 +97,7 @@ class BatchRunner:
         max_items: int = _UNSET,
         disk_budget_bytes: int = _UNSET,
         max_retries: int = _UNSET,
-        cost_budget_usd: Optional[float] = _UNSET,
+        cost_budget_usd: float | None = _UNSET,
         read_only: bool = False,
     ) -> None:
         # Validate any explicitly supplied parameters immediately.
@@ -530,9 +531,9 @@ class BatchRunner:
 
         src = Path(snapshot["source_path"])
         tmp_out = self.tmp_dir / f"{snapshot['item_id']}-{snapshot['attempts']}.part"
-        reserved_cost_state: list[Optional[float]] = [None]
+        reserved_cost_state: list[float | None] = [None]
 
-        def mark_paid(reserved_cost: Optional[float] = None) -> None:
+        def mark_paid(reserved_cost: float | None = None) -> None:
             if reserved_cost is not None and (
                 not isinstance(reserved_cost, (int, float))
                 or isinstance(reserved_cost, bool)
@@ -673,7 +674,7 @@ class BatchRunner:
         worker_fn: Callable[[BatchItemContext], dict[str, Any]],
         *,
         retry_failed: bool = False,
-        reconcile_fn: Optional[Callable[[dict[str, Any]], dict[str, Any]]] = None,
+        reconcile_fn: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """Run pending/interrupted items with bounded workers, budgets and zero duplicate paid work."""
         if self.read_only:

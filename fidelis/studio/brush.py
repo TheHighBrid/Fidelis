@@ -1,5 +1,6 @@
 """Validated normalized brush strokes, rasterized at native resolution in stripes."""
 import math
+
 import numpy as np
 
 EDIT_FIELDS = ('skin', 'hair', 'fabric', 'protected', 'confidence')

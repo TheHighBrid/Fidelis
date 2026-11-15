@@ -3,11 +3,11 @@
 No synthetic gap filling, inferred consent, automatic split assignment or network IO.
 """
 import copy
-from collections import Counter
 import hashlib
 import json
-from pathlib import Path
 import re
+from collections import Counter
+from pathlib import Path
 
 from PIL import Image
 

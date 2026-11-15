@@ -1,22 +1,27 @@
 """Local-only HTTP bridge for persistent regional reblending."""
 import base64
-from dataclasses import asdict
 import io
 import ipaddress
 import json
 import math
-from pathlib import Path
 import zipfile
+from dataclasses import asdict
+from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 import numpy as np
 from PIL import Image
 
+from fidelis.postprocess.regions import PROFILES, RegionBlend
 from fidelis.studio.inspection import native_crop
 from fidelis.studio.png import PngPixelLimit, read_rgb8_png
-
-from fidelis.postprocess.regions import PROFILES, RegionBlend
-from fidelis.studio.store import MASK_NAMES, BudgetExceeded, JobStore, RevisionConflict, write_rgb_png
+from fidelis.studio.store import (
+    MASK_NAMES,
+    BudgetExceeded,
+    JobStore,
+    RevisionConflict,
+    write_rgb_png,
+)
 
 MAX_BODY = 48 * 1024**2
 MAX_PREVIEW_PIXELS = 1_000_000

@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import importlib
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any
 
 import numpy as np
 from PIL import Image, UnidentifiedImageError
@@ -116,7 +117,7 @@ class CallableRestorationRunner:
         return out, provenance
 
 
-def _probe_module(name: str) -> tuple[bool, Optional[str]]:
+def _probe_module(name: str) -> tuple[bool, str | None]:
     try:
         mod = importlib.import_module(name)
         return True, getattr(mod, "__version__", None)

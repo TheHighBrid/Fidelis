@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Colour-managed, EXIF-normalized, straight-alpha and 8/16-bit master export CLI."""
 import argparse
-from dataclasses import replace
 import json
-from pathlib import Path
 import sys
+from dataclasses import replace
+from pathlib import Path
 
 import numpy as np
 

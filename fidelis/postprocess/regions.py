@@ -3,8 +3,8 @@
 No inference or segmentation is implied. Callers supply explicit semantic masks.
 Fully protected pixels are restored *after* conversion, preserving exact base bytes.
 """
-from dataclasses import dataclass
 import math
+from dataclasses import dataclass
 
 import numpy as np
 

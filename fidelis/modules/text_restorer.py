@@ -4,7 +4,7 @@ Implements text region detection, strict empty-text guard clauses,
 and high-frequency glyph stroke reconstruction for logos, UI, and scene text.
 """
 
-from typing import List, Tuple
+
 import cv2
 import numpy as np
 
@@ -15,7 +15,7 @@ class TextRestorer:
     def __init__(self, confidence_thresh: float = 0.5):
         self.confidence_thresh = confidence_thresh
 
-    def detect_text_regions(self, gray: np.ndarray) -> List[Tuple[int, int, int, int]]:
+    def detect_text_regions(self, gray: np.ndarray) -> list[tuple[int, int, int, int]]:
         """Detect text bounding boxes using morphological stroke energy and MSER.
 
         Returns list of bounding boxes (x, y, w, h).
@@ -53,7 +53,7 @@ class TextRestorer:
         self,
         image_rgb: np.ndarray,
         sharpening_strength: float = 0.65
-    ) -> Tuple[np.ndarray, int]:
+    ) -> tuple[np.ndarray, int]:
         """Sharpen glyph strokes across detected text regions.
 
         Strict guard clause: if zero text regions are detected, returns original

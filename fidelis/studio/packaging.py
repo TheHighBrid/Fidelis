@@ -20,10 +20,10 @@ import tarfile
 import tempfile
 import uuid
 import zipfile
+from collections.abc import Callable, Mapping, Sequence
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Mapping, Sequence
-
+from typing import Any
 
 SCHEMA_VERSION = "fidelis.packaging.v1"
 

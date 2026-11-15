@@ -1,0 +1,30 @@
+---
+# Codacy Static Code Analysis Configuration
+# Documentation: https://docs.codacy.com/repositories-configure/codacy-configuration-file/
+
+exclude_paths:
+  - "tests/**"
+  - "docs/**"
+  - "dist/**"
+  - "experiments/**"
+  - "config/**"
+  - "notebooks/**"
+  - "android/**"
+
+engines:
+  bandit:
+    exclude_paths:
+      - "tests/**"
+      - "scripts/**"
+  ruff:
+    exclude_paths:
+      - "tests/**"
+      - "docs/**"
+  duplication:
+    exclude_paths:
+      - "tests/**"
+      - "scripts/**"
+  metric:
+    exclude_paths:
+      - "tests/**"
+      - "scripts/**"

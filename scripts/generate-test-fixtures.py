@@ -7,10 +7,12 @@ Classes:
 3. Product / hard edges: sharp geometry, specular metal highlights, smooth background.
 """
 
-from pathlib import Path
 import math
 import sys
+from pathlib import Path
+
 from PIL import Image, ImageDraw
+
 
 def create_fixtures(out_dir: Path):
     out_dir.mkdir(parents=True, exist_ok=True)

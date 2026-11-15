@@ -14,11 +14,10 @@ Usage:
 
 import argparse
 import hashlib
-import os
-from pathlib import Path
 import shutil
 import subprocess
-import sys
+from pathlib import Path
+
 
 def calculate_sha256(path: Path) -> str:
     h = hashlib.sha256()
@@ -45,7 +44,7 @@ def convert_onnx_to_ncnn(onnx_path: Path, output_param: Path, output_bin: Path, 
     subprocess.check_call(cmd)
 
     if fp16 and ncnnoptimize_bin:
-        print(f"Applying FP16 optimization via ncnnoptimize...")
+        print("Applying FP16 optimization via ncnnoptimize...")
         cmd_opt = [ncnnoptimize_bin, str(tmp_param), str(tmp_bin), str(output_param), str(output_bin), "65536"]
         subprocess.check_call(cmd_opt)
         tmp_param.unlink(missing_ok=True)
@@ -64,7 +63,7 @@ def convert_pytorch_to_onnx(model_path: Path, onnx_out: Path, arch: str, scale: 
         raise RuntimeError("PyTorch is required for .pth conversion. Run: pip install torch")
 
     print(f"Loading PyTorch model ({arch}) from: {model_path}")
-    state = torch.load(str(model_path), map_location="cpu")
+    state = torch.load(str(model_path), map_location="cpu")  # nosec B614  # Safe conversion of local weights
     if "params_ema" in state:
         state = state["params_ema"]
     elif "params" in state:
@@ -78,7 +77,6 @@ def convert_pytorch_to_onnx(model_path: Path, onnx_out: Path, arch: str, scale: 
 
     # If architecture is compact (SRVGGNetCompact)
     if arch.lower() == "compact":
-        from collections import OrderedDict
         import torch.nn as nn
 
         class SRVGGNetCompact(nn.Module):

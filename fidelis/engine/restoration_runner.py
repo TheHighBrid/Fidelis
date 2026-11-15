@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import hashlib
 import importlib
-from pathlib import Path
 import time
-from typing import Any, Callable, Mapping, Optional, Protocol, Sequence, runtime_checkable
+from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import (
+    Any,
+    Protocol,
+    runtime_checkable,
+)
 
 import numpy as np
 from PIL import Image
@@ -82,7 +87,7 @@ class RestorationBackend(Protocol):
         base_4x: np.ndarray,
         scale: int,
         target_shape: tuple[int, int, int],
-        case_id: Optional[str] = None,
+        case_id: str | None = None,
     ) -> tuple[np.ndarray, dict[str, Any]]:
         """Return (raw_candidate_rgb_uint8, extra_provenance_dict) on exact target_shape."""
         ...
@@ -177,10 +182,10 @@ def _normalize_rois_for_guard(
         else:
             raise ValueError(f"ROI {entry.get('id', idx)} must specify 'rect' or 'bbox'")
 
-        tx = max(0, min(tw - 1, int(round(rx * scale_x))))
-        ty = max(0, min(th - 1, int(round(ry * scale_y))))
-        tw_r = max(1, min(tw - tx, int(round(rw * scale_x))))
-        th_r = max(1, min(th - ty, int(round(rh * scale_y))))
+        tx = max(0, min(tw - 1, round(rx * scale_x)))
+        ty = max(0, min(th - 1, round(ry * scale_y)))
+        tw_r = max(1, min(tw - tx, round(rw * scale_x)))
+        th_r = max(1, min(th - ty, round(rh * scale_y)))
 
         rid = str(entry.get("id") or f"roi_{idx}").strip() or f"roi_{idx}"
         while rid in seen_ids:
@@ -216,7 +221,7 @@ class BicubicBaselineBackend:
         base_4x: np.ndarray,
         scale: int,
         target_shape: tuple[int, int, int],
-        case_id: Optional[str] = None,
+        case_id: str | None = None,
     ) -> tuple[np.ndarray, dict[str, Any]]:
         out = _enforce_exact_shape(base_4x.copy(), target_shape, "bicubic_4x")
         return out, {"resampling": "BICUBIC"}
@@ -245,7 +250,7 @@ class ImportedRestorationBackend:
                 "ImportedRestorationBackend requires imported_dir, file_map, or image_path"
             )
 
-    def _resolve_path(self, case_id: Optional[str]) -> Path:
+    def _resolve_path(self, case_id: str | None) -> Path:
         if case_id and case_id in self.file_map:
             p = self.file_map[case_id]
             if not p.is_file():
@@ -274,7 +279,7 @@ class ImportedRestorationBackend:
         base_4x: np.ndarray,
         scale: int,
         target_shape: tuple[int, int, int],
-        case_id: Optional[str] = None,
+        case_id: str | None = None,
     ) -> tuple[np.ndarray, dict[str, Any]]:
         path = self._resolve_path(case_id)
         with Image.open(path) as img:
@@ -328,7 +333,7 @@ class ComfyRestorationBackend:
         base_4x: np.ndarray,
         scale: int,
         target_shape: tuple[int, int, int],
-        case_id: Optional[str] = None,
+        case_id: str | None = None,
     ) -> tuple[np.ndarray, dict[str, Any]]:
         canvas = _enforce_exact_shape(base_4x, target_shape, "comfy_input_canvas")
         run_id = self.comfy.default_cli_run_id(canvas, self.bundle, self.comfy.address)
@@ -386,7 +391,7 @@ class OnnxRestorationBackend:
         base_4x: np.ndarray,
         scale: int,
         target_shape: tuple[int, int, int],
-        case_id: Optional[str] = None,
+        case_id: str | None = None,
     ) -> tuple[np.ndarray, dict[str, Any]]:
         inp = (source_rgb.astype(np.float32) / 255.0).transpose(2, 0, 1)[None, ...]
         input_name = self._session.get_inputs()[0].name
@@ -445,7 +450,7 @@ class TorchSpandrelRestorationBackend:
         base_4x: np.ndarray,
         scale: int,
         target_shape: tuple[int, int, int],
-        case_id: Optional[str] = None,
+        case_id: str | None = None,
     ) -> tuple[np.ndarray, dict[str, Any]]:
         torch = self._torch
         inp = (
@@ -482,7 +487,7 @@ class RestorationRunner:
         apply_texture_guard: bool = True,
         blend: RegionBlend | None = None,
         use_sobel_heuristic: bool = True,
-        case_id: Optional[str] = None,
+        case_id: str | None = None,
     ) -> RestorationResult:
         src = _validate_rgb_uint8(source_rgb, "source_rgb")
         if scale < 1:

@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """Reblend aligned sRGB PNG passes with explicit masks, without new inference."""
 import argparse
-from dataclasses import asdict, replace
 import hashlib
 import json
 import os
-from pathlib import Path
 import sys
 import tempfile
+from dataclasses import asdict, replace
+from pathlib import Path
 
 import numpy as np
 

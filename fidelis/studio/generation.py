@@ -1,17 +1,21 @@
 """Single-owner durable local generation queue; no global GPU interruption."""
-from contextlib import contextmanager
 import copy
 import fcntl
 import json
-from pathlib import Path
 import sqlite3
 import threading
 import time
 import uuid
+from contextlib import contextmanager
+from pathlib import Path
 
 import numpy as np
 
-from fidelis.studio.comfy import ComfyTextureBackend, GenerationCancelled, SubmissionUnknown
+from fidelis.studio.comfy import (
+    ComfyTextureBackend,
+    GenerationCancelled,
+    SubmissionUnknown,
+)
 from fidelis.studio.store import BudgetExceeded, RevisionConflict
 
 

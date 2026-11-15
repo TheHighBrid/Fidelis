@@ -10,20 +10,19 @@ Flagship Super-Resolution Blueprint:
 6. Generates full provenance manifests and interactive HTML evaluation reports.
 """
 
-from dataclasses import asdict, dataclass
 import json
-import os
-from pathlib import Path
-import shutil
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from dataclasses import asdict, dataclass
+from pathlib import Path
+from typing import Any
+
 import cv2
 import numpy as np
 import yaml
 
-from fidelis.core.router import DegradationProfiler, SmartRouter, UpscaleMode
-from fidelis.eval.benchmark_suite import BenchmarkSuite, EvaluationReport
-from fidelis.eval.corpus import EvaluationCorpus, TestBucket
+from fidelis.core.router import DegradationProfiler, SmartRouter
+from fidelis.eval.benchmark_suite import BenchmarkSuite
+from fidelis.eval.corpus import EvaluationCorpus
 from fidelis.modules.face_restorer import FaceRestorer
 from fidelis.modules.text_restorer import TextRestorer
 from fidelis.postprocess.color_fix import stabilize_colors
@@ -38,8 +37,8 @@ class TrialResult:
     text_strength: float
     color_fix_mode: str
     elapsed_ms: float
-    metrics: Dict[str, Any]
-    detected_artifacts: List[str]
+    metrics: dict[str, Any]
+    detected_artifacts: list[str]
     rule1_passed: bool
     output_path: str
 
@@ -47,7 +46,7 @@ class TrialResult:
 class SelfImprovementEngine:
     """Orchestrates end-to-end self-improvement, calibration, and regression validation."""
 
-    def __init__(self, work_dir: Optional[Path] = None):
+    def __init__(self, work_dir: Path | None = None):
         self.repo_root = Path(__file__).resolve().parent.parent.parent
         self.work_dir = work_dir or (self.repo_root / "experiments" / "self_improvement")
         self.work_dir.mkdir(parents=True, exist_ok=True)
@@ -62,13 +61,13 @@ class SelfImprovementEngine:
         self.presets_path = self.repo_root / "fidelis" / "configs" / "presets.yaml"
         self.presets = self._load_presets()
 
-    def _load_presets(self) -> Dict:
+    def _load_presets(self) -> dict:
         if self.presets_path.is_file():
             with open(self.presets_path, "r") as f:
                 return yaml.safe_load(f) or {}
         return {}
 
-    def _save_presets(self, presets: Dict):
+    def _save_presets(self, presets: dict):
         with open(self.presets_path, "w") as f:
             yaml.safe_dump(presets, f, default_flow_style=False, sort_keys=False)
 
@@ -76,10 +75,10 @@ class SelfImprovementEngine:
         self,
         src_cv: np.ndarray,
         sr_cv: np.ndarray,
-        metrics: Dict[str, Any],
+        metrics: dict[str, Any],
         has_faces: bool,
         has_text: bool
-    ) -> List[str]:
+    ) -> list[str]:
         """Classifies visual defects according to the Fidelis Artifact Taxonomy."""
         artifacts = []
 
@@ -119,7 +118,7 @@ class SelfImprovementEngine:
         self,
         input_path: str,
         output_path: str,
-        ground_truth_path: Optional[str] = None,
+        ground_truth_path: str | None = None,
         preset_name: str = "Smart_Balanced",
         face_fidelity_w: float = 0.70,
         text_strength: float = 0.65,
@@ -217,14 +216,14 @@ class SelfImprovementEngine:
         )
         return float(score)
 
-    def run_self_improvement_cycle(self, max_items: int = 5) -> Dict[str, Any]:
+    def run_self_improvement_cycle(self, max_items: int = 5) -> dict[str, Any]:
         """Executes a full self-improvement calibration sweep across the evaluation corpus."""
         self.corpus.ensure_minimum_corpus(items_per_bucket=1)
         items = self.corpus.items[:max_items]
 
-        all_trials: List[TrialResult] = []
+        all_trials: list[TrialResult] = []
         improvements_found = 0
-        winning_configs: List[TrialResult] = []
+        winning_configs: list[TrialResult] = []
 
         # Focused parameter sweep grid
         candidate_w = [0.60, 0.70, 0.80]
@@ -330,7 +329,7 @@ class SelfImprovementEngine:
 
     def _generate_html_report(
         self,
-        trials: List[TrialResult],
+        trials: list[TrialResult],
         report_path: Path,
         opt_w: float,
         opt_text: float

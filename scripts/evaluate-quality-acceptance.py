@@ -35,7 +35,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--require-owner-signoff",
         action="store_true",
-        help="Exit non-zero unless owner_creative_signoff is explicitly approved",
+        help="Exit non-zero unless creative signoff (team delegated or owner) is explicitly approved",
+    )
+    parser.add_argument(
+        "--require-team-signoff",
+        action="store_true",
+        help="Exit non-zero unless creative signoff (team delegated or owner) is explicitly approved",
     )
     args = parser.parse_args(argv)
 
@@ -70,6 +75,7 @@ def main(argv: list[str] | None = None) -> int:
     if (
         report["overall_status"] == "awaiting_owner_signoff"
         and not args.require_owner_signoff
+        and not args.require_team_signoff
     ):
         return 0
     return 2

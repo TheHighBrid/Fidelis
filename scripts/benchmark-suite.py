@@ -5,6 +5,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+
 import cv2
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -58,13 +59,13 @@ def main():
     print(f"Source:              {src_p}")
     print(f"Upscaled:            {up_p}")
     print("-------------------------------------------------------")
-    print(f"1. Structural Fidelity:")
+    print("1. Structural Fidelity:")
     print(f"   • PSNR:           {report.psnr_db} dB")
     print(f"   • SSIM:           {report.ssim}")
-    print(f"2. Color Stabilization:")
+    print("2. Color Stabilization:")
     print(f"   • CIELAB Delta E: {report.color_drift_delta_e} (target < 3.5)")
     print(f"   • Lum Drift:      {report.luminance_drift}")
-    print(f"3. Perceptual Coherence:")
+    print("3. Perceptual Coherence:")
     print(f"   • Gradient Match: {report.gradient_coherence_pct}% (target >= 85%)")
     print(f"   • Edge Energy:    {report.edge_energy_gain}x")
     print(f"4. Hallucination Risk: {report.hallucination_risk}")

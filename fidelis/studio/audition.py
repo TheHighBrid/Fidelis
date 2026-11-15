@@ -5,14 +5,14 @@ from __future__ import annotations
 import base64
 import html
 import json
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any, Mapping, Optional, Sequence
+from typing import Any
 
 import numpy as np
 from PIL import Image
 
 from fidelis.engine.restoration_runner import (
-    DimensionMismatchError,
     RestorationRunner,
     _bicubic_upscale,
     _enforce_exact_shape,
@@ -270,7 +270,7 @@ class _InMemoryCandidateBackend:
         base_4x: np.ndarray,
         scale: int,
         target_shape: tuple[int, int, int],
-        case_id: Optional[str] = None,
+        case_id: str | None = None,
     ) -> tuple[np.ndarray, dict[str, Any]]:
         out = _enforce_exact_shape(self.candidate_rgb, target_shape, "candidate_4x_rgb")
         return out, {"in_memory": True}
@@ -479,8 +479,8 @@ def _run_single_case_audition(
 
 
 def run_model_vs_bicubic_audition(
-    cases: Optional[Sequence[Mapping[str, Any]]] = None,
-    runner: Optional[RestorationRunner] = None,
+    cases: Sequence[Mapping[str, Any]] | None = None,
+    runner: RestorationRunner | None = None,
     *,
     output_dir: str | Path,
     blind_seed: int = 20261110,
@@ -488,8 +488,8 @@ def run_model_vs_bicubic_audition(
     generate_html: bool = True,
     asset_root: str | Path | None = None,
     blind_split: str = "held_out",
-    source_rgb: Optional[np.ndarray] = None,
-    candidate_4x_rgb: Optional[np.ndarray] = None,
+    source_rgb: np.ndarray | None = None,
+    candidate_4x_rgb: np.ndarray | None = None,
     rois: Sequence[Mapping[str, Any]] = (),
     case_id: str = "audition-case",
     emit_blind_review: bool = False,

@@ -8,14 +8,15 @@ reported as unavailable/skipped rather than simulated or omitted from denominato
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
 import json
 import os
-from pathlib import Path
 import random
 import shutil
 import time
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from dataclasses import asdict, dataclass
+from pathlib import Path
+from typing import Any
 
 import cv2
 import numpy as np
@@ -49,13 +50,13 @@ REMOTE_COMPARATORS = frozenset({"pinned_clarity", "dated_krea"})
 class ComparatorOutput:
     """Result returned by a callable comparator runner for a single case."""
 
-    output_path: Optional[Path]
+    output_path: Path | None
     status: str  # "completed" | "rejected_unsupported" | "failed" | "unavailable"
     settings: dict[str, Any]
-    manual_adjustments: Optional[str] = None
-    elapsed_seconds: Optional[float] = None
-    cost_usd: Optional[float] = None
-    error: Optional[str] = None
+    manual_adjustments: str | None = None
+    elapsed_seconds: float | None = None
+    cost_usd: float | None = None
+    error: str | None = None
     is_imported: bool = False
 
 
@@ -208,9 +209,9 @@ def _evaluate_output_record(
     source_path: Path,
     result: ComparatorOutput,
     *,
-    ground_truth_path: Optional[Path] = None,
-    bicubic_bgr: Optional[np.ndarray] = None,
-    rois: Optional[list[dict[str, Any]]] = None,
+    ground_truth_path: Path | None = None,
+    bicubic_bgr: np.ndarray | None = None,
+    rois: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     base = {
         "comparator": comparator,
@@ -290,9 +291,9 @@ def run_comparators(
     *,
     asset_root: str | Path,
     output_dir: str | Path,
-    runners: Optional[dict[str, Callable[[dict[str, Any], Path, Path], ComparatorOutput]]] = None,
-    protocol: Optional[dict[str, Any]] = None,
-    slots: Optional[dict[str, Any]] = None,
+    runners: dict[str, Callable[[dict[str, Any], Path, Path], ComparatorOutput]] | None = None,
+    protocol: dict[str, Any] | None = None,
+    slots: dict[str, Any] | None = None,
     allow_regression_manifest: bool = False,
 ) -> dict[str, Any]:
     """Execute configured comparators on verified corpus lock or explicit regression manifest."""
@@ -346,7 +347,7 @@ def run_comparators(
         gt_rel = case.get("ground_truth_path")
         gt_path = local_path(root, gt_rel) if gt_rel else None
 
-        bicubic_bgr: Optional[np.ndarray] = None
+        bicubic_bgr: np.ndarray | None = None
         target_dims = case.get("target_dimensions")
         if (
             isinstance(target_dims, list)
@@ -479,7 +480,7 @@ def build_blind_pairwise_manifest(
     """Build blind randomized A/B comparison ballot keeping separate native PNG paths."""
     if candidate_a == candidate_b:
         raise ValueError("Pairwise comparison requires two distinct comparators")
-    rng = random.Random(seed)
+    rng = random.Random(seed)  # nosec B311  # Non-cryptographic PRNG for deterministic evaluation
     eligible_cases = [
         case
         for case in comparison_report.get("cases", [])

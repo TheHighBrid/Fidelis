@@ -2,8 +2,9 @@
 """Report actual installed model files and local ComfyUI reachability as JSON."""
 import argparse
 import json
-from pathlib import Path
 import sys
+from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from fidelis.studio.capabilities import inventory
 from fidelis.studio.comfy import ComfyTextureBackend
