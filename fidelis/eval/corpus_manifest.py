@@ -97,6 +97,21 @@ def audit(manifest, protocol, slots, root):
                 observed=inspect_image(path)
                 if any(source.get(key)!=value for key,value in observed.items()):issues.append('source_fingerprint_changed')
         except (OSError,ValueError,Image.DecompressionBombError):issues.append('source_invalid_or_unavailable')
+        ground_truth_path=case.get('ground_truth_path')
+        if ground_truth_path is not None:
+            ground_truth=case.get('ground_truth')
+            if not isinstance(ground_truth,dict):
+                issues.append('ground_truth_fingerprint_missing')
+            else:
+                try:
+                    gt_path=local_path(root,ground_truth_path)
+                    if not gt_path.is_file() or any(
+                        ground_truth.get(key)!=value
+                        for key,value in inspect_image(gt_path).items()
+                    ):
+                        issues.append('ground_truth_fingerprint_changed')
+                except (OSError,ValueError,Image.DecompressionBombError):
+                    issues.append('ground_truth_invalid_or_unavailable')
         if case.get('source_kind')!='photograph':issues.append('not_a_photographic_production_case')
         rights=case.get('rights',{})
         if not isinstance(rights,dict):raise TypeError('Rights must be an object')
