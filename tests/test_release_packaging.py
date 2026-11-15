@@ -163,6 +163,35 @@ class ReleasePackagingAndUpgradeTests(unittest.TestCase):
             np.testing.assert_array_equal(restored_master, original_master)
             self.assertTrue((runs_dir / f"{run_id}.json").is_file())
 
+    def test_workspace_snapshot_rejects_source_overlapping_destination(self) -> None:
+        """An overlap must fail before snapshot setup can remove live files."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            region_root = root / "region_jobs"
+            generation_root = root / "generation_runs"
+            store = JobStore(region_root)
+            original = np.full((8, 8, 3), 37, dtype=np.uint8)
+            job = store.create(original, original, label="Overlap Guard")
+            marker = generation_root / "runs" / "keep.json"
+            marker.parent.mkdir(parents=True)
+            marker.write_text('{"keep": true}\n', encoding="utf-8")
+
+            for destination in (
+                region_root,
+                region_root / "snapshots" / "pre-upgrade",
+                root,
+                generation_root / "snapshots",
+            ):
+                with self.assertRaisesRegex(ValueError, "must not overlap"):
+                    create_workspace_snapshot(
+                        region_root,
+                        destination,
+                        generation_root=generation_root,
+                    )
+
+            self.assertEqual(store.get(job["id"])["label"], "Overlap Guard")
+            self.assertTrue(marker.is_file())
+
     def test_verify_workspace_detects_corrupted_artifact_and_cli_round_trip(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
