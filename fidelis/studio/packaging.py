@@ -523,7 +523,7 @@ def verify_workspace_integrity(
                         "SELECT name FROM sqlite_master WHERE type='table' AND name='runs'"
                     ).fetchone()
                     rows = (
-                        conn.execute("SELECT run_id, record FROM runs ORDER BY run_id").fetchall()
+                        conn.execute("SELECT id, record FROM runs ORDER BY id").fetchall()
                         if has_runs
                         else []
                     )
@@ -584,7 +584,7 @@ def verify_workspace_integrity(
                     ).fetchone()
                     q_rows = (
                         conn.execute(
-                            "SELECT idx, task_id, record FROM tasks ORDER BY idx, task_id"
+                            "SELECT id, record FROM tasks ORDER BY id"
                         ).fetchall()
                         if has_tasks
                         else []
@@ -595,7 +595,7 @@ def verify_workspace_integrity(
                 errors.append(f"SQLite error reading queue.sqlite3: {exc}")
                 q_rows = []
 
-            for _idx, db_task_id, raw_record in q_rows:
+            for db_task_id, raw_record in q_rows:
                 try:
                     payload = json.loads(raw_record)
                 except Exception as exc:
