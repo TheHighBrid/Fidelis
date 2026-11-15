@@ -296,9 +296,11 @@ def _summarize_ballots(
 def evaluate_held_out_acceptance(
     submission: Mapping[str, Any],
     *,
-    thresholds: AcceptanceThresholds = AcceptanceThresholds(),
+    thresholds: AcceptanceThresholds | None = None,
 ) -> dict[str, Any]:
     """Evaluate a calibration + blind held-out quality submission against F13 gates."""
+    if thresholds is None:
+        thresholds = AcceptanceThresholds()
     receipt_check = validate_reproducibility_receipt(
         submission.get("reproducibility_receipt")
     )

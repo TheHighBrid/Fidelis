@@ -509,7 +509,17 @@ def verify_workspace_integrity(
                     }
                 )
 
-        for rel_db in ("generation.sqlite3", "runs/generation.sqlite3"):
+        db_candidates: list[str] = []
+        if (g_root / "generation.sqlite3").is_file():
+            db_candidates.append("generation.sqlite3")
+        runs_dir = g_root / "runs"
+        if runs_dir.is_dir():
+            for sqlite_p in sorted(runs_dir.glob("*.sqlite3")):
+                db_candidates.append(f"runs/{sqlite_p.name}")
+        elif (g_root / "runs/generation.sqlite3").is_file():
+            db_candidates.append("runs/generation.sqlite3")
+
+        for rel_db in db_candidates:
             gen_db = g_root / rel_db
             if not gen_db.is_file():
                 continue
@@ -522,11 +532,21 @@ def verify_workspace_integrity(
                     has_runs = conn.execute(
                         "SELECT name FROM sqlite_master WHERE type='table' AND name='runs'"
                     ).fetchone()
-                    rows = (
-                        conn.execute("SELECT id, record FROM runs ORDER BY id").fetchall()
-                        if has_runs
-                        else []
-                    )
+                    if has_runs:
+                        cols = {
+                            col[1]
+                            for col in conn.execute("PRAGMA table_info(runs)").fetchall()
+                        }
+                        if "run_id" in cols and "id" not in cols:
+                            rows = conn.execute(
+                                "SELECT run_id, record FROM runs ORDER BY run_id"
+                            ).fetchall()
+                        else:
+                            rows = conn.execute(
+                                "SELECT id, record FROM runs ORDER BY id"
+                            ).fetchall()
+                    else:
+                        rows = []
                 finally:
                     conn.close()
             except sqlite3.Error as exc:
@@ -707,9 +727,11 @@ def create_workspace_snapshot(
 
     if g_root is not None and g_root.exists():
         snap_gen.mkdir(parents=True, exist_ok=True)
+        for db_file in sorted(g_root.glob("*.sqlite3")):
+            _backup_sqlite_file(db_file, snap_gen / db_file.name)
         for rel_db in ("generation.sqlite3", "queue.sqlite3", "runs/generation.sqlite3"):
             src_db = g_root / rel_db
-            if src_db.is_file():
+            if src_db.is_file() and not (snap_gen / rel_db).exists():
                 _backup_sqlite_file(src_db, snap_gen / rel_db)
         for png_file in sorted(g_root.glob("*.png")):
             shutil.copy2(png_file, snap_gen / png_file.name)
@@ -717,6 +739,8 @@ def create_workspace_snapshot(
         if runs_src.is_dir():
             snap_runs_dst = snap_gen / "runs"
             snap_runs_dst.mkdir(parents=True, exist_ok=True)
+            for db_file in sorted(runs_src.glob("*.sqlite3")):
+                _backup_sqlite_file(db_file, snap_runs_dst / db_file.name)
             for run_file in sorted(runs_src.glob("*.json")):
                 shutil.copy2(run_file, snap_runs_dst / run_file.name)
             for png_file in sorted(runs_src.glob("*.png")):

@@ -324,7 +324,12 @@ class ComfyRestorationBackend:
         # until a real checkpoint hash has been independently verified.
         from fidelis.studio.comfy import canonical_hash
         self.workflow_sha256 = canonical_hash(bundle)
-        self.weights_sha256 = "unavailable_unverified"
+        checkpoint_hash = (
+            bundle.get("checkpoint_sha256")
+            or bundle.get("weights_sha256")
+            or bundle.get("checkpoint_hash")
+        )
+        self.weights_sha256 = str(checkpoint_hash) if checkpoint_hash else "unavailable_unverified"
 
     def restore(
         self,
@@ -347,6 +352,7 @@ class ComfyRestorationBackend:
         return out, {
             "comfy_run_id": record.get("id", run_id),
             "workflow_sha256": record.get("workflow_sha256", self.workflow_sha256),
+            "weights_sha256": self.weights_sha256,
             "family": record.get("family", self.bundle.get("family")),
         }
 

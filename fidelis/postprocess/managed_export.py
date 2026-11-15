@@ -600,7 +600,7 @@ def compose_managed_passes(
     confidence=None,
     edge_guard=None,
     interior_texture=None,
-    blend: RegionBlend = RegionBlend(),
+    blend: RegionBlend | None = None,
     icc_policy: str = "preserve",
     target_icc: bytes | None = None,
     icc_intent: str = "relative_colorimetric",
@@ -611,6 +611,8 @@ def compose_managed_passes(
     allow_8bit_lut: bool = False,
 ) -> tuple[ManagedImage, np.ndarray, dict]:
     """Compose aligned passes with colour management, straight alpha and precision control."""
+    if blend is None:
+        blend = RegionBlend()
     if base.pixels.shape[:2] != texture.pixels.shape[:2]:
         raise ValueError(
             "normalized passes must have identical dimensions; no implicit resizing"

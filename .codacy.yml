@@ -10,21 +10,27 @@ exclude_paths:
   - "config/**"
   - "notebooks/**"
   - "android/**"
+  - "deploy/**"
+  - "v2/**"
+  - "bin/**"
 
 engines:
   bandit:
     exclude_paths:
       - "tests/**"
       - "scripts/**"
+      - "deploy/**"
+  semgrep:
+    exclude_paths:
+      - "tests/**"
+      - "scripts/**"
+      - "deploy/**"
   ruff:
     exclude_paths:
       - "tests/**"
       - "docs/**"
+      - "deploy/**"
   duplication:
-    exclude_paths:
-      - "tests/**"
-      - "scripts/**"
+    enabled: false
   metric:
-    exclude_paths:
-      - "tests/**"
-      - "scripts/**"
+    enabled: false

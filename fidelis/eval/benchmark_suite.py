@@ -8,10 +8,12 @@ Grades super-resolution quality across:
 5. Semantic Grounding (Face Identity, Text Stroke Integrity)
 """
 
+from __future__ import annotations
+
 import math
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Union
+from typing import Any
 
 import cv2
 import numpy as np
@@ -100,8 +102,8 @@ class BenchmarkSuite:
 
     def evaluate_pair(
         self,
-        lq_source: Union[np.ndarray, str, Path],
-        sr_output: Union[np.ndarray, str, Path]
+        lq_source: np.ndarray | str | Path,
+        sr_output: np.ndarray | str | Path
     ) -> EvaluationReport:
         if isinstance(lq_source, (str, Path)):
             lq_source = np.array(Image.open(str(lq_source)).convert("RGB"))
@@ -161,14 +163,14 @@ class BenchmarkSuite:
 
     def evaluate_4x_detail(
         self,
-        lq_source: Union[np.ndarray, str, Path],
-        sr_output: Union[np.ndarray, str, Path],
+        lq_source: np.ndarray | str | Path,
+        sr_output: np.ndarray | str | Path,
         *,
-        bicubic_ref: Union[np.ndarray, str, Path] | None = None,
+        bicubic_ref: np.ndarray | str | Path | None = None,
         rois: list[dict[str, Any]] | None = None,
         roi_space: str = "auto",
         protected: np.ndarray | None = None,
-        master: Union[np.ndarray, str, Path] | None = None,
+        master: np.ndarray | str | Path | None = None,
     ) -> dict[str, Any]:
         """Evaluate native 4x interior texture (F2), oversharpening (F3), and fabric/hardware faithfulness (F4)."""
         from fidelis.eval.detail_metrics import measure_scale_matched_metrics

@@ -456,8 +456,7 @@ class UpscalePipeline:
             src_cv, sr_cv, ground_truth_bgr=ground_truth_cv,
             ground_truth_requested=ground_truth_path is not None,
         )
-        psnr_val, ssim_val = metrics['psnr'], metrics['ssim']
-        delta_e, grad_coh = metrics['cielab_delta_e'], metrics['gradient_coherence_pct']
+        delta_e = metrics.get("cielab_delta_e")
         artifacts: list[str] = []
 
         if src_cv is not None and sr_cv is not None:

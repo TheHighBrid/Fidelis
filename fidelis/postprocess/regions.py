@@ -54,7 +54,7 @@ def _rgb(value, name):
 def compose_regions(base, texture, *, skin=None, hair=None, fabric=None,
                     protected=None, confidence=None, edge_guard=None,
                     interior_texture=None,
-                    blend=RegionBlend(), output_dtype=None):
+                    blend=None, output_dtype=None):
     """Return (sRGB result at requested precision, float32 effective alpha).
 
     Masks are H x W floats in [0,1] on the exact base grid. Overlapping semantic
@@ -64,6 +64,8 @@ def compose_regions(base, texture, *, skin=None, hair=None, fabric=None,
     edge guard is a caller-supplied heuristic, not hardware/seam segmentation.
     This function verifies shape, not internal spatial registration.
     """
+    if blend is None:
+        blend = RegionBlend()
     base = np.asarray(base)
     texture = np.asarray(texture)
     for image, name in ((base, "base"), (texture, "texture")):
