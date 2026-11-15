@@ -526,6 +526,7 @@ class RestorationRunner:
                 name: np.zeros((th, tw), dtype=np.float32)
                 for name in ("skin", "hair", "fabric")
             }
+            unlocked_mask = np.zeros((th, tw), dtype=np.float32)
             for r in target_rois:
                 if r.get("policy") != "texture_allowed" and r.get("override") != "unlock":
                     continue
@@ -536,8 +537,14 @@ class RestorationRunner:
                 channel = r["kind"] if r["kind"] in semantic_masks else "fabric"
                 rx, ry, rw, rh = r["rect"]
                 semantic_masks[channel][ry : ry + rh, rx : rx + rw] = 1.0
-            permitted = np.clip(sum(semantic_masks.values()), 0.0, 1.0)
-            permitted *= masks["interior_texture"]
+                if r.get("override") == "unlock":
+                    unlocked_mask[ry : ry + rh, rx : rx + rw] = 1.0
+            permitted = np.clip(sum(semantic_masks.values()), 0.0, 1.0) * masks["interior_texture"]
+            # An explicit unlock is a deliberate texture authorization even
+            # when its original policy was preserve, so it cannot depend on
+            # the texture-allowed interior mask. Explicit locks still win at
+            # the final protection boundary below.
+            permitted = np.maximum(permitted, unlocked_mask)
             permitted *= (1.0 - masks["protected"]).astype(np.float32)
             for channel in semantic_masks:
                 semantic_masks[channel] *= permitted

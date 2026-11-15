@@ -294,6 +294,22 @@ class RestorationRunnerTests(unittest.TestCase):
             np.testing.assert_array_equal(result.image[4:20, 24:40], base[4:20, 24:40])
             np.testing.assert_array_equal(result.image[4:20, 44:60], base[4:20, 44:60])
 
+    def test_texture_guard_honors_explicit_unlock_of_a_preserve_roi(self) -> None:
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            src = _make_textured_rgb(16, 16, seed=29)
+            base = np.asarray(Image.fromarray(src).resize((64, 64), Image.Resampling.BICUBIC), dtype=np.uint8)
+            Image.fromarray(np.full_like(base, 255)).save(root / "sample.png")
+            result = create_restoration_runner("imported", imported_dir=root).run(
+                src, scale=4, roi_space="target", case_id="sample", use_sobel_heuristic=False,
+                rois=[{"id": "skin_unlock", "kind": "skin", "policy": "preserve",
+                       "override": "unlock", "rect": [8, 8, 16, 16]}],
+                blend=RegionBlend(skin=1.0, hair=0.0, fabric=0.0),
+            )
+            self.assertFalse(np.array_equal(result.image[8:24, 8:24], base[8:24, 8:24]))
+
     def test_to_comparator_runner_adapter_contract(self) -> None:
         import tempfile
 
