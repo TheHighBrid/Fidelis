@@ -220,6 +220,24 @@ class QualityAcceptanceTests(unittest.TestCase):
             )
             self.assertEqual(proc_strict.returncode, 2)
 
+    def test_missing_mandatory_comparator_cannot_pass_even_if_not_declared(self) -> None:
+        for declared in (None, ["dated_krea"]):
+            with self.subTest(declared=declared):
+                sub = _make_complete_submission(owner_status="approved")
+                sub["held_out_ballots"] = [
+                    ballot for ballot in sub["held_out_ballots"]
+                    if ballot["comparator"] == "dated_krea"
+                ]
+                if declared is None:
+                    sub.pop("required_comparators", None)
+                else:
+                    sub["required_comparators"] = declared
+                report = evaluate_held_out_acceptance(sub)
+                self.assertNotEqual(report["overall_status"], "accepted")
+                self.assertFalse(report["quantitative_gates_passed"])
+                self.assertIn("pinned_clarity", report["comparator_failures"])
+                self.assertEqual(report["comparator_results"]["pinned_clarity"]["sample_size"], 0)
+
     def test_sparse_comparator_ballot_fails_coverage_and_comparator_gates(self) -> None:
         sub = _make_complete_submission(owner_status="approved")
         # Keep all 30 ballots for dated_krea, but only 1 winning ballot for pinned_clarity.

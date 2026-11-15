@@ -388,13 +388,17 @@ def evaluate_held_out_acceptance(
             }
         )
 
+    # Both flagship comparators are mandatory. Missing ballot evidence must
+    # never redefine the evaluation protocol or silently pass coverage.
+    mandatory_comparators = ("pinned_clarity", "dated_krea")
     explicit_comps = submission.get("required_comparators")
-    if explicit_comps:
-        required_comparators = [str(c) for c in explicit_comps]
-    elif valid_ballots:
-        required_comparators = list(dict.fromkeys(str(b["comparator"]) for b in valid_ballots))
-    else:
-        required_comparators = ["pinned_clarity", "dated_krea"]
+    declared_comparators = (
+        [str(comp) for comp in explicit_comps]
+        if isinstance(explicit_comps, (list, tuple)) else []
+    )
+    required_comparators = list(dict.fromkeys(
+        [*mandatory_comparators, *declared_comparators]
+    ))
 
     by_comparator: dict[str, dict[str, Any]] = {}
     comparator_failures: list[str] = []
