@@ -350,6 +350,28 @@ class BatchRunnerTests(unittest.TestCase):
             with Image.open(out_dir / "rotated.png") as output:
                 self.assertEqual(output.size, (4, 6))
 
+    def test_deterministic_bicubic_rejects_high_bit_depth_input(self) -> None:
+        script = Path(__file__).resolve().parents[1] / "scripts/batch-run.py"
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            inputs = root / "inputs"
+            inputs.mkdir()
+            Image.fromarray(np.full((4, 4), 4096, dtype=np.uint16)).save(inputs / "depth.png")
+            batch_dir, out_dir = root / "batch", root / "out"
+            subprocess.run(
+                [sys.executable, str(script), "enqueue", "--batch-dir", str(batch_dir),
+                 "--input-dir", str(inputs), "--output-dir", str(out_dir),
+                 "--handler", "deterministic_bicubic"],
+                check=True, capture_output=True, text=True,
+            )
+            completed = subprocess.run(
+                [sys.executable, str(script), "run", "--batch-dir", str(batch_dir)],
+                check=True, capture_output=True, text=True,
+            )
+            item = json.loads(completed.stdout)["items"][0]
+            self.assertEqual(item["status"], "failed")
+            self.assertIn("high-precision", item["error"])
+
     def test_persisted_budgets_and_packshot_extension_preserved_across_cli_reopen(self) -> None:
         script = Path(__file__).resolve().parents[1] / "scripts/batch-run.py"
         with tempfile.TemporaryDirectory() as tmp:
