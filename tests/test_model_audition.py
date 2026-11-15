@@ -103,13 +103,16 @@ class ModelAuditionTests(unittest.TestCase):
             )
             self.assertEqual(len(crops), 4)
             by_key = {(c["region"], c["zoom"]): c for c in crops}
-            self.assertEqual((by_key[("full_frame", 1)]["width"], by_key[("full_frame", 1)]["height"]), (128, 64))
-            self.assertEqual((by_key[("full_frame", 2)]["width"], by_key[("full_frame", 2)]["height"]), (256, 128))
-            self.assertEqual((by_key[("crema", 1)]["width"], by_key[("crema", 1)]["height"]), (40, 16))
-            self.assertEqual((by_key[("crema", 2)]["width"], by_key[("crema", 2)]["height"]), (80, 32))
+            self.assertEqual((by_key[("full_frame", 1)]["width"], by_key[("full_frame", 1)]["height"]), (64, 64))
+            self.assertEqual((by_key[("full_frame", 2)]["width"], by_key[("full_frame", 2)]["height"]), (128, 128))
+            self.assertEqual((by_key[("crema", 1)]["width"], by_key[("crema", 1)]["height"]), (20, 16))
+            self.assertEqual((by_key[("crema", 2)]["width"], by_key[("crema", 2)]["height"]), (40, 32))
             for c in crops:
-                with Image.open(c["path"]) as im:
-                    self.assertEqual((im.width, im.height), (c["width"], c["height"]))
+                for role, path_key in (("candidate", "candidate_path"), ("bicubic", "bicubic_path")):
+                    with Image.open(c[path_key]) as im:
+                        self.assertEqual((im.width, im.height), (c["width"], c["height"]))
+                        self.assertEqual(im.mode, "RGB")
+                self.assertNotEqual(c["candidate_path"], c["bicubic_path"])
 
             with self.assertRaises(DimensionMismatchError):
                 generate_side_by_side_crops(

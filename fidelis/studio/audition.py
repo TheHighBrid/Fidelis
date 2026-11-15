@@ -87,7 +87,7 @@ def generate_side_by_side_crops(
     source_shape: tuple[int, int] | None = None,
     roi_space: str = "target",
 ) -> list[dict[str, Any]]:
-    """Generate native 100% and 200% pixel-exact side-by-side PNGs ([candidate | bicubic])."""
+    """Generate independent candidate and bicubic PNGs at native 100% and 200% zoom."""
     cand = _validate_rgb_uint8(candidate_rgb, "candidate_rgb")
     bic = _enforce_exact_shape(bicubic_rgb, cand.shape, "bicubic_rgb")
     h, w, _ = cand.shape
@@ -108,32 +108,29 @@ def generate_side_by_side_crops(
     for region_id, region_kind, (rx, ry, rw, rh) in regions:
         cand_crop = cand[ry : ry + rh, rx : rx + rw]
         bic_crop = bic[ry : ry + rh, rx : rx + rw]
-        pair_arr = np.concatenate([cand_crop, bic_crop], axis=1)
-        pair_img = Image.fromarray(pair_arr)
-
         for zoom in zoom_factors:
             z = int(zoom)
             if z < 1:
                 raise ValueError(f"zoom_factor must be >= 1, got {zoom}")
-            if z == 1:
-                zoomed_img = pair_img
-            else:
-                zoomed_img = pair_img.resize(
-                    (pair_arr.shape[1] * z, pair_arr.shape[0] * z),
-                    Image.Resampling.NEAREST,
-                )
-            crop_filename = f"{case_id}__{region_id}__{z * 100}pct.png"
-            crop_path = out_root / crop_filename
-            zoomed_img.save(crop_path, format="PNG")
+            dimensions = (rw * z, rh * z)
+            paths = {}
+            for role, pixels in (("candidate", cand_crop), ("bicubic", bic_crop)):
+                image = Image.fromarray(pixels)
+                if z != 1:
+                    image = image.resize(dimensions, Image.Resampling.NEAREST)
+                path = out_root / f"{case_id}__{region_id}__{z * 100}pct__{role}.png"
+                image.save(path, format="PNG")
+                paths[role] = str(path)
             crops.append(
                 {
                     "region": region_id,
                     "kind": region_kind,
                     "zoom": z,
                     "zoom_label": f"{z * 100}%",
-                    "path": str(crop_path),
-                    "width": int(zoomed_img.width),
-                    "height": int(zoomed_img.height),
+                    "candidate_path": paths["candidate"],
+                    "bicubic_path": paths["bicubic"],
+                    "width": int(dimensions[0]),
+                    "height": int(dimensions[1]),
                     "rect": [int(rx), int(ry), int(rw), int(rh)],
                 }
             )
@@ -168,18 +165,22 @@ def render_audition_html(report: Mapping[str, Any], output_html: str | Path) -> 
 
         crop_html = []
         for crop in case.get("crops", []):
-            b64 = _encode_png_b64(Path(crop["path"]))
-            if not b64:
+            candidate_b64 = _encode_png_b64(Path(crop["candidate_path"]))
+            bicubic_b64 = _encode_png_b64(Path(crop["bicubic_path"]))
+            if not candidate_b64 or not bicubic_b64:
                 continue
+            region = html.escape(str(crop["region"]))
+            zoom_label = html.escape(str(crop["zoom_label"]))
             crop_html.append(
                 f"""
                 <div class="crop-card">
                   <div class="crop-hdr">
-                    <strong>{html.escape(str(crop['region']))}</strong>
-                    <span>{html.escape(str(crop['kind']))} &bull; {html.escape(str(crop['zoom_label']))} ({crop['width']}x{crop['height']})</span>
+                    <strong>{region}</strong>
+                    <span>{html.escape(str(crop['kind']))} &bull; {zoom_label} ({crop['width']}x{crop['height']})</span>
                   </div>
-                  <div class="crop-img-wrap">
-                    <img src="{b64}" alt="{html.escape(str(crop['region']))} {html.escape(str(crop['zoom_label']))}">
+                  <div class="crop-pair">
+                    <div class="crop-img-wrap"><strong>Fidelis candidate</strong><img src="{candidate_b64}" alt="{region} {zoom_label} candidate"></div>
+                    <div class="crop-img-wrap"><strong>4x bicubic reference</strong><img src="{bicubic_b64}" alt="{region} {zoom_label} bicubic"></div>
                   </div>
                 </div>"""
             )
@@ -229,7 +230,8 @@ def render_audition_html(report: Mapping[str, Any], output_html: str | Path) -> 
   .crops-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 16px; }}
   .crop-card {{ background: #0d1117; border: 1px solid #30363d; border-radius: 6px; overflow: hidden; }}
   .crop-hdr {{ padding: 8px 12px; border-bottom: 1px solid #30363d; display: flex; justify-content: space-between; font-size: 12px; }}
-  .crop-img-wrap {{ overflow: auto; padding: 8px; text-align: center; }}
+  .crop-pair {{ display: flex; gap: 8px; align-items: flex-start; }}
+  .crop-img-wrap {{ flex: 1; min-width: 0; overflow: auto; padding: 8px; text-align: center; }}
   .crop-img-wrap img {{ max-width: 100%; height: auto; image-rendering: pixelated; }}
 </style>
 </head>
@@ -237,7 +239,7 @@ def render_audition_html(report: Mapping[str, Any], output_html: str | Path) -> 
   <div class="header">
     <div>
       <h1>Fidelis Visual Audition &amp; Benchmark Report</h1>
-      <div class="muted">Report Type: <strong>MODEL_VS_BICUBIC_AUDITION</strong> &bull; Left: Candidate+Guard | Right: 4x Bicubic</div>
+      <div class="muted">Report Type: <strong>MODEL_VS_BICUBIC_AUDITION</strong> &bull; Independent images: candidate and 4x bicubic</div>
     </div>
     <span class="badge" style="background:{'#238636' if summary.get('all_passed') else '#da3633'}">
       {summary.get('passed_cases', 0)}/{summary.get('total_cases', 0)} PASSED
