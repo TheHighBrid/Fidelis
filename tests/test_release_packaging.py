@@ -313,10 +313,10 @@ class ReleasePackagingAndUpgradeTests(unittest.TestCase):
             }
             with sqlite3.connect(gen_root / "runs" / "generation.sqlite3") as conn:
                 conn.execute(
-                    "CREATE TABLE runs (run_id TEXT PRIMARY KEY, record TEXT NOT NULL)"
+                    "CREATE TABLE runs (id TEXT PRIMARY KEY, record TEXT NOT NULL)"
                 )
                 conn.execute(
-                    "INSERT INTO runs (run_id, record) VALUES (?, ?)",
+                    "INSERT INTO runs (id, record) VALUES (?, ?)",
                     (run_id, json.dumps(run_record)),
                 )
 
@@ -332,11 +332,11 @@ class ReleasePackagingAndUpgradeTests(unittest.TestCase):
             }
             with sqlite3.connect(gen_root / "queue.sqlite3") as conn:
                 conn.execute(
-                    "CREATE TABLE tasks (idx INTEGER NOT NULL, task_id TEXT PRIMARY KEY, record TEXT NOT NULL)"
+                    "CREATE TABLE tasks (id TEXT PRIMARY KEY, record TEXT NOT NULL)"
                 )
                 conn.execute(
-                    "INSERT INTO tasks (idx, task_id, record) VALUES (?, ?, ?)",
-                    (0, task_id, json.dumps(task_record)),
+                    "INSERT INTO tasks (id, record) VALUES (?, ?)",
+                    (task_id, json.dumps(task_record)),
                 )
 
             pre_verify = verify_workspace_integrity(region_root, gen_root)
