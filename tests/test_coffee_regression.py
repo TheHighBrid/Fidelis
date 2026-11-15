@@ -243,4 +243,9 @@ def test_coffee_texture_preserving_enhancement_passes_end_to_end(tmp_path: Path)
     assert len(ballot["items"]) == 1
     assert len(c_rep["crops"]) >= 2
     for crop in c_rep["crops"]:
-        assert Path(crop["path"]).is_file()
+        for key in ("candidate_path", "bicubic_path"):
+            path = Path(crop[key])
+            assert path.is_file()
+            with Image.open(path) as image:
+                assert image.size == (crop["width"], crop["height"])
+        assert crop["candidate_path"] != crop["bicubic_path"]
