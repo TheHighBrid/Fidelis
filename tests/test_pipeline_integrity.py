@@ -119,6 +119,14 @@ with Image.open(source) as image:
         self.assertEqual(result['status'],'unreachable')
         self.assertLessEqual(request.call_args.kwargs['timeout'],2.)
 
+    def test_invalid_telemetry_scheme_does_not_abort_pipeline(self):
+        result = self.pipeline.run(self.input, self.output, tiled=False, portrait=False,
+                                   text_preserve=False, color_fix='none', post_telemetry=True,
+                                   telemetry_endpoint='ftp://127.0.0.1/trace')
+        self.assertFalse(result.telemetry_posted)
+        self.assertEqual(result.telemetry_response['status'], 'unreachable')
+        self.assertIn('http or https', result.telemetry_response['error'])
+
     def test_cli_can_print_missing_metrics_without_invented_defaults(self):
         ground = self.root/'wrong reference.png'
         Image.new('RGB',(2,2)).save(ground)
