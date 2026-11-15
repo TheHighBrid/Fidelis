@@ -19,7 +19,7 @@ The five changes were also tested together on a local extracted snapshot: **33 t
 
 ## Independent integrated verification
 
-The combined-head PR #12 CI run [43673811216](https://github.com/TheHighBrid/Fidelis/actions/runs/43673811216) must be independently checked before calling its aggregate matrix green. The five individual PR results do not replace combined-head evidence.
+On 2026-11-15, the combined-head PR #12 CI run [43673811216](https://github.com/TheHighBrid/Fidelis/actions/runs/43673811216) was independently queried through GitHub's run API. It reported `status: completed`, `conclusion: success`, and `head_sha: 929334bed65de8db54e4a1bc6732f7176a91c5e6`. The five individual PR results therefore have combined-head CI evidence. This remains CI evidence only; it does not replace a review/merge decision or any live, device, corpus, comparator, deployment, or release evidence.
 
 ## Unresolved gates
 
