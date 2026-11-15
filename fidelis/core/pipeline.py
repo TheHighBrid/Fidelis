@@ -649,22 +649,21 @@ class UpscalePipeline:
         elif "project=" not in url:
             url = f"{url}&project=fidelis"
 
-        parsed_scheme = urllib.parse.urlparse(url).scheme.lower()
-        if parsed_scheme not in ("http", "https"):
-            raise ValueError(f"Telemetry URL must use http or https scheme: {url}")
-
-        data = json.dumps(payload).encode("utf-8")
-        req = urllib.request.Request(
-            url,
-            data=data,
-            headers={
-                "Content-Type": "application/json",
-                "User-Agent": "Fidelis-Pipeline/2.0",
-                "Accept": "application/json",
-            },
-            method="POST",
-        )
         try:
+            parsed_scheme = urllib.parse.urlparse(url).scheme.lower()
+            if parsed_scheme not in ("http", "https"):
+                raise ValueError(f"Telemetry URL must use http or https scheme: {url}")
+            data = json.dumps(payload).encode("utf-8")
+            req = urllib.request.Request(
+                url,
+                data=data,
+                headers={
+                    "Content-Type": "application/json",
+                    "User-Agent": "Fidelis-Pipeline/2.0",
+                    "Accept": "application/json",
+                },
+                method="POST",
+            )
             with urllib.request.urlopen(req, timeout=2.0) as resp:  # nosec B310
                 resp_text = resp.read().decode("utf-8")
                 try:
