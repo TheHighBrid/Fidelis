@@ -271,6 +271,8 @@ def _evaluate_output_record(
         ground_truth_bgr=gt_bgr,
         ground_truth_requested=ground_truth_path is not None,
     )
+    if ground_truth_path is not None and isinstance(case.get("ground_truth"), dict):
+        context["ground_truth_sha256"] = case["ground_truth"].get("sha256")
     scale_matched = (
         measure_scale_matched_metrics(out_bgr, bicubic_bgr, src_bgr, rois=rois)
         if bicubic_bgr is not None

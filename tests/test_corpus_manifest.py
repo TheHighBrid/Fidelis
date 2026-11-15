@@ -75,6 +75,18 @@ class CorpusTests(unittest.TestCase):
         Image.new('RGB',(8,6),(255,255,255)).save(self.root/'image-00.png')
         self.assertIn('source_fingerprint_changed',self.report()['cases'][0]['blockers'])
 
+    def test_changed_paired_ground_truth_invalidates_lock(self):
+        reference=self.root/'reference-00.png'
+        Image.new('RGB',(16,12),(20,30,40)).save(reference)
+        case=self.manifest['cases'][0]
+        case['ground_truth_path']=reference.name
+        case['ground_truth']={'path':reference.name,**inspect_image(reference)}
+        lock=freeze(self.manifest,PROTOCOL,SLOTS,self.root)
+        self.assertTrue(verify(lock,self.root)['production_ready'])
+        Image.new('RGB',(16,12),(90,80,70)).save(reference)
+        self.assertIn('ground_truth_fingerprint_changed',self.report()['cases'][0]['blockers'])
+        with self.assertRaises(ValueError):verify(lock,self.root)
+
     def test_missing_source_or_invalid_dimensions_fail_readiness(self):
         (self.root/'image-00.png').unlink()
         self.assertIn('source_missing',self.report()['cases'][0]['blockers'])
