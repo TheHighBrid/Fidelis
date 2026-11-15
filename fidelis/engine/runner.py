@@ -118,8 +118,10 @@ class CallableRestorationRunner:
 
 
 def _probe_module(name: str) -> tuple[bool, str | None]:
+    if name not in ("onnxruntime", "torch", "spandrel"):
+        return False, f"untrusted module {name!r}"
     try:
-        mod = importlib.import_module(name)
+        mod = importlib.import_module(name)  # nosec B102 # nosemgrep
         return True, getattr(mod, "__version__", None)
     except Exception as exc:
         return False, str(exc)

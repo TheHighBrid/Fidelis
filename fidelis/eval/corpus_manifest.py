@@ -113,7 +113,7 @@ def audit(manifest, protocol, slots, root):
         group=case.get('leakage_group')
         if not isinstance(group,str) or not group.strip():issues.append('leakage_group_unresolved')
         target=case.get('target_dimensions')
-        if not isinstance(target,list) or len(target)!=2 or any(type(v) is not int or not 0<v<=32768 for v in target):
+        if not isinstance(target,list) or len(target)!=2 or any(not isinstance(v,int) or isinstance(v,bool) or not 0<v<=32768 for v in target):
             issues.append('target_dimensions_missing_or_invalid')
         if case.get('expected_behavior') not in ('enhance','reject_unsupported_input'):issues.append('expected_behavior_unresolved')
         rois=case.get('rois')
@@ -127,7 +127,7 @@ def audit(manifest, protocol, slots, root):
             roi_ids.add(rid)
             if kind not in ROI_TYPES or roi.get('policy') not in ('preserve','texture_allowed'):
                 raise ValueError('Invalid ROI type/policy')
-            if not isinstance(rect,list) or len(rect)!=4 or any(type(v) is not int for v in rect):raise ValueError('ROI rect must contain four integers')
+            if not isinstance(rect,list) or len(rect)!=4 or any(not isinstance(v,int) or isinstance(v,bool) for v in rect):raise ValueError('ROI rect must contain four integers')
             x,y,w,h=rect
             if x<0 or y<0 or w<1 or h<1 or (observed and (x+w>observed['dimensions'][0] or y+h>observed['dimensions'][1])):
                 issues.append('roi_outside_source')

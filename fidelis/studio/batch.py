@@ -66,13 +66,13 @@ class BatchRunner:
         max_retries: int,
         cost_budget_usd: float | None,
     ) -> tuple[int, int, int, int, float | None]:
-        if type(max_workers) is not int or not 1 <= max_workers <= 4:
+        if not isinstance(max_workers, int) or isinstance(max_workers, bool) or not 1 <= max_workers <= 4:
             raise ValueError("max_workers must be an integer in [1, 4]")
-        if type(max_items) is not int or not 1 <= max_items <= 10_000:
+        if not isinstance(max_items, int) or isinstance(max_items, bool) or not 1 <= max_items <= 10_000:
             raise ValueError("max_items must be an integer in [1, 10000]")
-        if type(disk_budget_bytes) is not int or disk_budget_bytes <= 0:
+        if not isinstance(disk_budget_bytes, int) or isinstance(disk_budget_bytes, bool) or disk_budget_bytes <= 0:
             raise ValueError("disk_budget_bytes must be a positive integer")
-        if type(max_retries) is not int or not 0 <= max_retries <= 10:
+        if not isinstance(max_retries, int) or isinstance(max_retries, bool) or not 0 <= max_retries <= 10:
             raise ValueError("max_retries must be an integer in [0, 10]")
         if cost_budget_usd is not None and (
             not isinstance(cost_budget_usd, (int, float))

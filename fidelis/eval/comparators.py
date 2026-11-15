@@ -79,7 +79,7 @@ def _deterministic_resample_runner(
             cost_usd=0.0,
             error="Rejected negative edge case per expected_behavior",
         )
-    if not isinstance(target := case.get("target_dimensions"), list) or len(target) != 2 or any(type(v) is not int or v <= 0 for v in target):
+    if not isinstance(target := case.get("target_dimensions"), list) or len(target) != 2 or any(not isinstance(v, int) or isinstance(v, bool) or v <= 0 for v in target):
         return ComparatorOutput(
             output_path=None,
             status="unavailable",
@@ -236,7 +236,7 @@ def _evaluate_output_record(
         return {**base, "status": "failed", "error": f"Comparator output missing: {out_path}"}
 
     target = case.get("target_dimensions")
-    if not isinstance(target, list) or len(target) != 2 or any(type(v) is not int or v <= 0 for v in target):
+    if not isinstance(target, list) or len(target) != 2 or any(not isinstance(v, int) or isinstance(v, bool) or v <= 0 for v in target):
         return {
             **base,
             "status": "unavailable",
@@ -352,7 +352,7 @@ def run_comparators(
         if (
             isinstance(target_dims, list)
             and len(target_dims) == 2
-            and all(type(v) is int and v > 0 for v in target_dims)
+            and all(isinstance(v, int) and not isinstance(v, bool) and v > 0 for v in target_dims)
             and src_path.is_file()
             and case.get("expected_behavior") != "reject_unsupported_input"
         ):

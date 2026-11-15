@@ -31,6 +31,8 @@ engines:
       - "docs/**"
       - "deploy/**"
   duplication:
-    enabled: false
+    exclude_paths:
+      - "**"
   metric:
-    enabled: false
+    exclude_paths:
+      - "**"
