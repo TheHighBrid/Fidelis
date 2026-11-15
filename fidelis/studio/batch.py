@@ -590,8 +590,14 @@ class BatchRunner:
 
             dest = Path(snapshot["output_path"])
             dest.parent.mkdir(parents=True, exist_ok=True)
-            sidecar_tmp = self.tmp_dir / f"{snapshot['item_id']}.recipe.json.part"
             sidecar_dest = Path(f"{dest}.recipe.json")
+            # `os.replace` is only atomic within one filesystem.  Batch state
+            # may deliberately live on a local disk while exports target a
+            # mounted or removable volume, so publish through destination-local
+            # staging rather than the batch's own temporary directory.
+            stage_token = f".{dest.name}.{snapshot['item_id']}.{snapshot['attempts']}"
+            output_stage = dest.parent / f"{stage_token}.part"
+            sidecar_stage = sidecar_dest.parent / f"{stage_token}.recipe.json.part"
 
             record_sidecar = {
                 "schema_version": 1,
@@ -618,9 +624,12 @@ class BatchRunner:
                     raise BudgetExceeded(
                         f"Disk budget exceeded writing {dest.name}: {used + additional} > {self.disk_budget_bytes}"
                     )
-                sidecar_tmp.write_bytes(sidecar_bytes)
-                os.replace(out_candidate, dest)
-                os.replace(sidecar_tmp, sidecar_dest)
+                shutil.copyfile(out_candidate, output_stage)
+                sidecar_stage.write_bytes(sidecar_bytes)
+                os.replace(output_stage, dest)
+                os.replace(sidecar_stage, sidecar_dest)
+                if in_tmp:
+                    out_candidate.unlink(missing_ok=True)
 
             finished = time.time()
             with self._lock, self._db() as db:
@@ -643,6 +652,10 @@ class BatchRunner:
                 )
                 self._save_item(db, cur)
         except Exception as exc:  # noqa: BLE001
+            if 'output_stage' in locals():
+                output_stage.unlink(missing_ok=True)
+            if 'sidecar_stage' in locals():
+                sidecar_stage.unlink(missing_ok=True)
             tmp_out.unlink(missing_ok=True)
             if out_candidate.resolve().parent == self.tmp_dir.resolve():
                 out_candidate.unlink(missing_ok=True)
