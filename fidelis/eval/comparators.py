@@ -8,6 +8,7 @@ reported as unavailable/skipped rather than simulated or omitted from denominato
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import random
@@ -499,11 +500,17 @@ def build_blind_pairwise_manifest(
         left_comp, right_comp = (candidate_b, candidate_a) if swap else (candidate_a, candidate_b)
         orig_left = Path(case["outputs"][left_comp]["output_path"])
         orig_right = Path(case["outputs"][right_comp]["output_path"])
-        base_blind_root = (
+        blind_parent = (
             Path(blind_dir)
             if blind_dir is not None
             else orig_left.parent.parent / "blind_pairs" / f"{split}_{seed}"
         )
+        # A pairing needs its own opaque namespace.  Otherwise producing a
+        # second comparator ballot with the same seed overwrites images that
+        # were already handed to reviewers with a different answer key.
+        pairing_key = "\0".join(sorted((candidate_a, candidate_b))).encode("utf-8")
+        pairing_namespace = hashlib.sha256(pairing_key).hexdigest()[:16]
+        base_blind_root = blind_parent / f"pairing-{pairing_namespace}"
         pair_dir = base_blind_root / pair_id
         anon_left = pair_dir / f"option_left{orig_left.suffix or '.png'}"
         anon_right = pair_dir / f"option_right{orig_right.suffix or '.png'}"
