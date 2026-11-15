@@ -130,7 +130,7 @@ class EvaluationCorpus:
 
         Generates calibrated high-order synthetic pairs from available seeds if a bucket is empty.
         """
-        buckets_present = {item.bucket for item in self.items}
+        _buckets_present = {item.bucket for item in self.items}
         gen = DegradationGenerator(scale=4, seed=42)
 
         # Base seed image

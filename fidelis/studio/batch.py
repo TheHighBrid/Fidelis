@@ -234,7 +234,7 @@ class BatchRunner:
             row = db.execute("SELECT config FROM batch_config WHERE id=1").fetchone()
             return json.loads(row[0]) if row else {}
 
-    def __enter__(self) -> "BatchRunner":
+    def __enter__(self) -> BatchRunner:  # noqa: PYI034
         return self
 
     def __exit__(self, *args: object) -> None:
@@ -393,7 +393,7 @@ class BatchRunner:
                     )
                 recipe = entry.get("recipe")
                 if not isinstance(recipe, dict):
-                    raise ValueError("Each batch entry must include a dict recipe")
+                    raise TypeError("Each batch entry must include a dict recipe")
                 est_cost = float(entry.get("estimated_cost_usd", 0.0))
                 if not math.isfinite(est_cost) or est_cost < 0:
                     raise ValueError("estimated_cost_usd must be finite and >= 0")
@@ -642,7 +642,7 @@ class BatchRunner:
                     }
                 )
                 self._save_item(db, cur)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             tmp_out.unlink(missing_ok=True)
             if out_candidate.resolve().parent == self.tmp_dir.resolve():
                 out_candidate.unlink(missing_ok=True)
@@ -776,9 +776,7 @@ class BatchRunner:
             eligible: list[dict[str, Any]] = []
             for item in all_items:
                 st = item["status"]
-                if st in ("pending", "interrupted"):
-                    eligible.append(item)
-                elif (
+                if st in ("pending", "interrupted") or (
                     retry_failed
                     and st == "failed"
                     and not item.get("paid_work_committed")

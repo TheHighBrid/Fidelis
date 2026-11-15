@@ -151,7 +151,8 @@ class JobStore:
         if physical + additional > self.disk_budget:
             raise BudgetExceeded("Insufficient storage headroom for an atomic revision")
 
-    def create(self, base, texture, *, masks=None, blend=RegionBlend(), label="Untitled", profile="luxury_apparel"):
+    def create(self, base, texture, *, masks=None, blend=None, label="Untitled", profile="luxury_apparel"):
+        blend = RegionBlend() if blend is None else blend
         if profile not in PROFILES:
             raise ValueError("Unknown profile")
         if profile == "packshot_strict" and any(getattr(blend, key) != 0 for key in ("skin", "hair", "fabric")):

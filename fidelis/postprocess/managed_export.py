@@ -201,7 +201,7 @@ def _parse_trc_tag(raw: bytes, offset: int, size: int) -> _TrcCurve | None:
             struct.unpack(">i", raw[offset + 12 + i * 4 : offset + 16 + i * 4])[0] / 65536.0
             for i in range(n_params)
         )
-        return _TrcCurve("para", (float(ftype),) + params)
+        return _TrcCurve("para", (float(ftype), *params))
     return None
 
 
@@ -658,8 +658,10 @@ def compose_managed_passes(
     base_icc_path = "identity"
     tex_icc_path = "identity"
 
-    if icc_policy != "preserve" or (base.icc_profile is not None and output_icc is None):
-        if base.icc_profile != output_icc:
+    if (
+        (icc_policy != "preserve" or (base.icc_profile is not None and output_icc is None))
+        and base.icc_profile != output_icc
+    ):
             base_work, base_icc_path = convert_icc_pixels(
                 base_work,
                 base.icc_profile,

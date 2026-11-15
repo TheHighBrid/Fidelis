@@ -28,7 +28,6 @@ class BackendUnavailable(RuntimeError):
 
 class GenerationCancelled(RuntimeError):
     """Local polling abandoned; remote work may still be running."""
-    pass
 
 
 class SubmissionUnknown(RuntimeError):
@@ -60,12 +59,12 @@ def validate_workflow(bundle, schema):
     dependencies = {}
     for node_id, node in graph.items():
         if not isinstance(node_id, str) or not isinstance(node, dict):
-            raise ValueError('Invalid workflow node')
+            raise TypeError('Invalid workflow node')
         class_type, values = node.get('class_type'), node.get('inputs')
         if class_type not in schema:
             raise ValueError(f'Required node class is not installed: {class_type}')
         if not isinstance(values, dict):
-            raise ValueError('Node inputs must be an object')
+            raise TypeError('Node inputs must be an object')
         spec = schema[class_type].get('input', {})
         required = spec.get('required', {})
         if set(required) - set(values):
@@ -162,10 +161,10 @@ class ComfyTextureBackend:
             stats = self._json('GET', '/system_stats')
             schema = self._json('GET', '/object_info')
             if not isinstance(stats, dict) or not isinstance(schema, dict):
-                raise ValueError('Invalid ComfyUI capability response')
+                raise TypeError('Invalid ComfyUI capability response')
             return {'reachable': True, 'node_classes': sorted(schema),
                     'devices': stats.get('devices', []), 'live_inference_verified': False}
-        except (httpx.HTTPError, ValueError) as error:
+        except (httpx.HTTPError, ValueError, TypeError) as error:
             return {'reachable': False, 'reason': type(error).__name__, 'live_inference_verified': False}
 
     def default_cli_run_id(self, source_rgb, bundle, requested_address):

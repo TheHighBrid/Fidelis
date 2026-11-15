@@ -51,7 +51,7 @@ class DiffusionPresetsEngine:
         raw = self.get_preset(preset_name)
 
         base_steps = raw.get("diffusion_steps", 1)
-        base_guidance = raw.get("guidance_scale", 1.0)
+        _base_guidance = raw.get("guidance_scale", 1.0)
         linear_cfg = raw.get("linear_cfg", False)
         s_noise = raw.get("s_noise", 1.0)
         s_churn = raw.get("s_churn", 0.0)

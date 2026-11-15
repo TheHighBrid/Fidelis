@@ -355,7 +355,6 @@ def audit_release_archive(
     forbidden_matches: list[dict[str, str]] = []
 
     for entry in members:
-        entry_with_slash = entry + "/"
         for prefix in FORBIDDEN_ARCHIVE_PREFIXES:
             if entry.startswith(prefix.rstrip("/")) and (
                 entry == prefix.rstrip("/") or entry.startswith(prefix)

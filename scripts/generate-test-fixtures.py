@@ -55,7 +55,7 @@ def create_fixtures(out_dir: Path):
     pixels_fabric = img_fabric.load()
     for y in range(256):
         # Global fold luminance variation
-        fold = math.sin(x_fold := y / 30.0) * 20.0
+        fold = math.sin(y / 30.0) * 20.0
         for x in range(256):
             # Twill diagonal weave pattern (2x2 repeated structure)
             twill = 15 if ((x + y) % 4 < 2) else -15

@@ -396,7 +396,7 @@ def run_comparators(
                 res = runner(case, src_path, dest_png)
                 if res.elapsed_seconds is None and res.status == "completed" and not res.is_imported:
                     res = ComparatorOutput(**{**asdict(res), "elapsed_seconds": round(time.monotonic() - t0, 6)})
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 res = ComparatorOutput(
                     output_path=None,
                     status="failed",

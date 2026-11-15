@@ -64,13 +64,17 @@ def _luminance(rgb: np.ndarray) -> np.ndarray:
     return 0.2126 * arr[:, :, 0] + 0.7152 * arr[:, :, 1] + 0.0722 * arr[:, :, 2]
 
 
+class RoiValidationError(ValueError, TypeError):
+    """Raised when ROI declaration is structurally invalid or has wrong types."""
+
+
 def validate_rois(
     rois: Sequence[dict[str, Any]],
     shape: tuple[int, int],
 ) -> list[dict[str, Any]]:
     """Validate explicit ROI declarations against image (height, width)."""
     if not isinstance(rois, (list, tuple)):
-        raise ValueError("rois must be a sequence of ROI dictionaries")
+        raise RoiValidationError("rois must be a sequence of ROI dictionaries")
     height, width = int(shape[0]), int(shape[1])
     if height <= 0 or width <= 0:
         raise ValueError("shape dimensions must be positive integers")
@@ -79,7 +83,7 @@ def validate_rois(
     normalized: list[dict[str, Any]] = []
     for entry in rois:
         if not isinstance(entry, dict):
-            raise ValueError("Each ROI entry must be a JSON/dict object")
+            raise RoiValidationError("Each ROI entry must be a JSON/dict object")
         rid = entry.get("id")
         if not isinstance(rid, str) or not rid.strip() or rid in seen_ids:
             raise ValueError(f"Missing, empty, or duplicate ROI id: {rid!r}")
@@ -181,9 +185,10 @@ def build_roi_protection_masks(
 
     for roi in norm_rois:
         x, y, w, h = roi["rect"]
-        if (roi["policy"] == "preserve" and roi["override"] is None) or roi["override"] == "lock":
-            if np.any(roi_locked[y:y + h, x:x + w] == 1.0):
-                locked_ids.append(roi["id"])
+        if (
+            (roi["policy"] == "preserve" and roi["override"] is None) or roi["override"] == "lock"
+        ) and np.any(roi_locked[y:y + h, x:x + w] == 1.0):
+            locked_ids.append(roi["id"])
 
     protected = np.maximum(user_protected, roi_locked).astype(np.float32)
 
@@ -428,8 +433,7 @@ def screen_internal_drift(
             blocks_evaluated += 1
             if coh is not None:
                 coherence_values.append(coh)
-            if shift_px > max_block_shift_px:
-                max_block_shift_px = shift_px
+            max_block_shift_px = max(max_block_shift_px, shift_px)
             in_texture_zone = bool(np.any(texture_allowed_map[y0:y1, x0:x1]))
             in_unlocked_region = prot_mask is not None and not bool(np.any(prot_mask[y0:y1, x0:x1] == 1.0))
             coh_flag = (

@@ -123,7 +123,7 @@ def _probe_module(name: str) -> tuple[bool, str | None]:
     try:
         mod = importlib.import_module(name)  # nosec B102 # nosemgrep
         return True, getattr(mod, "__version__", None)
-    except Exception as exc:
+    except (ImportError, OSError, RuntimeError, ValueError) as exc:
         return False, str(exc)
 
 

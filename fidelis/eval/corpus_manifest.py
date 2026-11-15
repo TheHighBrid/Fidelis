@@ -49,7 +49,7 @@ def inspect_image(path):
 
 
 def validate_design(protocol, slots):
-    if not isinstance(protocol,dict) or not isinstance(slots,dict):raise ValueError('Protocol and slot plan must be objects')
+    if not isinstance(protocol,dict) or not isinstance(slots,dict):raise TypeError('Protocol and slot plan must be objects')
     if protocol.get('schema_version')!=1 or protocol.get('categories')!={key:12 for key in CATEGORIES}:
         raise ValueError('Protocol v1 requires five declared categories with 12 cases each')
     if protocol.get('split')!={'calibration':30,'held_out':30}:
@@ -57,7 +57,7 @@ def validate_design(protocol, slots):
     if slots.get('schema_version')!=1 or slots.get('protocol_sha256')!=digest(protocol):
         raise ValueError('Slot plan/protocol hash mismatch')
     rows=slots.get('slots',[])
-    if not isinstance(rows,list) or any(not isinstance(row,dict) for row in rows):raise ValueError('Slot records must be objects')
+    if not isinstance(rows,list) or any(not isinstance(row,dict) for row in rows):raise TypeError('Slot records must be objects')
     if len(rows)!=60 or len({r['id'] for r in rows})!=60:raise ValueError('Exactly 60 unique slots required')
     counts=Counter((r['category'],r['split']) for r in rows)
     if counts!=Counter({(cat,split):6 for cat in CATEGORIES for split in ('calibration','held_out')}):
@@ -67,14 +67,14 @@ def validate_design(protocol, slots):
 
 def audit(manifest, protocol, slots, root):
     design=validate_design(protocol,slots)
-    if not isinstance(manifest,dict):raise ValueError('Manifest must be an object')
+    if not isinstance(manifest,dict):raise TypeError('Manifest must be an object')
     if manifest.get('schema_version')!=1 or manifest.get('protocol_sha256')!=digest(protocol) or manifest.get('slots_sha256')!=digest(slots):
         raise ValueError('Manifest schema/design hash mismatch')
     cases=manifest.get('cases')
     if not isinstance(cases,list) or len(cases)>1000:raise ValueError('Expected at most 1000 inventory records')
     ids=set();claimed={};groups={};hashes={};pixels={};rows=[];eligible=[]
     for case in cases:
-        if not isinstance(case,dict):raise ValueError('Case must be an object')
+        if not isinstance(case,dict):raise TypeError('Case must be an object')
         case_id=case.get('id')
         if not isinstance(case_id,str) or not re.fullmatch(r'[a-z0-9][a-z0-9_-]{0,79}',case_id) or case_id in ids:
             raise ValueError('Missing/duplicate/invalid case ID')
@@ -89,7 +89,7 @@ def audit(manifest, protocol, slots, root):
         elif slot_id is not None:raise ValueError('Regression assets cannot fill production slots')
         if case.get('category') not in CATEGORIES:raise ValueError('Unknown category')
         source=case.get('source')
-        if not isinstance(source,dict):raise ValueError('Source inventory is required')
+        if not isinstance(source,dict):raise TypeError('Source inventory is required')
         try:
             path=local_path(root,source.get('path'))
             if not path.is_file():issues.append('source_missing')
@@ -99,7 +99,7 @@ def audit(manifest, protocol, slots, root):
         except (OSError,ValueError,Image.DecompressionBombError):issues.append('source_invalid_or_unavailable')
         if case.get('source_kind')!='photograph':issues.append('not_a_photographic_production_case')
         rights=case.get('rights',{})
-        if not isinstance(rights,dict):raise ValueError('Rights must be an object')
+        if not isinstance(rights,dict):raise TypeError('Rights must be an object')
         if rights.get('status') not in ('unknown','approved','denied'):raise ValueError('Unknown rights status')
         if rights.get('status')!='approved' or rights.get('local_evaluation') is not True:issues.append('local_rights_unapproved')
         if rights.get('subject_consent') not in ('approved','not_required'):issues.append('subject_consent_unresolved')
@@ -117,11 +117,11 @@ def audit(manifest, protocol, slots, root):
             issues.append('target_dimensions_missing_or_invalid')
         if case.get('expected_behavior') not in ('enhance','reject_unsupported_input'):issues.append('expected_behavior_unresolved')
         rois=case.get('rois')
-        if not isinstance(rois,list):raise ValueError('ROIs must be a list')
+        if not isinstance(rois,list):raise TypeError('ROIs must be a list')
         roi_ids=set()
         if not rois:issues.append('critical_rois_unreviewed')
         for roi in rois:
-            if not isinstance(roi,dict):raise ValueError('ROI must be an object')
+            if not isinstance(roi,dict):raise TypeError('ROI must be an object')
             rid=roi.get('id');rect=roi.get('rect');kind=roi.get('kind')
             if not isinstance(rid,str) or not rid or rid in roi_ids:raise ValueError('Missing/duplicate ROI ID')
             roi_ids.add(rid)
@@ -132,11 +132,11 @@ def audit(manifest, protocol, slots, root):
             if x<0 or y<0 or w<1 or h<1 or (observed and (x+w>observed['dimensions'][0] or y+h>observed['dimensions'][1])):
                 issues.append('roi_outside_source')
         known_text=case.get('known_text')
-        if not isinstance(known_text,list):raise ValueError('known_text must be a list')
+        if not isinstance(known_text,list):raise TypeError('known_text must be a list')
         if case.get('text_review')!='completed':issues.append('text_review_incomplete')
         transcripts=set()
         for entry in known_text:
-            if not isinstance(entry,dict):raise ValueError('Text transcript must be an object')
+            if not isinstance(entry,dict):raise TypeError('Text transcript must be an object')
             if entry.get('roi_id') not in roi_ids or entry.get('roi_id') in transcripts or not isinstance(entry.get('text'),str) or not entry['text'].strip():
                 raise ValueError('Known text requires a unique valid ROI and nonempty transcript')
             transcripts.add(entry['roi_id'])
@@ -182,7 +182,7 @@ def freeze(manifest, protocol, slots, root):
 
 
 def verify(record, root):
-    if not isinstance(record,dict):raise ValueError('Corpus lock must be an object')
+    if not isinstance(record,dict):raise TypeError('Corpus lock must be an object')
     if record.get('schema_version')!=1 or record.get('record_type')!='unsigned_corpus_lock':raise ValueError('Invalid corpus lock')
     payload={k:v for k,v in record.items() if k!='lock_sha256'}
     if record.get('lock_sha256')!=digest(payload):raise ValueError('Corpus lock digest changed')

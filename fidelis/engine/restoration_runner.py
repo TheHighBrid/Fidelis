@@ -157,7 +157,7 @@ def _normalize_rois_for_guard(
     seen_ids: set[str] = set()
     for idx, entry in enumerate(rois):
         if not isinstance(entry, Mapping):
-            raise ValueError("Each ROI entry must be a mapping")
+            raise TypeError("Each ROI entry must be a mapping")
         kind = str(entry.get("kind", "fabric"))
         if kind not in VALID_ROI_KINDS:
             raise ValueError(f"ROI {entry.get('id', idx)}: invalid kind {kind!r}")
@@ -550,7 +550,8 @@ class RestorationRunner:
                 semantic_masks[channel][ry : ry + rh, rx : rx + rw] = 1.0
                 if r.get("override") == "unlock":
                     unlocked_mask[ry : ry + rh, rx : rx + rw] = 1.0
-            permitted = np.clip(sum(semantic_masks.values()), 0.0, 1.0) * masks["interior_texture"]
+            texture_allowed = np.maximum(masks["interior_texture"], np.clip(sum(semantic_masks.values()), 0.0, 1.0))
+            permitted = texture_allowed
             # An explicit unlock is a deliberate texture authorization even
             # when its original policy was preserve, so it cannot depend on
             # the texture-allowed interior mask. Explicit locks still win at

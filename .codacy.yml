@@ -30,9 +30,11 @@ engines:
       - "tests/**"
       - "docs/**"
       - "deploy/**"
-  duplication:
-    exclude_paths:
-      - "**"
-  metric:
-    exclude_paths:
-      - "**"
+
+duplication:
+  exclude_paths:
+    - "**"
+
+metric:
+  exclude_paths:
+    - "**"

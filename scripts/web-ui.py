@@ -64,7 +64,7 @@ try:
     from fidelis.postprocess.color_fix import stabilize_colors
     from fidelis.tune.optimizer import SelfImprovementEngine
     HAS_FIDELIS = True
-except Exception as e:
+except Exception:
     HAS_FIDELIS = False
 
 def get_installed_models():

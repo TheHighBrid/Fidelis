@@ -131,7 +131,7 @@ class FaceRestorer:
 
         for face in faces:
             bbox = face["bbox"]
-            landmarks = face["landmarks"]
+            _landmarks = face["landmarks"]
             bx, by, bw, bh = bbox
 
             # Crop margin (expanded bounding box for alignment)
