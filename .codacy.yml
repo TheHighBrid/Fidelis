@@ -30,11 +30,28 @@ engines:
       - "tests/**"
       - "docs/**"
       - "deploy/**"
+  eslint:
+    exclude_paths:
+      - "tests/**"
+      - "scripts/**"
+      - "fidelis/studio/**"
 
 duplication:
   exclude_paths:
-    - "**"
+    - "fidelis/**"
+    - "scripts/**"
+    - "tests/**"
+    - "docs/**"
+    - "**.py"
+    - "**.js"
+    - "**.mjs"
 
 metric:
   exclude_paths:
-    - "**"
+    - "fidelis/**"
+    - "scripts/**"
+    - "tests/**"
+    - "docs/**"
+    - "**.py"
+    - "**.js"
+    - "**.mjs"

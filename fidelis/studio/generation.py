@@ -35,7 +35,12 @@ class GenerationQueue:
 
     def __init__(self, root, store, bundle, *, address='http://127.0.0.1:8188',
                  capacity=4, max_records=64, deadline_seconds=300, backend=None):
-        if type(capacity) is not int or not 1 <= capacity <= 16 or type(max_records) is not int or not capacity <= max_records <= 1000:
+        if (
+            (not isinstance(capacity, int) or isinstance(capacity, bool))
+            or not 1 <= capacity <= 16
+            or (not isinstance(max_records, int) or isinstance(max_records, bool))
+            or not capacity <= max_records <= 1000
+        ):
             raise ValueError('Invalid queue bounds')
         if not 0 < deadline_seconds <= 3600:
             raise ValueError('Invalid polling deadline')
