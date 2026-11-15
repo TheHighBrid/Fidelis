@@ -248,6 +248,27 @@ class RestorationRunnerTests(unittest.TestCase):
             # Interior texture region must differ from base_4x (candidate blended in)
             self.assertFalse(np.array_equal(res.image[32:56, 32:56], base_4x[32:56, 32:56]))
 
+    def test_unknown_pixels_remain_on_precision_base_without_texture_roi(self) -> None:
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            src = _make_textured_rgb(16, 16, seed=11)
+            base = np.asarray(
+                Image.fromarray(src).resize((64, 64), Image.Resampling.BICUBIC),
+                dtype=np.uint8,
+            )
+            candidate = np.full_like(base, 255)
+            Image.fromarray(candidate).save(root / "sample.png")
+            runner = create_restoration_runner("imported", imported_dir=root)
+            for rois in ([], [{"id": "logo", "kind": "text", "policy": "preserve", "rect": [0, 0, 24, 24]}]):
+                with self.subTest(rois=rois):
+                    result = runner.run(
+                        src, scale=4, rois=rois, roi_space="target",
+                        apply_texture_guard=True, case_id="sample", use_sobel_heuristic=False,
+                    )
+                    np.testing.assert_array_equal(result.image, base)
+
     def test_to_comparator_runner_adapter_contract(self) -> None:
         import tempfile
 
