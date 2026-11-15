@@ -11,7 +11,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageCms
 
 from fidelis.engine import (
     BackendUnavailableError,
@@ -72,7 +72,6 @@ class RestorationRunnerTests(unittest.TestCase):
 
     def test_imported_backend_rejects_profiled_or_non_srgb_png_samples(self) -> None:
         import tempfile
-        from PIL import ImageCms
 
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
