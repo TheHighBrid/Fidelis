@@ -210,6 +210,19 @@ class ComparatorTests(unittest.TestCase):
         self.assertEqual(inc["status"], "incomplete")
         self.assertFalse(inc["meets_proposed_thresholds"])
 
+        # Different comparator pairings published with the same seed must not
+        # replace images from an already-issued ballot.
+        first_left = Path(ballot["items"][0]["option_left"])
+        first_bytes = first_left.read_bytes()
+        second_ballot, _ = build_blind_pairwise_manifest(
+            report, "fidelis", "bicubic", split="held_out", seed=99
+        )
+        self.assertNotEqual(
+            first_left.parent.parent,
+            Path(second_ballot["items"][0]["option_left"]).parent.parent,
+        )
+        self.assertEqual(first_left.read_bytes(), first_bytes)
+
         # An exported subset is also incomplete; omitted answer-key pairs must
         # not be treated as evidence that the reviewer completed no ballot.
         truncated = {"items": [copy.deepcopy(ballot["items"][0])]}
