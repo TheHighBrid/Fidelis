@@ -392,6 +392,7 @@ def measure_fabric_hardware_faithfulness(
     fabric_rois = [r for r in norm_rois if r["kind"] == "fabric"]
     fabric_reports: list[dict[str, Any]] = []
     fabric_passed = True
+    fabric_measurement_unavailable = False
 
     for r in fabric_rois:
         rx, ry, rw, rh = r["rect"]
@@ -399,14 +400,20 @@ def measure_fabric_hardware_faithfulness(
         yc = y_cand[ry:ry + rh, rx:rx + rw]
 
         if rw < 4 or rh < 4:
+            # Sobel and FFT metrics cannot describe a weave at this scale.  Do
+            # not turn a missing measurement into a perfect score: callers use
+            # this gate to decide whether a restoration is eligible to ship.
+            fabric_measurement_unavailable = True
+            fabric_passed = False
             fabric_reports.append(
                 {
                     "id": r["id"],
                     "rect": r["rect"],
-                    "weave_orientation_coherence": 1.0,
-                    "weave_fft_coherence": 1.0,
-                    "weave_energy_ratio": 1.0,
-                    "passed": True,
+                    "weave_orientation_coherence": None,
+                    "weave_fft_coherence": None,
+                    "weave_energy_ratio": None,
+                    "passed": False,
+                    "reason": "fabric_roi_too_small_to_measure",
                 }
             )
             continue
@@ -575,6 +582,7 @@ def measure_fabric_hardware_faithfulness(
     return {
         "fabric_rois_evaluated": len(fabric_reports),
         "fabric_weave_passed": bool(fabric_passed),
+        "fabric_measurement_unavailable": fabric_measurement_unavailable,
         "fabric_reports": fabric_reports,
         "hardware_seam_rois_evaluated": len(hw_seam_reports),
         "hardware_seam_passed": bool(hw_seam_passed),

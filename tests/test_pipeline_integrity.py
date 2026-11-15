@@ -194,5 +194,27 @@ class MetricReferenceTests(unittest.TestCase):
         self.assertIsNone(metrics['fabric_weave_coherence'])
         self.assertIsNone(metrics['fabric_weave_passed'])
 
+    def test_scale_matched_undersized_fabric_roi_is_unavailable_and_fails_closed(self):
+        metrics, context = measure_pipeline_metrics(
+            self.source,
+            self.output,
+            rois=[
+                {
+                    'id': 'fabric-too-small',
+                    'kind': 'fabric',
+                    'policy': 'texture_allowed',
+                    'rect': [8, 8, 3, 3],
+                },
+            ],
+            roi_space='target',
+        )
+        self.assertEqual(context['fabric_weave']['status'], 'unavailable')
+        self.assertEqual(
+            context['fabric_weave']['reason'], 'fabric_roi_too_small_to_measure'
+        )
+        self.assertIsNone(metrics['fabric_weave_coherence'])
+        self.assertFalse(metrics['fabric_weave_passed'])
+        self.assertFalse(metrics['all_detail_gates_passed'])
+
 
 if __name__ == '__main__': unittest.main()
