@@ -311,7 +311,11 @@ class ComfyRestorationBackend:
         self.bundle = bundle
         self.model_id = model_id
         self.deadline_seconds = float(deadline_seconds)
-        self.weights_sha256 = canonical_hash(bundle)
+        # A graph digest does not attest to model checkpoint bytes. Keep the
+        # workflow identity separate and mark weight provenance unavailable
+        # until a real checkpoint hash has been independently verified.
+        self.workflow_sha256 = canonical_hash(bundle)
+        self.weights_sha256 = "unavailable_unverified"
 
     def restore(
         self,
@@ -333,7 +337,7 @@ class ComfyRestorationBackend:
         out = _enforce_exact_shape(out_rgb, target_shape, "comfyui_output")
         return out, {
             "comfy_run_id": record.get("id", run_id),
-            "workflow_sha256": record.get("workflow_sha256", self.weights_sha256),
+            "workflow_sha256": record.get("workflow_sha256", self.workflow_sha256),
             "family": record.get("family", self.bundle.get("family")),
         }
 
