@@ -59,3 +59,9 @@ source-aligned luminance detail relative to the bicubic baseline. Where
 the model removes that detail, it blends back toward the baseline.
 This check does not establish perceptual quality and does not recover
 detail absent from the source.
+
+Unclassified regions (outside explicitly declared texture ROIs, or when
+`--rois-json` is omitted) remain strictly on the bicubic base, ensuring unknown
+or ambiguous contours receive no model hallucination. To permit model detail
+in specific zones, declare ROIs with `policy: "texture_allowed"` (or
+`override: "unlock"`).

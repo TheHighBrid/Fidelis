@@ -44,12 +44,19 @@ def compose_product(base, candidate, rois):
     edges = np.hypot(ndimage.sobel(gray, axis=0), ndimage.sobel(gray, axis=1))
     locked = ndimage.binary_dilation(edges > max(np.percentile(edges, 85), 15), iterations=6)
     texture_weight = texture_confidence(gray, candidate)
+    fabric_mask = np.array(
+        masks.get("interior_texture", np.zeros(base.shape[:2], dtype=np.float32)),
+        dtype=np.float32,
+        copy=True,
+    )
     for roi in rois:
-        if roi["override"] == "unlock":
+        if roi.get("override") == "unlock":
             x, y, w, h = roi["rect"]
             locked[y:y + h, x:x + w] = False
             texture_weight[y:y + h, x:x + w] = 1
+            fabric_mask[y:y + h, x:x + w] = 1.0
     locked |= masks["protected"] == 1
+    fabric_mask *= (1.0 - (masks["protected"] == 1.0)).astype(np.float32)
     confidence = (
         np.clip(ndimage.distance_transform_edt(~locked) / 8, 0, 1).astype(np.float32)
         if locked.any() else np.ones(locked.shape, dtype=np.float32)
@@ -60,7 +67,7 @@ def compose_product(base, candidate, rois):
         rows = slice(start, start + 128)
         result[rows], _ = compose_regions(
             base[rows], candidate[rows],
-            fabric=np.ones_like(confidence[rows]), confidence=confidence[rows],
+            fabric=fabric_mask[rows], confidence=confidence[rows],
             blend=RegionBlend(fabric=1),
         )
     return result, locked

@@ -12,6 +12,23 @@ compose_product = product["compose_product"]
 
 
 class ProductUpscaleTests(unittest.TestCase):
+    def test_unclassified_regions_remain_on_bicubic_base(self):
+        base = np.full((64, 64, 3), 40, dtype=np.uint8)
+        candidate = np.full((64, 64, 3), 220, dtype=np.uint8)
+        result, _ = compose_product(base, candidate, [])
+        np.testing.assert_array_equal(result, base)
+
+        rois = [
+            {"id": "fabric_patch", "kind": "fabric", "policy": "texture_allowed",
+             "override": None, "rect": [16, 16, 32, 32]}
+        ]
+        result_roi, _ = compose_product(base, candidate, rois)
+        np.testing.assert_array_equal(result_roi[20:44, 20:44], candidate[20:44, 20:44])
+        np.testing.assert_array_equal(result_roi[:16, :], base[:16, :])
+        np.testing.assert_array_equal(result_roi[48:, :], base[48:, :])
+        np.testing.assert_array_equal(result_roi[:, :16], base[:, :16])
+        np.testing.assert_array_equal(result_roi[:, 48:], base[:, 48:])
+
     def test_flattened_faint_texture_is_preserved(self):
         rng = np.random.default_rng(7)
         base = np.full((96, 96, 3), 160, dtype=np.uint8)
@@ -19,7 +36,11 @@ class ProductUpscaleTests(unittest.TestCase):
         base[:, :64] = 160 + noise
         candidate = np.full_like(base, 160)
         candidate[:, 80:] = 180
-        result, _ = compose_product(base, candidate, [])
+        rois = [
+            {"id": "surface", "kind": "texture", "policy": "texture_allowed",
+             "override": None, "rect": [0, 0, 96, 96]}
+        ]
+        result, _ = compose_product(base, candidate, rois)
         np.testing.assert_array_equal(result[16:80, 16:48], base[16:80, 16:48])
         np.testing.assert_array_equal(result[16:80, 84:], candidate[16:80, 84:])
 
@@ -35,7 +56,11 @@ class ProductUpscaleTests(unittest.TestCase):
         base = np.full((64, 64, 3), 20, dtype=np.uint8)
         base[:, 32:] = 150
         candidate = np.minimum(base.astype(np.uint16) + 40, 255).astype(np.uint8)
-        result, locked = compose_product(base, candidate, [])
+        rois = [
+            {"id": "body", "kind": "fabric", "policy": "texture_allowed",
+             "override": None, "rect": [0, 0, 64, 64]}
+        ]
+        result, locked = compose_product(base, candidate, rois)
         self.assertTrue(locked[32, 32])
         np.testing.assert_array_equal(result[locked], base[locked])
         np.testing.assert_array_equal(result[:, :8], candidate[:, :8])
@@ -57,6 +82,7 @@ class ProductUpscaleTests(unittest.TestCase):
         self.assertTrue(locked[32, 32])
         np.testing.assert_array_equal(result[32, 32], base[32, 32])
         np.testing.assert_array_equal(result[5, 32], candidate[5, 32])
+        np.testing.assert_array_equal(result[5, 5], base[5, 5])
 
 
 if __name__ == "__main__":
