@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "id": "fidelis-inventory-v1",
-  "protocol_sha256": "9f4f27ea912dd625e6d57b9489815bb527d86a2a4f376029f7dbfb9707bb1511",
-  "slots_sha256": "75b35ee03a2df9da454da09733e3b1d5be5e3ba543be1dc3a15ecfd9accc6c66",
+  "protocol_sha256": "a6fccb10ed0a1fce32270a1044e6c96f3f2523e4cd3f8af8c98f83ffb58fb0b0",
+  "slots_sha256": "fbb9221fbeb66aeab03d02b73335f52209db4f4621019df70a3542791bedcf56",
   "notes": "Regression inventory only. No production slot or rights approval is inferred from existing assets. Production corpus not frozen.",
   "cases": [
     {

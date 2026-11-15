@@ -18,6 +18,8 @@ VALID_ROI_KINDS = (
     "skin",
     "hair",
     "fabric",
+    "crema",
+    "texture",
     "logo",
     "text",
     "seam",
@@ -28,8 +30,32 @@ VALID_ROI_KINDS = (
     "identity",
     "alpha_boundary",
 )
+HARD_CONTOUR_ROI_KINDS = (
+    "hardware",
+    "seam",
+    "logo",
+    "text",
+    "identity",
+    "alpha_boundary",
+)
+INTERIOR_TEXTURE_ROI_KINDS = (
+    "skin",
+    "hair",
+    "fabric",
+    "crema",
+    "texture",
+)
 VALID_POLICIES = ("preserve", "texture_allowed")
 VALID_OVERRIDES = (None, "lock", "unlock")
+
+
+def classify_roi_role(kind: str) -> str:
+    """Classify an ROI kind into 'hard_contour', 'interior_texture', or 'other'."""
+    if kind in HARD_CONTOUR_ROI_KINDS:
+        return "hard_contour"
+    if kind in INTERIOR_TEXTURE_ROI_KINDS:
+        return "interior_texture"
+    return "other"
 
 
 def _luminance(rgb: np.ndarray) -> np.ndarray:
@@ -137,7 +163,6 @@ def build_roi_protection_masks(
         x, y, w, h = roi["rect"]
         if roi["policy"] == "preserve" and roi["override"] is None:
             roi_locked[y:y + h, x:x + w] = 1.0
-            locked_ids.append(roi["id"])
 
     for roi in norm_rois:
         x, y, w, h = roi["rect"]
@@ -151,10 +176,35 @@ def build_roi_protection_masks(
         if roi["override"] == "lock":
             roi_locked[y:y + h, x:x + w] = 1.0
             explicit_unlock[y:y + h, x:x + w] = False
-            locked_ids.append(roi["id"])
             forced_lock_ids.append(roi["id"])
 
+    for roi in norm_rois:
+        x, y, w, h = roi["rect"]
+        if (roi["policy"] == "preserve" and roi["override"] is None) or roi["override"] == "lock":
+            if np.any(roi_locked[y:y + h, x:x + w] == 1.0):
+                locked_ids.append(roi["id"])
+
     protected = np.maximum(user_protected, roi_locked).astype(np.float32)
+
+    hard_contour_bool = roi_locked == 1.0
+    for roi in norm_rois:
+        if roi["kind"] in HARD_CONTOUR_ROI_KINDS and roi["override"] != "unlock":
+            x, y, w, h = roi["rect"]
+            hard_contour_bool[y:y + h, x:x + w] = True
+    hard_contour_bool &= ~explicit_unlock
+    hard_contour = hard_contour_bool.astype(np.float32)
+
+    interior_texture_bool = np.zeros(shape, dtype=bool)
+    for roi in norm_rois:
+        if (
+            roi["kind"] in INTERIOR_TEXTURE_ROI_KINDS
+            and roi["policy"] == "texture_allowed"
+            and roi["override"] != "lock"
+        ):
+            x, y, w, h = roi["rect"]
+            interior_texture_bool[y:y + h, x:x + w] = True
+    interior_texture_bool &= ~hard_contour_bool
+    interior_texture = interior_texture_bool.astype(np.float32)
 
     edge_guard = np.array(user_edge_guard, dtype=np.float32, copy=True)
     if use_sobel_heuristic:
@@ -164,8 +214,33 @@ def build_roi_protection_masks(
         mag = np.sqrt(gx * gx + gy * gy)
         ref_scale = max(float(np.percentile(mag, 95)), 25.0)
         sobel_mask = np.clip((mag / ref_scale) * float(sobel_strength), 0.0, float(max_sobel_guard)).astype(np.float32)
-        sobel_mask[explicit_unlock] = 0.0
+        sobel_mask[explicit_unlock | (interior_texture == 1.0)] = 0.0
         edge_guard = np.maximum(edge_guard, sobel_mask).astype(np.float32)
+
+    hard_contour_roi_ids: List[str] = []
+    interior_texture_roi_ids: List[str] = []
+    texture_allowed_roi_ids: List[str] = []
+    roi_summary: List[Dict[str, Any]] = []
+    for roi in norm_rois:
+        x, y, w, h = roi["rect"]
+        role = classify_roi_role(roi["kind"])
+        if role == "hard_contour":
+            hard_contour_roi_ids.append(roi["id"])
+        elif role == "interior_texture":
+            interior_texture_roi_ids.append(roi["id"])
+        if roi["policy"] == "texture_allowed":
+            texture_allowed_roi_ids.append(roi["id"])
+        roi_summary.append(
+            {
+                "id": roi["id"],
+                "kind": roi["kind"],
+                "role": role,
+                "policy": roi["policy"],
+                "override": roi["override"],
+                "effective_locked": bool(np.any(roi_locked[y:y + h, x:x + w] == 1.0)),
+                "rect": roi["rect"],
+            }
+        )
 
     receipt = {
         "schema_version": 1,
@@ -181,8 +256,20 @@ def build_roi_protection_masks(
             "Sobel luminance gradient is a contrast heuristic only (it also fires on skin "
             "pores/fabric weave and misses low-contrast hardware); it is not semantic proof."
         ),
+        "hard_contour_roi_ids": hard_contour_roi_ids,
+        "interior_texture_roi_ids": interior_texture_roi_ids,
+        "texture_allowed_roi_ids": texture_allowed_roi_ids,
+        "hard_contour_fraction": round(float(np.mean(hard_contour == 1.0)), 6),
+        "interior_texture_fraction": round(float(np.mean(interior_texture == 1.0)), 6),
+        "sobel_suppressed_in_interior_texture": bool(use_sobel_heuristic and np.any(interior_texture_bool)),
+        "roi_summary": roi_summary,
     }
-    return {"protected": protected, "edge_guard": edge_guard}, receipt
+    return {
+        "protected": protected,
+        "edge_guard": edge_guard,
+        "hard_contour": hard_contour,
+        "interior_texture": interior_texture,
+    }, receipt
 
 
 def _estimate_patch_shift(
@@ -293,6 +380,25 @@ def screen_internal_drift(
     gy_c = ndimage.sobel(cand_lum, axis=0)
     mag_c = np.sqrt(gx_c * gx_c + gy_c * gy_c)
 
+    roi_lock_map = np.zeros((height, width), dtype=bool)
+    texture_allowed_map = np.zeros((height, width), dtype=bool)
+    for r in norm_rois:
+        rx, ry, rw, rh = r["rect"]
+        if r["policy"] == "preserve" and r["override"] is None:
+            roi_lock_map[ry:ry + rh, rx:rx + rw] = True
+        elif r["policy"] == "texture_allowed" and r["override"] != "lock":
+            texture_allowed_map[ry:ry + rh, rx:rx + rw] = True
+    for r in norm_rois:
+        if r["override"] == "unlock":
+            rx, ry, rw, rh = r["rect"]
+            roi_lock_map[ry:ry + rh, rx:rx + rw] = False
+            texture_allowed_map[ry:ry + rh, rx:rx + rw] = True
+    for r in norm_rois:
+        if r["override"] == "lock":
+            rx, ry, rw, rh = r["rect"]
+            roi_lock_map[ry:ry + rh, rx:rx + rw] = True
+            texture_allowed_map[ry:ry + rh, rx:rx + rw] = False
+
     drift_guard = np.zeros(shape, dtype=np.float32)
     eff_block = min(block_size, height, width)
     blocks_evaluated = 0
@@ -302,11 +408,11 @@ def screen_internal_drift(
 
     for y0 in range(0, height, eff_block):
         y1 = min(height, y0 + eff_block)
-        if y1 - y0 < 8:
+        if y1 - y0 < 3:
             continue
         for x0 in range(0, width, eff_block):
             x1 = min(width, x0 + eff_block)
-            if x1 - x0 < 8:
+            if x1 - x0 < 3:
                 continue
             dx, dy, improvement = _estimate_patch_shift(ref_lum, cand_lum, y0, x0, y1, x1, search_radius)
             shift_px = float(np.hypot(dx, dy))
@@ -323,7 +429,15 @@ def screen_internal_drift(
                 coherence_values.append(coh)
             if shift_px > max_block_shift_px:
                 max_block_shift_px = shift_px
-            if shift_px >= shift_warn_px or (coh is not None and coh < min_edge_coherence):
+            in_texture_zone = bool(np.any(texture_allowed_map[y0:y1, x0:x1]))
+            in_unlocked_region = prot_mask is not None and not bool(np.any(prot_mask[y0:y1, x0:x1] == 1.0))
+            coh_flag = (
+                coh is not None
+                and coh < min_edge_coherence
+                and not in_texture_zone
+                and not (master_rgb is not None and in_unlocked_region)
+            )
+            if shift_px >= shift_warn_px or coh_flag:
                 blocks_flagged += 1
                 severity = 1.0 if (shift_px >= shift_fail_px or (coh is not None and coh < min_edge_coherence - 0.15)) else 0.6
                 drift_guard[y0:y1, x0:x1] = max(float(drift_guard[y0:y1, x0:x1].max()), severity)
@@ -336,7 +450,10 @@ def screen_internal_drift(
 
     roi_reports: List[Dict[str, Any]] = []
     any_fail = locked_mismatches > 0 or max_block_shift_px >= shift_fail_px
-    any_warn = (not any_fail) and (blocks_flagged > 0)
+    any_warn = (not any_fail) and (
+        max_block_shift_px >= shift_warn_px
+        or (blocks_flagged > 0 and not (master_rgb is not None and locked_mismatches == 0))
+    )
 
     for roi in norm_rois:
         x, y, w, h = roi["rect"]
@@ -354,19 +471,28 @@ def screen_internal_drift(
         cand_max_diff = int(cand_diff.max())
         cand_mean_diff = round(float(cand_diff.mean()), 3)
 
-        expected_locked = (roi["policy"] == "preserve" and roi["override"] != "unlock") or (roi["override"] == "lock")
+        roi_locked_slice = roi_lock_map[y:y + h, x:x + w]
+        expected_locked = bool(np.any(roi_locked_slice))
         master_max_diff: Optional[int] = None
         if master_rgb is not None:
             m_diff = np.abs(master_rgb[y:y + h, x:x + w].astype(np.int16) - base_rgb[y:y + h, x:x + w].astype(np.int16))
-            master_max_diff = int(m_diff.max())
+            master_max_diff = int(m_diff[roi_locked_slice].max()) if expected_locked else int(m_diff.max())
 
+        roi_is_texture_allowed = (
+            (roi["policy"] == "texture_allowed" and roi["override"] != "lock")
+            or roi["override"] == "unlock"
+        )
         if expected_locked and master_max_diff is not None and master_max_diff > 0:
             roi_status = "LOCK_VIOLATION"
             any_fail = True
-        elif shift_px >= shift_fail_px or (coh is not None and coh < min_edge_coherence - 0.12):
+        elif shift_px >= shift_fail_px or (
+            coh is not None and coh < min_edge_coherence - 0.12 and not roi_is_texture_allowed
+        ):
             roi_status = "FAIL_DRIFT"
             any_fail = True
-        elif shift_px >= shift_warn_px or (coh is not None and coh < min_edge_coherence):
+        elif shift_px >= shift_warn_px or (
+            coh is not None and coh < min_edge_coherence and not roi_is_texture_allowed
+        ):
             roi_status = "WARN_DRIFT"
             any_warn = True
         elif expected_locked and master_max_diff == 0:
@@ -378,6 +504,7 @@ def screen_internal_drift(
             {
                 "id": roi["id"],
                 "kind": roi["kind"],
+                "role": classify_roi_role(roi["kind"]),
                 "policy": roi["policy"],
                 "override": roi["override"],
                 "rect": roi["rect"],

@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "id": "melato-fabric-hardware-v1",
+  "base_protocol_id": "fidelis-photo-corpus-v1",
+  "description": "Evaluation protocol for Melato fabric weave, stitching/seam, and metallic hardware restoration against 4x bicubic baseline.",
+  "required_roi_kinds": [
+    "fabric",
+    "seam",
+    "hardware"
+  ],
+  "roi_policies": {
+    "fabric": "texture_allowed",
+    "seam": "preserve",
+    "hardware": "preserve"
+  },
+  "comparator_baseline": "bicubic",
+  "scale": 4,
+  "acceptance_thresholds": {
+    "interior_texture_variance_ratio": 1.0,
+    "interior_midband_energy_ratio": 1.0,
+    "weave_orientation_coherence": 0.80,
+    "weave_fft_coherence": 0.75,
+    "weave_energy_ratio": 0.90,
+    "locked_pixel_mismatches": 0,
+    "overshoot_p95": 4.0,
+    "overshoot_frac": 0.05
+  },
+  "smoke_fixture": {
+    "id": "melato-smoke-fashion-fabric-800",
+    "role": "regression",
+    "category": "model_apparel",
+    "split": "held_out",
+    "source_path": "experiments/eval_crops/fashion_fabric_real.png",
+    "source_dimensions": [
+      200,
+      200
+    ],
+    "target_dimensions": [
+      800,
+      800
+    ],
+    "scale": 4,
+    "roi_space": "source",
+    "rois": [
+      {
+        "id": "melato_fabric",
+        "kind": "fabric",
+        "policy": "texture_allowed",
+        "override": null,
+        "rect": [
+          5,
+          75,
+          50,
+          80
+        ]
+      },
+      {
+        "id": "melato_seam",
+        "kind": "seam",
+        "policy": "preserve",
+        "override": null,
+        "rect": [
+          20,
+          0,
+          55,
+          45
+        ]
+      },
+      {
+        "id": "melato_hardware",
+        "kind": "hardware",
+        "policy": "preserve",
+        "override": null,
+        "rect": [
+          150,
+          0,
+          45,
+          55
+        ]
+      }
+    ]
+  }
+}

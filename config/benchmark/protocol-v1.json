@@ -47,6 +47,7 @@
   "review_policy": "Human review must confirm coverage, rights and ROI annotations before a lock is used for acceptance. Automated readiness checks structural completeness only.",
   "comparators": [
     "interpolation",
+    "bicubic",
     "selected_deterministic_base",
     "fidelis",
     "vosr_challenger",

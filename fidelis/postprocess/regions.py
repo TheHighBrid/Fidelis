@@ -53,6 +53,7 @@ def _rgb(value, name):
 
 def compose_regions(base, texture, *, skin=None, hair=None, fabric=None,
                     protected=None, confidence=None, edge_guard=None,
+                    interior_texture=None,
                     blend=RegionBlend(), output_dtype=None):
     """Return (sRGB result at requested precision, float32 effective alpha).
 
@@ -84,10 +85,15 @@ def compose_regions(base, texture, *, skin=None, hair=None, fabric=None,
     protected = _mask(protected, shape, "protected")
     confidence = _mask(confidence, shape, "confidence")
     edge_guard = _mask(edge_guard, shape, "edge_guard")
+    if interior_texture is not None:
+        interior_texture_m = _mask(interior_texture, shape, "interior_texture")
+        effective_edge_guard = edge_guard * (1.0 - interior_texture_m)
+    else:
+        effective_edge_guard = edge_guard
     total = np.maximum(1.0, skin + hair + fabric)
     alpha = (skin * blend.skin + hair * blend.hair + fabric * blend.fabric) / total
     alpha *= confidence * (1.0 - protected)
-    alpha *= 1.0 - edge_guard * blend.edge_protection
+    alpha *= 1.0 - effective_edge_guard * blend.edge_protection
     alpha = np.clip(alpha, 0.0, 1.0)
 
     # A lookup table avoids full-frame transfer-function intermediates for inputs.

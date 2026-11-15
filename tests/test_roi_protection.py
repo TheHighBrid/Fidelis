@@ -18,7 +18,11 @@ if str(REPO_ROOT) not in sys.path:
 
 from fidelis.postprocess.regions import RegionBlend, compose_regions  # noqa: E402
 from fidelis.postprocess.roi_protection import (  # noqa: E402
+    HARD_CONTOUR_ROI_KINDS,
+    INTERIOR_TEXTURE_ROI_KINDS,
+    VALID_ROI_KINDS,
     build_roi_protection_masks,
+    classify_roi_role,
     screen_internal_drift,
     validate_rois,
 )
@@ -148,6 +152,39 @@ class RoiProtectionAndDriftTests(unittest.TestCase):
         self.assertIn("auto-logo", receipt["unlocked_override_ids"])
         self.assertIn("skin-to-lock", receipt["forced_lock_override_ids"])
 
+        # Overlapping unlock sub-ROI inside a larger preserve ROI must not cause false LOCK_VIOLATION
+        overlap_rois = [
+            {
+                "id": "outer-preserve",
+                "kind": "logo",
+                "policy": "preserve",
+                "rect": [20, 20, 40, 40],
+            },
+            {
+                "id": "inner-unlock",
+                "kind": "fabric",
+                "policy": "preserve",
+                "override": "unlock",
+                "rect": [30, 30, 12, 12],
+            },
+        ]
+        ov_masks, _ = build_roi_protection_masks(base, overlap_rois, use_sobel_heuristic=False)
+        master_ov = base.copy()
+        # Legitimate texture change inside the unlocked sub-rectangle only:
+        master_ov[32:40, 32:40] = (200, 100, 50)
+        ov_drift = screen_internal_drift(
+            base,
+            base.copy(),
+            rois=overlap_rois,
+            protected=ov_masks["protected"],
+            master=master_ov,
+        )
+        self.assertEqual(ov_drift["locked_pixel_mismatches"], 0)
+        self.assertEqual(ov_drift["overall_verdict"], "PASS")
+        by_id = {r["id"]: r for r in ov_drift["roi_reports"]}
+        self.assertEqual(by_id["outer-preserve"]["status"], "LOCKED_EXACT")
+        self.assertEqual(by_id["inner-unlock"]["status"], "PASS")
+
     def test_uniform_packshot_has_no_false_drift_and_mismatch_size_fails_closed(self) -> None:
         black_bg = np.full((64, 64, 3), 8, dtype=np.uint8)
         report = screen_internal_drift(black_bg, black_bg.copy())
@@ -229,6 +266,83 @@ class RoiProtectionAndDriftTests(unittest.TestCase):
             )
             pass_data = json.loads(proc_pass.stdout)
             self.assertEqual(pass_data["drift_screening"]["overall_verdict"], "PASS")
+
+    def test_crema_and_texture_kinds_and_classify_roi_role(self) -> None:
+        self.assertIn("crema", VALID_ROI_KINDS)
+        self.assertIn("texture", VALID_ROI_KINDS)
+        for kind in HARD_CONTOUR_ROI_KINDS:
+            self.assertEqual(classify_roi_role(kind), "hard_contour")
+        for kind in INTERIOR_TEXTURE_ROI_KINDS:
+            self.assertEqual(classify_roi_role(kind), "interior_texture")
+        for kind in ("background", "highlight", "shadow"):
+            self.assertEqual(classify_roi_role(kind), "other")
+
+        rois = validate_rois(
+            [
+                {"id": "espresso-crema", "kind": "crema", "policy": "texture_allowed", "rect": [4, 4, 24, 24]},
+                {"id": "generic-tex", "kind": "texture", "policy": "texture_allowed", "rect": [32, 4, 24, 24]},
+            ],
+            (64, 64),
+        )
+        self.assertEqual([r["kind"] for r in rois], ["crema", "texture"])
+
+    def test_contour_vs_interior_texture_separation_and_sobel_suppression(self) -> None:
+        # Build a 96x96 scene with strong high-frequency pattern everywhere so Sobel fires everywhere.
+        yy, xx = np.indices((96, 96))
+        base = np.zeros((96, 96, 3), dtype=np.uint8)
+        base[:, :, 0] = np.where((xx + yy) % 2 == 0, 220, 30)
+        base[:, :, 1] = np.where((xx % 3) == 0, 200, 40)
+        base[:, :, 2] = np.where((yy % 3) == 0, 190, 50)
+
+        rois = [
+            {"id": "cup-rim", "kind": "hardware", "policy": "preserve", "rect": [8, 8, 24, 24]},
+            {"id": "seam-line", "kind": "seam", "policy": "texture_allowed", "rect": [8, 40, 20, 20]},
+            {"id": "coffee-crema", "kind": "crema", "policy": "texture_allowed", "rect": [20, 20, 40, 40]},
+            {"id": "melato-fabric", "kind": "fabric", "policy": "texture_allowed", "rect": [64, 50, 24, 24]},
+        ]
+        masks, receipt = build_roi_protection_masks(base, rois, use_sobel_heuristic=True, max_sobel_guard=0.65)
+
+        # Overlapping preserve (hardware [8:32, 8:32]) + texture_allowed (crema [20:60, 20:60]):
+        # intersection [20:32, 20:32] must stay protected == 1.0, hard_contour == 1.0, interior_texture == 0.0.
+        np.testing.assert_array_equal(masks["protected"][20:32, 20:32], 1.0)
+        np.testing.assert_array_equal(masks["hard_contour"][20:32, 20:32], 1.0)
+        np.testing.assert_array_equal(masks["interior_texture"][20:32, 20:32], 0.0)
+
+        # Non-overlapping interior texture zones (crema [32:60, 32:60], fabric [50:74, 64:88]):
+        # interior_texture == 1.0, hard_contour == 0.0, and Sobel edge_guard is suppressed to 0.0.
+        np.testing.assert_array_equal(masks["interior_texture"][32:60, 32:60], 1.0)
+        np.testing.assert_array_equal(masks["hard_contour"][32:60, 32:60], 0.0)
+        np.testing.assert_array_equal(masks["edge_guard"][32:60, 32:60], 0.0)
+        np.testing.assert_array_equal(masks["interior_texture"][50:74, 64:88], 1.0)
+        np.testing.assert_array_equal(masks["edge_guard"][50:74, 64:88], 0.0)
+
+        # Hard-contour ROI (seam [40:60, 8:28]) and unlabeled edges retain Sobel edge_guard > 0.
+        np.testing.assert_array_equal(masks["hard_contour"][40:60, 8:28], 1.0)
+        self.assertGreater(float(masks["edge_guard"][40:60, 8:28].max()), 0.0)
+        self.assertGreater(float(masks["edge_guard"][0:8, 0:8].max()), 0.0)
+
+        # Structured receipt metadata
+        self.assertEqual(receipt["hard_contour_roi_ids"], ["cup-rim", "seam-line"])
+        self.assertEqual(receipt["interior_texture_roi_ids"], ["coffee-crema", "melato-fabric"])
+        self.assertEqual(receipt["texture_allowed_roi_ids"], ["seam-line", "coffee-crema", "melato-fabric"])
+        self.assertTrue(receipt["sobel_suppressed_in_interior_texture"])
+        self.assertGreater(receipt["hard_contour_fraction"], 0.0)
+        self.assertGreater(receipt["interior_texture_fraction"], 0.0)
+        summary_by_id = {entry["id"]: entry for entry in receipt["roi_summary"]}
+        self.assertEqual(summary_by_id["cup-rim"]["role"], "hard_contour")
+        self.assertTrue(summary_by_id["cup-rim"]["effective_locked"])
+        self.assertEqual(summary_by_id["coffee-crema"]["role"], "interior_texture")
+        self.assertTrue(summary_by_id["coffee-crema"]["effective_locked"])
+        self.assertEqual(summary_by_id["melato-fabric"]["role"], "interior_texture")
+        self.assertFalse(summary_by_id["melato-fabric"]["effective_locked"])
+
+        # screen_internal_drift includes role in roi_reports and preserves LOCK_VIOLATION / FAIL_DRIFT
+        drift_ok = screen_internal_drift(base, base.copy(), rois=rois, protected=masks["protected"], master=base.copy())
+        self.assertEqual(drift_ok["overall_verdict"], "PASS")
+        drift_by_id = {r["id"]: r for r in drift_ok["roi_reports"]}
+        self.assertEqual(drift_by_id["cup-rim"]["role"], "hard_contour")
+        self.assertEqual(drift_by_id["coffee-crema"]["role"], "interior_texture")
+        self.assertEqual(drift_by_id["cup-rim"]["status"], "LOCKED_EXACT")
 
 
 if __name__ == "__main__":

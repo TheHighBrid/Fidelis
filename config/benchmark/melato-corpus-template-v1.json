@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "id": "melato-corpus-template-v1",
+  "protocol_sha256": "a6fccb10ed0a1fce32270a1044e6c96f3f2523e4cd3f8af8c98f83ffb58fb0b0",
+  "slots_sha256": "fbb9221fbeb66aeab03d02b73335f52209db4f4621019df70a3542791bedcf56",
+  "notes": "Corpus manifest template for operator-supplied Melato fabric, stitching/seam, and hardware photographs. Includes one regression smoke case (fashion_fabric_real.png 200x200 -> 800x800). Add operator production cases with assigned slot_ids and approved rights before freezing.",
+  "coverage_review": {
+    "status": "pending",
+    "reviewed_by": null,
+    "reviewed_at": null,
+    "evidence_path": null,
+    "evidence_sha256": null
+  },
+  "slot_template": {
+    "id": "melato-example-01",
+    "role": "production",
+    "slot_id": "textile-07",
+    "category": "textile",
+    "split": "held_out",
+    "source_kind": "photograph",
+    "leakage_group": "melato-batch-01",
+    "required_roi_kinds": [
+      "fabric",
+      "seam",
+      "hardware"
+    ]
+  },
+  "cases": [
+    {
+      "id": "melato-smoke-fashion-fabric-800",
+      "role": "regression",
+      "slot_id": null,
+      "category": "model_apparel",
+      "split": "held_out",
+      "source_kind": "photograph",
+      "leakage_group": "melato-smoke-astronaut",
+      "source_path": "experiments/eval_crops/fashion_fabric_real.png",
+      "source": {
+        "path": "experiments/eval_crops/fashion_fabric_real.png",
+        "sha256": "077a8b160032e0a0b7b415219cc38820d8b0268b130055cd5e51a494d6c0fc7e",
+        "pixel_sha256": "4bd491b5747b2b3c2a5c183e1405ebb1673f0050a5074f5edb0d98f75f811c39",
+        "dimensions": [
+          200,
+          200
+        ],
+        "mode": "RGB",
+        "format": "PNG",
+        "icc_present": false,
+        "orientation": 1
+      },
+      "rights": {
+        "status": "unknown",
+        "local_evaluation": true,
+        "subject_consent": "not_required",
+        "remote_processing": "denied",
+        "evidence_path": null,
+        "evidence_sha256": null,
+        "reviewed_by": null,
+        "reviewed_at": null,
+        "basis": "Repository regression crop (skimage astronaut) for Melato smoke validation only."
+      },
+      "target_dimensions": [
+        800,
+        800
+      ],
+      "scale": 4,
+      "roi_space": "source",
+      "expected_behavior": "enhance",
+      "rois": [
+        {
+          "id": "melato_fabric",
+          "kind": "fabric",
+          "policy": "texture_allowed",
+          "override": null,
+          "rect": [
+            5,
+            75,
+            50,
+            80
+          ]
+        },
+        {
+          "id": "melato_seam",
+          "kind": "seam",
+          "policy": "preserve",
+          "override": null,
+          "rect": [
+            20,
+            0,
+            55,
+            45
+          ]
+        },
+        {
+          "id": "melato_hardware",
+          "kind": "hardware",
+          "policy": "preserve",
+          "override": null,
+          "rect": [
+            150,
+            0,
+            45,
+            55
+          ]
+        }
+      ],
+      "text_review": "completed",
+      "known_text": []
+    }
+  ]
+}

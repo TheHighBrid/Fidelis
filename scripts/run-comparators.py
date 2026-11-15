@@ -8,6 +8,11 @@ from pathlib import Path
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from fidelis.engine.restoration_runner import (
+    BackendUnavailableError,
+    DimensionMismatchError,
+    create_restoration_runner,
+)
 from fidelis.eval.comparators import (
     CANONICAL_COMPARATORS,
     build_blind_pairwise_manifest,
@@ -15,6 +20,7 @@ from fidelis.eval.comparators import (
     run_comparators,
     summarize_blind_reviews,
 )
+from fidelis.studio.audition import run_model_vs_bicubic_audition
 
 
 def _load_json(path: Path) -> dict:
@@ -52,6 +58,23 @@ def main() -> None:
     score_p.add_argument("--subject", required=True)
     score_p.add_argument("--target", required=True)
     score_p.add_argument("--output", type=Path, default=None)
+
+    aud_p = sub.add_parser("audition", help="Run model-vs-4x-bicubic audition harness")
+    aud_p.add_argument("cases_manifest", type=Path)
+    aud_p.add_argument("--root", type=Path, default=Path.cwd())
+    aud_p.add_argument("--output-dir", type=Path, required=True)
+    aud_p.add_argument(
+        "--backend",
+        choices=["bicubic", "imported", "onnxruntime", "torch_spandrel"],
+        default="imported",
+    )
+    aud_p.add_argument("--imported-dir", type=Path, default=None)
+    aud_p.add_argument("--weights", type=Path, default=None)
+    aud_p.add_argument("--model-id", default=None)
+    aud_p.add_argument("--no-texture-guard", action="store_true")
+    aud_p.add_argument("--no-html", action="store_true")
+    aud_p.add_argument("--blind-seed", type=int, default=20261110)
+    aud_p.add_argument("--blind-split", default="held_out")
 
     args = parser.parse_args()
     try:
@@ -92,6 +115,41 @@ def main() -> None:
                 out["blind_ballot"] = str(ballot_path)
                 out["blind_answer_key"] = str(key_path)
             print(json.dumps(out, indent=2))
+        elif args.command == "audition":
+            raw_doc = _load_json(args.cases_manifest)
+            cases = raw_doc["cases"] if isinstance(raw_doc, dict) else raw_doc
+            backend_kwargs: dict = {}
+            if args.model_id:
+                backend_kwargs["model_id"] = args.model_id
+            if args.backend == "imported":
+                if args.imported_dir is None:
+                    raise ValueError("--imported-dir is required when --backend=imported")
+                backend_kwargs["imported_dir"] = args.imported_dir
+            elif args.backend in ("onnxruntime", "torch_spandrel"):
+                if args.weights is None:
+                    raise ValueError(f"--weights is required when --backend={args.backend}")
+                backend_kwargs["weights_path"] = args.weights
+            runner = create_restoration_runner(args.backend, **backend_kwargs)
+            report = run_model_vs_bicubic_audition(
+                cases,
+                runner,
+                output_dir=args.output_dir,
+                blind_seed=args.blind_seed,
+                apply_texture_guard=not args.no_texture_guard,
+                generate_html=not args.no_html,
+                asset_root=args.root,
+                blind_split=args.blind_split,
+            )
+            print(
+                json.dumps(
+                    {
+                        "report": report["report_json_path"],
+                        "html": report.get("report_html_path"),
+                        "summary": report["summary"],
+                    },
+                    indent=2,
+                )
+            )
         else:
             summary = summarize_blind_reviews(
                 _load_json(args.ballot),
@@ -102,7 +160,7 @@ def main() -> None:
             if args.output is not None:
                 _write_json(args.output, summary)
             print(json.dumps(summary, indent=2))
-    except (ValueError, OSError, KeyError) as error:
+    except (ValueError, OSError, KeyError, BackendUnavailableError, DimensionMismatchError) as error:
         parser.exit(2, f"run-comparators: {error}\n")
 
 

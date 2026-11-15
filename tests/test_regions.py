@@ -54,6 +54,30 @@ class RegionTests(unittest.TestCase):
                                    blend=RegionBlend(0, 0, 1, .75))
         np.testing.assert_allclose(alpha, .25)
 
+    def test_interior_texture_bypasses_edge_guard_while_protecting_contours(self):
+        interior = np.zeros_like(self.ones)
+        interior[:, 4:] = 1.0
+        protected = np.zeros_like(self.ones)
+        protected[:, :2] = 1.0
+        actual, alpha = compose_regions(
+            self.base,
+            self.texture,
+            fabric=self.ones,
+            protected=protected,
+            confidence=self.ones,
+            edge_guard=self.ones,
+            interior_texture=interior,
+            blend=RegionBlend(0, 0, 1, .75),
+        )
+        # Protected columns remain bit-exact base
+        np.testing.assert_array_equal(actual[:, :2], self.base[:, :2])
+        np.testing.assert_allclose(alpha[:, :2], 0.0)
+        # Hard-contour columns (2:4) are attenuated by edge_protection
+        np.testing.assert_allclose(alpha[:, 2:4], 0.25)
+        # Interior texture columns (4:) are not attenuated by edge_protection
+        np.testing.assert_allclose(alpha[:, 4:], 1.0)
+        np.testing.assert_array_equal(actual[:, 4:], self.texture[:, 4:])
+
     def test_rejects_malformed_masks_and_passes(self):
         for mask in (self.ones * np.nan, self.ones * np.inf, self.ones * -1,
                      self.ones * 1.01, self.ones[:2], np.full((7, 9), "bad")):

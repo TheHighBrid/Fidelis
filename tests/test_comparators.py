@@ -13,7 +13,9 @@ import numpy as np
 from PIL import Image
 
 from fidelis.eval.comparators import (
+    CANONICAL_COMPARATORS,
     ComparatorOutput,
+    bicubic_runner,
     build_blind_pairwise_manifest,
     run_comparators,
     summarize_blind_reviews,
@@ -192,7 +194,16 @@ class ComparatorTests(unittest.TestCase):
         )
         self.assertEqual(ballot["pair_count"], 30)
         self.assertTrue(all(Path(item["option_left"]).is_file() for item in ballot["items"]))
+        self.assertTrue(all(Path(item["option_right"]).is_file() for item in ballot["items"]))
         self.assertTrue(all(item["option_left"] != item["option_right"] for item in ballot["items"]))
+        for item in ballot["items"]:
+            self.assertNotIn("fidelis", Path(item["option_left"]).name)
+            self.assertNotIn("interpolation", Path(item["option_left"]).name)
+            self.assertNotIn("fidelis", Path(item["option_right"]).name)
+            self.assertNotIn("interpolation", Path(item["option_right"]).name)
+            meta = key_doc["mapping"][item["pair_id"]]
+            self.assertIn("left_output_path", meta)
+            self.assertIn("right_output_path", meta)
 
         # Incomplete ballot cannot claim pass.
         inc = summarize_blind_reviews(ballot, key_doc, subject_comparator="fidelis", target_comparator="interpolation")
@@ -296,6 +307,14 @@ class ComparatorTests(unittest.TestCase):
         self.assertEqual(res["comparators"]["interpolation"]["completed"], 8)
         self.assertEqual(res["comparators"]["selected_deterministic_base"]["completed"], 8)
         self.assertEqual(res["comparators"]["selected_deterministic_base"]["total_cost_usd"], 0.08)
+        self.assertIsNone(res["comparators"]["selected_deterministic_base"]["mean_elapsed_seconds"])
+        full_rep = json.loads(Path(res["report"]).read_text(encoding="utf-8"))
+        self.assertTrue(
+            all(
+                c["outputs"]["selected_deterministic_base"]["elapsed_seconds"] is None
+                for c in full_rep["cases"]
+            )
+        )
         self.assertEqual(res["comparators"]["fidelis"]["unavailable"], 8)
 
         ballot = json.loads(Path(res["blind_ballot"]).read_text(encoding="utf-8"))
@@ -324,6 +343,43 @@ class ComparatorTests(unittest.TestCase):
         summary = json.loads(sum_proc.stdout)
         self.assertEqual(summary["sample_count"], 8)
         self.assertTrue(summary["meets_proposed_thresholds"])
+
+    def test_bicubic_comparator_and_scale_matched_metrics(self) -> None:
+        self.assertIn("bicubic", CANONICAL_COMPARATORS)
+        mini_manifest = copy.deepcopy(self.manifest)
+        case0 = mini_manifest["cases"][0]
+        case0["role"] = "regression"
+        case0["slot_id"] = None
+        mini_manifest["cases"] = [case0]
+
+        custom_prot = copy.deepcopy(PROTOCOL)
+        custom_prot["comparators"] = ["bicubic", "interpolation"]
+        custom_slots = copy.deepcopy(SLOTS)
+        custom_slots["protocol_sha256"] = digest(custom_prot)
+        mini_manifest["protocol_sha256"] = digest(custom_prot)
+        mini_manifest["slots_sha256"] = digest(custom_slots)
+
+        dest = self.root / "direct_bicubic.png"
+        src = self.root / case0["source"]["path"]
+        direct = bicubic_runner(case0, src, dest)
+        self.assertEqual(direct.status, "completed")
+        self.assertEqual(direct.settings["method"], "bicubic")
+        self.assertTrue(dest.is_file())
+
+        report = run_comparators(
+            mini_manifest,
+            asset_root=self.root,
+            output_dir=self.root / "bic_out",
+            protocol=custom_prot,
+            slots=custom_slots,
+            allow_regression_manifest=True,
+        )
+        self.assertEqual(report["comparators"]["bicubic"]["completed"], 1)
+        bic_out = report["cases"][0]["outputs"]["bicubic"]
+        self.assertEqual(bic_out["settings"]["method"], "bicubic")
+        self.assertIsNotNone(bic_out["scale_matched_metrics"])
+        self.assertEqual(bic_out["scale_matched_metrics"]["status"], "measured")
+        self.assertTrue(bic_out["scale_matched_metrics"]["all_detail_gates_passed"])
 
 
 if __name__ == "__main__":

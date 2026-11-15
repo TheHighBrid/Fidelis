@@ -132,7 +132,12 @@ def validate_endpoint_policy(address: str, policy: dict[str, Any]) -> dict[str, 
     if parsed.port is not None and not (1 <= int(parsed.port) <= 65535):
         violations.append("Endpoint port must be in 1..65535")
 
-    sanitized_endpoint = f"{parsed.scheme}://{parsed.hostname}"
+    host_str = (
+        f"[{parsed.hostname}]"
+        if parsed.hostname and ":" in parsed.hostname
+        else parsed.hostname
+    )
+    sanitized_endpoint = f"{parsed.scheme}://{host_str}"
     if parsed.port:
         sanitized_endpoint = f"{sanitized_endpoint}:{parsed.port}"
 

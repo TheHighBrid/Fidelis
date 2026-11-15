@@ -73,6 +73,7 @@ class AcceptanceThresholds:
     max_critical_defects: int = 0
     bootstrap_resamples: int = 1000
     bootstrap_seed: int = 20261110
+    require_automated_detail_gates: bool = False
 
 
 def wilson_95_ci(successes: int, total: int) -> tuple[float, float]:
@@ -229,7 +230,7 @@ def validate_reproducibility_receipt(receipt: Mapping[str, Any] | None) -> dict[
     missing: list[str] = []
     for key in REQUIRED_RECEIPT_FIELDS:
         val = receipt.get(key)
-        if val is None or val == "" or val == {} or val == []:
+        if val is None or val == {} or val == [] or (isinstance(val, str) and not val.strip()):
             missing.append(key)
 
     warnings: list[str] = []
@@ -306,7 +307,7 @@ def evaluate_held_out_acceptance(
     calibration = submission.get("calibration_summary") or {}
     calibration_frozen = bool(calibration.get("recipe_frozen", False))
     calibration_cases = [
-        str(cid) for cid in (calibration.get("case_ids") or []) if cid
+        str(cid).strip() for cid in (calibration.get("case_ids") or []) if str(cid).strip()
     ]
 
     raw_ballots = submission.get("held_out_ballots")
@@ -323,6 +324,7 @@ def evaluate_held_out_acceptance(
 
     cal_set = set(calibration_cases)
 
+    seen_ballot_keys: set[tuple[str, str, str]] = set()
     for idx, entry in enumerate(raw_ballots):
         if not isinstance(entry, Mapping):
             invalid_ballot_errors.append(f"ballot[{idx}]: not an object")
@@ -332,6 +334,7 @@ def evaluate_held_out_acceptance(
         category = str(entry.get("category", "")).strip()
         comparator = str(entry.get("comparator", "")).strip()
         outcome = str(entry.get("outcome", "")).strip()
+        reviewer_id = str(entry.get("reviewer_id") or "").strip()
 
         if not case_id or not comparator:
             invalid_ballot_errors.append(f"ballot[{idx}]: missing case_id or comparator")
@@ -349,6 +352,13 @@ def evaluate_held_out_acceptance(
                 f"ballot[{idx}] ({case_id}): invalid outcome {outcome!r}"
             )
             continue
+        ballot_key = (case_id, comparator, reviewer_id)
+        if ballot_key in seen_ballot_keys:
+            invalid_ballot_errors.append(
+                f"ballot[{idx}] ({case_id}): duplicate ballot for ({case_id}, {comparator})"
+            )
+            continue
+        seen_ballot_keys.add(ballot_key)
 
         held_out_cases_by_category[category].add(case_id)
 
@@ -378,13 +388,13 @@ def evaluate_held_out_acceptance(
             }
         )
 
-    required_comparators = [
-        str(c)
-        for c in (
-            submission.get("required_comparators")
-            or ["pinned_clarity", "dated_krea"]
-        )
-    ]
+    explicit_comps = submission.get("required_comparators")
+    if explicit_comps:
+        required_comparators = [str(c) for c in explicit_comps]
+    elif valid_ballots:
+        required_comparators = list(dict.fromkeys(str(b["comparator"]) for b in valid_ballots))
+    else:
+        required_comparators = ["pinned_clarity", "dated_krea"]
 
     by_comparator: dict[str, dict[str, Any]] = {}
     comparator_failures: list[str] = []
@@ -393,6 +403,23 @@ def evaluate_held_out_acceptance(
         summary = _summarize_ballots(
             comp_ballots, thresholds=thresholds, seed_offset=offset * 10
         )
+        comp_cases_by_cat = {
+            cat: {b["case_id"] for b in comp_ballots if b["category"] == cat}
+            for cat in REQUIRED_CATEGORIES
+        }
+        missing_comp_cats = [
+            cat
+            for cat in REQUIRED_CATEGORIES
+            if len(comp_cases_by_cat[cat]) < thresholds.min_held_out_cases_per_category
+        ]
+        comp_coverage_ok = len(missing_comp_cats) == 0
+        summary["distinct_held_out_cases"] = sum(
+            len(cases) for cases in comp_cases_by_cat.values()
+        )
+        summary["required_held_out_cases"] = (
+            len(REQUIRED_CATEGORIES) * thresholds.min_held_out_cases_per_category
+        )
+        summary["missing_coverage_categories"] = missing_comp_cats
         passed_pref = (
             summary["preference_plus_ties_rate"] is not None
             and summary["preference_plus_ties_rate"]
@@ -402,7 +429,9 @@ def evaluate_held_out_acceptance(
             summary["win_rate"] is not None
             and summary["win_rate"] >= thresholds.target_win_rate_min
         )
-        summary["passed_thresholds"] = bool(passed_pref and passed_win)
+        summary["passed_thresholds"] = bool(
+            passed_pref and passed_win and comp_coverage_ok
+        )
         by_comparator[comp] = summary
         if not summary["passed_thresholds"]:
             comparator_failures.append(comp)
@@ -415,10 +444,26 @@ def evaluate_held_out_acceptance(
         summary = _summarize_ballots(
             cat_ballots, thresholds=thresholds, seed_offset=500 + offset * 10
         )
-        distinct_cases = len(held_out_cases_by_category[cat])
+        per_comp_counts = {
+            comp: len({b["case_id"] for b in cat_ballots if b["comparator"] == comp})
+            for comp in required_comparators
+        }
+        distinct_cases = (
+            min(per_comp_counts.values())
+            if per_comp_counts
+            else len(held_out_cases_by_category[cat])
+        )
         summary["distinct_held_out_cases"] = distinct_cases
+        summary["distinct_held_out_cases_by_comparator"] = per_comp_counts
         summary["required_held_out_cases"] = thresholds.min_held_out_cases_per_category
-        coverage_ok = distinct_cases >= thresholds.min_held_out_cases_per_category
+        coverage_ok = (
+            len(held_out_cases_by_category[cat])
+            >= thresholds.min_held_out_cases_per_category
+            and all(
+                cnt >= thresholds.min_held_out_cases_per_category
+                for cnt in per_comp_counts.values()
+            )
+        )
         if not coverage_ok:
             missing_coverage_categories.append(cat)
 
@@ -450,14 +495,56 @@ def evaluate_held_out_acceptance(
     if category_failures:
         blocking_reasons.append("category_threshold_not_met")
 
+    raw_automated = submission.get("automated_metrics")
+    automated_detail_gates: dict[str, Any] = {
+        "required": thresholds.require_automated_detail_gates,
+        "provided": isinstance(raw_automated, Mapping),
+        "interior_texture_passed": None,
+        "oversharpen_restraint_passed": None,
+        "fabric_weave_passed": None,
+        "hardware_seam_passed": None,
+        "passed": None,
+    }
+    if isinstance(raw_automated, Mapping):
+        f2_val = raw_automated.get("interior_texture_passed")
+        f3_val = raw_automated.get("oversharpen_restraint_passed")
+        f4_fab = raw_automated.get("fabric_weave_passed")
+        f4_hw = raw_automated.get("hardware_seam_passed")
+        automated_detail_gates.update(
+            {
+                "interior_texture_passed": f2_val,
+                "oversharpen_restraint_passed": f3_val,
+                "fabric_weave_passed": f4_fab,
+                "hardware_seam_passed": f4_hw,
+            }
+        )
+        if thresholds.require_automated_detail_gates:
+            f2_ok = f2_val is True
+            f3_ok = f3_val is True
+            f4_ok = (f4_fab is True) and (f4_hw is True)
+        else:
+            f2_ok = f2_val is not False
+            f3_ok = f3_val is not False
+            f4_ok = (f4_fab is not False) and (f4_hw is not False)
+        if not f2_ok:
+            blocking_reasons.append("automated_f2_texture_regression")
+        if not f3_ok:
+            blocking_reasons.append("automated_f3_oversharpening_failed")
+        if not f4_ok:
+            blocking_reasons.append("automated_f4_fabric_or_hardware_failed")
+        automated_detail_gates["passed"] = bool(f2_ok and f3_ok and f4_ok)
+    elif thresholds.require_automated_detail_gates:
+        blocking_reasons.append("missing_automated_detail_metrics")
+        automated_detail_gates["passed"] = False
+
     signoff = submission.get("owner_creative_signoff") or {}
     signoff_status = str(signoff.get("status", "pending")).strip()
     reviewer = signoff.get("reviewer")
     signed_at = signoff.get("signed_at")
     owner_approved = (
         signoff_status == "approved"
-        and bool(reviewer)
-        and bool(signed_at)
+        and bool(str(reviewer or "").strip())
+        and bool(str(signed_at or "").strip())
     )
 
     quantitative_gates_passed = len(blocking_reasons) == 0
@@ -467,6 +554,8 @@ def evaluate_held_out_acceptance(
             missing_coverage_categories
             and len(valid_ballots) == 0
             and len(critical_defects) == 0
+            and not split_contamination_ids
+            and not invalid_ballot_errors
         ):
             overall_status = "blocked_incomplete_evidence"
         else:
@@ -494,7 +583,9 @@ def evaluate_held_out_acceptance(
             "category_preference_plus_ties_min": thresholds.category_preference_plus_ties_min,
             "min_held_out_cases_per_category": thresholds.min_held_out_cases_per_category,
             "max_critical_defects": thresholds.max_critical_defects,
+            "require_automated_detail_gates": thresholds.require_automated_detail_gates,
         },
+        "automated_detail_gates": automated_detail_gates,
         "reproducibility_receipt": receipt_check,
         "calibration": {
             "recipe_frozen": calibration_frozen,

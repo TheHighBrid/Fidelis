@@ -13,6 +13,7 @@ import json
 import os
 from pathlib import Path
 import random
+import shutil
 import time
 from typing import Any, Callable, Optional
 
@@ -27,10 +28,14 @@ from fidelis.eval.corpus_manifest import (
     local_path,
     verify,
 )
-from fidelis.eval.pipeline_metrics import measure_pipeline_metrics
+from fidelis.eval.pipeline_metrics import (
+    measure_pipeline_metrics,
+    measure_scale_matched_metrics,
+)
 
 CANONICAL_COMPARATORS = (
     "interpolation",
+    "bicubic",
     "selected_deterministic_base",
     "fidelis",
     "vosr_challenger",
@@ -51,20 +56,24 @@ class ComparatorOutput:
     elapsed_seconds: Optional[float] = None
     cost_usd: Optional[float] = None
     error: Optional[str] = None
+    is_imported: bool = False
 
 
-def interpolation_runner(
+def _deterministic_resample_runner(
     case: dict[str, Any],
     source_path: Path,
     dest_path: Path,
+    *,
+    method_name: str,
+    resampling: Image.Resampling,
 ) -> ComparatorOutput:
-    """Built-in deterministic Lanczos interpolation baseline."""
+    """Shared deterministic PIL resampling baseline."""
     start = time.monotonic()
     if case.get("expected_behavior") == "reject_unsupported_input":
         return ComparatorOutput(
             output_path=None,
             status="rejected_unsupported",
-            settings={"method": "lanczos3", "target_dimensions": case["target_dimensions"]},
+            settings={"method": method_name, "target_dimensions": case.get("target_dimensions")},
             elapsed_seconds=round(time.monotonic() - start, 6),
             cost_usd=0.0,
             error="Rejected negative edge case per expected_behavior",
@@ -73,7 +82,7 @@ def interpolation_runner(
         return ComparatorOutput(
             output_path=None,
             status="unavailable",
-            settings={"method": "lanczos3"},
+            settings={"method": method_name},
             elapsed_seconds=round(time.monotonic() - start, 6),
             cost_usd=0.0,
             error="target_dimensions missing or invalid",
@@ -81,18 +90,60 @@ def interpolation_runner(
     tw, th = target
     dest_path.parent.mkdir(parents=True, exist_ok=True)
     tmp_path = dest_path.with_suffix(".tmp.png")
-    with Image.open(source_path) as image:
-        rgb = image.convert("RGB")
-        resized = rgb.resize((tw, th), Image.Resampling.LANCZOS)
-        resized.save(tmp_path, format="PNG")
-    os.replace(tmp_path, dest_path)
+    try:
+        with Image.open(source_path) as image:
+            rgb = image.convert("RGB")
+            resized = rgb.resize((tw, th), resampling)
+            resized.save(tmp_path, format="PNG")
+        os.replace(tmp_path, dest_path)
+    except (FileNotFoundError, OSError) as exc:
+        if tmp_path.exists():
+            tmp_path.unlink(missing_ok=True)
+        return ComparatorOutput(
+            output_path=None,
+            status="failed",
+            settings={"method": method_name, "target_dimensions": [tw, th]},
+            elapsed_seconds=round(time.monotonic() - start, 6),
+            cost_usd=0.0,
+            error=f"Failed to process source image {source_path}: {exc}",
+        )
     return ComparatorOutput(
         output_path=dest_path,
         status="completed",
-        settings={"method": "lanczos3", "target_dimensions": [tw, th]},
+        settings={"method": method_name, "target_dimensions": [tw, th]},
         manual_adjustments=None,
         elapsed_seconds=round(time.monotonic() - start, 6),
         cost_usd=0.0,
+    )
+
+
+def interpolation_runner(
+    case: dict[str, Any],
+    source_path: Path,
+    dest_path: Path,
+) -> ComparatorOutput:
+    """Built-in deterministic Lanczos interpolation baseline."""
+    return _deterministic_resample_runner(
+        case,
+        source_path,
+        dest_path,
+        method_name="lanczos3",
+        resampling=Image.Resampling.LANCZOS,
+    )
+
+
+def bicubic_runner(
+    case: dict[str, Any],
+    source_path: Path,
+    dest_path: Path,
+) -> ComparatorOutput:
+    """Built-in deterministic 4x Bicubic interpolation baseline."""
+    return _deterministic_resample_runner(
+        case,
+        source_path,
+        dest_path,
+        method_name="bicubic",
+        resampling=Image.Resampling.BICUBIC,
     )
 
 
@@ -125,6 +176,7 @@ def make_imported_output_runner(
                 elapsed_seconds=meta.get("elapsed_seconds"),
                 cost_usd=meta.get("cost_usd"),
                 error=meta.get("error", f"No output file found for {case_id} in {imported_dir}"),
+                is_imported=True,
             )
 
         dest_path.parent.mkdir(parents=True, exist_ok=True)
@@ -143,6 +195,7 @@ def make_imported_output_runner(
             manual_adjustments=meta.get("manual_adjustments"),
             elapsed_seconds=meta.get("elapsed_seconds"),
             cost_usd=meta.get("cost_usd"),
+            is_imported=True,
         )
 
     _run.__name__ = f"imported_{comparator_name}"
@@ -156,6 +209,8 @@ def _evaluate_output_record(
     result: ComparatorOutput,
     *,
     ground_truth_path: Optional[Path] = None,
+    bicubic_bgr: Optional[np.ndarray] = None,
+    rois: Optional[list[dict[str, Any]]] = None,
 ) -> dict[str, Any]:
     base = {
         "comparator": comparator,
@@ -170,6 +225,7 @@ def _evaluate_output_record(
         "output_dimensions": None,
         "metrics": None,
         "metric_context": None,
+        "scale_matched_metrics": None,
     }
     if result.status != "completed" or result.output_path is None:
         return base
@@ -213,6 +269,11 @@ def _evaluate_output_record(
         ground_truth_bgr=gt_bgr,
         ground_truth_requested=ground_truth_path is not None,
     )
+    scale_matched = (
+        measure_scale_matched_metrics(out_bgr, bicubic_bgr, src_bgr, rois=rois)
+        if bicubic_bgr is not None
+        else None
+    )
     return {
         **base,
         "output_path": str(out_path),
@@ -220,6 +281,7 @@ def _evaluate_output_record(
         "output_dimensions": info["dimensions"],
         "metrics": metrics,
         "metric_context": context,
+        "scale_matched_metrics": scale_matched,
     }
 
 
@@ -263,6 +325,7 @@ def run_comparators(
     comparators = tuple(prot.get("comparators", CANONICAL_COMPARATORS))
     active_runners: dict[str, Callable[[dict[str, Any], Path, Path], ComparatorOutput]] = {
         "interpolation": interpolation_runner,
+        "bicubic": bicubic_runner,
         **(runners or {}),
     }
 
@@ -282,6 +345,20 @@ def run_comparators(
         remote_allowed = case.get("rights", {}).get("remote_processing") == "allowed"
         gt_rel = case.get("ground_truth_path")
         gt_path = local_path(root, gt_rel) if gt_rel else None
+
+        bicubic_bgr: Optional[np.ndarray] = None
+        target_dims = case.get("target_dimensions")
+        if (
+            isinstance(target_dims, list)
+            and len(target_dims) == 2
+            and all(type(v) is int and v > 0 for v in target_dims)
+            and src_path.is_file()
+            and case.get("expected_behavior") != "reject_unsupported_input"
+        ):
+            tw, th = target_dims
+            with Image.open(src_path) as src_im:
+                bic_rgb = np.asarray(src_im.convert("RGB").resize((tw, th), Image.Resampling.BICUBIC))
+                bicubic_bgr = cv2.cvtColor(bic_rgb, cv2.COLOR_RGB2BGR)
 
         outputs: dict[str, dict[str, Any]] = {}
         for comp in comparators:
@@ -316,7 +393,7 @@ def run_comparators(
             t0 = time.monotonic()
             try:
                 res = runner(case, src_path, dest_png)
-                if res.elapsed_seconds is None and res.status == "completed":
+                if res.elapsed_seconds is None and res.status == "completed" and not res.is_imported:
                     res = ComparatorOutput(**{**asdict(res), "elapsed_seconds": round(time.monotonic() - t0, 6)})
             except Exception as exc:
                 res = ComparatorOutput(
@@ -327,7 +404,13 @@ def run_comparators(
                     error=f"{type(exc).__name__}: {exc}",
                 )
             outputs[comp] = _evaluate_output_record(
-                case, comp, src_path, res, ground_truth_path=gt_path
+                case,
+                comp,
+                src_path,
+                res,
+                ground_truth_path=gt_path,
+                bicubic_bgr=bicubic_bgr,
+                rois=case.get("rois"),
             )
 
         case_results.append(
@@ -391,6 +474,7 @@ def build_blind_pairwise_manifest(
     *,
     split: str = "held_out",
     seed: int = 20261110,
+    blind_dir: str | Path | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Build blind randomized A/B comparison ballot keeping separate native PNG paths."""
     if candidate_a == candidate_b:
@@ -412,13 +496,28 @@ def build_blind_pairwise_manifest(
         pair_id = f"pair_{idx:03d}"
         swap = bool(rng.randint(0, 1))
         left_comp, right_comp = (candidate_b, candidate_a) if swap else (candidate_a, candidate_b)
+        orig_left = Path(case["outputs"][left_comp]["output_path"])
+        orig_right = Path(case["outputs"][right_comp]["output_path"])
+        base_blind_root = (
+            Path(blind_dir)
+            if blind_dir is not None
+            else orig_left.parent.parent / "blind_pairs" / f"{split}_{seed}"
+        )
+        pair_dir = base_blind_root / pair_id
+        anon_left = pair_dir / f"option_left{orig_left.suffix or '.png'}"
+        anon_right = pair_dir / f"option_right{orig_right.suffix or '.png'}"
+        if orig_left.is_file() and orig_right.is_file():
+            pair_dir.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(orig_left, anon_left)
+            shutil.copy2(orig_right, anon_right)
+
         ballot_items.append(
             {
                 "pair_id": pair_id,
                 "category": case["category"],
                 "source_path": case["source_path"],
-                "option_left": case["outputs"][left_comp]["output_path"],
-                "option_right": case["outputs"][right_comp]["output_path"],
+                "option_left": str(anon_left),
+                "option_right": str(anon_right),
                 "choice": None,  # "left" | "right" | "tie"
                 "critical_defect_left": False,
                 "critical_defect_right": False,
@@ -430,6 +529,8 @@ def build_blind_pairwise_manifest(
             "category": case["category"],
             "left": left_comp,
             "right": right_comp,
+            "left_output_path": str(orig_left),
+            "right_output_path": str(orig_right),
         }
 
     ballot = {
@@ -477,8 +578,12 @@ def summarize_blind_reviews(
     critical_defects_subject = 0
     unreviewed = 0
 
+    seen_pair_ids: set[str] = set()
     for entry in completed_ballot.get("items", []):
         pid = entry.get("pair_id")
+        if pid in seen_pair_ids:
+            raise ValueError(f"Duplicate pair_id {pid!r} in blind ballot")
+        seen_pair_ids.add(pid)
         meta = mapping.get(pid)
         if not meta:
             raise ValueError(f"Ballot entry {pid!r} missing from blind answer key")
