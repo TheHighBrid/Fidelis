@@ -70,6 +70,20 @@ class RestorationRunnerTests(unittest.TestCase):
             with self.assertRaises(DimensionMismatchError):
                 runner.run(src, scale=4, case_id="case_bad", apply_texture_guard=False)
 
+    def test_imported_backend_rejects_profiled_or_non_srgb_png_samples(self) -> None:
+        import tempfile
+        from PIL import ImageCms
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            src = _make_textured_rgb(4, 4)
+            output = _make_textured_rgb(16, 16)
+            profile = ImageCms.ImageCmsProfile(ImageCms.createProfile("sRGB")).tobytes()
+            Image.fromarray(output).save(root / "profiled.png", icc_profile=profile)
+            runner = create_restoration_runner("imported", imported_dir=root)
+            with self.assertRaisesRegex(ValueError, "ICC profile"):
+                runner.run(src, scale=4, case_id="profiled", apply_texture_guard=False)
+
     def test_comfy_backend_passes_4x_bicubic_canvas_and_enforces_shape(self) -> None:
         src = _make_textured_rgb(16, 16)
         bundle = {"schema_version": 1, "family": "sdxl", "workflow": {}}

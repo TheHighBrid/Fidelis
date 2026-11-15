@@ -287,6 +287,24 @@ class ImportedRestorationBackend:
                 raise ValueError(
                     f"Imported image {path.name} must be 3-channel RGB, got mode {img.mode!r}"
                 )
+            # This runner composes in a defined sRGB working space. Pillow's
+            # RGB conversion exposes encoded samples without applying an ICC
+            # transform, so accepting a profiled or non-sRGB-tagged PNG here
+            # would silently blend and export the wrong colours.
+            if img.info.get("icc_profile"):
+                raise ValueError(
+                    f"Imported image {path.name} carries an ICC profile; convert it to untagged sRGB first"
+                )
+            if "transparency" in img.info:
+                raise ValueError(
+                    f"Imported image {path.name} has colour-key transparency; use explicit RGB samples"
+                )
+            if "srgb" not in img.info and (
+                "gamma" in img.info or "chromaticity" in img.info
+            ):
+                raise ValueError(
+                    f"Imported image {path.name} has non-sRGB PNG colour tags; convert it to sRGB first"
+                )
             arr = np.asarray(img, dtype=np.uint8)
         out = _enforce_exact_shape(arr, target_shape, f"imported({path.name})")
         return out, {"imported_path": str(path), "imported_sha256": _sha256_file(path)}
