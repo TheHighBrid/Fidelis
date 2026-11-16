@@ -19,3 +19,7 @@ experiments/eval_corpus/
 *.html
 .DS_Store
 
+# Generated Python interpreter artifacts (never source or release inputs)
+__pycache__/
+*.py[cod]
+*$py.class
