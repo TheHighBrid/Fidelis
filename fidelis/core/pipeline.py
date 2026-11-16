@@ -298,8 +298,8 @@ class UpscalePipeline:
 
             use_tiling = tiled and (in_w > tile_size or in_h > tile_size)
             if use_tiling:
-                from scripts import tiled_upscale as tu_module  # type: ignore
-                # Execute tiled upscale via internal function or script
+                # The tiled CLI is a hyphenated script, invoked by _run_tiled_upscale.
+                # Importing scripts.tiled_upscale fails before the subprocess can run.
                 self._run_tiled_upscale(
                     input_path=in_p,
                     output_path=step1_out,
