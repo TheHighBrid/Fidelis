@@ -449,6 +449,27 @@
       "verification_checkpoint": "docs/project/checkpoints/2026-11-10-async-generation.md"
     },
     {
+      "id": "F07-B",
+      "title": "Enforce aggregate local generation PNG cache budget",
+      "parent": "F07",
+      "milestone": "M1",
+      "state": "In Review",
+      "implementation": "implemented_protocol_tested_in_review",
+      "depends_on": ["F07-A"],
+      "role": "Job orchestration",
+      "scope": "Bound shared backend PNG cache publication without deleting outputs or run identities.",
+      "acceptance": "Concurrent callers respect the payload cap; existing cache hits remain usable; quota exhaustion is resumable with the same prompt after raising the cap.",
+      "evidence": "fidelis/studio/comfy.py; tests/test_comfy_backend.py; tests/test_generation_queue.py; docs/COMFY_TEXTURE_BACKEND.md",
+      "priority": 2,
+      "linear": {
+        "id": "MEL-82",
+        "uuid": "27e07374-4180-4924-9810-bf3cfd1025c1",
+        "url": "https://linear.app/melato/issue/MEL-82/f07-b-enforce-aggregate-local-generation-png-cache-budget",
+        "title": "F07-B · Enforce aggregate local generation PNG cache budget"
+      },
+      "verification_checkpoint": "docs/project/checkpoints/2026-11-16-generation-cache-budget.md"
+    },
+    {
       "id": "F08-A",
       "title": "Add actual native image-pixel crop inspection",
       "parent": "F08",

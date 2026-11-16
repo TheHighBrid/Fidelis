@@ -162,6 +162,15 @@ Target-device **Apple M1 (8 GB RAM) Vulkan NCNN precision-base audition** (`F05`
 
 Remaining gates are strictly external `E2..E4` operational/human gates: live ComfyUI GPU texture worker (`F05-A`/`F06`/`F07`), 60-case licensed photographic corpus & paid comparator runs (`F12-A`/`F12`), 30-case blind human signoff (`F13`), physical Android/iOS touch hardware review (`F08-B`/`F15`), PR #12 merge, and owner release signoff (`F16`).
 
+## F07-B generation cache budget · 2026-11-16
+
+On the isolated MEL-82 branch, the local Comfy PNG cache now has an explicit
+2048 MiB default payload cap, bounded atomic staging and same-run recovery after
+quota rejection. Existing cached outputs and run identities are retained.
+See [the checkpoint](checkpoints/2026-11-16-generation-cache-budget.md).
+Operator-managed retention, complete filesystem/RSS measurement and live F07
+acceptance remain open. This is a scoped change awaiting review, not a release.
+
 ## PR #12 review-remediation checkpoint · 2026-11-15
 
 The Studio branch now includes five independently regression-tested corrections to the 2026-11-14 Codex review of PR #12: mandatory F13 comparator coverage (#17), fail-closed unknown-region fidelity (#18), separate audition image artifacts (#19), truthful Comfy weight/workflow provenance (#20), and actual generation SQLite backup schemas (#21). All five changes were merged into `feat/region-aware-studio` as squash commits; combined branch head after this delivery is `929334bed65de8db54e4a1bc6732f7176a91c5e6`. Each PR passed its Linux/macOS matrix and latest code review; focused integrated local tests passed **33 tests plus 4 subtests**. On 2026-11-15, the branch-head CI run [43673811216](https://github.com/TheHighBrid/Fidelis/actions/runs/43673811216) was independently checked through GitHub's run API and reported `completed` with conclusion `success` for that exact head SHA. This verifies the combined CI run; it does not merge, deploy, release or satisfy the remaining operational/human acceptance gates.

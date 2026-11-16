@@ -1513,7 +1513,7 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
 
 def run_server(port: int = 8765, host: str = "127.0.0.1", region_workspace=None, region_store_options=None, texture_workflow=None,
-               generation_root=None, comfy_address="http://127.0.0.1:8188"):
+               generation_root=None, comfy_address="http://127.0.0.1:8188", generation_cache_mib=2048):
     handler = FidelisRequestHandler
     # Allow port reuse
     socketserver.TCPServer.allow_reuse_address = True
@@ -1545,7 +1545,7 @@ def run_server(port: int = 8765, host: str = "127.0.0.1", region_workspace=None,
             httpd.region_store = JobStore(httpd.region_workspace_root, **httpd.region_store_options)
             httpd.generation_queue = GenerationQueue(
                 generation_root or CACHE_DIR / "async_generation", httpd.region_store, bundle,
-                address=comfy_address)
+                address=comfy_address, cache_budget=generation_cache_mib * 1024**2)
         except BaseException:
             httpd.server_close()
             raise
@@ -1573,6 +1573,7 @@ def build_argument_parser():
     parser.add_argument("--region-max-pixels", type=int, default=40_000_000, help="Regional image pixel limit")
     parser.add_argument("--texture-workflow", type=Path, help="Trusted local ComfyUI workflow bundle; opt in to background generation")
     parser.add_argument("--generation-root", type=Path, help="Durable generation queue directory")
+    parser.add_argument("--generation-cache-mib", type=int, default=2048, help="Aggregate generation PNG cache cap in MiB")
     parser.add_argument("--comfy-address", default="http://127.0.0.1:8188", help="Explicit loopback ComfyUI address")
     return parser
 
@@ -1580,11 +1581,11 @@ def build_argument_parser():
 if __name__ == "__main__":
     parser = build_argument_parser()
     args = parser.parse_args()
-    if min(args.region_disk_mib, args.region_workspace_mib, args.region_max_pixels) <= 0:
-        parser.error("Regional storage, workspace and pixel limits must be positive")
+    if min(args.region_disk_mib, args.region_workspace_mib, args.region_max_pixels, args.generation_cache_mib) <= 0:
+        parser.error("Storage, workspace and pixel limits must be positive")
     run_server(port=args.port, host=args.bind, region_workspace=args.region_workspace,
                region_store_options={"disk_budget": args.region_disk_mib * 1024**2,
                                      "workspace_budget": args.region_workspace_mib * 1024**2,
                                      "max_pixels": args.region_max_pixels},
                texture_workflow=args.texture_workflow, generation_root=args.generation_root,
-               comfy_address=args.comfy_address)
+               comfy_address=args.comfy_address, generation_cache_mib=args.generation_cache_mib)

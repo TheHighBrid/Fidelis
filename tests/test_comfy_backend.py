@@ -1,5 +1,6 @@
 """ComfyUI protocol tests against an HTTP fixture, not GPU inference evidence."""
 import copy
+from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 import hashlib
 import io
@@ -15,7 +16,8 @@ import uuid
 import numpy as np
 from PIL import Image
 
-from fidelis.studio.comfy import BackendUnavailable,ComfyTextureBackend,SubmissionUnknown,canonical_hash,validate_workflow
+from fidelis.studio.comfy import BackendUnavailable,CacheBudgetExceeded,ComfyTextureBackend,SubmissionUnknown,canonical_hash,validate_workflow
+from fidelis.studio.png import write_rgb_png
 from fidelis.studio.store import JobStore,RevisionConflict
 from fidelis.postprocess.regions import RegionBlend
 
@@ -81,6 +83,68 @@ class ComfyTests(unittest.TestCase):
         again,_=self.backend.run(self.source,BUNDLE,run_id=self.run_id)
         np.testing.assert_array_equal(again,output)
         self.assertEqual(self.state['submits'],1)
+
+    def test_budget_failure_preserves_identity_and_existing_files(self):
+        root=Path(self.temp.name)
+        first,first_record=self.backend.run(self.source,BUNDLE,run_id=self.run_id)
+        cache=root/f'{self.run_id}.png'
+        original=cache.read_bytes()
+        self.backend.cache_budget=len(original)+1
+        other=str(uuid.uuid4())
+        with self.assertRaises(CacheBudgetExceeded):
+            self.backend.run(self.source,BUNDLE,run_id=other)
+        self.assertEqual(self.backend._get(other)['status'],'submitted')
+        self.assertEqual(cache.read_bytes(),original)
+        self.assertFalse(list(root.glob('*.pending')))
+        self.assertFalse((root/f'{other}.png').exists())
+        again,record=self.backend.run(self.source,BUNDLE,run_id=self.run_id)
+        np.testing.assert_array_equal(again,first)
+        self.assertEqual(record,first_record)
+        self.backend.cache_budget=2*len(original)
+        output,record=self.backend.run(self.source,BUNDLE,run_id=other)
+        np.testing.assert_array_equal(output,self.output)
+        self.assertEqual(record['status'],'completed')
+        self.assertEqual(self.state['submits'],2)
+        self.assertEqual(self.backend._cache_bytes(),2*len(original))
+
+    def test_orphan_and_staging_payloads_count_against_budget(self):
+        root=Path(self.temp.name)
+        orphan=root/'orphan.png'; orphan.write_bytes(b'x'*30)
+        staged=root/'abandoned.pending'; staged.write_bytes(b'x'*20)
+        self.backend.cache_budget=50
+        with self.assertRaises(CacheBudgetExceeded):
+            self.backend.run(self.source,BUNDLE,run_id=self.run_id)
+        self.assertEqual(self.backend._cache_bytes(),50)
+        self.assertEqual(orphan.read_bytes(),b'x'*30)
+        self.assertEqual(staged.read_bytes(),b'x'*20)
+
+    def test_two_backend_instances_share_atomic_publication_budget(self):
+        stream=io.BytesIO();write_rgb_png(self.output,stream)
+        self.backend.cache_budget=len(stream.getvalue())
+        peer=ComfyTextureBackend(self.temp.name,self.backend.address,poll_interval=0,
+                                 cache_budget=self.backend.cache_budget)
+        self.addCleanup(peer.close)
+        barrier=threading.Barrier(2)
+        def execute(backend):
+            run_id=str(uuid.uuid4())
+            barrier.wait(timeout=2)
+            try:
+                backend.run(self.source,BUNDLE,run_id=run_id)
+                return 'completed',run_id
+            except CacheBudgetExceeded:
+                return 'submitted',run_id
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results=list(pool.map(execute,(self.backend,peer)))
+        self.assertCountEqual([state for state,_ in results],['completed','submitted'])
+        for state,run_id in results:
+            self.assertEqual(self.backend._get(run_id)['status'],state)
+        self.assertEqual(self.backend._cache_bytes(),self.backend.cache_budget)
+        self.assertFalse(list(Path(self.temp.name).glob('*.pending')))
+
+    def test_invalid_cache_budget_rejected(self):
+        for limit in (0,-1,True,1.5):
+            with self.assertRaises(ValueError):
+                ComfyTextureBackend(self.temp.name,self.backend.address,cache_budget=limit)
 
     def test_ambiguous_submission_reconciles_without_resubmitting(self):
         self.state['mode']='ambiguous'
