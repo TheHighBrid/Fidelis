@@ -5,10 +5,10 @@ import http.server
 import importlib.util
 import io
 import json
-from pathlib import Path
 import threading
 import unittest
-from unittest.mock import patch, Mock
+from pathlib import Path
+from unittest.mock import Mock, patch
 
 from PIL import Image
 
