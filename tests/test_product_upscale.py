@@ -1,6 +1,6 @@
 import runpy
-from pathlib import Path
 import unittest
+from pathlib import Path
 
 import numpy as np
 from scipy import ndimage
