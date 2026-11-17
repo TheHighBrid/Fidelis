@@ -63,3 +63,26 @@ def sanitize_quality_payload(metrics: Mapping[str, Any], *, reference_kind: str 
         return {"status": "unavailable", "reason": "out_of_range", "metrics": {}}
     return {"status": "measured", "reference_kind": reference_kind,
             "is_ground_truth": reference_kind == "ground_truth", "metrics": values}
+
+
+def sanitize_legacy_manifest(manifest: Mapping[str, Any]) -> dict[str, Any]:
+    """Remove unsupported legacy quality claims from exported CLI manifests.
+
+    The legacy pipeline also embeds quality values in root span attributes.
+    Preserve non-quality execution evidence while removing those claims.
+    This is an export boundary, not a correction to upstream telemetry.
+    """
+    if not isinstance(manifest, Mapping):
+        raise ValueError("Invalid execution manifest")
+    from copy import deepcopy
+
+    result = deepcopy(dict(manifest))
+    result["metrics"] = sanitize_quality_payload(result.get("metrics"))
+    quality_keys = {"psnr", "ssim", "lpips", "cielab_delta_e", "gradient_coherence_pct"}
+    spans = result.get("spans")
+    if isinstance(spans, list):
+        for span in spans:
+            if isinstance(span, dict) and isinstance(span.get("attributes"), dict):
+                for key in quality_keys:
+                    span["attributes"].pop(key, None)
+    return result
