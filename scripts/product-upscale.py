@@ -1,12 +1,11 @@
-#!/usr/bin/env python3
 """Opt-in local product upscale with source-derived edge and exact ROI locks."""
 
 import argparse
 import json
-from pathlib import Path
 import subprocess
 import sys
 import tempfile
+from pathlib import Path
 
 import numpy as np
 from PIL import Image
