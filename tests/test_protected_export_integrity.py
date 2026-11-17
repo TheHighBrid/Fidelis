@@ -1,8 +1,8 @@
 """Regression tests for independent protected-export verification."""
 import importlib.util
-from pathlib import Path
 import tempfile
 import unittest
+from pathlib import Path
 
 import numpy as np
 from PIL import Image
