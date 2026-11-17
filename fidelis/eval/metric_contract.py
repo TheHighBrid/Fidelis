@@ -95,10 +95,10 @@ def sanitize_legacy_manifest(manifest: Mapping[str, Any]) -> dict[str, Any]:
             for child in value:
                 redact_quality_attributes(child)
 
-    spans = result.get("spans")
-    if isinstance(spans, list):
-        for span in spans:
-            # Span exporters may put metrics in events or directly on spans.
-            # Scrub the complete span without changing root execution evidence.
-            redact_quality_attributes(span)
+    # Other exporters may attach span-like events and telemetry outside "spans".
+    # Redact their nested claims as well, while retaining the root-level
+    # normalized metrics contract and unrelated execution evidence.
+    for key, value in result.items():
+        if key != "metrics":
+            redact_quality_attributes(value)
     return result
