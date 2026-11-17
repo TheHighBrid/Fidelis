@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Fail-closed audit of Compose port publication for Fidelis's local-only UI.
 
 This intentionally recognizes only a small, documented subset of Compose ports.
@@ -13,6 +12,22 @@ import sys
 
 LOOPBACK = {"127.0.0.1", "::1", "[::1]"}
 PORT = re.compile(r"^(?:(?P<host>\[[^]]+\]|[^:]+):)?(?P<published>\d+):(?P<target>\d+)(?:/(?:tcp|udp))?$")
+
+
+def _port_error(stripped: str, number: int) -> str | None:
+    if not stripped.startswith("- "):
+        return f"line {number}: unsupported port mapping syntax"
+    value = stripped[2:].strip().strip("'\"")
+    if any(token in value for token in ("$", "&", "*")):
+        return f"line {number}: interpolated or aliased port mapping is unsupported"
+    match = PORT.fullmatch(value)
+    if not match:
+        return f"line {number}: unsupported or ambiguous port mapping {value!r}"
+    if match.group("host") not in LOOPBACK:
+        return f"line {number}: port {value!r} is not explicitly loopback-bound"
+    if any(not 1 <= int(match.group(name)) <= 65535 for name in ("published", "target")):
+        return f"line {number}: port {value!r} is outside valid TCP/UDP port range"
+    return None
 
 
 def check_compose(text: str) -> list[str]:
@@ -43,20 +58,9 @@ def check_compose(text: str) -> list[str]:
             continue
         if not in_ports:
             continue
-        if not stripped.startswith("- "):
-            errors.append(f"line {number}: unsupported port mapping syntax")
-            continue
-        value = stripped[2:].strip().strip("'\"")
-        if any(token in value for token in ("$", "&", "*")):
-            errors.append(f"line {number}: interpolated or aliased port mapping is unsupported")
-            continue
-        match = PORT.fullmatch(value)
-        if not match:
-            errors.append(f"line {number}: unsupported or ambiguous port mapping {value!r}")
-        elif match.group("host") not in LOOPBACK:
-            errors.append(f"line {number}: port {value!r} is not explicitly loopback-bound")
-        elif any(not 1 <= int(match.group(name)) <= 65535 for name in ("published", "target")):
-            errors.append(f"line {number}: port {value!r} is outside valid TCP/UDP port range")
+        error = _port_error(stripped, number)
+        if error:
+            errors.append(error)
     if not seen_ports:
         errors.append("no Compose ports section found; unable to verify publication policy")
     return errors
