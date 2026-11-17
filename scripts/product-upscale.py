@@ -20,6 +20,7 @@ from fidelis.studio.png import read_rgb8_png
 
 MAX_OUTPUT_PIXELS = 8_000_000
 SCALE = 4
+FEATHER_PIXELS = 8
 
 
 def texture_confidence(base_gray, candidate):
@@ -35,9 +36,7 @@ def texture_confidence(base_gray, candidate):
     return ndimage.gaussian_filter(confidence, 3)
 
 
-def compose_product(base, candidate, rois):
-    if base.shape != candidate.shape:
-        raise ValueError("Product passes must have identical dimensions")
+def _product_masks(base, candidate, rois):
     masks, _ = build_roi_protection_masks(base, rois)
     gray = np.asarray(Image.fromarray(base).convert("L"), dtype=np.float32)
     edges = np.hypot(ndimage.sobel(gray, axis=0), ndimage.sobel(gray, axis=1))
@@ -56,10 +55,26 @@ def compose_product(base, candidate, rois):
             fabric_mask[y:y + h, x:x + w] = 1.0
     locked |= masks["protected"] == 1
     fabric_mask *= (1.0 - (masks["protected"] == 1.0)).astype(np.float32)
-    confidence = (
-        np.clip(ndimage.distance_transform_edt(~locked) / 8, 0, 1).astype(np.float32)
-        if locked.any() else np.ones(locked.shape, dtype=np.float32)
-    )
+    return fabric_mask, locked, texture_weight
+
+
+def _inward_feather(permitted):
+    """Taper within permitted pixels, never across an unclassified boundary."""
+    if permitted.all():
+        # No internal semantic boundary when the entire image is permitted.
+        return np.ones(permitted.shape, dtype=np.float32)
+    distance = ndimage.distance_transform_edt(permitted)
+    return np.clip((distance - 1) / FEATHER_PIXELS, 0, 1).astype(np.float32)
+
+
+def compose_product(base, candidate, rois):
+    if base.shape != candidate.shape:
+        raise ValueError("Product passes must have identical dimensions")
+    fabric_mask, locked, texture_weight = _product_masks(base, candidate, rois)
+    confidence = _inward_feather(fabric_mask > 0)
+    if locked.any():
+        edge_feather = np.clip(ndimage.distance_transform_edt(~locked) / FEATHER_PIXELS, 0, 1)
+        np.minimum(confidence, edge_feather, out=confidence)
     confidence *= texture_weight
     result = np.empty_like(base)
     for start in range(0, base.shape[0], 128):
@@ -110,6 +125,7 @@ def main():
         source, rois = _read_product_source(args)
         size = (source.shape[1] * SCALE, source.shape[0] * SCALE)
         base = np.asarray(Image.fromarray(source).resize(size, Image.Resampling.BICUBIC))
+        args.output.parent.mkdir(parents=True, exist_ok=True)
         with tempfile.TemporaryDirectory(prefix="fidelis-product-", dir=args.output.parent) as tmp:
             staged = Path(tmp)
             source_path = staged / "source.png"

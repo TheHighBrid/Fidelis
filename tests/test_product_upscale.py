@@ -1,9 +1,11 @@
 import runpy
+import tempfile
 import unittest
-from unittest.mock import patch
 from pathlib import Path
+from unittest.mock import patch
 
 import numpy as np
+from PIL import Image
 from scipy import ndimage
 
 product = runpy.run_path(
@@ -41,11 +43,78 @@ class ProductUpscaleTests(unittest.TestCase):
              "override": None, "rect": [16, 16, 32, 32]}
         ]
         result_roi, _ = compose_product(base, candidate, rois)
-        np.testing.assert_array_equal(result_roi[20:44, 20:44], candidate[20:44, 20:44])
+        np.testing.assert_array_equal(result_roi[24:40, 24:40], candidate[24:40, 24:40])
         np.testing.assert_array_equal(result_roi[:16, :], base[:16, :])
         np.testing.assert_array_equal(result_roi[48:, :], base[48:, :])
         np.testing.assert_array_equal(result_roi[:, :16], base[:, :16])
         np.testing.assert_array_equal(result_roi[:, 48:], base[:, 48:])
+
+    def test_texture_roi_feathers_inward_without_touching_unknown_pixels(self):
+        base = np.full((64, 64, 3), 40, dtype=np.uint8)
+        candidate = np.full_like(base, 220)
+        roi = {"id": "patch", "kind": "fabric", "policy": "texture_allowed",
+               "rect": [16, 16, 32, 32]}
+        result, _ = compose_product(base, candidate, [roi])
+        row = result[32, :, 0]
+        self.assertEqual(row[16], 40)
+        self.assertGreater(row[20], 40)
+        self.assertLess(row[20], 220)
+        self.assertEqual(row[24], 220)
+        self.assertTrue(np.all(np.diff(row[16:25].astype(int)) > 0))
+        np.testing.assert_array_equal(row[16:48], row[16:48][::-1])
+        np.testing.assert_array_equal(result[:16], base[:16])
+        np.testing.assert_array_equal(result[:, :16], base[:, :16])
+
+    def test_cli_creates_nested_output_parent_and_publishes_png(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "source.png"
+            output = root / "results" / "nested" / "output.png"
+            Image.new("RGB", (8, 8), (40, 50, 60)).save(source)
+
+            def fixture_candidate(_source, destination, _model):
+                Image.new("RGB", (32, 32), (220, 220, 220)).save(destination)
+
+            main = product["main"]
+            with patch.dict(main.__globals__, {"_run_native_candidate": fixture_candidate}), patch(
+                "sys.argv", ["product-upscale", str(source), str(output)]
+            ):
+                main()
+            with Image.open(output) as result:
+                self.assertEqual(result.size, (32, 32))
+                np.testing.assert_array_equal(np.asarray(result), np.broadcast_to([40, 50, 60], (32, 32, 3)))
+            self.assertEqual(list(output.parent.iterdir()), [output])
+
+    def test_adjacent_texture_rois_do_not_create_internal_seam(self):
+        base = np.full((64, 64, 3), 40, dtype=np.uint8)
+        candidate = np.full_like(base, 220)
+        rois = [
+            {"id": name, "kind": "fabric", "policy": "texture_allowed",
+             "rect": [x, 16, 16, 32]}
+            for name, x in (("left", 16), ("right", 32))
+        ]
+        result, _ = compose_product(base, candidate, rois)
+        np.testing.assert_array_equal(result[24:40, 24:40], candidate[24:40, 24:40])
+
+    def test_invalid_native_grid_does_not_replace_existing_output(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "source.png"
+            output = root / "output.png"
+            Image.new("RGB", (8, 8), (40, 50, 60)).save(source)
+            output.write_bytes(b"previous output")
+
+            def invalid_candidate(_source, destination, _model):
+                Image.new("RGB", (31, 32)).save(destination)
+
+            main = product["main"]
+            with patch.dict(main.__globals__, {"_run_native_candidate": invalid_candidate}), patch(
+                "sys.argv", ["product-upscale", str(source), str(output)]
+            ), self.assertRaises(SystemExit) as failure:
+                main()
+            self.assertEqual(failure.exception.code, 1)
+            self.assertEqual(output.read_bytes(), b"previous output")
+            self.assertEqual(set(root.iterdir()), {source, output})
 
     def test_flattened_faint_texture_is_preserved(self):
         rng = np.random.default_rng(7)

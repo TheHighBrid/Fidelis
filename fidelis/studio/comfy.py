@@ -8,6 +8,7 @@ import hashlib
 import io
 import json
 import sqlite3
+import stat
 import time
 import uuid
 from contextlib import contextmanager
@@ -18,7 +19,7 @@ import httpx
 import numpy as np
 from PIL import Image
 
-from fidelis.studio.png import read_rgb8_png
+from fidelis.studio.png import read_rgb8_png, write_rgb_png
 from fidelis.studio.store import sha256
 
 
@@ -32,6 +33,13 @@ class GenerationCancelled(RuntimeError):
 
 class SubmissionUnknown(RuntimeError):
     pass
+
+
+DEFAULT_CACHE_BUDGET = 2 * 1024**3
+
+
+class CacheBudgetExceeded(RuntimeError):
+    """Output retrieved but local publication is blocked; keep the run identity."""
 
 
 def canonical_hash(value):
@@ -126,12 +134,16 @@ def validate_workflow(bundle, schema):
 
 
 class ComfyTextureBackend:
-    def __init__(self, root, address='http://127.0.0.1:8188', *, timeout=5, poll_interval=.5):
+    def __init__(self, root, address='http://127.0.0.1:8188', *, timeout=5, poll_interval=.5,
+                 cache_budget=DEFAULT_CACHE_BUDGET):
         parsed = urlparse(address)
         if parsed.scheme != 'http' or parsed.hostname not in ('127.0.0.1', 'localhost', '::1') or parsed.path not in ('', '/') or parsed.username or parsed.password or parsed.query or parsed.fragment:
             raise ValueError('Use a loopback ComfyUI HTTP address or an explicit SSH tunnel')
         if not 0 < timeout <= 60 or not 0 <= poll_interval <= 10:
             raise ValueError('Invalid backend time limits')
+        if not isinstance(cache_budget, int) or isinstance(cache_budget, bool) or cache_budget <= 0:
+            raise ValueError('Generation PNG cache budget must be a positive integer in bytes')
+        self.cache_budget = cache_budget
         self.root = Path(root)
         self.root.mkdir(parents=True, exist_ok=True)
         self.address = address.rstrip('/')
@@ -160,6 +172,18 @@ class ComfyTextureBackend:
     def _save(self, record):
         with self._db() as db:
             db.execute('UPDATE runs SET record=? WHERE id=?', (json.dumps(record), record['id']))
+
+    def _cache_bytes(self):
+        """Count actual PNGs and abandoned staging files, including orphaned runs."""
+        used = 0
+        for path in self.root.iterdir():
+            if path.suffix not in ('.png', '.pending'):
+                continue
+            info = path.lstat()
+            if not stat.S_ISREG(info.st_mode):
+                raise CacheBudgetExceeded('Generation cache contains a non-regular payload; inspect the cache')
+            used += info.st_size
+        return used
 
     def _request(self, method, route, *, max_bytes=16*1024**2, **kwargs):
         with self.client.stream(method, self.address + route, **kwargs) as response:
@@ -341,10 +365,35 @@ class ComfyTextureBackend:
             raise ValueError('Invalid ComfyUI output descriptor')
         encoded = self._request('GET', '/view?' + urlencode({key: item.get(key, '') for key in ('filename', 'subfolder', 'type')}), max_bytes=200*1024**2)
         array = read_rgb8_png(io.BytesIO(encoded), expected_size=(expected_shape[1], expected_shape[0]))
+        del encoded
         output = self.root / f"{record['id']}.png"
         pending = output.with_suffix(f'.{uuid.uuid4().hex}.pending')
-        Image.fromarray(array).save(pending, format='PNG')
-        pending.replace(output)
-        record.update(status='completed', output_sha256=sha256(output), inference_executed=True)
-        self._save(record)
+        # Serialize accounting and publication across independent CLI/queue callers
+        # sharing the ledger. Count the old output too, since staging coexists with it.
+        with self._db() as db:
+            db.execute('BEGIN IMMEDIATE')
+            current = json.loads(db.execute('SELECT record FROM runs WHERE id=?',
+                                            (record['id'],)).fetchone()[0])
+            if (current['status'] == 'completed' and output.is_file()
+                    and sha256(output) == current['output_sha256']):
+                with output.open('rb') as stream:
+                    return read_rgb8_png(stream, expected_size=(expected_shape[1], expected_shape[0])), current
+            remaining = self.cache_budget - self._cache_bytes()
+            message = ('Generation PNG cache budget exhausted; increase the configured limit '
+                       'and resume this run without resubmitting')
+            if remaining <= 0:
+                raise CacheBudgetExceeded(message)
+            stream = pending.open('xb')
+            try:
+                with stream:
+                    try:
+                        write_rgb_png(array, stream, max_bytes=remaining)
+                    except ValueError as error:
+                        raise CacheBudgetExceeded(message) from error
+                digest = sha256(pending)
+                pending.replace(output)
+                record.update(status='completed', output_sha256=digest, inference_executed=True)
+                db.execute('UPDATE runs SET record=? WHERE id=?', (json.dumps(record), record['id']))
+            finally:
+                pending.unlink(missing_ok=True)
         return array, record

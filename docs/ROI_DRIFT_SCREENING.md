@@ -54,6 +54,13 @@ are `[x,y,width,height]` in **input** pixels. Automatic edge locking does
 not recognize semantic features. Existing upscale and Studio defaults
 are unchanged.
 
+When a permitted texture region borders unknown or locked pixels, model
+contribution starts at zero along the internal boundary and rises over eight
+output pixels. Adjacent permitted regions share their interior; only the actual
+boundary with a non-permitted region is feathered. Unknown and explicitly locked
+pixels remain exactly equal to the bicubic base. Missing output parent directories
+are created before staging the PNG; failed inference never publishes an output.
+
 For fine texture, the product command checks whether the model retains
 source-aligned luminance detail relative to the bicubic baseline. Where
 the model removes that detail, it blends back toward the baseline.

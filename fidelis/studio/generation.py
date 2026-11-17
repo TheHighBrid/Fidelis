@@ -12,6 +12,8 @@ from pathlib import Path
 import numpy as np
 
 from fidelis.studio.comfy import (
+    DEFAULT_CACHE_BUDGET,
+    CacheBudgetExceeded,
     ComfyTextureBackend,
     GenerationCancelled,
     SubmissionUnknown,
@@ -34,7 +36,8 @@ class GenerationQueue:
     RESUMABLE = ('interrupted', 'waiting', 'needs_review')
 
     def __init__(self, root, store, bundle, *, address='http://127.0.0.1:8188',
-                 capacity=4, max_records=64, deadline_seconds=300, backend=None):
+                 capacity=4, max_records=64, deadline_seconds=300, backend=None,
+                 cache_budget=DEFAULT_CACHE_BUDGET):
         if (
             (not isinstance(capacity, int) or isinstance(capacity, bool))
             or not 1 <= capacity <= 16
@@ -57,7 +60,8 @@ class GenerationQueue:
         self.lock = threading.RLock()
         self.wake, self.stopping = threading.Event(), threading.Event()
         try:
-            self.backend = backend or ComfyTextureBackend(self.root / 'runs', address, timeout=2)
+            self.backend = backend or ComfyTextureBackend(self.root / 'runs', address, timeout=2,
+                                                          cache_budget=cache_budget)
         except BaseException:
             self._owner.close()
             raise
@@ -206,6 +210,9 @@ class GenerationQueue:
             self._finish(task, 'waiting', remote_may_continue=True, message='Polling deadline reached; explicitly resume this run')
         except SubmissionUnknown:
             self._finish(task, 'needs_review', remote_may_continue=True, message='Submission unresolved; resume reconciles without resubmission')
+        except CacheBudgetExceeded as error:
+            self._finish(task, 'needs_review', remote_may_continue=True,
+                         error=type(error).__name__, message=str(error))
         except Exception as error:
             record = self.backend._get(task['run_id'])
             unresolved = record is not None and record['status'] in ('submitting', 'submission_unknown', 'submitted')

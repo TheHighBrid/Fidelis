@@ -24,6 +24,17 @@ FABRIC_CROP = REPO / "experiments/eval_crops/fashion_fabric_real.png"
 
 
 class DetailMetricsTests(unittest.TestCase):
+    def test_scale_matched_unavailable_contract_preserves_all_gate_fields(self):
+        source = np.zeros((4, 5, 3), dtype=np.uint8)
+        report = measure_scale_matched_metrics(source, source[:2])
+        self.assertEqual(report["reason"], "dimension_mismatch_silent_resizing_forbidden")
+        self.assertEqual(report["candidate_dimensions"], [5, 4])
+        self.assertEqual(report["bicubic_dimensions"], [5, 2])
+        self.assertFalse(report["all_detail_gates_passed"])
+        for key in ("interior_texture_passed", "oversharpen_restraint_passed",
+                    "fabric_weave_passed", "hardware_seam_passed"):
+            self.assertIsNone(report[key])
+
     def test_f2_interior_texture_on_coffee_4x_smoothed_vs_lanczos(self) -> None:
         with Image.open(COFFEE_CROP) as im:
             src_rgb = im.convert("RGB")
