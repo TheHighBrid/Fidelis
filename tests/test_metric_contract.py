@@ -188,5 +188,17 @@ class MetricContractTests(unittest.TestCase):
         self.assertEqual(sanitized["output_sha256"], "original")
         self.assertEqual(original["spans"][0]["attributes"]["SSIM"], 0.99)
 
+    def test_case_variant_pseudo_lpips_rejected_in_explicit_reference_contracts(self):
+        from fidelis.eval.metric_contract import sanitize_quality_payload
+        for key in ("LPIPS", "LpIpS", "lpips"):
+            with self.subTest(key=key):
+                values = {"psnr": 30, "ssim": 0.9, key: 0.1}
+                with self.assertRaises(ValueError):
+                    format_quality_summary(values, reference_kind="ground_truth")
+                payload = sanitize_quality_payload(values, reference_kind="ground_truth")
+                self.assertEqual(payload["status"], "unavailable")
+                self.assertEqual(payload["reason"], "unverified_lpips")
+                self.assertEqual(payload["metrics"], {})
+
 if __name__ == "__main__":
     unittest.main()
