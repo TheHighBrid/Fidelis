@@ -7,7 +7,6 @@ from unittest.mock import patch
 
 from fidelis.core.pipeline import UpscalePipeline
 
-
 PIPELINE_PATH = Path(__file__).resolve().parents[1] / "fidelis" / "core" / "pipeline.py"
 
 
