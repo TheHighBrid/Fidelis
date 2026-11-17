@@ -1,7 +1,7 @@
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 
-from fidelis.studio.cancellation import CancellationRegistry
+from fidelis.studio.cancellation import CancellationRegistry, CancellationRequested
 
 
 class CancellationTests(unittest.TestCase):
@@ -34,6 +34,26 @@ class CancellationTests(unittest.TestCase):
                 lambda _: self.registry.request("j1", "alice"), range(64)
             ))
         self.assertEqual(sum(not r.already_requested for r in receipts), 1)
+
+    def test_checkpoint_only_aborts_after_request(self):
+        self.registry.checkpoint("j1", "alice")
+        self.registry.request("j1", "alice")
+        with self.assertRaises(CancellationRequested) as raised:
+            self.registry.checkpoint("j1", "alice")
+        self.assertEqual(str(raised.exception), "j1")
+
+    def test_checkpoint_enforces_owner(self):
+        self.registry.request("j1", "alice")
+        with self.assertRaises(PermissionError):
+            self.registry.checkpoint("j1", "bob")
+        with self.assertRaises(PermissionError):
+            self.registry.checkpoint("missing", "alice")
+
+    def test_checkpoint_clears_on_reuse(self):
+        self.registry.request("j1", "alice")
+        self.registry.unregister("j1", "alice")
+        self.registry.register("j1", "bob")
+        self.registry.checkpoint("j1", "bob")
 
     def test_duplicate_registration(self):
         with self.assertRaises(ValueError):
