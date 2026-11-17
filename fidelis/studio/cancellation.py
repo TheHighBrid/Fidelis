@@ -31,6 +31,12 @@ class CancellationHandle:
     def checkpoint(self) -> None:
         self.registry.checkpoint(self.job_id, self.owner_id, registration_id=self.registration_id)
 
+    def is_requested(self) -> bool:
+        return self.registry.is_requested(self.job_id, self.owner_id, registration_id=self.registration_id)
+
+    def request(self) -> CancellationReceipt:
+        return self.registry.request(self.job_id, self.owner_id, registration_id=self.registration_id)
+
     def unregister(self) -> None:
         self.registry.unregister(self.job_id, self.owner_id, registration_id=self.registration_id)
 
@@ -56,9 +62,9 @@ class CancellationRegistry:
         if not owner_id or record is None or record[0] != owner_id or (registration_id is not None and record[1] != registration_id):
             raise PermissionError("job not found or not owned by requester")
 
-    def request(self, job_id: str, owner_id: str) -> CancellationReceipt:
+    def request(self, job_id: str, owner_id: str, *, registration_id=None) -> CancellationReceipt:
         with self._lock:
-            self._require_owned(job_id, owner_id)
+            self._require_owned(job_id, owner_id, registration_id)
             already = job_id in self._cancelled
             self._cancelled.add(job_id)
             return CancellationReceipt(job_id, True, already)

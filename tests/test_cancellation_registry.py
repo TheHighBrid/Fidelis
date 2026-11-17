@@ -83,6 +83,48 @@ class CancellationTests(unittest.TestCase):
         with self.assertRaises(PermissionError):
             replacement.checkpoint()
 
+    def test_handle_can_request_and_inspect_its_own_registration(self):
+        handle = self.registry.register("j2", "alice")
+        self.assertFalse(handle.is_requested())
+        self.assertFalse(handle.request().already_requested)
+        self.assertTrue(handle.request().already_requested)
+        self.assertTrue(handle.is_requested())
+        with self.assertRaises(CancellationRequested):
+            handle.checkpoint()
+
+    def test_stale_handle_cannot_cancel_reused_job(self):
+        stale = self.registry.register("j2", "alice")
+        stale.unregister()
+        current = self.registry.register("j2", "alice")
+        with self.assertRaises(PermissionError):
+            stale.request()
+        with self.assertRaises(PermissionError):
+            stale.is_requested()
+        self.assertFalse(current.is_requested())
+        current.checkpoint()
+
+    def test_stale_handle_cannot_cancel_new_owner(self):
+        stale = self.registry.register("j2", "alice")
+        stale.unregister()
+        current = self.registry.register("j2", "bob")
+        with self.assertRaises(PermissionError):
+            stale.request()
+        self.assertFalse(current.is_requested())
+
+    def test_concurrent_stale_request_does_not_cancel_replacement(self):
+        stale = self.registry.register("j2", "alice")
+        stale.unregister()
+        current = self.registry.register("j2", "alice")
+        def attempt(_):
+            try:
+                stale.request()
+            except PermissionError:
+                return False
+            return True
+        with ThreadPoolExecutor(max_workers=16) as pool:
+            self.assertFalse(any(pool.map(attempt, range(64))))
+        self.assertFalse(current.is_requested())
+
     def test_duplicate_registration(self):
         with self.assertRaises(ValueError):
             self.registry.register("j1", "alice")
