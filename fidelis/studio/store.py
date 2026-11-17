@@ -75,7 +75,7 @@ class JobStore:
             if version not in (0, self.SCHEMA_VERSION):
                 raise ValueError(f"Unsupported workspace schema {version}")
             db.execute("CREATE TABLE IF NOT EXISTS jobs (id TEXT PRIMARY KEY, manifest TEXT NOT NULL)")
-            db.execute(f"PRAGMA user_version={self.SCHEMA_VERSION}")
+            db.execute("PRAGMA user_version=1")
             self._cleanup(db)
 
     @contextmanager
