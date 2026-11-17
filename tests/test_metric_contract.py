@@ -169,5 +169,24 @@ class MetricContractTests(unittest.TestCase):
         self.assertEqual(sanitized["output_sha256"], "top-hash")
         self.assertEqual(original["telemetry"]["quality"]["ssim"], 0.98)
 
+    def test_legacy_manifest_redacts_case_variant_metric_keys(self):
+        from fidelis.eval.metric_contract import sanitize_legacy_manifest
+        original = {
+            "PSNR": 42,
+            "metrics": {"psnr": 42},
+            "spans": [{"attributes": {
+                "SSIM": 0.99, "LPIPS": 0.01,
+                "nested": [{"CieLab_Delta_E": 1.2, "hash": "safe"}],
+                "elapsed_ms": 12,
+            }}],
+            "output_sha256": "original",
+        }
+        sanitized = sanitize_legacy_manifest(original)
+        self.assertNotIn("PSNR", sanitized)
+        self.assertEqual(sanitized["spans"][0]["attributes"],
+                         {"nested": [{"hash": "safe"}], "elapsed_ms": 12})
+        self.assertEqual(sanitized["output_sha256"], "original")
+        self.assertEqual(original["spans"][0]["attributes"]["SSIM"], 0.99)
+
 if __name__ == "__main__":
     unittest.main()
