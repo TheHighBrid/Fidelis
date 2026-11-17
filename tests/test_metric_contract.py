@@ -276,5 +276,33 @@ class MetricContractTests(unittest.TestCase):
         self.assertEqual(original["telemetry"]["status"], "measured")
         self.assertEqual(original["events"][0]["LPIPS_PROXY"], 0.12)
 
+
+    def test_nested_quality_claim_invalidates_parent_without_skipping_siblings(self):
+        from fidelis.eval.metric_contract import sanitize_legacy_manifest
+        original = {
+            "metrics": {},
+            "telemetry": {
+                "status": "measured", "reference_kind": "ground_truth",
+                "is_ground_truth": True,
+                "diagnostics": {
+                    "samples": [{"PSNR_DB": 32, "hash": "first"},
+                                {"SSIM_SCORE": 0.93, "hash": "second"}],
+                },
+                "elapsed_ms": 17,
+            },
+            "unrelated": {"status": "measured", "elapsed_ms": 2},
+        }
+        sanitized = sanitize_legacy_manifest(original)
+        telemetry = sanitized["telemetry"]
+        self.assertEqual(telemetry["status"], "unavailable")
+        self.assertNotIn("reference_kind", telemetry)
+        self.assertNotIn("is_ground_truth", telemetry)
+        self.assertEqual(telemetry["diagnostics"]["samples"],
+                         [{"hash": "first"}, {"hash": "second"}])
+        self.assertEqual(telemetry["elapsed_ms"], 17)
+        self.assertEqual(sanitized["unrelated"], original["unrelated"])
+        self.assertEqual(original["telemetry"]["status"], "measured")
+        self.assertEqual(original["telemetry"]["diagnostics"]["samples"][0]["PSNR_DB"], 32)
+
 if __name__ == "__main__":
     unittest.main()
