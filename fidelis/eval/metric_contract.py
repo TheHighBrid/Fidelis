@@ -95,7 +95,8 @@ def sanitize_legacy_manifest(manifest: Mapping[str, Any]) -> dict[str, Any]:
                     value.pop(key, None)
             for child in value.values():
                 redact_quality_attributes(child)
-        elif isinstance(value, list):
+        elif isinstance(value, (list, tuple)):
+            # Tuples are serialized as JSON arrays by standard exporters.
             for child in value:
                 redact_quality_attributes(child)
 
