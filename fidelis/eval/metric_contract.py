@@ -34,3 +34,28 @@ def format_quality_summary(metrics: Mapping[str, Any], *, reference_kind: str | 
         return "Quality:      unavailable (out-of-range PSNR/SSIM)"
     label = "ground-truth reference" if reference_kind == "ground_truth" else "source consistency only; not recovery accuracy"
     return f"PSNR / SSIM:  {psnr:.2f} dB / {ssim:.4f} ({label}; no LPIPS measured)"
+
+
+def sanitize_quality_payload(metrics: Mapping[str, Any], *, reference_kind: str | None = None) -> dict[str, Any]:
+    """Produce a fail-closed machine-readable metric record for telemetry.
+
+    Legacy numeric values are never forwarded without an explicitly declared
+    reference type. This does not authenticate a reference: the caller must
+    establish independent provenance before setting reference_kind.
+    """
+    if reference_kind is None:
+        return {"status": "unavailable", "reason": "reference_not_verified", "metrics": {}}
+    if reference_kind not in {"ground_truth", "source_consistency"}:
+        raise ValueError("Unknown quality reference kind")
+    if "lpips" in metrics:
+        return {"status": "unavailable", "reason": "unverified_lpips", "metrics": {}}
+    values: dict[str, float] = {}
+    for key in ("psnr", "ssim"):
+        value = metrics.get(key)
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+            return {"status": "unavailable", "reason": "invalid_metrics", "metrics": {}}
+        values[key] = float(value)
+    if values["psnr"] < 0 or not 0 <= values["ssim"] <= 1:
+        return {"status": "unavailable", "reason": "out_of_range", "metrics": {}}
+    return {"status": "measured", "reference_kind": reference_kind,
+            "is_ground_truth": reference_kind == "ground_truth", "metrics": values}
