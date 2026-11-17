@@ -99,3 +99,15 @@ test('CDP close during opening and synchronous send failure reject promptly', as
   await assert.rejects(connected.session.send('Page.enable'), /send failed/);
   assert.equal(connected.session.pending.size, 0);
 });
+
+test('report publication rejects a symlink without modifying its target', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fidelis-report-link-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const target = path.join(dir, 'existing.json');
+  const link = path.join(dir, 'receipt.json');
+  fs.writeFileSync(target, 'original');
+  fs.symlinkSync(target, link);
+  assert.throws(() => writeAcceptanceReport(report(), link, { write() {} }), /regular file/);
+  assert.equal(fs.readFileSync(target, 'utf8'), 'original');
+  assert.ok(fs.lstatSync(link).isSymbolicLink());
+});
