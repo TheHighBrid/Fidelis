@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
-import { CdpSession, writeAcceptanceReport } from '../scripts/browser-acceptance.mjs';
+import { CdpSession, validateLocalStudioUrl, writeAcceptanceReport } from '../scripts/browser-acceptance.mjs';
 
 function report(overrides = {}) {
   return {
@@ -110,4 +110,12 @@ test('report publication rejects a symlink without modifying its target', (t) =>
   assert.throws(() => writeAcceptanceReport(report(), link, { write() {} }), /regular file/);
   assert.equal(fs.readFileSync(target, 'utf8'), 'original');
   assert.ok(fs.lstatSync(link).isSymbolicLink());
+});
+
+test('browser acceptance rejects non-loopback URLs and ambiguous origins', () => {
+  for (const value of ['https://127.0.0.1:8000', 'http://example.com', 'http://127.0.0.1.evil.test', 'http://user@localhost', 'http://localhost/path', 'http://localhost/?secret=x']) {
+    assert.throws(() => validateLocalStudioUrl(value), /loopback HTTP origin/);
+  }
+  assert.equal(validateLocalStudioUrl('http://127.0.0.1:8765/'), 'http://127.0.0.1:8765');
+  assert.equal(validateLocalStudioUrl('http://[::1]:8765'), 'http://[::1]:8765');
 });
