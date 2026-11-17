@@ -78,7 +78,10 @@ def sanitize_legacy_manifest(manifest: Mapping[str, Any]) -> dict[str, Any]:
 
     result = deepcopy(dict(manifest))
     result["metrics"] = sanitize_quality_payload(result.get("metrics"))
-    quality_keys = {"psnr", "ssim", "lpips", "cielab_delta_e", "gradient_coherence_pct"}
+    quality_keys = {
+        "psnr", "psnr_db", "ssim", "ssim_score", "lpips", "lpips_proxy",
+        "cielab_delta_e", "gradient_coherence_pct",
+    }
 
     def redact_quality_attributes(value: Any) -> None:
         """Redact quality claims inside span attributes, including nested records.
@@ -88,7 +91,7 @@ def sanitize_legacy_manifest(manifest: Mapping[str, Any]) -> dict[str, Any]:
         """
         if isinstance(value, dict):
             for key in list(value):
-                if isinstance(key, str) and key.lower() in quality_keys:
+                if isinstance(key, str) and key.casefold() in quality_keys:
                     value.pop(key, None)
             for child in value.values():
                 redact_quality_attributes(child)
@@ -100,7 +103,7 @@ def sanitize_legacy_manifest(manifest: Mapping[str, Any]) -> dict[str, Any]:
     # Redact their nested claims as well, while retaining the root-level
     # normalized metrics contract and unrelated execution evidence.
     for key in list(result):
-        if isinstance(key, str) and key.lower() in quality_keys:
+        if isinstance(key, str) and key.casefold() in quality_keys:
             result.pop(key, None)
     for key, value in result.items():
         if key != "metrics":
