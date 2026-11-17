@@ -6,9 +6,9 @@ import csv
 import hashlib
 import json
 import os
-from pathlib import Path
 import re
-from typing import Any, Dict, List, Optional
+from pathlib import Path
+from typing import Any
 
 SCHEMA_VERSION = 1
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -43,9 +43,9 @@ def sha256_file(path: Path) -> str:
     return hasher.hexdigest()
 
 
-def load_tsv_candidates(tsv_path: Path) -> Dict[str, Dict[str, str]]:
+def load_tsv_candidates(tsv_path: Path) -> dict[str, dict[str, str]]:
     """Parse config/photo-candidates.tsv keyed by candidate name."""
-    records: Dict[str, Dict[str, str]] = {}
+    records: dict[str, dict[str, str]] = {}
     with tsv_path.open("r", encoding="utf-8") as stream:
         rows = csv.reader((line for line in stream if not line.startswith("#")), delimiter="\t")
         for row in rows:
@@ -68,8 +68,8 @@ def load_tsv_candidates(tsv_path: Path) -> Dict[str, Dict[str, str]]:
 def validate_provenance_catalog(
     catalog: Any,
     *,
-    tsv_path: Optional[Path] = None,
-) -> Dict[str, Any]:
+    tsv_path: Path | None = None,
+) -> dict[str, Any]:
     """Validate provenance schema, pinned-hash requirements, terms gates, and TSV parity."""
     if not isinstance(catalog, dict):
         raise ProvenanceError("Provenance catalog must be a JSON object")
@@ -102,8 +102,8 @@ def validate_provenance_catalog(
 
     tsv_map = load_tsv_candidates(tsv_path) if tsv_path is not None else None
     seen_ids = set()
-    by_provenance: Dict[str, int] = {k: 0 for k in VALID_PROVENANCE_STATUS}
-    by_commercial: Dict[str, int] = {}
+    by_provenance: dict[str, int] = {k: 0 for k in VALID_PROVENANCE_STATUS}
+    by_commercial: dict[str, int] = {}
 
     for entry in models:
         if not isinstance(entry, dict):
@@ -186,8 +186,8 @@ def validate_provenance_catalog(
 
 def audit_model_provenance(
     repo_root: Path,
-    app_home: Optional[Path] = None,
-) -> Dict[str, Any]:
+    app_home: Path | None = None,
+) -> dict[str, Any]:
     """Validate provenance catalog and compare declared weights against local FIDELIS_HOME."""
     repo = Path(repo_root).resolve()
     home = Path(app_home or os.environ.get("FIDELIS_HOME", str(Path.home() / ".local" / "share" / "fidelis")))
@@ -197,7 +197,7 @@ def audit_model_provenance(
     catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
     summary = validate_provenance_catalog(catalog, tsv_path=tsv_path)
 
-    runtime_reports: List[Dict[str, Any]] = []
+    runtime_reports: list[dict[str, Any]] = []
     for rt in catalog["runtimes"]:
         rel_path = rt.get("local_relative_path")
         expected_sha = rt.get("macos_binary_sha256")
@@ -233,11 +233,11 @@ def audit_model_provenance(
             }
         )
 
-    model_reports: List[Dict[str, Any]] = []
+    model_reports: list[dict[str, Any]] = []
     for entry in catalog["models"]:
         rel_dir = entry.get("local_relative_dir")
         weights = entry.get("weights", {})
-        file_checks: Dict[str, Dict[str, Any]] = {}
+        file_checks: dict[str, dict[str, Any]] = {}
         installed = False
         integrity = "not_applicable"
 

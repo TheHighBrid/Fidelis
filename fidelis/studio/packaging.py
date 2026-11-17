@@ -10,6 +10,7 @@ and atomic rollback for `JobStore` (`jobs.sqlite3` + `artifacts/*.npy`) and
 from __future__ import annotations
 
 import fnmatch
+import fcntl
 import gzip
 import hashlib
 import json
@@ -20,10 +21,10 @@ import tarfile
 import tempfile
 import uuid
 import zipfile
+from collections.abc import Callable, Mapping, Sequence
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Mapping, Sequence
-
+from typing import Any
 
 SCHEMA_VERSION = "fidelis.packaging.v1"
 
@@ -356,7 +357,6 @@ def audit_release_archive(
     forbidden_matches: list[dict[str, str]] = []
 
     for entry in members:
-        entry_with_slash = entry + "/"
         for prefix in FORBIDDEN_ARCHIVE_PREFIXES:
             if entry.startswith(prefix.rstrip("/")) and (
                 entry == prefix.rstrip("/") or entry.startswith(prefix)
@@ -510,7 +510,17 @@ def verify_workspace_integrity(
                     }
                 )
 
-        for rel_db in ("generation.sqlite3", "runs/generation.sqlite3"):
+        db_candidates: list[str] = []
+        if (g_root / "generation.sqlite3").is_file():
+            db_candidates.append("generation.sqlite3")
+        runs_dir = g_root / "runs"
+        if runs_dir.is_dir():
+            for sqlite_p in sorted(runs_dir.glob("*.sqlite3")):
+                db_candidates.append(f"runs/{sqlite_p.name}")
+        elif (g_root / "runs/generation.sqlite3").is_file():
+            db_candidates.append("runs/generation.sqlite3")
+
+        for rel_db in db_candidates:
             gen_db = g_root / rel_db
             if not gen_db.is_file():
                 continue
@@ -523,11 +533,21 @@ def verify_workspace_integrity(
                     has_runs = conn.execute(
                         "SELECT name FROM sqlite_master WHERE type='table' AND name='runs'"
                     ).fetchone()
-                    rows = (
-                        conn.execute("SELECT run_id, record FROM runs ORDER BY run_id").fetchall()
-                        if has_runs
-                        else []
-                    )
+                    if has_runs:
+                        cols = {
+                            col[1]
+                            for col in conn.execute("PRAGMA table_info(runs)").fetchall()
+                        }
+                        if "run_id" in cols and "id" not in cols:
+                            rows = conn.execute(
+                                "SELECT run_id, record FROM runs ORDER BY run_id"
+                            ).fetchall()
+                        else:
+                            rows = conn.execute(
+                                "SELECT id, record FROM runs ORDER BY id"
+                            ).fetchall()
+                    else:
+                        rows = []
                 finally:
                     conn.close()
             except sqlite3.Error as exc:
@@ -585,7 +605,7 @@ def verify_workspace_integrity(
                     ).fetchone()
                     q_rows = (
                         conn.execute(
-                            "SELECT idx, task_id, record FROM tasks ORDER BY idx, task_id"
+                            "SELECT id, record FROM tasks ORDER BY id"
                         ).fetchall()
                         if has_tasks
                         else []
@@ -596,7 +616,7 @@ def verify_workspace_integrity(
                 errors.append(f"SQLite error reading queue.sqlite3: {exc}")
                 q_rows = []
 
-            for _idx, db_task_id, raw_record in q_rows:
+            for db_task_id, raw_record in q_rows:
                 try:
                     payload = json.loads(raw_record)
                 except Exception as exc:
@@ -668,6 +688,11 @@ def _backup_sqlite_file(src_db: Path, dst_db: Path) -> None:
         src_conn.close()
 
 
+def _paths_overlap(left: Path, right: Path) -> bool:
+    """Return whether either resolved path contains the other."""
+    return left == right or left in right.parents or right in left.parents
+
+
 def create_workspace_snapshot(
     region_root: str | Path,
     snapshot_dir: str | Path,
@@ -679,6 +704,16 @@ def create_workspace_snapshot(
     r_root = Path(region_root).resolve()
     g_root = Path(generation_root).resolve() if generation_root is not None else None
     snap_root = Path(snapshot_dir).resolve()
+
+    # Snapshot setup clears managed subdirectories before copying.  Allowing the
+    # snapshot directory to be a source (or an ancestor of one) could therefore
+    # erase live workspace data before the snapshot has been verified.
+    sources = [r_root, *([g_root] if g_root is not None else [])]
+    if any(_paths_overlap(snap_root, source) for source in sources):
+        raise ValueError(
+            "Snapshot destination must not overlap a source workspace "
+            "(region_jobs or generation_runs)"
+        )
 
     pre_check = verify_workspace_integrity(r_root, g_root)
     if not pre_check["passed"]:
@@ -708,9 +743,11 @@ def create_workspace_snapshot(
 
     if g_root is not None and g_root.exists():
         snap_gen.mkdir(parents=True, exist_ok=True)
+        for db_file in sorted(g_root.glob("*.sqlite3")):
+            _backup_sqlite_file(db_file, snap_gen / db_file.name)
         for rel_db in ("generation.sqlite3", "queue.sqlite3", "runs/generation.sqlite3"):
             src_db = g_root / rel_db
-            if src_db.is_file():
+            if src_db.is_file() and not (snap_gen / rel_db).exists():
                 _backup_sqlite_file(src_db, snap_gen / rel_db)
         for png_file in sorted(g_root.glob("*.png")):
             shutil.copy2(png_file, snap_gen / png_file.name)
@@ -718,6 +755,8 @@ def create_workspace_snapshot(
         if runs_src.is_dir():
             snap_runs_dst = snap_gen / "runs"
             snap_runs_dst.mkdir(parents=True, exist_ok=True)
+            for db_file in sorted(runs_src.glob("*.sqlite3")):
+                _backup_sqlite_file(db_file, snap_runs_dst / db_file.name)
             for run_file in sorted(runs_src.glob("*.json")):
                 shutil.copy2(run_file, snap_runs_dst / run_file.name)
             for png_file in sorted(runs_src.glob("*.png")):
@@ -772,6 +811,12 @@ def restore_workspace_snapshot(
     r_root = Path(region_root).resolve()
     g_root = Path(generation_root).resolve() if generation_root is not None else None
 
+    targets = [r_root, *([g_root] if g_root is not None else [])]
+    if any(_paths_overlap(snap_root, target) for target in targets):
+        raise ValueError("Restore destinations must not overlap the snapshot directory")
+    if g_root is not None:
+        _require_generation_worker_inactive(g_root)
+
     _atomic_replace_tree(snap_region, r_root)
     if g_root is not None and snap_gen.exists():
         _atomic_replace_tree(snap_gen, g_root)
@@ -810,3 +855,19 @@ def _atomic_replace_tree(source_dir: Path, target_dir: Path) -> None:
         if not target_dir.exists() and backup.exists():
             os.replace(backup, target_dir)
         raise
+
+
+def _require_generation_worker_inactive(generation_root: Path) -> None:
+    """Fail closed when the queue owner lock is held by a live worker."""
+    lock_path = generation_root / "worker.lock"
+    if not lock_path.exists():
+        return
+    with lock_path.open("a") as lock_file:
+        try:
+            fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise RuntimeError(
+                "Refusing workspace restore while a generation worker is active"
+            ) from exc
+        finally:
+            fcntl.flock(lock_file, fcntl.LOCK_UN)

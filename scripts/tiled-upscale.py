@@ -7,12 +7,14 @@ skin tone and fabric gradients.
 
 import argparse
 import math
-from pathlib import Path
 import shutil
 import subprocess
 import tempfile
-from PIL import Image
+from pathlib import Path
+
 import numpy as np
+from PIL import Image
+
 
 def make_cosine_window(
     h: int,

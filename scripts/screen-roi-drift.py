@@ -5,9 +5,9 @@ from __future__ import annotations
 
 import argparse
 import json
-from pathlib import Path
 import sys
-from typing import Any, Dict, List
+from pathlib import Path
+from typing import Any
 
 import numpy as np
 from PIL import Image
@@ -29,7 +29,7 @@ def _load_rgb_png(path: Path) -> np.ndarray:
         return np.array(im, dtype=np.uint8)
 
 
-def _load_rois(path: Path | None) -> List[Dict[str, Any]]:
+def _load_rois(path: Path | None) -> list[dict[str, Any]]:
     if path is None:
         return []
     raw = json.loads(path.read_text(encoding="utf-8"))

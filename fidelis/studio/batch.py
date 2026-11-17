@@ -8,20 +8,21 @@ cannot automatically trigger duplicate paid execution on resume or retry.
 
 from __future__ import annotations
 
-from concurrent.futures import Future, ThreadPoolExecutor, wait
-from contextlib import contextmanager
-from dataclasses import dataclass
 import fcntl
 import json
 import math
 import os
-from pathlib import Path
 import shutil
 import sqlite3
 import threading
 import time
-from typing import Any, Callable, Optional
 import uuid
+from collections.abc import Callable
+from concurrent.futures import Future, ThreadPoolExecutor, wait
+from contextlib import contextmanager
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
 
 from fidelis.studio.comfy import SubmissionUnknown, canonical_hash
 from fidelis.studio.store import BudgetExceeded, sha256
@@ -39,9 +40,9 @@ class BatchItemContext:
 
     item: dict[str, Any]
     temp_output_path: Path
-    _mark_paid: Callable[[Optional[float]], None]
+    _mark_paid: Callable[[float | None], None]
 
-    def mark_paid_submitted(self, reserved_cost_usd: Optional[float] = None) -> None:
+    def mark_paid_submitted(self, reserved_cost_usd: float | None = None) -> None:
         """Persist commit boundary before invoking a paid or remote submission."""
         self._mark_paid(reserved_cost_usd)
 
@@ -54,7 +55,7 @@ class BatchRunner:
     DEFAULT_MAX_ITEMS = 5000
     DEFAULT_DISK_BUDGET_BYTES = 2 * 1024**3
     DEFAULT_MAX_RETRIES = 2
-    DEFAULT_COST_BUDGET_USD: Optional[float] = None
+    DEFAULT_COST_BUDGET_USD: float | None = None
 
     @staticmethod
     def _validate_policy(
@@ -63,15 +64,15 @@ class BatchRunner:
         max_items: int,
         disk_budget_bytes: int,
         max_retries: int,
-        cost_budget_usd: Optional[float],
-    ) -> tuple[int, int, int, int, Optional[float]]:
-        if type(max_workers) is not int or not 1 <= max_workers <= 4:
+        cost_budget_usd: float | None,
+    ) -> tuple[int, int, int, int, float | None]:
+        if not isinstance(max_workers, int) or isinstance(max_workers, bool) or not 1 <= max_workers <= 4:
             raise ValueError("max_workers must be an integer in [1, 4]")
-        if type(max_items) is not int or not 1 <= max_items <= 10_000:
+        if not isinstance(max_items, int) or isinstance(max_items, bool) or not 1 <= max_items <= 10_000:
             raise ValueError("max_items must be an integer in [1, 10000]")
-        if type(disk_budget_bytes) is not int or disk_budget_bytes <= 0:
+        if not isinstance(disk_budget_bytes, int) or isinstance(disk_budget_bytes, bool) or disk_budget_bytes <= 0:
             raise ValueError("disk_budget_bytes must be a positive integer")
-        if type(max_retries) is not int or not 0 <= max_retries <= 10:
+        if not isinstance(max_retries, int) or isinstance(max_retries, bool) or not 0 <= max_retries <= 10:
             raise ValueError("max_retries must be an integer in [0, 10]")
         if cost_budget_usd is not None and (
             not isinstance(cost_budget_usd, (int, float))
@@ -96,7 +97,7 @@ class BatchRunner:
         max_items: int = _UNSET,
         disk_budget_bytes: int = _UNSET,
         max_retries: int = _UNSET,
-        cost_budget_usd: Optional[float] = _UNSET,
+        cost_budget_usd: float | None = _UNSET,
         read_only: bool = False,
     ) -> None:
         # Validate any explicitly supplied parameters immediately.
@@ -233,7 +234,7 @@ class BatchRunner:
             row = db.execute("SELECT config FROM batch_config WHERE id=1").fetchone()
             return json.loads(row[0]) if row else {}
 
-    def __enter__(self) -> "BatchRunner":
+    def __enter__(self) -> BatchRunner:  # noqa: PYI034
         return self
 
     def __exit__(self, *args: object) -> None:
@@ -392,7 +393,7 @@ class BatchRunner:
                     )
                 recipe = entry.get("recipe")
                 if not isinstance(recipe, dict):
-                    raise ValueError("Each batch entry must include a dict recipe")
+                    raise TypeError("Each batch entry must include a dict recipe")
                 est_cost = float(entry.get("estimated_cost_usd", 0.0))
                 if not math.isfinite(est_cost) or est_cost < 0:
                     raise ValueError("estimated_cost_usd must be finite and >= 0")
@@ -530,9 +531,9 @@ class BatchRunner:
 
         src = Path(snapshot["source_path"])
         tmp_out = self.tmp_dir / f"{snapshot['item_id']}-{snapshot['attempts']}.part"
-        reserved_cost_state: list[Optional[float]] = [None]
+        reserved_cost_state: list[float | None] = [None]
 
-        def mark_paid(reserved_cost: Optional[float] = None) -> None:
+        def mark_paid(reserved_cost: float | None = None) -> None:
             if reserved_cost is not None and (
                 not isinstance(reserved_cost, (int, float))
                 or isinstance(reserved_cost, bool)
@@ -589,8 +590,14 @@ class BatchRunner:
 
             dest = Path(snapshot["output_path"])
             dest.parent.mkdir(parents=True, exist_ok=True)
-            sidecar_tmp = self.tmp_dir / f"{snapshot['item_id']}.recipe.json.part"
             sidecar_dest = Path(f"{dest}.recipe.json")
+            # `os.replace` is only atomic within one filesystem.  Batch state
+            # may deliberately live on a local disk while exports target a
+            # mounted or removable volume, so publish through destination-local
+            # staging rather than the batch's own temporary directory.
+            stage_token = f".{dest.name}.{snapshot['item_id']}.{snapshot['attempts']}"
+            output_stage = dest.parent / f"{stage_token}.part"
+            sidecar_stage = sidecar_dest.parent / f"{stage_token}.recipe.json.part"
 
             record_sidecar = {
                 "schema_version": 1,
@@ -617,9 +624,12 @@ class BatchRunner:
                     raise BudgetExceeded(
                         f"Disk budget exceeded writing {dest.name}: {used + additional} > {self.disk_budget_bytes}"
                     )
-                sidecar_tmp.write_bytes(sidecar_bytes)
-                os.replace(out_candidate, dest)
-                os.replace(sidecar_tmp, sidecar_dest)
+                shutil.copyfile(out_candidate, output_stage)
+                sidecar_stage.write_bytes(sidecar_bytes)
+                os.replace(output_stage, dest)
+                os.replace(sidecar_stage, sidecar_dest)
+                if in_tmp:
+                    out_candidate.unlink(missing_ok=True)
 
             finished = time.time()
             with self._lock, self._db() as db:
@@ -641,7 +651,11 @@ class BatchRunner:
                     }
                 )
                 self._save_item(db, cur)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
+            if 'output_stage' in locals():
+                output_stage.unlink(missing_ok=True)
+            if 'sidecar_stage' in locals():
+                sidecar_stage.unlink(missing_ok=True)
             tmp_out.unlink(missing_ok=True)
             if out_candidate.resolve().parent == self.tmp_dir.resolve():
                 out_candidate.unlink(missing_ok=True)
@@ -673,7 +687,7 @@ class BatchRunner:
         worker_fn: Callable[[BatchItemContext], dict[str, Any]],
         *,
         retry_failed: bool = False,
-        reconcile_fn: Optional[Callable[[dict[str, Any]], dict[str, Any]]] = None,
+        reconcile_fn: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """Run pending/interrupted items with bounded workers, budgets and zero duplicate paid work."""
         if self.read_only:
@@ -775,9 +789,7 @@ class BatchRunner:
             eligible: list[dict[str, Any]] = []
             for item in all_items:
                 st = item["status"]
-                if st in ("pending", "interrupted"):
-                    eligible.append(item)
-                elif (
+                if st in ("pending", "interrupted") or (
                     retry_failed
                     and st == "failed"
                     and not item.get("paid_work_committed")

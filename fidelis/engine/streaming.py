@@ -3,9 +3,16 @@
 Accumulates only one output tile-height band rather than full-frame float32
 RGB and weight buffers. The final array is a disk-backed memmap.
 """
+import os
 from pathlib import Path
+
 import numpy as np
-from .tiler import MultiDiffusionTiler, generate_gaussian_weights, generate_cosine_weights
+
+from .tiler import (
+    MultiDiffusionTiler,
+    generate_cosine_weights,
+    generate_gaussian_weights,
+)
 
 
 def process_streamed(tiler: MultiDiffusionTiler, image: np.ndarray, tile_fn, output_path, progress_callback=None):
@@ -27,7 +34,17 @@ def process_streamed(tiler: MultiDiffusionTiler, image: np.ndarray, tile_fn, out
     dest = Path(output_path)
     dest.parent.mkdir(parents=True, exist_ok=True)
     dtype = np.uint8 if image.dtype == np.uint8 else np.float32
-    output = np.memmap(dest, dtype=dtype, mode="w+", shape=(h * scale, w * scale, channels))
+    # Exclusive creation prevents accidental truncation and concurrent writer races.
+    expected_bytes = h * scale * w * scale * channels * np.dtype(dtype).itemsize
+    fd = os.open(dest, os.O_CREAT | os.O_EXCL | os.O_RDWR, 0o600)
+    try:
+        os.ftruncate(fd, expected_bytes)
+        output = np.memmap(dest, dtype=dtype, mode="r+", shape=(h * scale, w * scale, channels))
+    except BaseException:
+        dest.unlink(missing_ok=True)
+        raise
+    finally:
+        os.close(fd)
     band_start = 0
     capacity = min(h, tile_size) * scale
     canvas = np.zeros((capacity, w * scale, channels), dtype=np.float32)

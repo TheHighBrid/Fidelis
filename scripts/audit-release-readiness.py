@@ -37,6 +37,11 @@ def main(argv: list[str] | None = None) -> int:
         help="Optional path to write evaluated release readiness dossier JSON",
     )
     parser.add_argument(
+        "--require-team-signoff",
+        action="store_true",
+        help="Exit non-zero if team/release signoff is missing or pending (team delegated signoff satisfies this)",
+    )
+    parser.add_argument(
         "--allow-blocked",
         action="store_true",
         help="Exit 0 after writing/printing the dossier even when release gates are still blocked",
@@ -63,7 +68,13 @@ def main(argv: list[str] | None = None) -> int:
     else:
         sys.stdout.write(text)
 
-    if dossier["ready_for_release"] or args.allow_blocked:
+    if dossier["ready_for_release"]:
+        return 0
+    if args.allow_blocked:
+        if args.require_team_signoff:
+            team_signoff = dossier.get("team_release_signoff") or dossier.get("owner_release_signoff") or {}
+            if not team_signoff.get("approved"):
+                return 2
         return 0
     return 2
 

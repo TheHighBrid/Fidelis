@@ -4,14 +4,14 @@ from __future__ import annotations
 
 import hashlib
 import json
-from pathlib import Path
 import sys
 import types
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageCms
 
 from fidelis.engine import (
     BackendUnavailableError,
@@ -25,6 +25,7 @@ from fidelis.engine import (
     create_restoration_runner,
 )
 from fidelis.eval.comparators import run_comparators
+from fidelis.postprocess.regions import RegionBlend
 
 
 def _make_textured_rgb(h: int = 16, w: int = 16, seed: int = 7) -> np.ndarray:
@@ -69,6 +70,19 @@ class RestorationRunnerTests(unittest.TestCase):
             with self.assertRaises(DimensionMismatchError):
                 runner.run(src, scale=4, case_id="case_bad", apply_texture_guard=False)
 
+    def test_imported_backend_rejects_profiled_or_non_srgb_png_samples(self) -> None:
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            src = _make_textured_rgb(4, 4)
+            output = _make_textured_rgb(16, 16)
+            profile = ImageCms.ImageCmsProfile(ImageCms.createProfile("sRGB")).tobytes()
+            Image.fromarray(output).save(root / "profiled.png", icc_profile=profile)
+            runner = create_restoration_runner("imported", imported_dir=root)
+            with self.assertRaisesRegex(ValueError, "ICC profile"):
+                runner.run(src, scale=4, case_id="profiled", apply_texture_guard=False)
+
     def test_comfy_backend_passes_4x_bicubic_canvas_and_enforces_shape(self) -> None:
         src = _make_textured_rgb(16, 16)
         bundle = {"schema_version": 1, "family": "sdxl", "workflow": {}}
@@ -91,7 +105,9 @@ class RestorationRunnerTests(unittest.TestCase):
         self.assertEqual(fake.seen_shape, (64, 64, 3))
         self.assertEqual(res.image.shape, (64, 64, 3))
         self.assertEqual(res.provenance.backend, "comfyui")
+        self.assertEqual(res.provenance.weights_sha256, "unavailable_unverified")
         self.assertEqual(res.provenance.extra["workflow_sha256"], "wf_abc")
+        self.assertNotEqual(runner.backend.workflow_sha256, runner.backend.weights_sha256)
 
         class _BadShapeComfy(_FakeComfy):
             def run(self, canvas, b, *, run_id=None, deadline_seconds=300):
@@ -247,6 +263,65 @@ class RestorationRunnerTests(unittest.TestCase):
             np.testing.assert_array_equal(res.image[0:24, 0:24], base_4x[0:24, 0:24])
             # Interior texture region must differ from base_4x (candidate blended in)
             self.assertFalse(np.array_equal(res.image[32:56, 32:56], base_4x[32:56, 32:56]))
+
+    def test_unknown_pixels_remain_on_precision_base_without_texture_roi(self) -> None:
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            src = _make_textured_rgb(16, 16, seed=11)
+            base = np.asarray(
+                Image.fromarray(src).resize((64, 64), Image.Resampling.BICUBIC),
+                dtype=np.uint8,
+            )
+            candidate = np.full_like(base, 255)
+            Image.fromarray(candidate).save(root / "sample.png")
+            runner = create_restoration_runner("imported", imported_dir=root)
+            for rois in ([], [{"id": "logo", "kind": "text", "policy": "preserve", "rect": [0, 0, 24, 24]}]):
+                with self.subTest(rois=rois):
+                    result = runner.run(
+                        src, scale=4, rois=rois, roi_space="target",
+                        apply_texture_guard=True, case_id="sample", use_sobel_heuristic=False,
+                    )
+                    np.testing.assert_array_equal(result.image, base)
+
+    def test_texture_guard_routes_semantic_rois_through_their_blend_channels(self) -> None:
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            src = _make_textured_rgb(16, 16, seed=19)
+            base = np.asarray(Image.fromarray(src).resize((64, 64), Image.Resampling.BICUBIC), dtype=np.uint8)
+            Image.fromarray(np.full_like(base, 255)).save(root / "sample.png")
+            runner = create_restoration_runner("imported", imported_dir=root)
+            result = runner.run(
+                src, scale=4, roi_space="target", case_id="sample", use_sobel_heuristic=False,
+                rois=[
+                    {"id": "skin", "kind": "skin", "policy": "texture_allowed", "rect": [4, 4, 16, 16]},
+                    {"id": "hair", "kind": "hair", "policy": "texture_allowed", "rect": [24, 4, 16, 16]},
+                    {"id": "fabric", "kind": "fabric", "policy": "texture_allowed", "rect": [44, 4, 16, 16]},
+                ],
+                blend=RegionBlend(skin=1.0, hair=0.0, fabric=0.0),
+            )
+            self.assertFalse(np.array_equal(result.image[4:20, 4:20], base[4:20, 4:20]))
+            np.testing.assert_array_equal(result.image[4:20, 24:40], base[4:20, 24:40])
+            np.testing.assert_array_equal(result.image[4:20, 44:60], base[4:20, 44:60])
+
+    def test_texture_guard_honors_explicit_unlock_of_a_preserve_roi(self) -> None:
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            src = _make_textured_rgb(16, 16, seed=29)
+            base = np.asarray(Image.fromarray(src).resize((64, 64), Image.Resampling.BICUBIC), dtype=np.uint8)
+            Image.fromarray(np.full_like(base, 255)).save(root / "sample.png")
+            result = create_restoration_runner("imported", imported_dir=root).run(
+                src, scale=4, roi_space="target", case_id="sample", use_sobel_heuristic=False,
+                rois=[{"id": "skin_unlock", "kind": "skin", "policy": "preserve",
+                       "override": "unlock", "rect": [8, 8, 16, 16]}],
+                blend=RegionBlend(skin=1.0, hair=0.0, fabric=0.0),
+            )
+            self.assertFalse(np.array_equal(result.image[8:24, 8:24], base[8:24, 8:24]))
 
     def test_to_comparator_runner_adapter_contract(self) -> None:
         import tempfile

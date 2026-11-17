@@ -11,22 +11,21 @@ This module extends the standalone RGB8 composition path in ``regions.py`` to:
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
 import hashlib
 import io
 import math
 import os
-from pathlib import Path
 import struct
 import tempfile
-from typing import Optional
 import zlib
+from dataclasses import asdict, dataclass
+from pathlib import Path
 
 import cv2
 import numpy as np
 from PIL import Image, ImageCms
 
-from fidelis.postprocess.regions import PROFILES, RegionBlend, _mask
+from fidelis.postprocess.regions import RegionBlend, _mask
 
 VALID_ORIENTATIONS = frozenset(range(1, 9))
 INTENTS = {
@@ -47,7 +46,7 @@ class ManagedImage:
     pixels: np.ndarray
     source_bit_depth: int
     has_alpha: bool
-    icc_profile: Optional[bytes]
+    icc_profile: bytes | None
     icc_description: str
     raw_orientation: int
     normalized_orientation: int
@@ -60,7 +59,7 @@ class _TrcCurve:
 
     kind: str  # "gamma" | "para" | "lut"
     params: tuple[float, ...]
-    lut: Optional[np.ndarray] = None
+    lut: np.ndarray | None = None
 
     def to_linear(self, x: np.ndarray) -> np.ndarray:
         x = np.clip(np.asarray(x, dtype=np.float64), 0.0, 1.0)
@@ -68,7 +67,8 @@ class _TrcCurve:
             g = self.params[0]
             return np.ones_like(x) if g == 0.0 else np.power(x, g)
         if self.kind == "lut":
-            assert self.lut is not None
+            if self.lut is None:
+                raise ValueError("LUT table must not be None when kind is 'lut'")
             grid = np.linspace(0.0, 1.0, len(self.lut), dtype=np.float64)
             return np.interp(x, grid, self.lut)
         return _eval_para_forward(x, self.params)
@@ -79,7 +79,8 @@ class _TrcCurve:
             g = self.params[0]
             return np.ones_like(y) if g == 0.0 else np.power(y, 1.0 / g)
         if self.kind == "lut":
-            assert self.lut is not None
+            if self.lut is None:
+                raise ValueError("LUT table must not be None when kind is 'lut'")
             grid = np.linspace(0.0, 1.0, len(self.lut), dtype=np.float64)
             return np.interp(y, self.lut, grid)
         return _eval_para_inverse(y, self.params)
@@ -175,7 +176,7 @@ def validate_icc_profile(icc_bytes: bytes) -> str:
         raise ValueError(f"invalid ICC profile: {exc}") from exc
 
 
-def _parse_trc_tag(raw: bytes, offset: int, size: int) -> Optional[_TrcCurve]:
+def _parse_trc_tag(raw: bytes, offset: int, size: int) -> _TrcCurve | None:
     if offset + size > len(raw) or size < 12:
         return None
     sig = raw[offset : offset + 4]
@@ -200,11 +201,11 @@ def _parse_trc_tag(raw: bytes, offset: int, size: int) -> Optional[_TrcCurve]:
             struct.unpack(">i", raw[offset + 12 + i * 4 : offset + 16 + i * 4])[0] / 65536.0
             for i in range(n_params)
         )
-        return _TrcCurve("para", (float(ftype),) + params)
+        return _TrcCurve("para", (float(ftype), *params))
     return None
 
 
-def parse_matrix_trc_icc(icc_bytes: Optional[bytes]) -> Optional[_MatrixTrcProfile]:
+def parse_matrix_trc_icc(icc_bytes: bytes | None) -> _MatrixTrcProfile | None:
     """Parse standard D50-adapted RGB Matrix/TRC ICC profile if supported."""
     raw = srgb_icc_bytes() if icc_bytes is None else bytes(icc_bytes)
     if len(raw) < 132 or raw[36:40] != b"acsp" or raw[16:20] != b"RGB ":
@@ -264,8 +265,8 @@ def _encode_rgb(lin01: np.ndarray, prof: _MatrixTrcProfile) -> np.ndarray:
 
 def convert_icc_pixels(
     pixels: np.ndarray,
-    src_icc: Optional[bytes],
-    dst_icc: Optional[bytes],
+    src_icc: bytes | None,
+    dst_icc: bytes | None,
     *,
     intent: str = "relative_colorimetric",
     allow_8bit_lut: bool = False,
@@ -491,7 +492,7 @@ def load_managed_pass(path: Path) -> ManagedImage:
     )
 
 
-def _encode_png(pixels: np.ndarray, icc_profile: Optional[bytes]) -> bytes:
+def _encode_png(pixels: np.ndarray, icc_profile: bytes | None) -> bytes:
     h, w, c = pixels.shape
     bit_depth = 16 if pixels.dtype == np.uint16 else 8
     color_type = 6 if c == 4 else 2
@@ -515,7 +516,7 @@ def _encode_png(pixels: np.ndarray, icc_profile: Optional[bytes]) -> bytes:
     return bytes(out)
 
 
-def _encode_tiff(pixels: np.ndarray, icc_profile: Optional[bytes]) -> bytes:
+def _encode_tiff(pixels: np.ndarray, icc_profile: bytes | None) -> bytes:
     h, w, c = pixels.shape
     bit_depth = 16 if pixels.dtype == np.uint16 else 8
     raw = pixels.astype("<u2" if bit_depth == 16 else np.uint8, copy=False).tobytes()
@@ -562,7 +563,7 @@ def _encode_tiff(pixels: np.ndarray, icc_profile: Optional[bytes]) -> bytes:
     return bytes(out)
 
 
-def encode_managed_image(pixels: np.ndarray, *, icc_profile: Optional[bytes] = None, file_format: str = "png") -> bytes:
+def encode_managed_image(pixels: np.ndarray, *, icc_profile: bytes | None = None, file_format: str = "png") -> bytes:
     """Encode RGB/RGBA uint8 or uint16 array cleanly into lossless PNG or TIFF bytes."""
     if pixels.ndim != 3 or pixels.shape[2] not in (3, 4) or min(pixels.shape[:2]) < 1:
         raise ValueError("exported image must have non-empty H x W x 3/4 shape")
@@ -599,9 +600,9 @@ def compose_managed_passes(
     confidence=None,
     edge_guard=None,
     interior_texture=None,
-    blend: RegionBlend = RegionBlend(),
+    blend: RegionBlend | None = None,
     icc_policy: str = "preserve",
-    target_icc: Optional[bytes] = None,
+    target_icc: bytes | None = None,
     icc_intent: str = "relative_colorimetric",
     alpha_mode: str = "preserve_base",
     bit_depth: str | int = "auto",
@@ -610,6 +611,8 @@ def compose_managed_passes(
     allow_8bit_lut: bool = False,
 ) -> tuple[ManagedImage, np.ndarray, dict]:
     """Compose aligned passes with colour management, straight alpha and precision control."""
+    if blend is None:
+        blend = RegionBlend()
     if base.pixels.shape[:2] != texture.pixels.shape[:2]:
         raise ValueError(
             "normalized passes must have identical dimensions; no implicit resizing"
@@ -636,7 +639,7 @@ def compose_managed_passes(
         if target_icc is None:
             raise ValueError("icc_policy='custom' requires target_icc bytes")
         target_desc = validate_icc_profile(target_icc)
-        output_icc: Optional[bytes] = target_icc
+        output_icc: bytes | None = target_icc
     elif icc_policy == "srgb":
         output_icc = srgb_icc_bytes()
         target_desc = validate_icc_profile(output_icc)
@@ -655,8 +658,10 @@ def compose_managed_passes(
     base_icc_path = "identity"
     tex_icc_path = "identity"
 
-    if icc_policy != "preserve" or (base.icc_profile is not None and output_icc is None):
-        if base.icc_profile != output_icc:
+    if (
+        (icc_policy != "preserve" or (base.icc_profile is not None and output_icc is None))
+        and base.icc_profile != output_icc
+    ):
             base_work, base_icc_path = convert_icc_pixels(
                 base_work,
                 base.icc_profile,
@@ -713,7 +718,8 @@ def compose_managed_passes(
         lut_working_fallback = True
         srgb_profile = srgb_icc_bytes()
         working_mt = parse_matrix_trc_icc(srgb_profile)
-        assert working_mt is not None
+        if working_mt is None:
+            raise RuntimeError("Failed to parse standard sRGB Matrix/TRC profile")
         base_blend_work, base_icc_path = convert_icc_pixels(
             _scale_pixels_precision(base.pixels, working_bits),
             base.icc_profile,

@@ -1,5 +1,7 @@
 """Validated normalized brush strokes, rasterized at native resolution in stripes."""
+import itertools
 import math
+
 import numpy as np
 
 EDIT_FIELDS = ('skin', 'hair', 'fabric', 'protected', 'confidence')
@@ -41,7 +43,7 @@ def coverage(stroke, width, height, y0, y1):
     result = np.zeros((y1 - y0, width), np.float32)
     radius = stroke['radius'] * min(width, height)
     points = [(x * width - .5, y * height - .5) for x, y in stroke['points']]
-    pairs = list(zip(points, points[1:])) if len(points) > 1 else [(points[0], points[0])]
+    pairs = list(itertools.pairwise(points)) if len(points) > 1 else [(points[0], points[0])]
     for (ax, ay), (bx, by) in pairs:
         left = max(0, math.floor(min(ax, bx) - radius))
         right = min(width, math.ceil(max(ax, bx) + radius) + 1)

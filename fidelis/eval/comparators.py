@@ -8,14 +8,16 @@ reported as unavailable/skipped rather than simulated or omitted from denominato
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+import hashlib
 import json
 import os
-from pathlib import Path
 import random
 import shutil
 import time
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from dataclasses import asdict, dataclass
+from pathlib import Path
+from typing import Any
 
 import cv2
 import numpy as np
@@ -49,13 +51,13 @@ REMOTE_COMPARATORS = frozenset({"pinned_clarity", "dated_krea"})
 class ComparatorOutput:
     """Result returned by a callable comparator runner for a single case."""
 
-    output_path: Optional[Path]
+    output_path: Path | None
     status: str  # "completed" | "rejected_unsupported" | "failed" | "unavailable"
     settings: dict[str, Any]
-    manual_adjustments: Optional[str] = None
-    elapsed_seconds: Optional[float] = None
-    cost_usd: Optional[float] = None
-    error: Optional[str] = None
+    manual_adjustments: str | None = None
+    elapsed_seconds: float | None = None
+    cost_usd: float | None = None
+    error: str | None = None
     is_imported: bool = False
 
 
@@ -78,7 +80,7 @@ def _deterministic_resample_runner(
             cost_usd=0.0,
             error="Rejected negative edge case per expected_behavior",
         )
-    if not isinstance(target := case.get("target_dimensions"), list) or len(target) != 2 or any(type(v) is not int or v <= 0 for v in target):
+    if not isinstance(target := case.get("target_dimensions"), list) or len(target) != 2 or any(not isinstance(v, int) or isinstance(v, bool) or v <= 0 for v in target):
         return ComparatorOutput(
             output_path=None,
             status="unavailable",
@@ -208,9 +210,9 @@ def _evaluate_output_record(
     source_path: Path,
     result: ComparatorOutput,
     *,
-    ground_truth_path: Optional[Path] = None,
-    bicubic_bgr: Optional[np.ndarray] = None,
-    rois: Optional[list[dict[str, Any]]] = None,
+    ground_truth_path: Path | None = None,
+    bicubic_bgr: np.ndarray | None = None,
+    rois: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     base = {
         "comparator": comparator,
@@ -235,7 +237,7 @@ def _evaluate_output_record(
         return {**base, "status": "failed", "error": f"Comparator output missing: {out_path}"}
 
     target = case.get("target_dimensions")
-    if not isinstance(target, list) or len(target) != 2 or any(type(v) is not int or v <= 0 for v in target):
+    if not isinstance(target, list) or len(target) != 2 or any(not isinstance(v, int) or isinstance(v, bool) or v <= 0 for v in target):
         return {
             **base,
             "status": "unavailable",
@@ -269,6 +271,8 @@ def _evaluate_output_record(
         ground_truth_bgr=gt_bgr,
         ground_truth_requested=ground_truth_path is not None,
     )
+    if ground_truth_path is not None and isinstance(case.get("ground_truth"), dict):
+        context["ground_truth_sha256"] = case["ground_truth"].get("sha256")
     scale_matched = (
         measure_scale_matched_metrics(out_bgr, bicubic_bgr, src_bgr, rois=rois)
         if bicubic_bgr is not None
@@ -290,9 +294,9 @@ def run_comparators(
     *,
     asset_root: str | Path,
     output_dir: str | Path,
-    runners: Optional[dict[str, Callable[[dict[str, Any], Path, Path], ComparatorOutput]]] = None,
-    protocol: Optional[dict[str, Any]] = None,
-    slots: Optional[dict[str, Any]] = None,
+    runners: dict[str, Callable[[dict[str, Any], Path, Path], ComparatorOutput]] | None = None,
+    protocol: dict[str, Any] | None = None,
+    slots: dict[str, Any] | None = None,
     allow_regression_manifest: bool = False,
 ) -> dict[str, Any]:
     """Execute configured comparators on verified corpus lock or explicit regression manifest."""
@@ -346,12 +350,12 @@ def run_comparators(
         gt_rel = case.get("ground_truth_path")
         gt_path = local_path(root, gt_rel) if gt_rel else None
 
-        bicubic_bgr: Optional[np.ndarray] = None
+        bicubic_bgr: np.ndarray | None = None
         target_dims = case.get("target_dimensions")
         if (
             isinstance(target_dims, list)
             and len(target_dims) == 2
-            and all(type(v) is int and v > 0 for v in target_dims)
+            and all(isinstance(v, int) and not isinstance(v, bool) and v > 0 for v in target_dims)
             and src_path.is_file()
             and case.get("expected_behavior") != "reject_unsupported_input"
         ):
@@ -395,7 +399,7 @@ def run_comparators(
                 res = runner(case, src_path, dest_png)
                 if res.elapsed_seconds is None and res.status == "completed" and not res.is_imported:
                     res = ComparatorOutput(**{**asdict(res), "elapsed_seconds": round(time.monotonic() - t0, 6)})
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 res = ComparatorOutput(
                     output_path=None,
                     status="failed",
@@ -479,7 +483,7 @@ def build_blind_pairwise_manifest(
     """Build blind randomized A/B comparison ballot keeping separate native PNG paths."""
     if candidate_a == candidate_b:
         raise ValueError("Pairwise comparison requires two distinct comparators")
-    rng = random.Random(seed)
+    rng = random.Random(seed)  # nosec B311  # Non-cryptographic PRNG for deterministic evaluation
     eligible_cases = [
         case
         for case in comparison_report.get("cases", [])
@@ -498,11 +502,17 @@ def build_blind_pairwise_manifest(
         left_comp, right_comp = (candidate_b, candidate_a) if swap else (candidate_a, candidate_b)
         orig_left = Path(case["outputs"][left_comp]["output_path"])
         orig_right = Path(case["outputs"][right_comp]["output_path"])
-        base_blind_root = (
+        blind_parent = (
             Path(blind_dir)
             if blind_dir is not None
             else orig_left.parent.parent / "blind_pairs" / f"{split}_{seed}"
         )
+        # A pairing needs its own opaque namespace.  Otherwise producing a
+        # second comparator ballot with the same seed overwrites images that
+        # were already handed to reviewers with a different answer key.
+        pairing_key = "\0".join(sorted((candidate_a, candidate_b))).encode("utf-8")
+        pairing_namespace = hashlib.sha256(pairing_key).hexdigest()[:16]
+        base_blind_root = blind_parent / f"pairing-{pairing_namespace}"
         pair_dir = base_blind_root / pair_id
         anon_left = pair_dir / f"option_left{orig_left.suffix or '.png'}"
         anon_right = pair_dir / f"option_right{orig_right.suffix or '.png'}"
@@ -577,6 +587,12 @@ def summarize_blind_reviews(
     by_category: dict[str, list[float]] = {}
     critical_defects_subject = 0
     unreviewed = 0
+    requested_pair_ids = {
+        pair_id
+        for pair_id, meta in mapping.items()
+        if {meta.get("left"), meta.get("right")}
+        == {subject_comparator, target_comparator}
+    }
 
     seen_pair_ids: set[str] = set()
     for entry in completed_ballot.get("items", []):
@@ -608,6 +624,11 @@ def summarize_blind_reviews(
         wins.append(is_win)
         pref_ties.append(is_pref_or_tie)
         by_category.setdefault(meta["category"], []).append(is_pref_or_tie)
+
+    # A reviewer may accidentally submit an exported subset rather than the
+    # complete ballot.  Missing answer-key entries are unanswered evidence,
+    # not a smaller sample that can qualify for a passing score.
+    unreviewed += len(requested_pair_ids - seen_pair_ids)
 
     n = len(wins)
     if n == 0 or unreviewed > 0:

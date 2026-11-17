@@ -14,8 +14,9 @@ import argparse
 import base64
 import html
 import json
-from pathlib import Path
 import sys
+from pathlib import Path
+
 
 def encode_img_base64(path: Path) -> str:
     if not path.is_file():
@@ -342,7 +343,7 @@ def generate_report(results_dir: Path, output_html: Path):
   </div>
 """
 
-    html_content += f"""
+    html_content += """
 </div>
 
 <h2 style="margin-top: 40px;">Evidence Provenance</h2>

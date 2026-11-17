@@ -4,22 +4,21 @@ Workflows are exported API graphs supplied by the local operator, not guessed no
 packs. No source from Clarity is imported and no cloud provider is contacted.
 """
 import copy
-from contextlib import contextmanager
 import hashlib
 import io
 import json
-from pathlib import Path
 import sqlite3
 import time
-from urllib.parse import urlparse
 import uuid
+from contextlib import contextmanager
+from pathlib import Path
+from urllib.parse import urlparse
 
 import httpx
 import numpy as np
 from PIL import Image
 
 from fidelis.studio.png import read_rgb8_png
-
 from fidelis.studio.store import sha256
 
 
@@ -29,7 +28,6 @@ class BackendUnavailable(RuntimeError):
 
 class GenerationCancelled(RuntimeError):
     """Local polling abandoned; remote work may still be running."""
-    pass
 
 
 class SubmissionUnknown(RuntimeError):
@@ -40,48 +38,38 @@ def canonical_hash(value):
     return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(',', ':'), allow_nan=False).encode()).hexdigest()
 
 
-def validate_workflow(bundle, schema):
-    """Preflight installed classes/required inputs/model choices and acyclic links.
+def _validate_node(node_id, node, graph, schema, input_node):
+    if not isinstance(node_id, str) or not isinstance(node, dict):
+        raise TypeError('Invalid workflow node')
+    class_type, values = node.get('class_type'), node.get('inputs')
+    if class_type not in schema:
+        raise ValueError(f'Required node class is not installed: {class_type}')
+    if not isinstance(values, dict):
+        raise TypeError('Node inputs must be an object')
+    spec = schema[class_type].get('input', {})
+    required = spec.get('required', {})
+    if set(required) - set(values):
+        raise ValueError(f'Missing required inputs on node {node_id}')
+    return _validate_node_inputs(node_id, input_node, values, spec, graph)
 
-    The ComfyUI server remains authoritative for tensor types and node validators.
-    This does not certify checkpoint compatibility or image quality.
-    """
-    if not isinstance(bundle, dict) or bundle.get('schema_version') != 1:
-        raise ValueError('Expected workflow bundle schema_version 1')
-    if bundle.get('family') not in ('sdxl', 'flux', 'other'):
-        raise ValueError('Declare the workflow model family')
-    graph = bundle.get('workflow')
-    if not isinstance(graph, dict) or not graph or len(graph) > 500:
-        raise ValueError('Supply an exported ComfyUI API graph (maximum 500 nodes)')
-    input_node, output_node = bundle.get('input_node'), bundle.get('output_node')
-    if input_node not in graph or graph[input_node].get('class_type') != 'LoadImage':
-        raise ValueError('input_node must identify a LoadImage node')
-    if output_node not in graph or graph[output_node].get('class_type') != 'SaveImage':
-        raise ValueError('output_node must identify a SaveImage node')
-    dependencies = {}
-    for node_id, node in graph.items():
-        if not isinstance(node_id, str) or not isinstance(node, dict):
-            raise ValueError('Invalid workflow node')
-        class_type, values = node.get('class_type'), node.get('inputs')
-        if class_type not in schema:
-            raise ValueError(f'Required node class is not installed: {class_type}')
-        if not isinstance(values, dict):
-            raise ValueError('Node inputs must be an object')
-        spec = schema[class_type].get('input', {})
-        required = spec.get('required', {})
-        if set(required) - set(values):
-            raise ValueError(f'Missing required inputs on node {node_id}')
-        dependencies[node_id] = []
-        for name, value in values.items():
-            if isinstance(value, list) and len(value) == 2 and isinstance(value[0], str) and isinstance(value[1], int):
-                if value[0] not in graph or value[1] < 0:
-                    raise ValueError('Dangling workflow link')
-                dependencies[node_id].append(value[0])
-            else:
-                field = required.get(name, spec.get('optional', {}).get(name))
-                # LoadImage choices change after upload, so its image path is injected later.
-                if field and isinstance(field[0], list) and value not in field[0] and not (node_id == input_node and name == 'image'):
-                    raise ValueError(f'Installed model/choice unavailable for {node_id}.{name}')
+
+def _validate_node_inputs(node_id, input_node, values, spec, graph):
+    required = spec.get('required', {})
+    links = []
+    for name, value in values.items():
+        if isinstance(value, list) and len(value) == 2 and isinstance(value[0], str) and isinstance(value[1], int):
+            if value[0] not in graph or value[1] < 0:
+                raise ValueError('Dangling workflow link')
+            links.append(value[0])
+        else:
+            field = required.get(name, spec.get('optional', {}).get(name))
+            # LoadImage choices change after upload, so its image path is injected later.
+            if field and isinstance(field[0], list) and value not in field[0] and not (node_id == input_node and name == 'image'):
+                raise ValueError(f'Installed model/choice unavailable for {node_id}.{name}')
+    return links
+
+
+def _validate_dependencies(graph, dependencies, input_node, output_node):
     active, complete = set(), set()
     def visit(node_id):
         if node_id in active:
@@ -105,6 +93,35 @@ def validate_workflow(bundle, schema):
     ancestors_of(output_node)
     if input_node not in ancestors:
         raise ValueError('Output must depend on the supplied base image')
+
+
+def _node_has_class(graph, node_id, class_type):
+    return isinstance(node_id, str) and isinstance(graph.get(node_id), dict) and graph[node_id].get('class_type') == class_type
+
+
+def validate_workflow(bundle, schema):
+    """Preflight installed classes/required inputs/model choices and acyclic links.
+
+    The ComfyUI server remains authoritative for tensor types and node validators.
+    This does not certify checkpoint compatibility or image quality.
+    """
+    if not isinstance(bundle, dict) or bundle.get('schema_version') != 1:
+        raise ValueError('Expected workflow bundle schema_version 1')
+    if bundle.get('family') not in ('sdxl', 'flux', 'other'):
+        raise ValueError('Declare the workflow model family')
+    graph = bundle.get('workflow')
+    if not isinstance(graph, dict) or not graph or len(graph) > 500:
+        raise ValueError('Supply an exported ComfyUI API graph (maximum 500 nodes)')
+    input_node, output_node = bundle.get('input_node'), bundle.get('output_node')
+    if not _node_has_class(graph, input_node, 'LoadImage'):
+        raise ValueError('input_node must identify a LoadImage node')
+    if not _node_has_class(graph, output_node, 'SaveImage'):
+        raise ValueError('output_node must identify a SaveImage node')
+    dependencies = {
+        node_id: _validate_node(node_id, node, graph, schema, input_node)
+        for node_id, node in graph.items()
+    }
+    _validate_dependencies(graph, dependencies, input_node, output_node)
     return copy.deepcopy(graph)
 
 
@@ -163,10 +180,10 @@ class ComfyTextureBackend:
             stats = self._json('GET', '/system_stats')
             schema = self._json('GET', '/object_info')
             if not isinstance(stats, dict) or not isinstance(schema, dict):
-                raise ValueError('Invalid ComfyUI capability response')
+                raise TypeError('Invalid ComfyUI capability response')
             return {'reachable': True, 'node_classes': sorted(schema),
                     'devices': stats.get('devices', []), 'live_inference_verified': False}
-        except (httpx.HTTPError, ValueError) as error:
+        except (httpx.HTTPError, ValueError, TypeError) as error:
             return {'reachable': False, 'reason': type(error).__name__, 'live_inference_verified': False}
 
     def default_cli_run_id(self, source_rgb, bundle, requested_address):
@@ -183,77 +200,63 @@ class ComfyTextureBackend:
         return canonical_hash({'source_sha256': hashlib.sha256(source_rgb.tobytes()).hexdigest(),
                                'bundle': bundle, 'dimensions': list(source_rgb.shape), 'address': self.address})
 
-    def run(self, source_rgb, bundle, *, run_id=None, deadline_seconds=300, cancelled=None):
-        def check_cancelled():
-            if cancelled is not None and cancelled():
-                raise GenerationCancelled("Local generation cancelled; no global interrupt sent")
-        check_cancelled()
-        if not isinstance(source_rgb, np.ndarray) or source_rgb.dtype != np.uint8 or source_rgb.ndim != 3 or source_rgb.shape[2] != 3:
-            raise ValueError('Texture input must be uint8 RGB')
-        if not 0 < source_rgb.shape[0] * source_rgb.shape[1] <= 40_000_000:
-            raise ValueError('Texture input exceeds pixel limit')
-        if not 0 < deadline_seconds <= 3600:
-            raise ValueError('Deadline must be in (0,3600] seconds')
-        run_id = str(uuid.UUID(run_id)) if run_id else str(uuid.uuid4())
-        identity = self._recipe_hash(source_rgb, bundle)
-        record = self._get(run_id)
-        if record and record['recipe_hash'] != identity:
-            raise ValueError('Run ID already belongs to a different recipe or source')
-        if record is None:
-            try:
-                schema = self._json('GET', '/object_info')
-                check_cancelled()
-            except (httpx.HTTPError, ValueError) as error:
-                raise BackendUnavailable('Local ComfyUI is unavailable; no generation was submitted') from error
-            graph = validate_workflow(bundle, schema)
-            record = {'id': run_id, 'recipe_hash': identity, 'workflow_sha256': canonical_hash(bundle),
-                      'status': 'preparing', 'prompt_id': None, 'dimensions': list(source_rgb.shape),
-                      'family': bundle['family'], 'bundle': bundle, 'backend': 'local-comfyui',
-                      'created_at_unix': time.time(), 'live_quality_verified': False}
-            try:
-                with self._db() as db:
-                    db.execute('INSERT INTO runs VALUES (?,?)', (run_id, json.dumps(record)))
-            except sqlite3.IntegrityError as error:
-                raise SubmissionUnknown('Another caller reserved this run ID; resume it without resubmitting') from error
-            try:
-                check_cancelled()
-                image = io.BytesIO()
-                Image.fromarray(source_rgb).save(image, format='PNG')
-                uploaded = self._json('POST', '/upload/image', files={'image': (f'fidelis_{run_id}.png', image.getvalue(), 'image/png')}, data={'overwrite': 'false', 'type': 'input'})
-                subfolder = uploaded.get('subfolder', '')
-                graph[bundle['input_node']]['inputs']['image'] = (subfolder + '/' if subfolder else '') + uploaded['name']
-                check_cancelled()
-                record['status'] = 'submitting'
+    def _reserve_run(self, source_rgb, bundle, run_id, identity, check_cancelled):
+        try:
+            schema = self._json('GET', '/object_info')
+            check_cancelled()
+        except (httpx.HTTPError, ValueError) as error:
+            raise BackendUnavailable('Local ComfyUI is unavailable; no generation was submitted') from error
+        graph = validate_workflow(bundle, schema)
+        record = {'id': run_id, 'recipe_hash': identity, 'workflow_sha256': canonical_hash(bundle),
+                  'status': 'preparing', 'prompt_id': None, 'dimensions': list(source_rgb.shape),
+                  'family': bundle['family'], 'bundle': bundle, 'backend': 'local-comfyui',
+                  'created_at_unix': time.time(), 'live_quality_verified': False}
+        try:
+            with self._db() as db:
+                db.execute('INSERT INTO runs VALUES (?,?)', (run_id, json.dumps(record)))
+        except sqlite3.IntegrityError as error:
+            raise SubmissionUnknown('Another caller reserved this run ID; resume it without resubmitting') from error
+        return record, graph
+
+    def _queue_prompt(self, record, graph):
+        run_id = record['id']
+        try:
+            queued = self._json('POST', '/prompt', json={'prompt': graph, 'client_id': run_id,
+                                    'extra_data': {'fidelis_request_id': run_id}})
+        except Exception as error:
+            # A 4xx rejects the request. A timeout/5xx may have queued it.
+            rejected = isinstance(error, httpx.HTTPStatusError) and 400 <= error.response.status_code < 500
+            record['status'] = 'rejected' if rejected else 'submission_unknown'
+            record['error'] = str(error)
+            self._save(record)
+            raise SubmissionUnknown('Submission could not be confirmed; this run will not be automatically resubmitted') from error
+        if not isinstance(queued.get('prompt_id'), str) or queued.get('error'):
+            record['status'] = 'submission_unknown'
+            self._save(record)
+            raise SubmissionUnknown('Missing prompt ID; reconcile the existing run before retrying')
+        record.update(status='submitted', prompt_id=queued['prompt_id'])
+        self._save(record)
+
+    def _submit_reserved(self, source_rgb, bundle, record, graph, check_cancelled):
+        run_id = record['id']
+        try:
+            check_cancelled()
+            image = io.BytesIO()
+            Image.fromarray(source_rgb).save(image, format='PNG')
+            uploaded = self._json('POST', '/upload/image', files={'image': (f'fidelis_{run_id}.png', image.getvalue(), 'image/png')}, data={'overwrite': 'false', 'type': 'input'})
+            subfolder = uploaded.get('subfolder', '')
+            graph[bundle['input_node']]['inputs']['image'] = (subfolder + '/' if subfolder else '') + uploaded['name']
+            check_cancelled()
+            record['status'] = 'submitting'
+            self._save(record)
+            self._queue_prompt(record, graph)
+        except Exception:
+            if record['status'] == 'preparing':
+                record['status'] = 'preparation_failed'
                 self._save(record)
-                try:
-                    queued = self._json('POST', '/prompt', json={'prompt': graph, 'client_id': run_id,
-                                            'extra_data': {'fidelis_request_id': run_id}})
-                except Exception as error:
-                    # A 4xx rejects the request. A timeout/5xx may have queued it.
-                    rejected = isinstance(error, httpx.HTTPStatusError) and 400 <= error.response.status_code < 500
-                    record['status'] = 'rejected' if rejected else 'submission_unknown'
-                    record['error'] = str(error)
-                    self._save(record)
-                    raise SubmissionUnknown('Submission could not be confirmed; this run will not be automatically resubmitted') from error
-                if not isinstance(queued.get('prompt_id'), str) or queued.get('error'):
-                    record['status'] = 'submission_unknown'
-                    self._save(record)
-                    raise SubmissionUnknown('Missing prompt ID; reconcile the existing run before retrying')
-                record.update(status='submitted', prompt_id=queued['prompt_id'])
-                self._save(record)
-            except Exception:
-                if record['status'] == 'preparing':
-                    record['status'] = 'preparation_failed'
-                    self._save(record)
-                raise
-        if record['status'] in ('submitting', 'submission_unknown'):
-            record = self.reconcile(run_id)
-        if record['status'] not in ('submitted', 'completed'):
-            raise SubmissionUnknown(f"Run is {record['status']}; automatic resubmission is disabled")
-        cached = self.root / f'{run_id}.png'
-        if record['status'] == 'completed' and cached.is_file() and sha256(cached) == record['output_sha256']:
-            with Image.open(cached) as image:
-                return np.array(image.convert('RGB')), record
+            raise
+
+    def _poll(self, source_rgb, bundle, record, deadline_seconds, check_cancelled):
         deadline = time.monotonic() + deadline_seconds
         while time.monotonic() < deadline:
             check_cancelled()
@@ -280,6 +283,35 @@ class ComfyTextureBackend:
             if self.poll_interval:
                 time.sleep(min(self.poll_interval, max(0, deadline-time.monotonic())))
         raise TimeoutError('Generation is pending; resume this run ID to poll without another submission')
+
+    def run(self, source_rgb, bundle, *, run_id=None, deadline_seconds=300, cancelled=None):
+        def check_cancelled():
+            if cancelled is not None and cancelled():
+                raise GenerationCancelled("Local generation cancelled; no global interrupt sent")
+        check_cancelled()
+        if not isinstance(source_rgb, np.ndarray) or source_rgb.dtype != np.uint8 or source_rgb.ndim != 3 or source_rgb.shape[2] != 3:
+            raise ValueError('Texture input must be uint8 RGB')
+        if not 0 < source_rgb.shape[0] * source_rgb.shape[1] <= 40_000_000:
+            raise ValueError('Texture input exceeds pixel limit')
+        if not 0 < deadline_seconds <= 3600:
+            raise ValueError('Deadline must be in (0,3600] seconds')
+        run_id = str(uuid.UUID(run_id)) if run_id else str(uuid.uuid4())
+        identity = self._recipe_hash(source_rgb, bundle)
+        record = self._get(run_id)
+        if record and record['recipe_hash'] != identity:
+            raise ValueError('Run ID already belongs to a different recipe or source')
+        if record is None:
+            record, graph = self._reserve_run(source_rgb, bundle, run_id, identity, check_cancelled)
+            self._submit_reserved(source_rgb, bundle, record, graph, check_cancelled)
+        if record['status'] in ('submitting', 'submission_unknown'):
+            record = self.reconcile(run_id)
+        if record['status'] not in ('submitted', 'completed'):
+            raise SubmissionUnknown(f"Run is {record['status']}; automatic resubmission is disabled")
+        cached = self.root / f'{run_id}.png'
+        if record['status'] == 'completed' and cached.is_file() and sha256(cached) == record['output_sha256']:
+            with Image.open(cached) as image:
+                return np.array(image.convert('RGB')), record
+        return self._poll(source_rgb, bundle, record, deadline_seconds, check_cancelled)
 
     def reconcile(self, run_id):
         record = self._get(run_id)

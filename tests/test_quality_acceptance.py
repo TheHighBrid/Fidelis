@@ -220,6 +220,24 @@ class QualityAcceptanceTests(unittest.TestCase):
             )
             self.assertEqual(proc_strict.returncode, 2)
 
+    def test_missing_mandatory_comparator_cannot_pass_even_if_not_declared(self) -> None:
+        for declared in (None, ["dated_krea"]):
+            with self.subTest(declared=declared):
+                sub = _make_complete_submission(owner_status="approved")
+                sub["held_out_ballots"] = [
+                    ballot for ballot in sub["held_out_ballots"]
+                    if ballot["comparator"] == "dated_krea"
+                ]
+                if declared is None:
+                    sub.pop("required_comparators", None)
+                else:
+                    sub["required_comparators"] = declared
+                report = evaluate_held_out_acceptance(sub)
+                self.assertNotEqual(report["overall_status"], "accepted")
+                self.assertFalse(report["quantitative_gates_passed"])
+                self.assertIn("pinned_clarity", report["comparator_failures"])
+                self.assertEqual(report["comparator_results"]["pinned_clarity"]["sample_size"], 0)
+
     def test_sparse_comparator_ballot_fails_coverage_and_comparator_gates(self) -> None:
         sub = _make_complete_submission(owner_status="approved")
         # Keep all 30 ballots for dated_krea, but only 1 winning ballot for pinned_clarity.
@@ -235,6 +253,17 @@ class QualityAcceptanceTests(unittest.TestCase):
         self.assertFalse(report["comparator_results"]["pinned_clarity"]["passed_thresholds"])
         self.assertIn("pinned_clarity", report["comparator_failures"])
         self.assertIn("incomplete_held_out_category_coverage", report["blocking_reasons"])
+
+    def test_malformed_defects_and_conflicting_case_categories_fail_closed(self) -> None:
+        malformed = _make_complete_submission(owner_status="approved")
+        malformed["held_out_ballots"][0]["critical_defects"] = "text_logo_corruption"
+        malformed_report = evaluate_held_out_acceptance(malformed)
+        self.assertIn("invalid_ballot_records", malformed_report["blocking_reasons"])
+
+        conflicting = _make_complete_submission(owner_status="approved")
+        conflicting["held_out_ballots"][1]["category"] = "macro"
+        conflict_report = evaluate_held_out_acceptance(conflicting)
+        self.assertIn("invalid_ballot_records", conflict_report["blocking_reasons"])
 
     def test_automated_detail_gates_optional_and_required(self) -> None:
         sub = _make_complete_submission(owner_status="approved")

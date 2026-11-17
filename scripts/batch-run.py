@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import argparse
 import json
-from pathlib import Path
 import shutil
 import sys
+from pathlib import Path
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageOps
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from fidelis.postprocess.regions import PROFILES
@@ -42,8 +42,23 @@ def _run_offline_handler(ctx: BatchItemContext) -> dict:
             shutil.copyfile(src, ctx.temp_output_path)
             return {"output_path": str(ctx.temp_output_path), "actual_cost_usd": 0.0}
         if handler == "deterministic_bicubic":
-            rgb = im.convert("RGB")
-            arr = np.array(rgb.resize((rgb.width * scale, rgb.height * scale), Image.Resampling.BICUBIC))
+            if im.mode not in ("RGB", "RGBA"):
+                raise ValueError(
+                    "deterministic_bicubic supports only 8-bit RGB or RGBA inputs; "
+                    "convert high-precision or grayscale images explicitly"
+                )
+            if im.info.get("icc_profile"):
+                raise ValueError(
+                    "deterministic_bicubic requires untagged sRGB input; convert ICC-profiled images first"
+                )
+            # Normalize display orientation before dropping EXIF metadata, and
+            # retain straight alpha instead of exposing hidden RGB samples.
+            normalized = ImageOps.exif_transpose(im)
+            mode = "RGBA" if normalized.mode == "RGBA" or "transparency" in normalized.info else "RGB"
+            pixels = normalized.convert(mode)
+            arr = np.array(
+                pixels.resize((pixels.width * scale, pixels.height * scale), Image.Resampling.BICUBIC)
+            )
             Image.fromarray(arr).save(ctx.temp_output_path, format="PNG")
             return {"output_path": str(ctx.temp_output_path), "actual_cost_usd": 0.0}
     raise ValueError(f"Unsupported offline handler {handler!r}")

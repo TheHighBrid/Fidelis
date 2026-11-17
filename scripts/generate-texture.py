@@ -2,9 +2,9 @@
 """Generate an aligned texture through an explicitly configured local ComfyUI graph."""
 import argparse
 import json
-from pathlib import Path
 import sys
 import uuid
+from pathlib import Path
 
 import numpy as np
 from PIL import Image

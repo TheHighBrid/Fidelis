@@ -30,7 +30,9 @@ def __getattr__(name: str):
     if target is None:
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
     module_name, attr_name = target
-    module = importlib.import_module(module_name)
+    if not module_name.startswith("fidelis."):
+        raise AttributeError(f"unauthorized module {module_name!r}")
+    module = importlib.import_module(module_name)  # nosec B102 # nosemgrep
     value = getattr(module, attr_name)
     globals()[name] = value
     return value

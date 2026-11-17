@@ -3,11 +3,11 @@
 No synthetic gap filling, inferred consent, automatic split assignment or network IO.
 """
 import copy
-from collections import Counter
 import hashlib
 import json
-from pathlib import Path
 import re
+from collections import Counter
+from pathlib import Path
 
 from PIL import Image
 
@@ -49,7 +49,7 @@ def inspect_image(path):
 
 
 def validate_design(protocol, slots):
-    if not isinstance(protocol,dict) or not isinstance(slots,dict):raise ValueError('Protocol and slot plan must be objects')
+    if not isinstance(protocol,dict) or not isinstance(slots,dict):raise TypeError('Protocol and slot plan must be objects')
     if protocol.get('schema_version')!=1 or protocol.get('categories')!={key:12 for key in CATEGORIES}:
         raise ValueError('Protocol v1 requires five declared categories with 12 cases each')
     if protocol.get('split')!={'calibration':30,'held_out':30}:
@@ -57,7 +57,7 @@ def validate_design(protocol, slots):
     if slots.get('schema_version')!=1 or slots.get('protocol_sha256')!=digest(protocol):
         raise ValueError('Slot plan/protocol hash mismatch')
     rows=slots.get('slots',[])
-    if not isinstance(rows,list) or any(not isinstance(row,dict) for row in rows):raise ValueError('Slot records must be objects')
+    if not isinstance(rows,list) or any(not isinstance(row,dict) for row in rows):raise TypeError('Slot records must be objects')
     if len(rows)!=60 or len({r['id'] for r in rows})!=60:raise ValueError('Exactly 60 unique slots required')
     counts=Counter((r['category'],r['split']) for r in rows)
     if counts!=Counter({(cat,split):6 for cat in CATEGORIES for split in ('calibration','held_out')}):
@@ -65,97 +65,138 @@ def validate_design(protocol, slots):
     return {row['id']:row for row in rows}
 
 
-def audit(manifest, protocol, slots, root):
-    design=validate_design(protocol,slots)
-    if not isinstance(manifest,dict):raise ValueError('Manifest must be an object')
-    if manifest.get('schema_version')!=1 or manifest.get('protocol_sha256')!=digest(protocol) or manifest.get('slots_sha256')!=digest(slots):
-        raise ValueError('Manifest schema/design hash mismatch')
-    cases=manifest.get('cases')
-    if not isinstance(cases,list) or len(cases)>1000:raise ValueError('Expected at most 1000 inventory records')
-    ids=set();claimed={};groups={};hashes={};pixels={};rows=[];eligible=[]
-    for case in cases:
-        if not isinstance(case,dict):raise ValueError('Case must be an object')
-        case_id=case.get('id')
-        if not isinstance(case_id,str) or not re.fullmatch(r'[a-z0-9][a-z0-9_-]{0,79}',case_id) or case_id in ids:
-            raise ValueError('Missing/duplicate/invalid case ID')
-        ids.add(case_id)
-        role=case.get('role')
-        if role not in ('regression','production'):raise ValueError('Declare regression or production role')
-        slot_id=case.get('slot_id');issues=[];observed=None
-        if role=='production':
-            if slot_id not in design or slot_id in claimed:raise ValueError('Unknown/duplicate production slot')
-            claimed[slot_id]=case_id
-            if case.get('category')!=design[slot_id]['category']:raise ValueError('Case/slot category mismatch')
-        elif slot_id is not None:raise ValueError('Regression assets cannot fill production slots')
-        if case.get('category') not in CATEGORIES:raise ValueError('Unknown category')
-        source=case.get('source')
-        if not isinstance(source,dict):raise ValueError('Source inventory is required')
-        try:
-            path=local_path(root,source.get('path'))
-            if not path.is_file():issues.append('source_missing')
-            else:
-                observed=inspect_image(path)
-                if any(source.get(key)!=value for key,value in observed.items()):issues.append('source_fingerprint_changed')
-        except (OSError,ValueError,Image.DecompressionBombError):issues.append('source_invalid_or_unavailable')
-        if case.get('source_kind')!='photograph':issues.append('not_a_photographic_production_case')
-        rights=case.get('rights',{})
-        if not isinstance(rights,dict):raise ValueError('Rights must be an object')
-        if rights.get('status') not in ('unknown','approved','denied'):raise ValueError('Unknown rights status')
-        if rights.get('status')!='approved' or rights.get('local_evaluation') is not True:issues.append('local_rights_unapproved')
-        if rights.get('subject_consent') not in ('approved','not_required'):issues.append('subject_consent_unresolved')
-        if rights.get('remote_processing') not in ('unknown','allowed','denied'):raise ValueError('Declare remote processing permission separately')
-        try:
-            evidence=local_path(root,rights.get('evidence_path'))
-            if not evidence.is_file() or file_hash(evidence)!=rights.get('evidence_sha256'):issues.append('rights_evidence_missing_or_changed')
-        except (ValueError,OSError):issues.append('rights_evidence_missing_or_changed')
-        if not all(isinstance(rights.get(k),str) and rights[k].strip() for k in ('reviewed_by','reviewed_at','basis')):
-            issues.append('rights_review_incomplete')
-        group=case.get('leakage_group')
-        if not isinstance(group,str) or not group.strip():issues.append('leakage_group_unresolved')
-        target=case.get('target_dimensions')
-        if not isinstance(target,list) or len(target)!=2 or any(type(v) is not int or not 0<v<=32768 for v in target):
-            issues.append('target_dimensions_missing_or_invalid')
-        if case.get('expected_behavior') not in ('enhance','reject_unsupported_input'):issues.append('expected_behavior_unresolved')
-        rois=case.get('rois')
-        if not isinstance(rois,list):raise ValueError('ROIs must be a list')
-        roi_ids=set()
-        if not rois:issues.append('critical_rois_unreviewed')
-        for roi in rois:
-            if not isinstance(roi,dict):raise ValueError('ROI must be an object')
-            rid=roi.get('id');rect=roi.get('rect');kind=roi.get('kind')
-            if not isinstance(rid,str) or not rid or rid in roi_ids:raise ValueError('Missing/duplicate ROI ID')
-            roi_ids.add(rid)
-            if kind not in ROI_TYPES or roi.get('policy') not in ('preserve','texture_allowed'):
-                raise ValueError('Invalid ROI type/policy')
-            if not isinstance(rect,list) or len(rect)!=4 or any(type(v) is not int for v in rect):raise ValueError('ROI rect must contain four integers')
-            x,y,w,h=rect
-            if x<0 or y<0 or w<1 or h<1 or (observed and (x+w>observed['dimensions'][0] or y+h>observed['dimensions'][1])):
-                issues.append('roi_outside_source')
-        known_text=case.get('known_text')
-        if not isinstance(known_text,list):raise ValueError('known_text must be a list')
-        if case.get('text_review')!='completed':issues.append('text_review_incomplete')
-        transcripts=set()
-        for entry in known_text:
-            if not isinstance(entry,dict):raise ValueError('Text transcript must be an object')
-            if entry.get('roi_id') not in roi_ids or entry.get('roi_id') in transcripts or not isinstance(entry.get('text'),str) or not entry['text'].strip():
-                raise ValueError('Known text requires a unique valid ROI and nonempty transcript')
-            transcripts.add(entry['roi_id'])
-        if any(roi['kind']=='text' and roi['id'] not in transcripts for roi in rois):issues.append('text_roi_transcript_missing')
-        if role=='production':
-            split=design[slot_id]['split']
-            if group:
-                if group in groups and groups[group]!=split:issues.append('group_crosses_splits')
-                groups[group]=split
-            if observed:
-                for field,seen in (('sha256',hashes),('pixel_sha256',pixels)):
-                    if observed[field] in seen:issues.append('duplicate_'+field)
-                    seen[observed[field]]=case_id
-            if not issues:eligible.append(slot_id)
-        rows.append({'id':case_id,'role':role,'slot_id':slot_id,'available':observed is not None,
-                     'eligible':role=='production' and not issues,'blockers':sorted(set(issues)),
-                     'observed':observed})
-    missing=sorted(set(design)-set(claimed));unready=sorted(set(claimed)-set(eligible))
-    # Any duplicate/group conflict blocks the entire freeze, including the first member.
+def _validate_case_slot(case, design, ids, claimed):
+    if not isinstance(case,dict):raise TypeError('Case must be an object')
+    case_id=case.get('id')
+    if not isinstance(case_id,str) or not re.fullmatch(r'[a-z0-9][a-z0-9_-]{0,79}',case_id) or case_id in ids:
+        raise ValueError('Missing/duplicate/invalid case ID')
+    ids.add(case_id)
+    role=case.get('role')
+    if role not in ('regression','production'):raise ValueError('Declare regression or production role')
+    slot_id=case.get('slot_id')
+    if role=='production':
+        if slot_id not in design or slot_id in claimed:raise ValueError('Unknown/duplicate production slot')
+        claimed[slot_id]=case_id
+        if case.get('category')!=design[slot_id]['category']:raise ValueError('Case/slot category mismatch')
+    elif slot_id is not None:raise ValueError('Regression assets cannot fill production slots')
+    if case.get('category') not in CATEGORIES:raise ValueError('Unknown category')
+    return case_id, role, slot_id
+
+
+def _inspect_source(case, root, issues):
+    observed=None
+    source=case.get('source')
+    if not isinstance(source,dict):raise TypeError('Source inventory is required')
+    try:
+        path=local_path(root,source.get('path'))
+        if not path.is_file():issues.append('source_missing')
+        else:
+            observed=inspect_image(path)
+            if any(source.get(key)!=value for key,value in observed.items()):issues.append('source_fingerprint_changed')
+    except (OSError,ValueError,Image.DecompressionBombError):issues.append('source_invalid_or_unavailable')
+    return observed
+
+
+def _check_ground_truth(case, root, issues):
+    ground_truth_path=case.get('ground_truth_path')
+    if ground_truth_path is not None:
+        ground_truth=case.get('ground_truth')
+        if not isinstance(ground_truth,dict):
+            issues.append('ground_truth_fingerprint_missing')
+        else:
+            try:
+                gt_path=local_path(root,ground_truth_path)
+                if not gt_path.is_file() or any(
+                    ground_truth.get(key)!=value
+                    for key,value in inspect_image(gt_path).items()
+                ):
+                    issues.append('ground_truth_fingerprint_changed')
+            except (OSError,ValueError,Image.DecompressionBombError):
+                issues.append('ground_truth_invalid_or_unavailable')
+
+
+def _check_rights(case, root, issues):
+    if case.get('source_kind')!='photograph':issues.append('not_a_photographic_production_case')
+    rights=case.get('rights',{})
+    if not isinstance(rights,dict):raise TypeError('Rights must be an object')
+    if rights.get('status') not in ('unknown','approved','denied'):raise ValueError('Unknown rights status')
+    if rights.get('status')!='approved' or rights.get('local_evaluation') is not True:issues.append('local_rights_unapproved')
+    if rights.get('subject_consent') not in ('approved','not_required'):issues.append('subject_consent_unresolved')
+    if rights.get('remote_processing') not in ('unknown','allowed','denied'):raise ValueError('Declare remote processing permission separately')
+    try:
+        evidence=local_path(root,rights.get('evidence_path'))
+        if not evidence.is_file() or file_hash(evidence)!=rights.get('evidence_sha256'):issues.append('rights_evidence_missing_or_changed')
+    except (ValueError,OSError):issues.append('rights_evidence_missing_or_changed')
+    if not all(isinstance(rights.get(k),str) and rights[k].strip() for k in ('reviewed_by','reviewed_at','basis')):
+        issues.append('rights_review_incomplete')
+
+
+def _check_case_metadata(case, issues):
+    group=case.get('leakage_group')
+    if not isinstance(group,str) or not group.strip():issues.append('leakage_group_unresolved')
+    target=case.get('target_dimensions')
+    if not isinstance(target,list) or len(target)!=2 or any(not isinstance(v,int) or isinstance(v,bool) or not 0<v<=32768 for v in target):
+        issues.append('target_dimensions_missing_or_invalid')
+    if case.get('expected_behavior') not in ('enhance','reject_unsupported_input'):issues.append('expected_behavior_unresolved')
+    return group
+
+
+def _check_rois(case, observed, issues):
+    rois=case.get('rois')
+    if not isinstance(rois,list):raise TypeError('ROIs must be a list')
+    roi_ids=set()
+    if not rois:issues.append('critical_rois_unreviewed')
+    for roi in rois:
+        _check_roi_geometry(roi, observed, roi_ids, issues)
+    _check_transcripts(case, rois, roi_ids, issues)
+
+
+def _check_roi_geometry(roi, observed, roi_ids, issues):
+    if not isinstance(roi,dict):raise TypeError('ROI must be an object')
+    rid=roi.get('id');rect=roi.get('rect');kind=roi.get('kind')
+    if not isinstance(rid,str) or not rid or rid in roi_ids:raise ValueError('Missing/duplicate ROI ID')
+    roi_ids.add(rid)
+    if kind not in ROI_TYPES or roi.get('policy') not in ('preserve','texture_allowed'):
+        raise ValueError('Invalid ROI type/policy')
+    _check_roi_bounds(rect, observed, issues)
+
+
+def _check_roi_bounds(rect, observed, issues):
+    if not isinstance(rect,list) or len(rect)!=4 or any(not isinstance(v,int) or isinstance(v,bool) for v in rect):raise ValueError('ROI rect must contain four integers')
+    x,y,w,h=rect
+    if x<0 or y<0 or w<1 or h<1 or (observed and (x+w>observed['dimensions'][0] or y+h>observed['dimensions'][1])):
+        issues.append('roi_outside_source')
+
+
+def _check_transcripts(case, rois, roi_ids, issues):
+    known_text=case.get('known_text')
+    if not isinstance(known_text,list):raise TypeError('known_text must be a list')
+    if case.get('text_review')!='completed':issues.append('text_review_incomplete')
+    transcripts=set()
+    for entry in known_text:
+        if not isinstance(entry,dict):raise TypeError('Text transcript must be an object')
+        if entry.get('roi_id') not in roi_ids or entry.get('roi_id') in transcripts or not isinstance(entry.get('text'),str) or not entry['text'].strip():
+            raise ValueError('Known text requires a unique valid ROI and nonempty transcript')
+        transcripts.add(entry['roi_id'])
+    if any(roi['kind']=='text' and roi['id'] not in transcripts for roi in rois):issues.append('text_roi_transcript_missing')
+
+
+def _check_independence(role, slot_id, case_id, group, observed, design, tracking):
+    groups, hashes, pixels = tracking
+    issues=[]
+    if role=='production':
+        split=design[slot_id]['split']
+        if group:
+            if group in groups and groups[group]!=split:issues.append('group_crosses_splits')
+            groups[group]=split
+        if observed:
+            for field,seen in (('sha256',hashes),('pixel_sha256',pixels)):
+                if observed[field] in seen:issues.append('duplicate_'+field)
+                seen[observed[field]]=case_id
+    return issues
+
+
+def _coverage_blockers(manifest, root):
     review=manifest.get('coverage_review',{})
     global_blockers=[]
     if not isinstance(review,dict) or review.get('status')!='approved' or not all(isinstance(review.get(k),str) and review[k].strip() for k in ('reviewed_by','reviewed_at')):
@@ -164,6 +205,34 @@ def audit(manifest, protocol, slots, root):
         evidence=local_path(root,review.get('evidence_path') if isinstance(review,dict) else None)
         if not evidence.is_file() or file_hash(evidence)!=review.get('evidence_sha256'):global_blockers.append('coverage_evidence_missing_or_changed')
     except (ValueError,OSError):global_blockers.append('coverage_evidence_missing_or_changed')
+    return global_blockers
+
+
+def audit(manifest, protocol, slots, root):
+    design=validate_design(protocol,slots)
+    if not isinstance(manifest,dict):raise TypeError('Manifest must be an object')
+    if manifest.get('schema_version')!=1 or manifest.get('protocol_sha256')!=digest(protocol) or manifest.get('slots_sha256')!=digest(slots):
+        raise ValueError('Manifest schema/design hash mismatch')
+    cases=manifest.get('cases')
+    if not isinstance(cases,list) or len(cases)>1000:raise ValueError('Expected at most 1000 inventory records')
+    ids=set();claimed={};groups={};hashes={};pixels={};rows=[];eligible=[]
+    for case in cases:
+        case_id, role, slot_id = _validate_case_slot(case, design, ids, claimed)
+        issues=[]
+        observed=_inspect_source(case, root, issues)
+        _check_ground_truth(case, root, issues)
+        _check_rights(case, root, issues)
+        group=_check_case_metadata(case, issues)
+        _check_rois(case, observed, issues)
+        issues.extend(_check_independence(role, slot_id, case_id, group, observed, design,
+                                          (groups, hashes, pixels)))
+        if role=='production' and not issues:eligible.append(slot_id)
+        rows.append({'id':case_id,'role':role,'slot_id':slot_id,'available':observed is not None,
+                     'eligible':role=='production' and not issues,'blockers':sorted(set(issues)),
+                     'observed':observed})
+    missing=sorted(set(design)-set(claimed));unready=sorted(set(claimed)-set(eligible))
+    # Any duplicate/group conflict blocks the entire freeze, including the first member.
+    global_blockers=_coverage_blockers(manifest, root)
     ready=len(eligible)==60 and not missing and not unready and not global_blockers
     return {'schema_version':1,'production_ready':ready,'production_target':60,
             'production_eligible':len(eligible),'regression_available':sum(r['role']=='regression' and r['available'] for r in rows),
@@ -182,7 +251,7 @@ def freeze(manifest, protocol, slots, root):
 
 
 def verify(record, root):
-    if not isinstance(record,dict):raise ValueError('Corpus lock must be an object')
+    if not isinstance(record,dict):raise TypeError('Corpus lock must be an object')
     if record.get('schema_version')!=1 or record.get('record_type')!='unsigned_corpus_lock':raise ValueError('Invalid corpus lock')
     payload={k:v for k,v in record.items() if k!='lock_sha256'}
     if record.get('lock_sha256')!=digest(payload):raise ValueError('Corpus lock digest changed')

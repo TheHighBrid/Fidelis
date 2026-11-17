@@ -1,0 +1,41 @@
+# Ruff configuration for Fidelis
+target-version = "py310"
+line-length = 120
+
+[lint]
+select = [
+    "F",      # Pyflakes
+    "I",      # isort
+    "UP",     # pyupgrade
+    "B",      # flake8-bugbear
+    "RUF",    # Ruff-specific rules
+    "EXE",    # flake8-executable
+]
+
+ignore = [
+    "E501",    # line length handled separately
+    "B007",    # loop control variable not used
+    "B008",    # function call in argument default
+    "B904",    # raise ... from err
+    "B905",    # zip(..., strict=True)
+    "BLE001",  # blind exception catch used for resilient worker/cleanup loops
+    "TRY004",  # prefer TypeError over ValueError
+    "RUF005",  # tuple concatenation vs unpack
+    "RUF007",  # pairwise vs zip
+    "RUF013",  # implicit Optional
+    "RUF046",  # redundant int cast
+    "RUF059",  # unused unpacked variable
+    "RUF100",  # unused noqa
+    "UP015",   # redundant open mode
+    "UP017",   # datetime.timezone.utc vs datetime.UTC (3.11+)
+    "UP022",   # capture_output
+    "UP037",   # quotes in type annotations
+    "PYI034",  # __enter__ return self
+    "PIE790",  # unnecessary pass
+    "SIM102",  # nested if
+    "SIM114",  # combine if
+    "PLR1730", # max vs if
+]
+
+[lint.per-file-ignores]
+"tests/**" = ["ALL"]

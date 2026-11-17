@@ -121,6 +121,28 @@ class DetailMetricsTests(unittest.TestCase):
         self.assertFalse(locked_fail["hardware_seam_passed"])
         self.assertGreater(locked_fail["locked_pixel_mismatches"], 0)
 
+    def test_f4_undersized_fabric_roi_is_unavailable_not_a_perfect_measurement(self) -> None:
+        image = np.full((12, 12, 3), 128, dtype=np.uint8)
+        result = measure_fabric_hardware_faithfulness(
+            image,
+            image,
+            rois=[
+                {
+                    "id": "too-small-fabric",
+                    "kind": "fabric",
+                    "policy": "texture_allowed",
+                    "rect": [2, 2, 3, 3],
+                }
+            ],
+        )
+
+        self.assertFalse(result["fabric_weave_passed"])
+        self.assertTrue(result["fabric_measurement_unavailable"])
+        report = result["fabric_reports"][0]
+        self.assertFalse(report["passed"])
+        self.assertEqual(report["reason"], "fabric_roi_too_small_to_measure")
+        self.assertIsNone(report["weave_orientation_coherence"])
+
     def test_benchmark_suite_evaluate_4x_detail_and_dimension_mismatch(self) -> None:
         with Image.open(FABRIC_CROP) as im:
             src_rgb = np.asarray(im.convert("RGB"))

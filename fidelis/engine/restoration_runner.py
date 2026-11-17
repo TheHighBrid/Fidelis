@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import hashlib
 import importlib
-from pathlib import Path
 import time
-from typing import Any, Callable, Mapping, Optional, Protocol, Sequence, runtime_checkable
+from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import (
+    Any,
+    Protocol,
+    runtime_checkable,
+)
 
 import numpy as np
 from PIL import Image
@@ -20,7 +25,6 @@ from fidelis.postprocess.roi_protection import (
     build_roi_protection_masks,
     screen_internal_drift,
 )
-from fidelis.studio.comfy import ComfyTextureBackend, canonical_hash
 
 
 class DimensionMismatchError(ValueError):
@@ -83,7 +87,7 @@ class RestorationBackend(Protocol):
         base_4x: np.ndarray,
         scale: int,
         target_shape: tuple[int, int, int],
-        case_id: Optional[str] = None,
+        case_id: str | None = None,
     ) -> tuple[np.ndarray, dict[str, Any]]:
         """Return (raw_candidate_rgb_uint8, extra_provenance_dict) on exact target_shape."""
         ...
@@ -153,7 +157,7 @@ def _normalize_rois_for_guard(
     seen_ids: set[str] = set()
     for idx, entry in enumerate(rois):
         if not isinstance(entry, Mapping):
-            raise ValueError("Each ROI entry must be a mapping")
+            raise TypeError("Each ROI entry must be a mapping")
         kind = str(entry.get("kind", "fabric"))
         if kind not in VALID_ROI_KINDS:
             raise ValueError(f"ROI {entry.get('id', idx)}: invalid kind {kind!r}")
@@ -178,10 +182,10 @@ def _normalize_rois_for_guard(
         else:
             raise ValueError(f"ROI {entry.get('id', idx)} must specify 'rect' or 'bbox'")
 
-        tx = max(0, min(tw - 1, int(round(rx * scale_x))))
-        ty = max(0, min(th - 1, int(round(ry * scale_y))))
-        tw_r = max(1, min(tw - tx, int(round(rw * scale_x))))
-        th_r = max(1, min(th - ty, int(round(rh * scale_y))))
+        tx = max(0, min(tw - 1, round(rx * scale_x)))
+        ty = max(0, min(th - 1, round(ry * scale_y)))
+        tw_r = max(1, min(tw - tx, round(rw * scale_x)))
+        th_r = max(1, min(th - ty, round(rh * scale_y)))
 
         rid = str(entry.get("id") or f"roi_{idx}").strip() or f"roi_{idx}"
         while rid in seen_ids:
@@ -217,7 +221,7 @@ class BicubicBaselineBackend:
         base_4x: np.ndarray,
         scale: int,
         target_shape: tuple[int, int, int],
-        case_id: Optional[str] = None,
+        case_id: str | None = None,
     ) -> tuple[np.ndarray, dict[str, Any]]:
         out = _enforce_exact_shape(base_4x.copy(), target_shape, "bicubic_4x")
         return out, {"resampling": "BICUBIC"}
@@ -246,7 +250,7 @@ class ImportedRestorationBackend:
                 "ImportedRestorationBackend requires imported_dir, file_map, or image_path"
             )
 
-    def _resolve_path(self, case_id: Optional[str]) -> Path:
+    def _resolve_path(self, case_id: str | None) -> Path:
         if case_id and case_id in self.file_map:
             p = self.file_map[case_id]
             if not p.is_file():
@@ -275,13 +279,31 @@ class ImportedRestorationBackend:
         base_4x: np.ndarray,
         scale: int,
         target_shape: tuple[int, int, int],
-        case_id: Optional[str] = None,
+        case_id: str | None = None,
     ) -> tuple[np.ndarray, dict[str, Any]]:
         path = self._resolve_path(case_id)
         with Image.open(path) as img:
             if img.mode != "RGB":
                 raise ValueError(
                     f"Imported image {path.name} must be 3-channel RGB, got mode {img.mode!r}"
+                )
+            # This runner composes in a defined sRGB working space. Pillow's
+            # RGB conversion exposes encoded samples without applying an ICC
+            # transform, so accepting a profiled or non-sRGB-tagged PNG here
+            # would silently blend and export the wrong colours.
+            if img.info.get("icc_profile"):
+                raise ValueError(
+                    f"Imported image {path.name} carries an ICC profile; convert it to untagged sRGB first"
+                )
+            if "transparency" in img.info:
+                raise ValueError(
+                    f"Imported image {path.name} has colour-key transparency; use explicit RGB samples"
+                )
+            if "srgb" not in img.info and (
+                "gamma" in img.info or "chromaticity" in img.info
+            ):
+                raise ValueError(
+                    f"Imported image {path.name} has non-sRGB PNG colour tags; convert it to sRGB first"
                 )
             arr = np.asarray(img, dtype=np.uint8)
         out = _enforce_exact_shape(arr, target_shape, f"imported({path.name})")
@@ -297,7 +319,7 @@ class ComfyRestorationBackend:
         self,
         bundle: dict[str, Any],
         *,
-        comfy_backend: ComfyTextureBackend | None = None,
+        comfy_backend: Any | None = None,
         root: str | Path | None = None,
         address: str = "http://127.0.0.1:8188",
         model_id: str = "comfyui",
@@ -306,12 +328,26 @@ class ComfyRestorationBackend:
         if comfy_backend is None:
             if root is None:
                 raise ValueError("ComfyRestorationBackend requires comfy_backend or root")
+            # The local Comfy transport depends on optional HTTP packages.  Keep
+            # those packages out of the offline-engine import path; they are
+            # required only when this backend is explicitly selected.
+            from fidelis.studio.comfy import ComfyTextureBackend
             comfy_backend = ComfyTextureBackend(root, address=address)
         self.comfy = comfy_backend
         self.bundle = bundle
         self.model_id = model_id
         self.deadline_seconds = float(deadline_seconds)
-        self.weights_sha256 = canonical_hash(bundle)
+        # A graph digest does not attest to model checkpoint bytes. Keep the
+        # workflow identity separate and mark weight provenance unavailable
+        # until a real checkpoint hash has been independently verified.
+        from fidelis.studio.comfy import canonical_hash
+        self.workflow_sha256 = canonical_hash(bundle)
+        checkpoint_hash = (
+            bundle.get("checkpoint_sha256")
+            or bundle.get("weights_sha256")
+            or bundle.get("checkpoint_hash")
+        )
+        self.weights_sha256 = str(checkpoint_hash) if checkpoint_hash else "unavailable_unverified"
 
     def restore(
         self,
@@ -320,7 +356,7 @@ class ComfyRestorationBackend:
         base_4x: np.ndarray,
         scale: int,
         target_shape: tuple[int, int, int],
-        case_id: Optional[str] = None,
+        case_id: str | None = None,
     ) -> tuple[np.ndarray, dict[str, Any]]:
         canvas = _enforce_exact_shape(base_4x, target_shape, "comfy_input_canvas")
         run_id = self.comfy.default_cli_run_id(canvas, self.bundle, self.comfy.address)
@@ -333,7 +369,8 @@ class ComfyRestorationBackend:
         out = _enforce_exact_shape(out_rgb, target_shape, "comfyui_output")
         return out, {
             "comfy_run_id": record.get("id", run_id),
-            "workflow_sha256": record.get("workflow_sha256", self.weights_sha256),
+            "workflow_sha256": record.get("workflow_sha256", self.workflow_sha256),
+            "weights_sha256": self.weights_sha256,
             "family": record.get("family", self.bundle.get("family")),
         }
 
@@ -378,7 +415,7 @@ class OnnxRestorationBackend:
         base_4x: np.ndarray,
         scale: int,
         target_shape: tuple[int, int, int],
-        case_id: Optional[str] = None,
+        case_id: str | None = None,
     ) -> tuple[np.ndarray, dict[str, Any]]:
         inp = (source_rgb.astype(np.float32) / 255.0).transpose(2, 0, 1)[None, ...]
         input_name = self._session.get_inputs()[0].name
@@ -437,7 +474,7 @@ class TorchSpandrelRestorationBackend:
         base_4x: np.ndarray,
         scale: int,
         target_shape: tuple[int, int, int],
-        case_id: Optional[str] = None,
+        case_id: str | None = None,
     ) -> tuple[np.ndarray, dict[str, Any]]:
         torch = self._torch
         inp = (
@@ -474,7 +511,7 @@ class RestorationRunner:
         apply_texture_guard: bool = True,
         blend: RegionBlend | None = None,
         use_sobel_heuristic: bool = True,
-        case_id: Optional[str] = None,
+        case_id: str | None = None,
     ) -> RestorationResult:
         src = _validate_rgb_uint8(source_rgb, "source_rgb")
         if scale < 1:
@@ -511,19 +548,37 @@ class RestorationRunner:
                 target_rois,
                 use_sobel_heuristic=use_sobel_heuristic,
             )
-            if np.any(masks["interior_texture"] > 0.0):
-                unlocked_mask = np.zeros((th, tw), dtype=np.float32)
-                for r in target_rois:
-                    if r.get("override") == "unlock":
-                        rx, ry, rw, rh = r["rect"]
-                        unlocked_mask[ry : ry + rh, rx : rx + rw] = 1.0
-                unlocked_mask *= (1.0 - masks["protected"]).astype(np.float32)
-                fabric_mask = np.maximum(masks["interior_texture"], unlocked_mask).astype(np.float32)
-            else:
-                fabric_mask = (1.0 - masks["protected"]).astype(np.float32)
-            confidence_mask = np.where(masks["protected"] < 1.0, 1.0, 0.0).astype(
-                np.float32
-            )
+            # An absent texture ROI is not permission to replace the image.
+            # Only explicitly texture-allowed or unlocked regions can receive
+            # synthetic detail. The remainder stays on the precision base.
+            semantic_masks = {
+                name: np.zeros((th, tw), dtype=np.float32)
+                for name in ("skin", "hair", "fabric")
+            }
+            unlocked_mask = np.zeros((th, tw), dtype=np.float32)
+            for r in target_rois:
+                if r.get("policy") != "texture_allowed" and r.get("override") != "unlock":
+                    continue
+                # Preserve semantic ROI channels so a caller's RegionBlend
+                # controls skin, hair and fabric independently.  A deliberate
+                # unlock for a structural ROI remains explicit permission, but
+                # has no semantic texture class and therefore uses fabric.
+                channel = r["kind"] if r["kind"] in semantic_masks else "fabric"
+                rx, ry, rw, rh = r["rect"]
+                semantic_masks[channel][ry : ry + rh, rx : rx + rw] = 1.0
+                if r.get("override") == "unlock":
+                    unlocked_mask[ry : ry + rh, rx : rx + rw] = 1.0
+            texture_allowed = np.maximum(masks["interior_texture"], np.clip(sum(semantic_masks.values()), 0.0, 1.0))
+            permitted = texture_allowed
+            # An explicit unlock is a deliberate texture authorization even
+            # when its original policy was preserve, so it cannot depend on
+            # the texture-allowed interior mask. Explicit locks still win at
+            # the final protection boundary below.
+            permitted = np.maximum(permitted, unlocked_mask)
+            permitted *= (1.0 - masks["protected"]).astype(np.float32)
+            for channel in semantic_masks:
+                semantic_masks[channel] *= permitted
+            confidence_mask = permitted.astype(np.float32)
             active_blend = (
                 blend
                 if blend is not None
@@ -532,11 +587,13 @@ class RestorationRunner:
             guarded, _alpha = compose_regions(
                 base_4x,
                 raw_candidate,
-                fabric=fabric_mask,
+                skin=semantic_masks["skin"],
+                hair=semantic_masks["hair"],
+                fabric=semantic_masks["fabric"],
                 protected=masks["protected"],
                 confidence=confidence_mask,
                 edge_guard=masks["edge_guard"],
-                interior_texture=masks["interior_texture"],
+                interior_texture=permitted,
                 blend=active_blend,
             )
             drift_report = screen_internal_drift(

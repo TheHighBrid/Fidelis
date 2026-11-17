@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import importlib
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any
 
 import numpy as np
 from PIL import Image, UnidentifiedImageError
@@ -116,11 +117,13 @@ class CallableRestorationRunner:
         return out, provenance
 
 
-def _probe_module(name: str) -> tuple[bool, Optional[str]]:
+def _probe_module(name: str) -> tuple[bool, str | None]:
+    if name not in ("onnxruntime", "torch", "spandrel"):
+        return False, f"untrusted module {name!r}"
     try:
-        mod = importlib.import_module(name)
+        mod = importlib.import_module(name)  # nosec B102 # nosemgrep
         return True, getattr(mod, "__version__", None)
-    except Exception as exc:
+    except (ImportError, OSError, RuntimeError, ValueError) as exc:
         return False, str(exc)
 
 

@@ -119,6 +119,14 @@ with Image.open(source) as image:
         self.assertEqual(result['status'],'unreachable')
         self.assertLessEqual(request.call_args.kwargs['timeout'],2.)
 
+    def test_invalid_telemetry_scheme_does_not_abort_pipeline(self):
+        result = self.pipeline.run(self.input, self.output, tiled=False, portrait=False,
+                                   text_preserve=False, color_fix='none', post_telemetry=True,
+                                   telemetry_endpoint='ftp://127.0.0.1/trace')
+        self.assertFalse(result.telemetry_posted)
+        self.assertEqual(result.telemetry_response['status'], 'unreachable')
+        self.assertIn('http or https', result.telemetry_response['error'])
+
     def test_cli_can_print_missing_metrics_without_invented_defaults(self):
         ground = self.root/'wrong reference.png'
         Image.new('RGB',(2,2)).save(ground)
@@ -173,6 +181,40 @@ class MetricReferenceTests(unittest.TestCase):
             metrics,context=measure_pipeline_metrics(self.source,self.output)
         self.assertTrue(all(value is None for value in metrics.values()))
         self.assertEqual(context['reason'],'measurement_failed')
+
+    def test_scale_matched_skin_only_review_does_not_invent_fabric_measurement(self):
+        metrics, context = measure_pipeline_metrics(
+            self.source, self.output, rois=[
+                {'id': 'skin', 'kind': 'skin', 'policy': 'texture_allowed',
+                 'rect': [8, 8, 24, 24]},
+            ], roi_space='target',
+        )
+        self.assertEqual(context['fabric_weave']['status'], 'not_applicable')
+        self.assertEqual(context['fabric_weave']['reason'], 'no_fabric_roi_measured')
+        self.assertIsNone(metrics['fabric_weave_coherence'])
+        self.assertIsNone(metrics['fabric_weave_passed'])
+
+    def test_scale_matched_undersized_fabric_roi_is_unavailable_and_fails_closed(self):
+        metrics, context = measure_pipeline_metrics(
+            self.source,
+            self.output,
+            rois=[
+                {
+                    'id': 'fabric-too-small',
+                    'kind': 'fabric',
+                    'policy': 'texture_allowed',
+                    'rect': [8, 8, 3, 3],
+                },
+            ],
+            roi_space='target',
+        )
+        self.assertEqual(context['fabric_weave']['status'], 'unavailable')
+        self.assertEqual(
+            context['fabric_weave']['reason'], 'fabric_roi_too_small_to_measure'
+        )
+        self.assertIsNone(metrics['fabric_weave_coherence'])
+        self.assertFalse(metrics['fabric_weave_passed'])
+        self.assertFalse(metrics['all_detail_gates_passed'])
 
 
 if __name__ == '__main__': unittest.main()

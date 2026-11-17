@@ -16,13 +16,13 @@ import argparse
 import json
 import math
 from pathlib import Path
-import sys
+
 from PIL import Image
 
 try:
     import numpy as np
-    from skimage.metrics import structural_similarity as ssim
     from skimage.metrics import peak_signal_noise_ratio as psnr
+    from skimage.metrics import structural_similarity as ssim
     HAS_SKIMAGE = True
 except ImportError:
     HAS_SKIMAGE = False

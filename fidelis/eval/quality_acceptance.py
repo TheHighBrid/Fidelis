@@ -23,11 +23,10 @@ import hashlib
 import json
 import math
 import random
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from pathlib import Path
-from typing import Any, Mapping, Sequence
-
+from typing import Any
 
 SCHEMA_VERSION = "fidelis.quality_acceptance.v1"
 
@@ -108,14 +107,14 @@ def bootstrap_95_ci(
     if resamples <= 0:
         rate = round(sum(outcomes) / n, 4)
         return (rate, rate)
-    rng = random.Random(seed)
+    rng = random.Random(seed)  # nosec B311  # Non-cryptographic PRNG for deterministic bootstrap
     means: list[float] = []
     for _ in range(resamples):
         sample_sum = sum(outcomes[rng.randrange(n)] for _ in range(n))
         means.append(sample_sum / n)
     means.sort()
-    lo_idx = max(0, int(math.floor(0.025 * (resamples - 1))))
-    hi_idx = min(resamples - 1, int(math.ceil(0.975 * (resamples - 1))))
+    lo_idx = max(0, math.floor(0.025 * (resamples - 1)))
+    hi_idx = min(resamples - 1, math.ceil(0.975 * (resamples - 1)))
     return (round(means[lo_idx], 4), round(means[hi_idx], 4))
 
 
@@ -297,9 +296,11 @@ def _summarize_ballots(
 def evaluate_held_out_acceptance(
     submission: Mapping[str, Any],
     *,
-    thresholds: AcceptanceThresholds = AcceptanceThresholds(),
+    thresholds: AcceptanceThresholds | None = None,
 ) -> dict[str, Any]:
     """Evaluate a calibration + blind held-out quality submission against F13 gates."""
+    if thresholds is None:
+        thresholds = AcceptanceThresholds()
     receipt_check = validate_reproducibility_receipt(
         submission.get("reproducibility_receipt")
     )
@@ -321,6 +322,7 @@ def evaluate_held_out_acceptance(
     held_out_cases_by_category: dict[str, set[str]] = {
         cat: set() for cat in REQUIRED_CATEGORIES
     }
+    category_by_case: dict[str, str] = {}
 
     cal_set = set(calibration_cases)
 
@@ -347,6 +349,12 @@ def evaluate_held_out_acceptance(
                 f"ballot[{idx}] ({case_id}): unknown category {category!r}"
             )
             continue
+        prior_category = category_by_case.get(case_id)
+        if prior_category is not None and prior_category != category:
+            invalid_ballot_errors.append(
+                f"ballot[{idx}] ({case_id}): category conflicts with {prior_category!r}"
+            )
+            continue
         if outcome not in ("fidelis_win", "tie", "comparator_win"):
             invalid_ballot_errors.append(
                 f"ballot[{idx}] ({case_id}): invalid outcome {outcome!r}"
@@ -359,23 +367,32 @@ def evaluate_held_out_acceptance(
             )
             continue
         seen_ballot_keys.add(ballot_key)
+        category_by_case[case_id] = category
 
         held_out_cases_by_category[category].add(case_id)
 
-        defects = entry.get("critical_defects") or []
-        if isinstance(defects, Sequence) and not isinstance(defects, (str, bytes)):
-            for defect in defects:
-                d_str = str(defect).strip()
-                if d_str:
-                    critical_defects.append(
-                        {
-                            "case_id": case_id,
-                            "category": category,
-                            "comparator": comparator,
-                            "defect": d_str,
-                            "recognized_critical_type": d_str in CRITICAL_DEFECT_TYPES,
-                        }
-                    )
+        defects = entry.get("critical_defects", [])
+        if not isinstance(defects, Sequence) or isinstance(defects, (str, bytes)):
+            invalid_ballot_errors.append(
+                f"ballot[{idx}] ({case_id}): critical_defects must be a list"
+            )
+            continue
+        for defect in defects:
+            if not isinstance(defect, str) or not defect.strip():
+                invalid_ballot_errors.append(
+                    f"ballot[{idx}] ({case_id}): critical_defects must contain nonempty strings"
+                )
+                continue
+            d_str = defect.strip()
+            critical_defects.append(
+                {
+                    "case_id": case_id,
+                    "category": category,
+                    "comparator": comparator,
+                    "defect": d_str,
+                    "recognized_critical_type": d_str in CRITICAL_DEFECT_TYPES,
+                }
+            )
 
         valid_ballots.append(
             {
@@ -388,13 +405,17 @@ def evaluate_held_out_acceptance(
             }
         )
 
+    # Both flagship comparators are mandatory. Missing ballot evidence must
+    # never redefine the evaluation protocol or silently pass coverage.
+    mandatory_comparators = ("pinned_clarity", "dated_krea")
     explicit_comps = submission.get("required_comparators")
-    if explicit_comps:
-        required_comparators = [str(c) for c in explicit_comps]
-    elif valid_ballots:
-        required_comparators = list(dict.fromkeys(str(b["comparator"]) for b in valid_ballots))
-    else:
-        required_comparators = ["pinned_clarity", "dated_krea"]
+    declared_comparators = (
+        [str(comp) for comp in explicit_comps]
+        if isinstance(explicit_comps, (list, tuple)) else []
+    )
+    required_comparators = list(dict.fromkeys(
+        [*mandatory_comparators, *declared_comparators]
+    ))
 
     by_comparator: dict[str, dict[str, Any]] = {}
     comparator_failures: list[str] = []
@@ -440,7 +461,11 @@ def evaluate_held_out_acceptance(
     category_failures: list[str] = []
     missing_coverage_categories: list[str] = []
     for offset, cat in enumerate(REQUIRED_CATEGORIES):
-        cat_ballots = [b for b in valid_ballots if b["category"] == cat]
+        cat_ballots = [
+            b
+            for b in valid_ballots
+            if b["category"] == cat and b["comparator"] in required_comparators
+        ]
         summary = _summarize_ballots(
             cat_ballots, thresholds=thresholds, seed_offset=500 + offset * 10
         )
@@ -537,9 +562,9 @@ def evaluate_held_out_acceptance(
         blocking_reasons.append("missing_automated_detail_metrics")
         automated_detail_gates["passed"] = False
 
-    signoff = submission.get("owner_creative_signoff") or {}
+    signoff = submission.get("owner_creative_signoff") or submission.get("team_creative_signoff") or {}
     signoff_status = str(signoff.get("status", "pending")).strip()
-    reviewer = signoff.get("reviewer")
+    reviewer = signoff.get("reviewer") or signoff.get("team_lead") or signoff.get("delegate")
     signed_at = signoff.get("signed_at")
     owner_approved = (
         signoff_status == "approved"

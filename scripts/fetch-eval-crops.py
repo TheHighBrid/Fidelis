@@ -14,7 +14,9 @@ Outputs verified PNG crops to `experiments/eval_crops/`.
 import argparse
 import hashlib
 from pathlib import Path
+
 from PIL import Image
+
 
 def curate_eval_crops(target_dir: Path):
     from skimage import data

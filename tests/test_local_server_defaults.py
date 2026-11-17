@@ -22,8 +22,8 @@ class LocalDefaultTests(unittest.TestCase):
             env.pop('HOST',None)
             self.assertEqual(web.build_argument_parser().parse_args([]).bind,'127.0.0.1')
             self.assertEqual(web.build_argument_parser().parse_args(['--bind','0.0.0.0']).bind,'0.0.0.0')
-        with patch.dict(os.environ,{'HOST':'localhost'}):
-            self.assertEqual(web.build_argument_parser().parse_args([]).bind,'localhost')
+        with patch.dict(os.environ,{'HOST':'0.0.0.0'}):
+            self.assertEqual(web.build_argument_parser().parse_args([]).bind,'127.0.0.1')
 
     def test_programmatic_launch_passes_loopback_to_socket(self):
         addresses=[]

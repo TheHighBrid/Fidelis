@@ -1,5 +1,6 @@
 import runpy
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 import numpy as np
@@ -12,6 +13,15 @@ compose_product = product["compose_product"]
 
 
 class ProductUpscaleTests(unittest.TestCase):
+    def test_candidate_reuses_fixed_native_pipeline_without_telemetry(self):
+        source, candidate = Path('source.png'), Path('candidate.png')
+        with patch('fidelis.core.pipeline.UpscalePipeline') as pipeline:
+            product['_run_native_candidate'](source, candidate, 'models-RealeSR-general-v3')
+        pipeline.assert_called_once_with(cli_path=str(Path(__file__).resolve().parents[1] / 'bin/fidelis'))
+        pipeline.return_value.run_native_pass.assert_called_once_with(
+            source, candidate, 'RealeSR-general-v3')
+        pipeline.return_value.run.assert_not_called()
+
     def test_model_selector_rejects_paths_shell_and_option_injection(self):
         validate = product['validate_model_selector']
         self.assertEqual(validate('models-RealeSR-general-v3'), 'RealeSR-general-v3')

@@ -3,7 +3,6 @@
 import argparse
 import json
 import re
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -90,6 +89,13 @@ def _read_product_source(args):
     return source, rois
 
 
+def _run_native_candidate(source_path, candidate_path, model):
+    from fidelis.core.pipeline import UpscalePipeline
+
+    pipeline = UpscalePipeline(cli_path=str(ROOT / "bin/fidelis"))
+    pipeline.run_native_pass(source_path, candidate_path, validate_model_selector(model))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("source", type=Path)
@@ -98,7 +104,7 @@ def main():
     parser.add_argument("--rois-json", type=Path, help="ROI list in input-image pixels")
     args = parser.parse_args()
     try:
-        model = validate_model_selector(args.model)
+        validate_model_selector(args.model)
         if args.output.suffix.lower() != ".png" or args.output.resolve() == args.source.resolve():
             raise ValueError("Output must be a separate PNG")
         source, rois = _read_product_source(args)
@@ -109,10 +115,7 @@ def main():
             source_path = staged / "source.png"
             candidate_path = staged / "candidate.png"
             Image.fromarray(source).save(source_path)
-            subprocess.run(
-                [str(ROOT / "bin/fidelis"), "upscale", str(source_path),
-                 str(candidate_path), "--model", model], check=True, shell=False,
-            )
+            _run_native_candidate(source_path, candidate_path, args.model)
             with candidate_path.open("rb") as stream:
                 candidate = read_rgb8_png(stream, max_pixels=MAX_OUTPUT_PIXELS, expected_size=size)
             result, locked = compose_product(base, candidate, rois)
@@ -121,7 +124,7 @@ def main():
             final.replace(args.output)
         print(json.dumps({"output": str(args.output), "model": args.model,
                           "locked_pixels": int(locked.sum()), "dimensions": size}))
-    except (OSError, ValueError, subprocess.CalledProcessError) as error:
+    except (OSError, ValueError, RuntimeError) as error:
         parser.exit(1, f"Product upscale failed: {error}\n")
 
 

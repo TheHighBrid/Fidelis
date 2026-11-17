@@ -3,23 +3,28 @@
 SQLite serializes commits across processes. Candidate files become visible only
 when their manifest commits; startup removes abandoned files under that lock.
 """
+import hashlib
+import json
+import re
+import sqlite3
+import uuid
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
-import hashlib
-import json
 from pathlib import Path
-import re
-import sqlite3
 from tempfile import TemporaryFile
-import uuid
 
 import numpy as np
 
-from fidelis.postprocess.regions import PROFILES, RegionBlend, _mask, _rgb, compose_regions
+from fidelis.postprocess.regions import (
+    PROFILES,
+    RegionBlend,
+    _mask,
+    _rgb,
+    compose_regions,
+)
 from fidelis.studio.brush import EDIT_FIELDS, apply_stripe, validate_strokes
-
-from fidelis.studio.png import write_rgb_png  # Preserve the existing encoder import path.
+from fidelis.studio.png import write_rgb_png  # noqa: F401  # Preserve the existing encoder import path.
 from fidelis.studio.structure import measure_region, validate_regions
 
 MASK_NAMES = {"skin", "hair", "fabric", "protected", "confidence", "edge_guard"}
@@ -70,7 +75,7 @@ class JobStore:
             if version not in (0, self.SCHEMA_VERSION):
                 raise ValueError(f"Unsupported workspace schema {version}")
             db.execute("CREATE TABLE IF NOT EXISTS jobs (id TEXT PRIMARY KEY, manifest TEXT NOT NULL)")
-            db.execute(f"PRAGMA user_version={self.SCHEMA_VERSION}")
+            db.execute("PRAGMA user_version=1")
             self._cleanup(db)
 
     @contextmanager
@@ -146,7 +151,8 @@ class JobStore:
         if physical + additional > self.disk_budget:
             raise BudgetExceeded("Insufficient storage headroom for an atomic revision")
 
-    def create(self, base, texture, *, masks=None, blend=RegionBlend(), label="Untitled", profile="luxury_apparel"):
+    def create(self, base, texture, *, masks=None, blend=None, label="Untitled", profile="luxury_apparel"):
+        blend = RegionBlend() if blend is None else blend
         if profile not in PROFILES:
             raise ValueError("Unknown profile")
         if profile == "packshot_strict" and any(getattr(blend, key) != 0 for key in ("skin", "hair", "fabric")):
@@ -410,7 +416,11 @@ class JobStore:
                 raise
 
     def _suggestion_arrays(self, artifacts, low, width, height, merge=False):
-        from fidelis.studio.suggestions import FIELDS, fill_unclassified, upsample_stripe
+        from fidelis.studio.suggestions import (
+            FIELDS,
+            fill_unclassified,
+            upsample_stripe,
+        )
         originals = {name:self._array(artifacts[name]) for name in MASK_NAMES if name in artifacts} if merge else {}
         proposed = {name:self._array(artifacts['suggestion_'+name]) for name in FIELDS} if merge else {}
         paths = {name:self.root/'artifacts'/f'{uuid.uuid4().hex}.npy' for name in FIELDS}
