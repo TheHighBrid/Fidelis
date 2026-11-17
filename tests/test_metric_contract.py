@@ -151,5 +151,23 @@ class MetricContractTests(unittest.TestCase):
         self.assertEqual(sanitized["spans"][0]["attributes"]["model_metadata"],
                          {"license": "unknown"})
 
+    def test_legacy_manifest_redacts_auxiliary_telemetry_and_root_claims(self):
+        from fidelis.eval.metric_contract import sanitize_legacy_manifest
+        original = {
+            "psnr": 42, "metrics": {"psnr": 42, "lpips": 0.1},
+            "telemetry": {"quality": {"ssim": 0.98, "elapsed_ms": 5}},
+            "events": [{"lpips": 0.1, "output_sha256": "sha"}],
+            "metadata": {"nested": [{"cielab_delta_e": 1.2, "model": "local"}]},
+            "output_sha256": "top-hash",
+        }
+        sanitized = sanitize_legacy_manifest(original)
+        self.assertNotIn("psnr", sanitized)
+        self.assertEqual(sanitized["metrics"]["status"], "unavailable")
+        self.assertEqual(sanitized["telemetry"]["quality"], {"elapsed_ms": 5})
+        self.assertEqual(sanitized["events"], [{"output_sha256": "sha"}])
+        self.assertEqual(sanitized["metadata"]["nested"], [{"model": "local"}])
+        self.assertEqual(sanitized["output_sha256"], "top-hash")
+        self.assertEqual(original["telemetry"]["quality"]["ssim"], 0.98)
+
 if __name__ == "__main__":
     unittest.main()
