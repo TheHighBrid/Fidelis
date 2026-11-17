@@ -20,17 +20,17 @@ function cssSize(rect,scale){
  return {width:rect.width*scale,height:rect.height*scale};
 }
 class PairLoader{
- constructor(){this.token=0;}
- invalidate(){this.token++;}
+ constructor(){this.generation=0;}
+ invalidate(){this.generation++;}
  async load(job,center,side,role,loadImage,commit,fail){
-  const token=++this.token;
+  const generation=++this.generation;
   try{
    const rect=rectangle(job.dimensions,center,side),paths=urls(job,rect,role);
    const images=await Promise.all(paths.map(loadImage));
-   if(token!==this.token)return;
+   if(generation!==this.generation)return;
    if(images.some(image=>image.naturalWidth!==rect.width||image.naturalHeight!==rect.height))throw new Error('Native crop dimensions changed; reload the saved job.');
    commit({rect,images,revision:job.revision,role});
-  }catch(error){if(token===this.token)fail(error);}
+  }catch(error){if(generation===this.generation)fail(error);}
  }
 }
 const api={rectangle,previewPoint,urls,cssSize,PairLoader};
