@@ -49,6 +49,9 @@ jobs:
       - name: Fidelity metrics evaluation tests
         run: bash tests/test-fidelity-metrics.sh
 
+      - name: Quality reporting contract regression tests
+        run: python -m unittest discover -s tests -p 'test_metric_contract.py' -v
+
       - name: Geometric and drift detector tests
         run: bash tests/test-detect-drift.sh
 
