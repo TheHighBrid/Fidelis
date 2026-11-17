@@ -217,5 +217,19 @@ class MetricContractTests(unittest.TestCase):
         self.assertEqual(result["metrics"]["status"], "unavailable")
         self.assertEqual(original["telemetry"]["LPIPS_PROXY"], 0.12)
 
+    def test_legacy_manifest_redacts_tuple_backed_telemetry(self):
+        from fidelis.eval.metric_contract import sanitize_legacy_manifest
+        original = {
+            "metrics": {"psnr": 30},
+            "telemetry": ({"PSNR_DB": 31, "hash": "one"},
+                          {"nested": ({"LPIPS_PROXY": 0.2, "elapsed_ms": 4},)}),
+            "output_sha256": "safe",
+        }
+        sanitized = sanitize_legacy_manifest(original)
+        self.assertEqual(sanitized["telemetry"][0], {"hash": "one"})
+        self.assertEqual(sanitized["telemetry"][1]["nested"][0], {"elapsed_ms": 4})
+        self.assertEqual(sanitized["output_sha256"], "safe")
+        self.assertEqual(original["telemetry"][0]["PSNR_DB"], 31)
+
 if __name__ == "__main__":
     unittest.main()
