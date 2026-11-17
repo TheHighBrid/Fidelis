@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -72,6 +73,14 @@ def compose_product(base, candidate, rois):
     return result, locked
 
 
+def validate_model_selector(value):
+    """Accept only a local model identifier, never a path or shell expression."""
+    name = value.removeprefix('models-')
+    if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]*', name):
+        raise ValueError('Model must be a local model identifier')
+    return name
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("source", type=Path)
@@ -80,6 +89,7 @@ def main():
     parser.add_argument("--rois-json", type=Path, help="ROI list in input-image pixels")
     args = parser.parse_args()
     try:
+        model = validate_model_selector(args.model)
         if args.output.suffix.lower() != ".png" or args.output.resolve() == args.source.resolve():
             raise ValueError("Output must be a separate PNG")
         with args.source.open("rb") as stream:
@@ -96,7 +106,7 @@ def main():
             Image.fromarray(source).save(source_path)
             subprocess.run(
                 [str(ROOT / "bin/fidelis"), "upscale", str(source_path),
-                 str(candidate_path), "--model", args.model], check=True,
+                 str(candidate_path), "--model", model], check=True, shell=False,
             )
             with candidate_path.open("rb") as stream:
                 candidate = read_rgb8_png(stream, max_pixels=MAX_OUTPUT_PIXELS, expected_size=size)
