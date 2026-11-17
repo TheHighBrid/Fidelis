@@ -9,7 +9,6 @@ from unittest.mock import patch
 
 from fidelis.core.provenance import generate_c2pa_provenance
 
-
 SOURCE = Path(__file__).resolve().parents[1] / "fidelis" / "core" / "pipeline.py"
 
 
