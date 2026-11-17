@@ -13,7 +13,10 @@ if str(repo_root) not in sys.path:
     sys.path.insert(0, str(repo_root))
 
 from fidelis.core.pipeline import UpscalePipeline
-from fidelis.eval.metric_contract import format_quality_summary, sanitize_legacy_manifest
+from fidelis.eval.metric_contract import (
+    format_quality_summary,
+    sanitize_legacy_manifest,
+)
 
 
 def main():
