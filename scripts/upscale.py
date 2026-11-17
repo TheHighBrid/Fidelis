@@ -13,6 +13,7 @@ if str(repo_root) not in sys.path:
     sys.path.insert(0, str(repo_root))
 
 from fidelis.core.pipeline import UpscalePipeline
+from fidelis.eval.metric_contract import format_quality_summary
 
 
 def main():
@@ -60,7 +61,9 @@ def main():
     print(f"Tile Size:    {res.tile_size}px (Overlap: {res.overlap}px, Strategy: {res.tile_execution.get('tile_strategy', 'direct')})")
     print(f"Peak VRAM:    {res.vram_peak_mb:.1f} MB")
     print(f"Speed:        {res.processing_time_per_megapixel_ms:.1f} ms/MP ({res.megapixels} MP in {res.elapsed_ms}ms)")
-    print(f"PSNR / SSIM:  {res.metrics.get('psnr', 0.0):.2f} dB / {res.metrics.get('ssim', 0.0):.4f} (LPIPS proxy: {res.metrics.get('lpips', 0.0):.3f})")
+    # The legacy pipeline can emit placeholder values and pseudo-LPIPS.
+    # Do not present them as measured quality without verified reference provenance.
+    print(format_quality_summary(res.metrics))
     print(f"Artifacts:    {', '.join(res.detected_artifacts) if res.detected_artifacts else 'None detected'}")
     print(f"Output:       {res.output_path} ({res.output_dimensions[0]}x{res.output_dimensions[1]})")
     print(f"SHA-256:      {res.output_sha256}")
