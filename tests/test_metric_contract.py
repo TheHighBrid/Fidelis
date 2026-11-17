@@ -70,5 +70,28 @@ class MetricContractTests(unittest.TestCase):
             sanitize_quality_payload(None, reference_kind="untrusted")
 
 
+    def test_legacy_manifest_removes_nested_quality_claims_without_mutation(self):
+        from fidelis.eval.metric_contract import sanitize_legacy_manifest
+        original = {
+            "metrics": {"psnr": 29.5, "ssim": 0.89, "lpips": 0.14},
+            "spans": [{"name": "upscale_pipeline", "attributes": {
+                "psnr": 29.5, "ssim": 0.89, "lpips": 0.14,
+                "cielab_delta_e": 0.8, "gradient_coherence_pct": 92,
+                "elapsed_ms": 123}}],
+            "output_sha256": "abc",
+        }
+        sanitized = sanitize_legacy_manifest(original)
+        self.assertEqual(sanitized["metrics"]["status"], "unavailable")
+        self.assertEqual(sanitized["metrics"]["metrics"], {})
+        self.assertEqual(sanitized["spans"][0]["attributes"], {"elapsed_ms": 123})
+        self.assertEqual(sanitized["output_sha256"], "abc")
+        self.assertEqual(original["spans"][0]["attributes"]["psnr"], 29.5)
+
+    def test_legacy_manifest_handles_malformed_spans(self):
+        from fidelis.eval.metric_contract import sanitize_legacy_manifest
+        sanitized = sanitize_legacy_manifest({"metrics": None, "spans": [None, "bad", {"attributes": None}]})
+        self.assertEqual(sanitized["metrics"]["metrics"], {})
+        self.assertEqual(len(sanitized["spans"]), 3)
+
 if __name__ == "__main__":
     unittest.main()
