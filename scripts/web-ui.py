@@ -1462,7 +1462,7 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
 
-def run_server(port: int = 8765, host: str = "0.0.0.0"):
+def run_server(port: int = 8765, host: str = "127.0.0.1"):
     handler = FidelisRequestHandler
     # Allow port reuse
     socketserver.TCPServer.allow_reuse_address = True
@@ -1487,7 +1487,7 @@ def run_server(port: int = 8765, host: str = "0.0.0.0"):
         display_host = "127.0.0.1" if host in ("0.0.0.0", "") else host
         print(f"\n=======================================================")
         print(f" Fidelis Studio Web UI is running at:")
-        print(f" http://{display_host}:{current_port} (all interfaces: {host})")
+        print(f" http://{display_host}:{current_port} (bound to: {host})")
         print(f"=======================================================\n")
         try:
             httpd.serve_forever()
@@ -1496,7 +1496,7 @@ def run_server(port: int = 8765, host: str = "0.0.0.0"):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run Fidelis Web UI.")
-    parser.add_argument("-b", "--bind", "--host", default=os.environ.get("HOST", "0.0.0.0"), help="Host interface to bind (default: 0.0.0.0)")
+    parser.add_argument("-b", "--bind", "--host", default="127.0.0.1", help="Host interface to bind (default: 127.0.0.1; explicit --bind required for non-loopback)")
     parser.add_argument("-p", "--port", type=int, default=8765, help="Port to bind (default: 8765)")
     args = parser.parse_args()
     run_server(port=args.port, host=args.bind)
