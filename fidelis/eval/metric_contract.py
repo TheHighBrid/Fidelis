@@ -90,6 +90,23 @@ def sanitize_legacy_manifest(manifest: Mapping[str, Any]) -> dict[str, Any]:
         hashes, timings and non-quality evidence must survive export.
         """
         if isinstance(value, dict):
+            # Nested reporting records can retain a false "measured" verdict
+            # even after their numeric quality fields have been removed.
+            # Invalidate that verdict before recursive redaction.
+            has_quality_claim = any(
+                isinstance(key, str) and key.casefold() in quality_keys
+                for key in value
+            )
+            nested_metrics = value.get("metrics")
+            if isinstance(nested_metrics, Mapping):
+                has_quality_claim = has_quality_claim or any(
+                    isinstance(key, str) and key.casefold() in quality_keys
+                    for key in nested_metrics
+                )
+            if has_quality_claim and value.get("status") == "measured":
+                value["status"] = "unavailable"
+                value.pop("reference_kind", None)
+                value.pop("is_ground_truth", None)
             for key in list(value):
                 if isinstance(key, str) and key.casefold() in quality_keys:
                     value.pop(key, None)
