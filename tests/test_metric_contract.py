@@ -93,5 +93,42 @@ class MetricContractTests(unittest.TestCase):
         self.assertEqual(sanitized["metrics"]["metrics"], {})
         self.assertEqual(len(sanitized["spans"]), 3)
 
+    def test_legacy_manifest_redacts_nested_span_quality_without_losing_evidence(self):
+        from fidelis.eval.metric_contract import sanitize_legacy_manifest
+        original = {
+            "metrics": {"psnr": 31},
+            "spans": [
+                {"attributes": {
+                    "diagnostics": {"quality": {"psnr": 31, "lpips": 0.2, "elapsed_ms": 10}},
+                    "tiles": [{"ssim": 0.8, "hash": "sha"}, None,
+                              {"nested": [{"gradient_coherence_pct": 95, "note": "ok"}]}],
+                    "output_sha256": "abc",
+                }},
+                {"attributes": ["unexpected", {"cielab_delta_e": 2, "duration_ms": 9}]},
+            ],
+            "output_sha256": "top-level-hash",
+        }
+        sanitized = sanitize_legacy_manifest(original)
+        attrs = sanitized["spans"][0]["attributes"]
+        self.assertEqual(attrs["diagnostics"]["quality"], {"elapsed_ms": 10})
+        self.assertEqual(attrs["tiles"], [{"hash": "sha"}, None, {"nested": [{"note": "ok"}]}])
+        self.assertEqual(attrs["output_sha256"], "abc")
+        self.assertEqual(sanitized["spans"][1]["attributes"], ["unexpected", {"duration_ms": 9}])
+        self.assertEqual(sanitized["output_sha256"], "top-level-hash")
+        self.assertEqual(original["spans"][0]["attributes"]["diagnostics"]["quality"]["psnr"], 31)
+
+    def test_legacy_manifest_preserves_unrelated_quality_named_metadata(self):
+        from fidelis.eval.metric_contract import sanitize_legacy_manifest
+        record = {
+            "metrics": {},
+            "quality_review_status": "pending",
+            "spans": [{"attributes": {"quality_review_status": "pending",
+                                      "model_metadata": {"license": "unknown"}}}],
+        }
+        sanitized = sanitize_legacy_manifest(record)
+        self.assertEqual(sanitized["quality_review_status"], "pending")
+        self.assertEqual(sanitized["spans"][0]["attributes"]["model_metadata"],
+                         {"license": "unknown"})
+
 if __name__ == "__main__":
     unittest.main()
