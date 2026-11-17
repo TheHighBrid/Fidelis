@@ -19,7 +19,6 @@ import http.server
 import io
 import json
 import os
-from pathlib import Path
 import shutil
 import socketserver
 import subprocess
@@ -28,7 +27,9 @@ import tempfile
 import time
 import traceback
 import uuid
+from pathlib import Path
 from urllib.parse import parse_qs, urlparse
+
 from PIL import Image, UnidentifiedImageError
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
