@@ -100,6 +100,41 @@ test('CDP close during opening and synchronous send failure reject promptly', as
   assert.equal(connected.session.pending.size, 0);
 });
 
+test('browser-derived strings are CDP argument data, never executable source', async () => {
+  const { session } = await connectedSession();
+  const calls = [];
+  session.send = async (method, params) => {
+    calls.push({ method, params });
+    if (method === 'Runtime.evaluate') return { result: { objectId: 'global-1' } };
+    if (method === 'Runtime.callFunctionOn') return { result: { value: true } };
+    return {};
+  };
+  const declaration = 'function (jobId) { return current.id === jobId; }';
+  const browserValue = '"; globalThis.injected = true; //';
+  assert.equal(await session.callPage(declaration, browserValue), true);
+  assert.deepEqual(calls, [
+    { method: 'Runtime.evaluate', params: { expression: 'globalThis' } },
+    { method: 'Runtime.callFunctionOn', params: {
+      objectId: 'global-1', functionDeclaration: declaration,
+      arguments: [{ value: browserValue }], awaitPromise: true, returnByValue: true,
+    } },
+    { method: 'Runtime.releaseObject', params: { objectId: 'global-1' } },
+  ]);
+});
+
+test('page exceptions still fail closed and release the CDP object', async () => {
+  const { session } = await connectedSession();
+  let released = false;
+  session.send = async (method) => {
+    if (method === 'Runtime.evaluate') return { result: { objectId: 'global-1' } };
+    if (method === 'Runtime.callFunctionOn') return { exceptionDetails: { text: 'page failed' } };
+    released = method === 'Runtime.releaseObject';
+    return {};
+  };
+  await assert.rejects(session.callPage('function () {}'), /page failed/);
+  assert.equal(released, true);
+});
+
 test('report publication rejects a symlink without modifying its target', (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fidelis-report-link-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));

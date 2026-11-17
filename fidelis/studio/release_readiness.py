@@ -49,9 +49,7 @@ BLOCKING_DEFECT_IDS: tuple[str, ...] = (
 )
 
 DONE_STATES: frozenset[str] = frozenset({"Done", "Completed", "Released"})
-REVIEW_OR_DONE_STATES: frozenset[str] = frozenset(
-    {"In Review", "Done", "Completed", "Released"}
-)
+REVIEW_OR_DONE_STATES: frozenset[str] = frozenset({"In Review", "Done", "Completed", "Released"})
 
 
 def _sha256_file(path: Path) -> str:
@@ -66,84 +64,55 @@ def _is_valid_git_sha(value: Any) -> bool:
     return isinstance(value, str) and bool(re.fullmatch(r"[0-9a-f]{7,40}", value.strip()))
 
 
-def evaluate_release_readiness(
-    backlog_data: Mapping[str, Any],
-    *,
-    release_manifest: Mapping[str, Any] | None = None,
-    repo_root: str | Path | None = None,
-) -> dict[str, Any]:
-    """Evaluate production release readiness (`F16` / `MEL-68`) against `QUALITY_GATES.md`."""
-    manifest = dict(release_manifest or {})
-    items = backlog_data.get("items") or []
-    by_id: dict[str, Mapping[str, Any]] = {
-        str(item.get("id")): item
-        for item in items
-        if isinstance(item, Mapping) and item.get("id")
+def _task_record(task_id: str, item: Mapping[str, Any]) -> dict[str, Any]:
+    state = str(item.get("state", "missing"))
+    return {
+        "id": task_id,
+        "linear_id": str((item.get("linear") or {}).get("id", "")),
+        "title": str(item.get("title", "")),
+        "state": state,
+        "implementation": str(item.get("implementation", "missing")),
+        "closed": state in DONE_STATES,
     }
 
-    blocking_reasons: list[str] = []
 
-    # 1. Core feature milestone tasks (F01..F15)
-    core_tasks: list[dict[str, Any]] = []
-    unfinished_core_ids: list[str] = []
-    for task_id in CORE_RELEASE_TASK_IDS:
-        item = by_id.get(task_id, {})
-        state = str(item.get("state", "missing"))
-        impl = str(item.get("implementation", "missing"))
-        linear_id = str((item.get("linear") or {}).get("id", ""))
-        is_closed = state in DONE_STATES
-        if not is_closed:
-            unfinished_core_ids.append(task_id)
-        core_tasks.append(
-            {
-                "id": task_id,
-                "linear_id": linear_id,
-                "title": str(item.get("title", "")),
-                "state": state,
-                "implementation": impl,
-                "closed": is_closed,
-            }
-        )
-    if unfinished_core_ids:
-        blocking_reasons.append("unfinished_core_deliverables")
+def _backlog_evidence(backlog_data: Mapping[str, Any]) -> tuple[dict, dict]:
+    by_id = {
+        str(item.get("id")): item
+        for item in backlog_data.get("items") or []
+        if isinstance(item, Mapping) and item.get("id")
+    }
+    core = [_task_record(task_id, by_id.get(task_id, {})) for task_id in CORE_RELEASE_TASK_IDS]
+    defects = [_task_record(task_id, by_id.get(task_id, {})) for task_id in BLOCKING_DEFECT_IDS]
+    unfinished = [task["id"] for task in core if not task["closed"]]
+    return (
+        {"total": len(core), "closed_count": len(core) - len(unfinished), "unfinished_ids": unfinished, "tasks": core},
+        {
+            "total": len(defects),
+            "open_ids": [task["id"] for task in defects if task["state"] not in REVIEW_OR_DONE_STATES],
+            "unmerged_in_review_ids": [
+                task["id"] for task in defects if task["state"] in REVIEW_OR_DONE_STATES and not task["closed"]
+            ],
+            "defects": defects,
+        },
+    )
 
-    # 2. Blocking audit defects (D01..D04)
-    defect_tasks: list[dict[str, Any]] = []
-    open_defect_ids: list[str] = []
-    unmerged_defect_ids: list[str] = []
-    for defect_id in BLOCKING_DEFECT_IDS:
-        item = by_id.get(defect_id, {})
-        state = str(item.get("state", "missing"))
-        impl = str(item.get("implementation", "missing"))
-        linear_id = str((item.get("linear") or {}).get("id", ""))
-        is_closed = state in DONE_STATES
-        is_in_review = state in REVIEW_OR_DONE_STATES
-        if not is_in_review:
-            open_defect_ids.append(defect_id)
-        elif not is_closed:
-            unmerged_defect_ids.append(defect_id)
-        defect_tasks.append(
-            {
-                "id": defect_id,
-                "linear_id": linear_id,
-                "title": str(item.get("title", "")),
-                "state": state,
-                "implementation": impl,
-                "closed": is_closed,
-            }
-        )
-    if open_defect_ids or unmerged_defect_ids:
-        blocking_reasons.append("blocking_defects_not_closed_on_main")
 
-    # 3. Release SHA & target branch merge status
-    release_sha = manifest.get("release_sha")
-    merged_to_main = bool(manifest.get("merged_to_main", False))
-    sha_valid = _is_valid_git_sha(release_sha)
-    if not sha_valid or not merged_to_main:
-        blocking_reasons.append("release_sha_or_main_merge_unverified")
+def _verify_package_file(root_path: Path | None, rel_path: str, declared_sha: str) -> tuple[bool, bool, str | None]:
+    if root_path is None:
+        return False, False, f"package {rel_path}: no artifact root supplied"
+    candidate = (root_path / rel_path).resolve()
+    if not candidate.is_relative_to(root_path):
+        return False, False, f"package {rel_path}: path escapes repository root"
+    if not candidate.is_file():
+        return False, False, f"package {rel_path}: file missing on disk"
+    actual_sha = _sha256_file(candidate)
+    if actual_sha != declared_sha:
+        return False, True, f"package {rel_path}: sha256 mismatch ({actual_sha} != {declared_sha})"
+    return True, True, None
 
-    # 4. Package artifacts & SHA-256 verification
-    raw_packages = manifest.get("packages")
+
+def _package_evidence(raw_packages: Any, repo_root: str | Path | None) -> dict[str, Any]:
     if not isinstance(raw_packages, Sequence) or isinstance(raw_packages, (str, bytes)):
         raw_packages = []
 
@@ -163,27 +132,9 @@ def evaluate_release_readiness(
             package_errors.append(f"package[{idx}]: missing path or invalid sha256")
             continue
 
-        file_verified = False
-        file_present = False
-        if root_path is not None:
-            candidate = (root_path / rel_path).resolve()
-            if not candidate.is_relative_to(root_path):
-                package_errors.append(
-                    f"package {rel_path}: path escapes repository root"
-                )
-            elif candidate.is_file():
-                file_present = True
-                actual_sha = _sha256_file(candidate)
-                if actual_sha == declared_sha:
-                    file_verified = True
-                else:
-                    package_errors.append(
-                        f"package {rel_path}: sha256 mismatch ({actual_sha} != {declared_sha})"
-                    )
-            else:
-                package_errors.append(f"package {rel_path}: file missing on disk")
-        else:
-            package_errors.append(f"package {rel_path}: no artifact root supplied")
+        file_verified, file_present, error = _verify_package_file(root_path, rel_path, declared_sha)
+        if error:
+            package_errors.append(error)
 
         verified_packages.append(
             {
@@ -194,27 +145,40 @@ def evaluate_release_readiness(
             }
         )
 
-    if package_errors:
-        blocking_reasons.append("release_packages_unverified")
+    return {
+        "verified_count": sum(1 for p in verified_packages if p["verified"]),
+        "on_disk_verified_count": sum(1 for p in verified_packages if p["verified"] and p["file_present"]),
+        "items": verified_packages,
+        "errors": package_errors,
+    }
 
-    # 5. Held-out quality & operational gate evidence
+
+def _quality_and_operations(manifest: Mapping[str, Any]) -> tuple[dict, dict]:
     quality_gate = manifest.get("quality_gate") or {}
-    quality_accepted = quality_gate.get("overall_status") == "accepted" and bool(
-        quality_gate.get("report_sha256")
-    )
-    if not quality_accepted:
-        blocking_reasons.append("held_out_quality_gate_not_accepted")
-
+    quality_accepted = quality_gate.get("overall_status") == "accepted" and bool(quality_gate.get("report_sha256"))
     operational_gate = manifest.get("operational_gate") or {}
     ops_verified = (
         bool(operational_gate.get("live_worker_verified", False))
         and bool(operational_gate.get("device_budgets_measured", False))
         and bool(operational_gate.get("upgrade_rollback_verified", False))
     )
-    if not ops_verified:
-        blocking_reasons.append("operational_and_device_gates_incomplete")
+    return (
+        {
+            "accepted": quality_accepted,
+            "overall_status": quality_gate.get("overall_status", "missing"),
+            "report_sha256": quality_gate.get("report_sha256"),
+        },
+        {
+            "verified": ops_verified,
+            **{
+                key: bool(operational_gate.get(key, False))
+                for key in ("live_worker_verified", "device_budgets_measured", "upgrade_rollback_verified")
+            },
+        },
+    )
 
-    # 6. Explicit scope, known limits, and rollback runbook
+
+def _documentation_evidence(manifest: Mapping[str, Any]) -> dict[str, Any]:
     scope_summary = str(manifest.get("scope_summary", "")).strip()
     known_limits = manifest.get("known_limits")
     rollback_plan = manifest.get("rollback_plan") or {}
@@ -223,16 +187,16 @@ def evaluate_release_readiness(
         and bool(rollback_plan.get("restore_command"))
         and bool(rollback_plan.get("previous_stable_tag_or_sha"))
     )
-    if (
-        not scope_summary
-        or not isinstance(known_limits, Sequence)
-        or isinstance(known_limits, (str, bytes))
-        or len(known_limits) == 0
-        or not rollback_ready
-    ):
-        blocking_reasons.append("scope_limits_or_rollback_plan_incomplete")
+    return {
+        "scope_summary_present": bool(scope_summary),
+        "known_limits_count": len(known_limits)
+        if isinstance(known_limits, Sequence) and not isinstance(known_limits, (str, bytes))
+        else 0,
+        "rollback_ready": rollback_ready,
+    }
 
-    # 7. Release signoff (delegated team authority or owner)
+
+def _signoff_evidence(manifest: Mapping[str, Any]) -> tuple[dict, dict]:
     signoff = manifest.get("owner_release_signoff") or manifest.get("team_release_signoff") or {}
     signoff_status = str(signoff.get("status", "pending")).strip()
     # Team has full authority to sign off release without owner interruption
@@ -241,26 +205,66 @@ def evaluate_release_readiness(
         signoff_status == "approved"
         and (
             (bool(signoff.get("creative_owner")) and bool(signoff.get("release_owner")))
-            or (is_team_delegated and bool(signoff.get("team_lead") or signoff.get("release_lead") or signoff.get("release_owner")))
+            or (
+                is_team_delegated
+                and bool(signoff.get("team_lead") or signoff.get("release_lead") or signoff.get("release_owner"))
+            )
         )
         and bool(signoff.get("signed_at"))
     )
-    if not signoff_approved:
-        blocking_reasons.append("owner_release_signoff_missing")
+    shared = {
+        "status": signoff_status,
+        "approved": signoff_approved,
+        "team_delegated": is_team_delegated,
+        "signed_at": signoff.get("signed_at"),
+    }
+    return {
+        **shared,
+        "creative_owner": signoff.get("creative_owner"),
+        "release_owner": signoff.get("release_owner"),
+    }, shared
 
-    # Determine highest certified evidence level (E0..E4)
-    if len(blocking_reasons) == 0:
-        evidence_level = "E4_released"
-        overall_status = "ready_for_release"
-    elif quality_accepted and ops_verified:
-        evidence_level = "E3_visually_and_device_accepted"
-        overall_status = "awaiting_release_packaging_or_signoff"
-    elif bool(operational_gate.get("live_worker_verified", False)):
-        evidence_level = "E2_live_inference_verified"
-        overall_status = "blocked_release_gates"
-    else:
-        evidence_level = "E1_fixture_and_protocol_tested"
-        overall_status = "blocked_release_gates"
+
+def _certification(blocking_reasons: list[str], quality: dict, ops: dict) -> tuple[str, str]:
+    if not blocking_reasons:
+        return "E4_released", "ready_for_release"
+    if quality["accepted"] and ops["verified"]:
+        return "E3_visually_and_device_accepted", "awaiting_release_packaging_or_signoff"
+    if ops["live_worker_verified"]:
+        return "E2_live_inference_verified", "blocked_release_gates"
+    return "E1_fixture_and_protocol_tested", "blocked_release_gates"
+
+
+def evaluate_release_readiness(
+    backlog_data: Mapping[str, Any],
+    *,
+    release_manifest: Mapping[str, Any] | None = None,
+    repo_root: str | Path | None = None,
+) -> dict[str, Any]:
+    """Evaluate production release readiness (`F16` / `MEL-68`) against `QUALITY_GATES.md`."""
+    manifest = dict(release_manifest or {})
+    core, defects = _backlog_evidence(backlog_data)
+    release_sha = manifest.get("release_sha")
+    merged_to_main = bool(manifest.get("merged_to_main", False))
+    packages = _package_evidence(manifest.get("packages"), repo_root)
+    quality, ops = _quality_and_operations(manifest)
+    docs = _documentation_evidence(manifest)
+    owner_signoff, team_signoff = _signoff_evidence(manifest)
+    checks = (
+        (not core["unfinished_ids"], "unfinished_core_deliverables"),
+        (not (defects["open_ids"] or defects["unmerged_in_review_ids"]), "blocking_defects_not_closed_on_main"),
+        (_is_valid_git_sha(release_sha) and merged_to_main, "release_sha_or_main_merge_unverified"),
+        (not packages["errors"], "release_packages_unverified"),
+        (quality["accepted"], "held_out_quality_gate_not_accepted"),
+        (ops["verified"], "operational_and_device_gates_incomplete"),
+        (
+            docs["scope_summary_present"] and docs["known_limits_count"] and docs["rollback_ready"],
+            "scope_limits_or_rollback_plan_incomplete",
+        ),
+        (owner_signoff["approved"], "owner_release_signoff_missing"),
+    )
+    blocking_reasons = [reason for passed, reason in checks if not passed]
+    evidence_level, overall_status = _certification(blocking_reasons, quality, ops)
 
     dossier = {
         "schema_version": SCHEMA_VERSION,
@@ -271,69 +275,14 @@ def evaluate_release_readiness(
         "blocking_reasons": blocking_reasons,
         "release_sha": release_sha,
         "merged_to_main": merged_to_main,
-        "core_deliverables": {
-            "total": len(CORE_RELEASE_TASK_IDS),
-            "closed_count": len(CORE_RELEASE_TASK_IDS) - len(unfinished_core_ids),
-            "unfinished_ids": unfinished_core_ids,
-            "tasks": core_tasks,
-        },
-        "blocking_defects": {
-            "total": len(BLOCKING_DEFECT_IDS),
-            "open_ids": open_defect_ids,
-            "unmerged_in_review_ids": unmerged_defect_ids,
-            "defects": defect_tasks,
-        },
-        "packages": {
-            "verified_count": sum(1 for p in verified_packages if p["verified"]),
-            "on_disk_verified_count": sum(
-                1 for p in verified_packages if p["verified"] and p["file_present"]
-            ),
-            "items": verified_packages,
-            "errors": package_errors,
-        },
-        "quality_gate": {
-            "accepted": quality_accepted,
-            "overall_status": quality_gate.get("overall_status", "missing"),
-            "report_sha256": quality_gate.get("report_sha256"),
-        },
-        "operational_gate": {
-            "verified": ops_verified,
-            "live_worker_verified": bool(
-                operational_gate.get("live_worker_verified", False)
-            ),
-            "device_budgets_measured": bool(
-                operational_gate.get("device_budgets_measured", False)
-            ),
-            "upgrade_rollback_verified": bool(
-                operational_gate.get("upgrade_rollback_verified", False)
-            ),
-        },
-        "documentation_and_rollback": {
-            "scope_summary_present": bool(scope_summary),
-            "known_limits_count": (
-                len(known_limits)
-                if isinstance(known_limits, Sequence)
-                and not isinstance(known_limits, (str, bytes))
-                else 0
-            ),
-            "rollback_ready": rollback_ready,
-        },
-        "owner_release_signoff": {
-            "status": signoff_status,
-            "approved": signoff_approved,
-            "creative_owner": signoff.get("creative_owner"),
-            "release_owner": signoff.get("release_owner"),
-            "team_delegated": is_team_delegated,
-            "signed_at": signoff.get("signed_at"),
-        },
-        "team_release_signoff": {
-            "status": signoff_status,
-            "approved": signoff_approved,
-            "team_delegated": is_team_delegated,
-            "signed_at": signoff.get("signed_at"),
-        },
+        "core_deliverables": core,
+        "blocking_defects": defects,
+        "packages": packages,
+        "quality_gate": quality,
+        "operational_gate": ops,
+        "documentation_and_rollback": docs,
+        "owner_release_signoff": owner_signoff,
+        "team_release_signoff": team_signoff,
     }
-    dossier["dossier_sha256"] = hashlib.sha256(
-        json.dumps(dossier, sort_keys=True).encode("utf-8")
-    ).hexdigest()
+    dossier["dossier_sha256"] = hashlib.sha256(json.dumps(dossier, sort_keys=True).encode("utf-8")).hexdigest()
     return dossier

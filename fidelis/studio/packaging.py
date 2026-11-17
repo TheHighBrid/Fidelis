@@ -9,8 +9,8 @@ and atomic rollback for `JobStore` (`jobs.sqlite3` + `artifacts/*.npy`) and
 
 from __future__ import annotations
 
-import fnmatch
 import fcntl
+import fnmatch
 import gzip
 import hashlib
 import json

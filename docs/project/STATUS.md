@@ -175,3 +175,14 @@ the actual expected stale-save conflict, and bounds browser command failures. Ei
 Node regression tests pass; Linux Chromium aborted before DevTools startup, so this
 does not renew the historical macOS browser acceptance. See the
 [gate integrity receipt](checkpoints/2026-11-16-browser-gate-integrity.md).
+
+## PR #12 security and maintainability remediation · 2026-11-17
+
+The scoped browser security follow-up [PR #38](https://github.com/TheHighBrid/Fidelis/pull/38)
+passed Codacy and both GitHub workflows before integration into the Studio feature
+branch, not `main`. The runner now publishes artifacts using descriptor-relative
+atomic writes and transmits browser-derived values as CDP arguments instead of
+interpolating executable expressions. Provenance, comparator execution, blind review,
+held-out acceptance, and release readiness were decomposed into independently
+testable stages without relaxing their evidence requirements. No live-worker,
+physical-device, human visual, or release acceptance is implied by these changes.

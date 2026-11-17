@@ -54,6 +54,15 @@ function parseArgs(argv) {
   return opts;
 }
 
+function locateExecutable(candidate) {
+  if (!candidate || candidate.startsWith('-')) return null;
+  try {
+    return execFileSync('which', [candidate], { encoding: 'utf8' }).trim() || null;
+  } catch {
+    return null;
+  }
+}
+
 function findChrome(explicitPath) {
   const candidates = [
     explicitPath,
@@ -65,16 +74,8 @@ function findChrome(explicitPath) {
     'chromium-browser',
   ].filter(Boolean);
   for (const candidate of candidates) {
-    if (candidate.startsWith('/')) {
-      if (fs.existsSync(candidate)) return candidate;
-      continue;
-    }
-    try {
-      const resolved = execFileSync('which', [candidate], { encoding: 'utf8' }).trim();
-      if (resolved) return resolved;
-    } catch {
-      // keep probing
-    }
+    const resolved = locateExecutable(candidate);
+    if (resolved) return resolved;
   }
   throw new Error('No Chrome/Chromium executable found; set CHROME_BIN or pass --chrome');
 }
@@ -82,8 +83,7 @@ function findChrome(explicitPath) {
 function resolvePython(repoRoot, explicitPython) {
   if (explicitPython) return explicitPython;
   const venvPython = path.join(repoRoot, '.venv', 'bin', 'python');
-  if (fs.existsSync(venvPython)) return venvPython;
-  return 'python3';
+  return locateExecutable(venvPython) || 'python3';
 }
 
 function findFreePort() {
@@ -219,6 +219,26 @@ export class CdpSession {
       awaitPromise: true,
       returnByValue: true,
     });
+    return this.evaluationResult(res);
+  }
+
+  // Pass browser-derived values as protocol data, never as JavaScript source.
+  async callPage(functionDeclaration, ...values) {
+    const global = await this.send('Runtime.evaluate', { expression: 'globalThis' });
+    const objectId = global.result?.objectId;
+    if (!objectId || global.exceptionDetails) throw new Error('Page execution context unavailable');
+    try {
+      return this.evaluationResult(await this.send('Runtime.callFunctionOn', {
+        objectId, functionDeclaration,
+        arguments: values.map(value => ({ value })),
+        awaitPromise: true, returnByValue: true,
+      }));
+    } finally {
+      await this.send('Runtime.releaseObject', { objectId });
+    }
+  }
+
+  evaluationResult(res) {
     if (res.exceptionDetails) {
       const desc = res.exceptionDetails.exception?.description || res.exceptionDetails.text;
       throw new Error(`Page evaluation error: ${desc}`);
@@ -291,8 +311,7 @@ async function main() {
   const chromeBin = findChrome(opts.chrome);
   const chromeVersion = execFileSync(chromeBin, ['--version'], { encoding: 'utf8' }).trim();
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fidelis-browser-accept-'));
-  const profileDir = path.join(tmpDir, 'chrome-profile');
-  fs.mkdirSync(profileDir, { recursive: true });
+  const profileDir = fs.mkdtempSync(path.join(tmpDir, 'chrome-profile-'));
 
   let serverProc = null;
   let chromeProc = null;
@@ -329,21 +348,21 @@ async function main() {
 
     const basePng = path.join(tmpDir, 'base.png');
     const texPng = path.join(tmpDir, 'texture.png');
-    fs.writeFileSync(
+    writeEvidenceFile(
       basePng,
       encodeRgbPng(320, 240, (x, y) => [
         ((x * 3) % 180) + 40,
         ((y * 2) % 160) + 45,
         x >= 80 && x < 240 && y >= 60 && y < 180 ? 210 : 70,
-      ]),
+      ]), pythonBin,
     );
-    fs.writeFileSync(
+    writeEvidenceFile(
       texPng,
       encodeRgbPng(320, 240, (x, y) => [
         x % 16 < 8 ? 225 : 40,
         y % 16 < 8 ? 210 : 60,
         90,
-      ]),
+      ]), pythonBin,
     );
 
     chromeProc = spawn(
@@ -553,16 +572,16 @@ async function main() {
         ),
       { label: 'reloaded job list populated and unlocked' },
     );
-    await cdp.eval(`(() => {
+    await cdp.callPage(`function (jobId) {
       const jobs = document.getElementById('jobs');
-      jobs.value = ${JSON.stringify(jobAfterCreate.id)};
+      jobs.value = jobId;
       jobs.dispatchEvent(new Event('change'));
-    })()`);
+    }`, jobAfterCreate.id);
     await waitFor(
       () =>
-        cdp.eval(
-          `!busy && !loadingMask && Boolean(current) && current.id === ${JSON.stringify(jobAfterCreate.id)} && current.revision === 2`,
-        ),
+        cdp.callPage(`function (jobId) {
+          return !busy && !loadingMask && Boolean(current) && current.id === jobId && current.revision === 2;
+        }`, jobAfterCreate.id),
       { label: 'persisted job reopened after reload' },
     );
     await new Promise((r) => setTimeout(r, 120));
@@ -698,7 +717,9 @@ async function main() {
 
     // Discard unsaved edits and switch to mobile 390x844 with real Chrome touch emulation
     await cdp.eval(`document.getElementById('discard').click(); document.getElementById('reload').click();`);
-    await waitFor(() => cdp.eval(`!busy && current && current.revision === ${revBeforeExternal + 1} && history.done.length === 0`), {
+    await waitFor(() => cdp.callPage(`function (revision) {
+      return !busy && current && current.revision === revision && history.done.length === 0;
+    }`, revBeforeExternal + 1), {
       label: 'reloaded latest revision before mobile touch test',
     });
 
