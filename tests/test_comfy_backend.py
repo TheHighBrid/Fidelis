@@ -15,7 +15,7 @@ import uuid
 import numpy as np
 from PIL import Image
 
-from fidelis.studio.comfy import BackendUnavailable,ComfyTextureBackend,SubmissionUnknown,canonical_hash,validate_workflow
+from fidelis.studio.comfy import BackendUnavailable,ComfyTextureBackend,GenerationCancelled,SubmissionUnknown,canonical_hash,validate_workflow
 from fidelis.studio.store import JobStore,RevisionConflict
 from fidelis.postprocess.regions import RegionBlend
 
@@ -117,6 +117,23 @@ class ComfyTests(unittest.TestCase):
             if mutate=='input':bundle['workflow']['3']['inputs']={}
             with self.assertRaises(ValueError):validate_workflow(bundle,SCHEMA)
         self.assertEqual(self.state['submits'],0)
+
+    def test_invalid_endpoint_nodes_are_rejected_before_graph_submission(self):
+        for node_id in ('1', '3'):
+            bundle = copy.deepcopy(BUNDLE)
+            bundle['workflow'][node_id] = None
+            with self.subTest(node_id=node_id), self.assertRaises(ValueError):
+                validate_workflow(bundle, SCHEMA)
+        self.assertEqual(self.state['submits'], 0)
+
+    def test_cancellation_before_prompt_is_not_resubmitted(self):
+        checks = iter([False, False, False, True])
+        with self.assertRaises(GenerationCancelled):
+            self.backend.run(self.source, BUNDLE, run_id=self.run_id,
+                             cancelled=lambda: next(checks))
+        with self.assertRaises(SubmissionUnknown):
+            self.backend.run(self.source, BUNDLE, run_id=self.run_id)
+        self.assertEqual(self.state['submits'], 0)
 
     def test_remote_destination_rejected(self):
         with self.assertRaises(ValueError):ComfyTextureBackend(self.temp.name,'https://example.com')
