@@ -13,7 +13,7 @@ if str(repo_root) not in sys.path:
     sys.path.insert(0, str(repo_root))
 
 from fidelis.core.pipeline import UpscalePipeline
-from fidelis.eval.metric_contract import format_quality_summary
+from fidelis.eval.metric_contract import format_quality_summary, sanitize_legacy_manifest
 
 
 def main():
@@ -76,7 +76,7 @@ def main():
     if args.json_manifest:
         args.json_manifest.parent.mkdir(parents=True, exist_ok=True)
         with open(args.json_manifest, "w", encoding="utf-8") as f:
-            json.dump(res.to_dict(), f, indent=2)
+            json.dump(sanitize_legacy_manifest(res.to_dict()), f, indent=2)
         print(f"Manifest written to: {args.json_manifest}")
 
 
