@@ -1,7 +1,7 @@
 """Conservative Compose local-publication audit regressions."""
 import importlib.util
-from pathlib import Path
 import unittest
+from pathlib import Path
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "check_deployment_exposure.py"
 spec = importlib.util.spec_from_file_location("exposure_audit", SCRIPT)
