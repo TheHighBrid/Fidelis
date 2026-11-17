@@ -7,10 +7,10 @@ relative to the final pinned directory, not a mutable absolute path.
 """
 
 import os
-from pathlib import Path
 import stat
 import sys
 import uuid
+from pathlib import Path
 
 
 def _open_directory(path):
