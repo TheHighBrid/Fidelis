@@ -2,30 +2,15 @@
 import ast
 import hashlib
 import json
-import logging
-from pathlib import Path
 import tempfile
-import time
-from typing import Any, Dict
 import unittest
+from pathlib import Path
 from unittest.mock import patch
+
+from fidelis.core.provenance import generate_c2pa_provenance
 
 
 SOURCE = Path(__file__).resolve().parents[1] / "fidelis" / "core" / "pipeline.py"
-
-
-def load_provenance_function():
-    """Load only stdlib provenance helpers, without optional GPU/CV dependencies."""
-    tree = ast.parse(SOURCE.read_text(encoding="utf-8"))
-    names = {"compute_sha256", "generate_c2pa_provenance"}
-    selected = [node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name in names]
-    assert len(selected) == 2, "Provenance helpers not found"
-    namespace = {
-        "Path": Path, "hashlib": hashlib, "json": json, "Dict": Dict, "Any": Any,
-        "time": time, "logger": logging.getLogger("test_provenance"),
-    }
-    exec(compile(ast.Module(body=selected, type_ignores=[]), str(SOURCE), "exec"), namespace)
-    return namespace["generate_c2pa_provenance"]
 
 
 class UnsignedProvenanceTests(unittest.TestCase):
@@ -38,7 +23,7 @@ class UnsignedProvenanceTests(unittest.TestCase):
         self.output.write_bytes(b"output image")
 
     def generate(self):
-        return load_provenance_function()(
+        return generate_c2pa_provenance(
             self.input, self.output, "luxury_apparel", 4, 512,
             hashlib.sha256(self.output.read_bytes()).hexdigest(),
         )
