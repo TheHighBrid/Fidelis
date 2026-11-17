@@ -21,12 +21,18 @@ from __future__ import annotations
 
 import hashlib
 import json
-import math
-import random
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
+
+from fidelis.eval.quality_statistics import (
+    _compute_inter_rater_agreement,
+    bootstrap_95_ci as bootstrap_95_ci,
+    cohen_kappa as cohen_kappa,
+    krippendorff_alpha_nominal as krippendorff_alpha_nominal,
+    wilson_95_ci as wilson_95_ci,
+)
 
 SCHEMA_VERSION = "fidelis.quality_acceptance.v1"
 
@@ -75,147 +81,6 @@ class AcceptanceThresholds:
     require_automated_detail_gates: bool = False
 
 
-def wilson_95_ci(successes: int, total: int) -> tuple[float, float]:
-    """Compute the 95% Wilson score confidence interval for a binomial proportion."""
-    if total <= 0:
-        return (0.0, 0.0)
-    z = 1.959963984540054
-    phat = successes / total
-    denom = 1.0 + (z * z) / total
-    center = (phat + (z * z) / (2.0 * total)) / denom
-    half = (
-        z
-        * math.sqrt((phat * (1.0 - phat) + (z * z) / (4.0 * total)) / total)
-        / denom
-    )
-    return (
-        round(max(0.0, center - half), 4),
-        round(min(1.0, center + half), 4),
-    )
-
-
-def bootstrap_95_ci(
-    outcomes: Sequence[int],
-    *,
-    resamples: int = 1000,
-    seed: int = 20261110,
-) -> tuple[float, float]:
-    """Deterministic percentile bootstrap 95% CI for binary outcomes (0 or 1)."""
-    n = len(outcomes)
-    if n == 0:
-        return (0.0, 0.0)
-    if resamples <= 0:
-        rate = round(sum(outcomes) / n, 4)
-        return (rate, rate)
-    rng = random.Random(seed)  # nosec B311  # Non-cryptographic PRNG for deterministic bootstrap
-    means: list[float] = []
-    for _ in range(resamples):
-        sample_sum = sum(outcomes[rng.randrange(n)] for _ in range(n))
-        means.append(sample_sum / n)
-    means.sort()
-    lo_idx = max(0, math.floor(0.025 * (resamples - 1)))
-    hi_idx = min(resamples - 1, math.ceil(0.975 * (resamples - 1)))
-    return (round(means[lo_idx], 4), round(means[hi_idx], 4))
-
-
-def cohen_kappa(rater_a: Sequence[str], rater_b: Sequence[str]) -> float | None:
-    """Compute unweighted Cohen's kappa for two aligned categorical rating sequences."""
-    if len(rater_a) != len(rater_b) or len(rater_a) == 0:
-        return None
-    n = len(rater_a)
-    labels = sorted(set(rater_a) | set(rater_b))
-    agreed = sum(1 for a, b in zip(rater_a, rater_b) if a == b)
-    p_o = agreed / n
-    p_e = 0.0
-    for label in labels:
-        ca = sum(1 for a in rater_a if a == label)
-        cb = sum(1 for b in rater_b if b == label)
-        p_e += (ca / n) * (cb / n)
-    if abs(1.0 - p_e) < 1e-12:
-        return 1.0 if abs(1.0 - p_o) < 1e-12 else 0.0
-    return round((p_o - p_e) / (1.0 - p_e), 4)
-
-
-def krippendorff_alpha_nominal(
-    item_ratings: Sequence[Sequence[str | None]],
-) -> float | None:
-    """Compute Krippendorff's alpha (nominal metric) across items rated by >= 2 reviewers."""
-    pairable_units: list[list[str]] = []
-    label_totals: dict[str, int] = {}
-    total_pairable_values = 0
-
-    for unit in item_ratings:
-        valid = [str(r) for r in unit if r is not None and str(r) != ""]
-        if len(valid) >= 2:
-            pairable_units.append(valid)
-            total_pairable_values += len(valid)
-            for val in valid:
-                label_totals[val] = label_totals.get(val, 0) + 1
-
-    if total_pairable_values < 2 or not pairable_units:
-        return None
-
-    # Observed disagreement D_o across pairable units
-    disagreed_within = 0.0
-    for valid in pairable_units:
-        m_u = len(valid)
-        counts: dict[str, int] = {}
-        for val in valid:
-            counts[val] = counts.get(val, 0) + 1
-        disagreed_pairs = sum(c * (m_u - c) for c in counts.values())
-        disagreed_within += disagreed_pairs / (m_u - 1)
-    d_o = disagreed_within / total_pairable_values
-
-    # Expected disagreement D_e from marginal frequencies
-    disagreed_expected_pairs = sum(
-        n_c * (total_pairable_values - n_c) for n_c in label_totals.values()
-    )
-    d_e = disagreed_expected_pairs / (
-        total_pairable_values * (total_pairable_values - 1)
-    )
-    if abs(d_e) < 1e-12:
-        return 1.0 if abs(d_o) < 1e-12 else 0.0
-    return round(1.0 - (d_o / d_e), 4)
-
-
-def _compute_inter_rater_agreement(
-    ballots: Sequence[Mapping[str, Any]],
-) -> dict[str, Any]:
-    """Summarize inter-rater agreement (Cohen's kappa and Krippendorff's alpha) when reviewer_id is present."""
-    by_item: dict[tuple[str, str], dict[str, str]] = {}
-    reviewers: set[str] = set()
-    for b in ballots:
-        rev = b.get("reviewer_id")
-        if rev is not None and str(rev).strip():
-            r_id = str(rev).strip()
-            reviewers.add(r_id)
-            key = (str(b["case_id"]), str(b["comparator"]))
-            by_item.setdefault(key, {})[r_id] = str(b["outcome"])
-
-    sorted_reviewers = sorted(reviewers)
-    overlapping_units = [
-        [ratings.get(r) for r in sorted_reviewers]
-        for _, ratings in sorted(by_item.items())
-        if len(ratings) >= 2
-    ]
-    alpha = krippendorff_alpha_nominal(overlapping_units)
-    kappa = None
-    if len(sorted_reviewers) == 2:
-        r0, r1 = sorted_reviewers
-        paired_a: list[str] = []
-        paired_b: list[str] = []
-        for _, ratings in sorted(by_item.items()):
-            if r0 in ratings and r1 in ratings:
-                paired_a.append(ratings[r0])
-                paired_b.append(ratings[r1])
-        kappa = cohen_kappa(paired_a, paired_b)
-
-    return {
-        "reviewer_count": len(sorted_reviewers),
-        "overlapping_pair_count": len(overlapping_units),
-        "cohen_kappa": kappa,
-        "krippendorff_alpha_nominal": alpha,
-    }
 
 
 def validate_reproducibility_receipt(receipt: Mapping[str, Any] | None) -> dict[str, Any]:
@@ -293,24 +158,55 @@ def _summarize_ballots(
     }
 
 
-def evaluate_held_out_acceptance(
-    submission: Mapping[str, Any],
-    *,
-    thresholds: AcceptanceThresholds | None = None,
-) -> dict[str, Any]:
-    """Evaluate a calibration + blind held-out quality submission against F13 gates."""
-    if thresholds is None:
-        thresholds = AcceptanceThresholds()
-    receipt_check = validate_reproducibility_receipt(
-        submission.get("reproducibility_receipt")
-    )
+def _normalize_ballot(entry):
+    return {
+        "case_id": str(entry.get("case_id", "")).strip(),
+        "split": str(entry.get("split", "")).strip(),
+        "category": str(entry.get("category", "")).strip(),
+        "comparator": str(entry.get("comparator", "")).strip(),
+        "outcome": str(entry.get("outcome", "")).strip(),
+        "reviewer_id": entry.get("reviewer_id"),
+    }
 
-    calibration = submission.get("calibration_summary") or {}
-    calibration_frozen = bool(calibration.get("recipe_frozen", False))
-    calibration_cases = [
-        str(cid).strip() for cid in (calibration.get("case_ids") or []) if str(cid).strip()
-    ]
 
+def _ballot_error(ballot, idx, category_by_case, seen_ballot_keys):
+    case_id, category, comparator, outcome = (ballot[k] for k in ("case_id", "category", "comparator", "outcome"))
+    prefix = f"ballot[{idx}] ({case_id})"
+    if category not in REQUIRED_CATEGORIES:
+        return f"{prefix}: unknown category {category!r}"
+    prior_category = category_by_case.get(case_id)
+    if prior_category is not None and prior_category != category:
+        return f"{prefix}: category conflicts with {prior_category!r}"
+    if outcome not in ("fidelis_win", "tie", "comparator_win"):
+        return f"{prefix}: invalid outcome {outcome!r}"
+    ballot_key = (case_id, comparator, str(ballot.get("reviewer_id") or "").strip())
+    if ballot_key in seen_ballot_keys:
+        return f"{prefix}: duplicate ballot for ({case_id}, {comparator})"
+    seen_ballot_keys.add(ballot_key)
+    category_by_case[case_id] = category
+    return None
+
+
+def _collect_defects(entry, ballot, idx, invalid_ballot_errors, critical_defects):
+    defects = entry.get("critical_defects", [])
+    case_id = ballot["case_id"]
+    prefix = f"ballot[{idx}] ({case_id})"
+    if not isinstance(defects, Sequence) or isinstance(defects, (str, bytes)):
+        invalid_ballot_errors.append(f"{prefix}: critical_defects must be a list")
+        return False
+    for defect in defects:
+        if not isinstance(defect, str) or not defect.strip():
+            invalid_ballot_errors.append(f"{prefix}: critical_defects must contain nonempty strings")
+            continue
+        d_str = defect.strip()
+        critical_defects.append({
+            "case_id": case_id, "category": ballot["category"], "comparator": ballot["comparator"],
+            "defect": d_str, "recognized_critical_type": d_str in CRITICAL_DEFECT_TYPES,
+        })
+    return True
+
+
+def _collect_ballots(submission, calibration_cases):
     raw_ballots = submission.get("held_out_ballots")
     if not isinstance(raw_ballots, Sequence):
         raw_ballots = []
@@ -331,80 +227,25 @@ def evaluate_held_out_acceptance(
         if not isinstance(entry, Mapping):
             invalid_ballot_errors.append(f"ballot[{idx}]: not an object")
             continue
-        case_id = str(entry.get("case_id", "")).strip()
-        split = str(entry.get("split", "")).strip()
-        category = str(entry.get("category", "")).strip()
-        comparator = str(entry.get("comparator", "")).strip()
-        outcome = str(entry.get("outcome", "")).strip()
-        reviewer_id = str(entry.get("reviewer_id") or "").strip()
-
-        if not case_id or not comparator:
+        ballot = _normalize_ballot(entry)
+        case_id = ballot["case_id"]
+        if not case_id or not ballot["comparator"]:
             invalid_ballot_errors.append(f"ballot[{idx}]: missing case_id or comparator")
             continue
-        if split != "held_out" or case_id in cal_set:
+        if ballot["split"] != "held_out" or case_id in cal_set:
             split_contamination_ids.append(case_id)
             continue
-        if category not in held_out_cases_by_category:
-            invalid_ballot_errors.append(
-                f"ballot[{idx}] ({case_id}): unknown category {category!r}"
-            )
+        error = _ballot_error(ballot, idx, category_by_case, seen_ballot_keys)
+        if error:
+            invalid_ballot_errors.append(error)
             continue
-        prior_category = category_by_case.get(case_id)
-        if prior_category is not None and prior_category != category:
-            invalid_ballot_errors.append(
-                f"ballot[{idx}] ({case_id}): category conflicts with {prior_category!r}"
-            )
-            continue
-        if outcome not in ("fidelis_win", "tie", "comparator_win"):
-            invalid_ballot_errors.append(
-                f"ballot[{idx}] ({case_id}): invalid outcome {outcome!r}"
-            )
-            continue
-        ballot_key = (case_id, comparator, reviewer_id)
-        if ballot_key in seen_ballot_keys:
-            invalid_ballot_errors.append(
-                f"ballot[{idx}] ({case_id}): duplicate ballot for ({case_id}, {comparator})"
-            )
-            continue
-        seen_ballot_keys.add(ballot_key)
-        category_by_case[case_id] = category
+        held_out_cases_by_category[ballot["category"]].add(case_id)
+        if _collect_defects(entry, ballot, idx, invalid_ballot_errors, critical_defects):
+            valid_ballots.append(ballot)
+    return valid_ballots, split_contamination_ids, invalid_ballot_errors, critical_defects, held_out_cases_by_category
 
-        held_out_cases_by_category[category].add(case_id)
 
-        defects = entry.get("critical_defects", [])
-        if not isinstance(defects, Sequence) or isinstance(defects, (str, bytes)):
-            invalid_ballot_errors.append(
-                f"ballot[{idx}] ({case_id}): critical_defects must be a list"
-            )
-            continue
-        for defect in defects:
-            if not isinstance(defect, str) or not defect.strip():
-                invalid_ballot_errors.append(
-                    f"ballot[{idx}] ({case_id}): critical_defects must contain nonempty strings"
-                )
-                continue
-            d_str = defect.strip()
-            critical_defects.append(
-                {
-                    "case_id": case_id,
-                    "category": category,
-                    "comparator": comparator,
-                    "defect": d_str,
-                    "recognized_critical_type": d_str in CRITICAL_DEFECT_TYPES,
-                }
-            )
-
-        valid_ballots.append(
-            {
-                "case_id": case_id,
-                "split": split,
-                "category": category,
-                "comparator": comparator,
-                "outcome": outcome,
-                "reviewer_id": entry.get("reviewer_id"),
-            }
-        )
-
+def _required_comparators(submission):
     # Both flagship comparators are mandatory. Missing ballot evidence must
     # never redefine the evaluation protocol or silently pass coverage.
     mandatory_comparators = ("pinned_clarity", "dated_krea")
@@ -413,10 +254,13 @@ def evaluate_held_out_acceptance(
         [str(comp) for comp in explicit_comps]
         if isinstance(explicit_comps, (list, tuple)) else []
     )
-    required_comparators = list(dict.fromkeys(
+    return list(dict.fromkeys(
         [*mandatory_comparators, *declared_comparators]
     ))
 
+
+def _evaluate_comparators(submission, valid_ballots, thresholds):
+    required_comparators = _required_comparators(submission)
     by_comparator: dict[str, dict[str, Any]] = {}
     comparator_failures: list[str] = []
     for offset, comp in enumerate(required_comparators):
@@ -456,7 +300,10 @@ def evaluate_held_out_acceptance(
         by_comparator[comp] = summary
         if not summary["passed_thresholds"]:
             comparator_failures.append(comp)
+    return required_comparators, by_comparator, comparator_failures
 
+
+def _evaluate_categories(valid_ballots, required_comparators, held_out_cases_by_category, thresholds):
     by_category: dict[str, dict[str, Any]] = {}
     category_failures: list[str] = []
     missing_coverage_categories: list[str] = []
@@ -501,25 +348,10 @@ def evaluate_held_out_acceptance(
         by_category[cat] = summary
         if not passed_cat_pref:
             category_failures.append(cat)
+    return by_category, category_failures, missing_coverage_categories
 
-    blocking_reasons: list[str] = []
-    if not receipt_check["complete"]:
-        blocking_reasons.append("incomplete_reproducibility_receipt")
-    if not calibration_frozen:
-        blocking_reasons.append("calibration_recipe_not_frozen")
-    if split_contamination_ids:
-        blocking_reasons.append("split_contamination_detected")
-    if invalid_ballot_errors:
-        blocking_reasons.append("invalid_ballot_records")
-    if len(critical_defects) > thresholds.max_critical_defects:
-        blocking_reasons.append("critical_fidelity_defects_present")
-    if missing_coverage_categories:
-        blocking_reasons.append("incomplete_held_out_category_coverage")
-    if comparator_failures:
-        blocking_reasons.append("comparator_threshold_not_met")
-    if category_failures:
-        blocking_reasons.append("category_threshold_not_met")
 
+def _automated_gate(submission, thresholds, blocking_reasons):
     raw_automated = submission.get("automated_metrics")
     automated_detail_gates: dict[str, Any] = {
         "required": thresholds.require_automated_detail_gates,
@@ -561,7 +393,10 @@ def evaluate_held_out_acceptance(
     elif thresholds.require_automated_detail_gates:
         blocking_reasons.append("missing_automated_detail_metrics")
         automated_detail_gates["passed"] = False
+    return automated_detail_gates
 
+
+def _creative_signoff(submission):
     signoff = submission.get("owner_creative_signoff") or submission.get("team_creative_signoff") or {}
     signoff_status = str(signoff.get("status", "pending")).strip()
     reviewer = signoff.get("reviewer") or signoff.get("team_lead") or signoff.get("delegate")
@@ -571,7 +406,16 @@ def evaluate_held_out_acceptance(
         and bool(str(reviewer or "").strip())
         and bool(str(signed_at or "").strip())
     )
+    return {
+        "status": signoff_status,
+        "approved": owner_approved,
+        "reviewer": reviewer,
+        "signed_at": signed_at,
+        "notes": signoff.get("notes"),
+    }
 
+
+def _overall_status(blocking_reasons, missing_coverage_categories, valid_ballots, critical_defects, split_contamination_ids, invalid_ballot_errors, owner_approved):
     quantitative_gates_passed = len(blocking_reasons) == 0
 
     if not quantitative_gates_passed:
@@ -589,19 +433,14 @@ def evaluate_held_out_acceptance(
         overall_status = "awaiting_owner_signoff"
     else:
         overall_status = "accepted"
+    return overall_status, quantitative_gates_passed
 
+
+def _finalize_report(payload, thresholds):
     report_payload = {
         "schema_version": SCHEMA_VERSION,
         "evaluated_at": datetime.now(timezone.utc).isoformat(),
-        "overall_status": overall_status,
-        "quantitative_gates_passed": quantitative_gates_passed,
-        "owner_creative_signoff": {
-            "status": signoff_status,
-            "approved": owner_approved,
-            "reviewer": reviewer,
-            "signed_at": signed_at,
-            "notes": signoff.get("notes"),
-        },
+        **payload,
         "thresholds": {
             "target_preference_plus_ties_min": thresholds.target_preference_plus_ties_min,
             "target_win_rate_min": thresholds.target_win_rate_min,
@@ -610,6 +449,48 @@ def evaluate_held_out_acceptance(
             "max_critical_defects": thresholds.max_critical_defects,
             "require_automated_detail_gates": thresholds.require_automated_detail_gates,
         },
+    }
+    report_payload["report_sha256"] = hashlib.sha256(json.dumps(report_payload, sort_keys=True).encode("utf-8")).hexdigest()
+    return report_payload
+
+
+def _calibration_details(submission):
+    calibration = submission.get("calibration_summary") or {}
+    return bool(calibration.get("recipe_frozen", False)), [
+        str(cid).strip() for cid in (calibration.get("case_ids") or []) if str(cid).strip()
+    ]
+
+
+def evaluate_held_out_acceptance(
+    submission: Mapping[str, Any],
+    *,
+    thresholds: AcceptanceThresholds | None = None,
+) -> dict[str, Any]:
+    """Evaluate a calibration + blind held-out quality submission against F13 gates."""
+    thresholds = AcceptanceThresholds() if thresholds is None else thresholds
+    receipt_check = validate_reproducibility_receipt(submission.get("reproducibility_receipt"))
+    calibration_frozen, calibration_cases = _calibration_details(submission)
+    valid_ballots, split_contamination_ids, invalid_ballot_errors, critical_defects, held_out_cases_by_category = _collect_ballots(submission, calibration_cases)
+    required_comparators, by_comparator, comparator_failures = _evaluate_comparators(submission, valid_ballots, thresholds)
+    by_category, category_failures, missing_coverage_categories = _evaluate_categories(valid_ballots, required_comparators, held_out_cases_by_category, thresholds)
+    blocking_reasons = [reason for condition, reason in (
+        (not receipt_check["complete"], "incomplete_reproducibility_receipt"),
+        (not calibration_frozen, "calibration_recipe_not_frozen"),
+        (split_contamination_ids, "split_contamination_detected"),
+        (invalid_ballot_errors, "invalid_ballot_records"),
+        (len(critical_defects) > thresholds.max_critical_defects, "critical_fidelity_defects_present"),
+        (missing_coverage_categories, "incomplete_held_out_category_coverage"),
+        (comparator_failures, "comparator_threshold_not_met"),
+        (category_failures, "category_threshold_not_met"),
+    ) if condition]
+    automated_detail_gates = _automated_gate(submission, thresholds, blocking_reasons)
+    signoff = _creative_signoff(submission)
+    overall_status, quantitative_gates_passed = _overall_status(blocking_reasons, missing_coverage_categories, valid_ballots, critical_defects, split_contamination_ids, invalid_ballot_errors, signoff["approved"])
+
+    return _finalize_report({
+        "overall_status": overall_status,
+        "quantitative_gates_passed": quantitative_gates_passed,
+        "owner_creative_signoff": signoff,
         "automated_detail_gates": automated_detail_gates,
         "reproducibility_receipt": receipt_check,
         "calibration": {
@@ -627,9 +508,4 @@ def evaluate_held_out_acceptance(
         "missing_coverage_categories": missing_coverage_categories,
         "invalid_ballot_errors": invalid_ballot_errors,
         "blocking_reasons": blocking_reasons,
-    }
-    report_digest = hashlib.sha256(
-        json.dumps(report_payload, sort_keys=True).encode("utf-8")
-    ).hexdigest()
-    report_payload["report_sha256"] = report_digest
-    return report_payload
+    }, thresholds)

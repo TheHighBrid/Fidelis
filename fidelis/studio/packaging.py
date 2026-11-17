@@ -86,6 +86,7 @@ REQUIRED_ARCHIVE_PATHS: tuple[str, ...] = (
     "fidelis/eval/comparators.py",
     "fidelis/eval/blind_review.py",
     "fidelis/eval/quality_acceptance.py",
+    "fidelis/eval/quality_statistics.py",
     "config/photo-candidates.tsv",
     "config/model-provenance-v1.json",
     "config/worker-preflight-policy-v1.json",
