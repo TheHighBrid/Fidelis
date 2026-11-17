@@ -12,6 +12,14 @@ compose_product = product["compose_product"]
 
 
 class ProductUpscaleTests(unittest.TestCase):
+    def test_model_selector_rejects_paths_shell_and_option_injection(self):
+        validate = product['validate_model_selector']
+        self.assertEqual(validate('models-RealeSR-general-v3'), 'RealeSR-general-v3')
+        self.assertEqual(validate('realesrgan-x4plus'), 'realesrgan-x4plus')
+        for value in ('../model', '/tmp/model', '--help', 'models-', 'a;ls', 'a$(id)', 'a b'):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                validate(value)
+
     def test_unclassified_regions_remain_on_bicubic_base(self):
         base = np.full((64, 64, 3), 40, dtype=np.uint8)
         candidate = np.full((64, 64, 3), 220, dtype=np.uint8)
