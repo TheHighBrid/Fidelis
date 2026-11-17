@@ -256,29 +256,17 @@ async function stopProcess(proc) {
 
 // Keep the evidence even when an acceptance measurement fails. The exit code
 // must agree with the report, so automation cannot interpret a defect as a pass.
-function writeEvidenceFile(reportPath, formatted) {
-  // The CLI's caller explicitly selects the destination. Resolve its parent
-  // once, stage a private file there, and publish atomically instead of writing
-  // through an existing symlink or leaving a partial receipt.
-  const destination = path.resolve(reportPath);
-  fs.mkdirSync(path.dirname(destination), { recursive: true });
-  const parent = fs.realpathSync(path.dirname(destination));
-  const target = path.join(parent, path.basename(destination));
-  const existing = fs.lstatSync(target, { throwIfNoEntry: false });
-  if (existing && !existing.isFile()) {
-    throw new Error('Acceptance report destination must be a regular file');
-  }
-  const staging = fs.mkdtempSync(path.join(parent, '.fidelis-report-'));
-  try {
-    const receipt = path.join(staging, 'receipt.json');
-    fs.writeFileSync(receipt, formatted, { encoding: 'utf8', flag: 'wx', mode: 0o600 });
-    fs.renameSync(receipt, target);
-  } finally {
-    fs.rmSync(staging, { recursive: true, force: true });
-  }
+function writeEvidenceFile(reportPath, formatted, pythonBin) {
+  // Python's dir_fd APIs pin the output directory across publication; Node's
+  // pathname-based rename cannot provide that guarantee. No shell is used and
+  // browser bytes are passed only on stdin, not as command arguments.
+  const repoRoot = path.resolve(SCRIPT_DIR, '..');
+  execFileSync(pythonBin || resolvePython(repoRoot, process.env.PYTHON_BIN), [
+    '-m', 'fidelis.studio.browser_evidence', path.resolve(reportPath),
+  ], { cwd: repoRoot, input: formatted, stdio: ['pipe', 'pipe', 'pipe'] });
 }
 
-export function writeAcceptanceReport(report, reportPath, output = process.stdout) {
+export function writeAcceptanceReport(report, reportPath, output = process.stdout, pythonBin = null) {
   const failedChecks = Object.entries(report.checks).filter(([name, value]) =>
     name.endsWith('_count') ? value !== 0 : value !== true,
   ).map(([name]) => name);
@@ -290,7 +278,7 @@ export function writeAcceptanceReport(report, reportPath, output = process.stdou
     failed_checks: failedChecks,
   }, null, 2) + '\n';
   if (reportPath) {
-    writeEvidenceFile(reportPath, formatted);
+    writeEvidenceFile(reportPath, formatted, pythonBin);
   }
   output.write(formatted);
   return acceptancePassed ? 0 : 1;
@@ -299,6 +287,7 @@ export function writeAcceptanceReport(report, reportPath, output = process.stdou
 async function main() {
   const opts = parseArgs(process.argv.slice(2));
   const repoRoot = path.resolve(SCRIPT_DIR, '..');
+  const pythonBin = resolvePython(repoRoot, opts.python);
   const chromeBin = findChrome(opts.chrome);
   const chromeVersion = execFileSync(chromeBin, ['--version'], { encoding: 'utf8' }).trim();
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fidelis-browser-accept-'));
@@ -313,7 +302,6 @@ async function main() {
     let baseUrl = opts.url;
     if (!baseUrl) {
       const port = await findFreePort();
-      const pythonBin = resolvePython(repoRoot, opts.python);
       const workspaceDir = path.join(tmpDir, 'region_jobs');
       serverProc = spawn(
         pythonBin,
@@ -539,7 +527,7 @@ async function main() {
       await cdp.eval(`window.scrollTo(0, 0)`);
       await new Promise((r) => setTimeout(r, 80));
       const shot = await cdp.send('Page.captureScreenshot', { format: 'png' });
-      writeEvidenceFile(path.join(opts.screenshotsDir, '01-desktop-painted.png'), Buffer.from(shot.data, 'base64'));
+      writeEvidenceFile(path.join(opts.screenshotsDir, '01-desktop-painted.png'), Buffer.from(shot.data, 'base64'), pythonBin);
     }
 
     // Save revision -> reload page -> reopen persisted job -> verify saved mask layer
@@ -648,7 +636,7 @@ async function main() {
 
     if (opts.screenshotsDir) {
       const shot = await cdp.send('Page.captureScreenshot', { format: 'png' });
-      writeEvidenceFile(path.join(opts.screenshotsDir, '02-desktop-native-zoom.png'), Buffer.from(shot.data, 'base64'));
+      writeEvidenceFile(path.join(opts.screenshotsDir, '02-desktop-native-zoom.png'), Buffer.from(shot.data, 'base64'), pythonBin);
     }
 
     // 4. Stale save conflict test: draw stroke on rev 3 -> out-of-band save bumps to rev 4 -> Save fails 409 without wiping edits
@@ -699,7 +687,7 @@ async function main() {
 
     if (opts.screenshotsDir) {
       const shot = await cdp.send('Page.captureScreenshot', { format: 'png' });
-      writeEvidenceFile(path.join(opts.screenshotsDir, '03-desktop-stale-conflict.png'), Buffer.from(shot.data, 'base64'));
+      writeEvidenceFile(path.join(opts.screenshotsDir, '03-desktop-stale-conflict.png'), Buffer.from(shot.data, 'base64'), pythonBin);
     }
 
     // Measure desktop canvas visibility when lower sidebar controls (Save button) scroll into view.
@@ -763,7 +751,7 @@ async function main() {
 
     if (opts.screenshotsDir) {
       const shot = await cdp.send('Page.captureScreenshot', { format: 'png' });
-      writeEvidenceFile(path.join(opts.screenshotsDir, '04-mobile-touch-paint.png'), Buffer.from(shot.data, 'base64'));
+      writeEvidenceFile(path.join(opts.screenshotsDir, '04-mobile-touch-paint.png'), Buffer.from(shot.data, 'base64'), pythonBin);
     }
 
     const observedDefects = [];
@@ -841,7 +829,7 @@ async function main() {
       ],
     };
 
-    return writeAcceptanceReport(report, opts.report);
+    return writeAcceptanceReport(report, opts.report, process.stdout, pythonBin);
   } finally {
     if (cdp) cdp.close();
     await stopProcess(chromeProc);

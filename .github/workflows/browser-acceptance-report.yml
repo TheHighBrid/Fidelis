@@ -17,5 +17,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
       - run: node --check scripts/browser-acceptance.mjs
       - run: node --test tests/test_browser_acceptance_report.mjs
+      - run: python -m unittest discover -s tests -p 'test_browser_evidence.py'
