@@ -1,7 +1,8 @@
 """Regression coverage for MEL-72 tiled pipeline entrypoint."""
 import ast
-from pathlib import Path
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from fidelis.core.pipeline import UpscalePipeline
@@ -22,18 +23,20 @@ class TiledPipelineEntrypointTests(unittest.TestCase):
 
     def test_tiled_subprocess_uses_tracked_script_and_checks_failure(self):
         pipeline = UpscalePipeline(cli_path="/unused/fidelis")
-        with patch("fidelis.core.pipeline.subprocess.run") as run:
+        with TemporaryDirectory() as directory, patch("fidelis.core.pipeline.subprocess.run") as run:
+            source = Path(directory) / "input.png"
+            destination = Path(directory) / "output.png"
             run.return_value.returncode = 9
             run.return_value.stderr = "model unavailable"
             run.return_value.stdout = ""
             with self.assertRaisesRegex(RuntimeError, "Tiled upscale failed \\(9\\)"):
                 pipeline._run_tiled_upscale(
-                    Path("/tmp/input.png"), Path("/tmp/output.png"),
+                    source, destination,
                     "RealeSR-general-v3", 128, 16, 4,
                 )
             cmd = run.call_args.args[0]
             self.assertTrue(cmd[1].endswith("scripts/tiled-upscale.py"))
-            self.assertEqual(cmd[2:4], ["/tmp/input.png", "/tmp/output.png"])
+            self.assertEqual(cmd[2:4], [str(source), str(destination)])
             self.assertEqual(cmd[-2:], ["--scale", "4"])
 
 
