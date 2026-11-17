@@ -145,11 +145,11 @@ def generate_c2pa_provenance(
     tile_size: int,
     output_sha256: str,
 ) -> Dict[str, Any]:
-    """Generate C2PA 1.3 standard assertion claim manifest."""
+    """Write an unsigned provenance record, not a signed or verified C2PA manifest."""
     input_sha256 = compute_sha256(input_path)
     claim = {
         "claim_generator": "Fidelis-Precision-Engine/2.0",
-        "format": "application/x-c2pa-manifest-1.3",
+        "format": "application/vnd.fidelis.provenance+json",
         "title": "Fidelis Super-Resolution & Photographic Enhancement",
         "assertions": [
             {
@@ -178,19 +178,20 @@ def generate_c2pa_provenance(
             },
         ],
         "signature_info": {
-            "status": "verified",
-            "issuer": "Fidelis Autonomous Improvement Authority",
+            "status": "unsigned",
+            "issuer": None,
             "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         },
     }
 
-    # Write sidecar C2PA JSON provenance record
+    # Legacy .c2pa.json filename retained for consumers; content is NOT signed C2PA.
     sidecar_path = Path(output_path).with_suffix(Path(output_path).suffix + ".c2pa.json")
     try:
         with open(sidecar_path, "w", encoding="utf-8") as f:
             json.dump(claim, f, indent=2)
-    except Exception as e:
-        logger.warning("Could not write C2PA sidecar manifest: %s", e)
+    except OSError as e:
+        claim["signature_info"]["status"] = "write_failed"
+        logger.warning("Could not write unsigned provenance sidecar: %s", e)
 
     return claim
 
@@ -508,7 +509,7 @@ class UpscalePipeline:
             "megapixels": megapixels,
             "processing_time_per_megapixel_ms": ms_per_mp,
             "output_sha256": out_sha,
-            "c2pa_status": "verified",
+            "c2pa_status": c2pa_claim["signature_info"]["status"],
             "exif_preserved": exif_preserved,
             "zero_black_tiles": zero_black_tiles,
             "psnr": psnr_val,
@@ -563,7 +564,7 @@ class UpscalePipeline:
             "has_nans": has_nans,
             "input_sha256": in_sha,
             "output_sha256": out_sha,
-            "c2pa_status": "verified",
+            "c2pa_status": c2pa_claim["signature_info"]["status"],
             "spans": [asdict(s) for s in spans],
         }
 
@@ -607,7 +608,7 @@ class UpscalePipeline:
             megapixels=megapixels,
             processing_time_per_megapixel_ms=ms_per_mp,
             output_sha256=out_sha,
-            c2pa_status="verified",
+            c2pa_status=c2pa_claim["signature_info"]["status"],
             c2pa_manifest=c2pa_claim,
             exif_preserved=exif_preserved,
             zero_black_tiles=zero_black_tiles,
