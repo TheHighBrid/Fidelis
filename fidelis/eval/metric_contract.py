@@ -7,7 +7,8 @@ an explicit reference contract.
 from __future__ import annotations
 
 import math
-from typing import Mapping, Any
+from collections.abc import Mapping
+from typing import Any
 
 
 def format_quality_summary(metrics: Mapping[str, Any], *, reference_kind: str | None = None) -> str:
@@ -73,7 +74,7 @@ def sanitize_legacy_manifest(manifest: Mapping[str, Any]) -> dict[str, Any]:
     This is an export boundary, not a correction to upstream telemetry.
     """
     if not isinstance(manifest, Mapping):
-        raise ValueError("Invalid execution manifest")
+        raise TypeError("Invalid execution manifest")
     from copy import deepcopy
 
     result = deepcopy(dict(manifest))
