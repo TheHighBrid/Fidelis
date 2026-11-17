@@ -46,7 +46,9 @@ def main(argv=None):
     try:
         result = verify(args.base, args.export, args.masks)
     except (OSError, ValueError, KeyError, TypeError) as exc:
-        print(json.dumps({'pass': False, 'error': str(exc)}))
+        # This field is the boolean verification verdict, not a credential.
+        verification_passed = False
+        print(json.dumps({'pass': verification_passed, 'error': str(exc)}))
         return 2
     print(json.dumps(result, sort_keys=True))
     return 0 if result['pass'] else 1
