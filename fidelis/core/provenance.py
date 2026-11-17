@@ -67,6 +67,11 @@ def generate_c2pa_provenance(
         },
     }
 
+    _write_unsigned_sidecar(output_path, claim)
+    return claim
+
+
+def _write_unsigned_sidecar(output_path: Path | str, claim: dict[str, Any]) -> None:
     # Legacy .c2pa.json filename retained for consumers; content is NOT signed C2PA.
     sidecar_path = Path(output_path).with_suffix(Path(output_path).suffix + ".c2pa.json")
     try:
@@ -75,5 +80,3 @@ def generate_c2pa_provenance(
     except OSError as e:
         claim["signature_info"]["status"] = "write_failed"
         logger.warning("Could not write unsigned provenance sidecar: %s", e)
-
-    return claim
