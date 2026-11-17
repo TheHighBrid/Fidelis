@@ -231,5 +231,17 @@ class MetricContractTests(unittest.TestCase):
         self.assertEqual(sanitized["output_sha256"], "safe")
         self.assertEqual(original["telemetry"][0]["PSNR_DB"], 31)
 
+    def test_explicit_reference_rejects_pseudo_lpips_proxy_alias(self):
+        from fidelis.eval.metric_contract import sanitize_quality_payload
+        for key in ("lpips_proxy", "LPIPS_PROXY", "LpIpS_PrOxY"):
+            with self.subTest(key=key):
+                values = {"psnr": 30, "ssim": 0.9, key: 0.12}
+                with self.assertRaises(ValueError):
+                    format_quality_summary(values, reference_kind="ground_truth")
+                result = sanitize_quality_payload(values, reference_kind="source_consistency")
+                self.assertEqual(result["status"], "unavailable")
+                self.assertEqual(result["reason"], "unverified_lpips")
+                self.assertEqual(result["metrics"], {})
+
 if __name__ == "__main__":
     unittest.main()
