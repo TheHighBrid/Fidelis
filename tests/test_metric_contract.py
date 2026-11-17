@@ -33,6 +33,29 @@ class MetricContractTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             format_quality_summary({"psnr": 30, "ssim": 0.9}, reference_kind="bicubic")
 
+    def test_structured_payload_drops_unverified_legacy_numbers(self):
+        from fidelis.eval.metric_contract import sanitize_quality_payload
+        payload = sanitize_quality_payload({"psnr": 35, "ssim": 0.95, "lpips": 0.1})
+        self.assertEqual(payload, {"status": "unavailable", "reason": "reference_not_verified", "metrics": {}})
+
+    def test_structured_payload_rejects_pseudo_lpips_and_invalid_values(self):
+        from fidelis.eval.metric_contract import sanitize_quality_payload
+        for values in ({"psnr": 30, "ssim": 0.9, "lpips": 0.1},
+                       {"psnr": float("nan"), "ssim": 0.9},
+                       {"psnr": 30, "ssim": 1.1},
+                       {"psnr": True, "ssim": 0.9}):
+            with self.subTest(values=values):
+                payload = sanitize_quality_payload(values, reference_kind="ground_truth")
+                self.assertEqual(payload["metrics"], {})
+                self.assertEqual(payload["status"], "unavailable")
+
+    def test_structured_payload_distinguishes_source_consistency(self):
+        from fidelis.eval.metric_contract import sanitize_quality_payload
+        payload = sanitize_quality_payload({"psnr": 30, "ssim": 0.9}, reference_kind="source_consistency")
+        self.assertEqual(payload["status"], "measured")
+        self.assertFalse(payload["is_ground_truth"])
+        self.assertEqual(payload["metrics"], {"psnr": 30.0, "ssim": 0.9})
+
 
 if __name__ == "__main__":
     unittest.main()
