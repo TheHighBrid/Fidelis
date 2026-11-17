@@ -79,10 +79,25 @@ def sanitize_legacy_manifest(manifest: Mapping[str, Any]) -> dict[str, Any]:
     result = deepcopy(dict(manifest))
     result["metrics"] = sanitize_quality_payload(result.get("metrics"))
     quality_keys = {"psnr", "ssim", "lpips", "cielab_delta_e", "gradient_coherence_pct"}
+
+    def redact_quality_attributes(value: Any) -> None:
+        """Redact quality claims inside span attributes, including nested records.
+
+        Only traverse the attributes subtree, not arbitrary execution metadata:
+        hashes, timings and non-quality evidence must survive export.
+        """
+        if isinstance(value, dict):
+            for key in quality_keys:
+                value.pop(key, None)
+            for child in value.values():
+                redact_quality_attributes(child)
+        elif isinstance(value, list):
+            for child in value:
+                redact_quality_attributes(child)
+
     spans = result.get("spans")
     if isinstance(spans, list):
         for span in spans:
-            if isinstance(span, dict) and isinstance(span.get("attributes"), dict):
-                for key in quality_keys:
-                    span["attributes"].pop(key, None)
+            if isinstance(span, dict):
+                redact_quality_attributes(span.get("attributes"))
     return result
