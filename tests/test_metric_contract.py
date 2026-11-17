@@ -243,5 +243,38 @@ class MetricContractTests(unittest.TestCase):
                 self.assertEqual(result["reason"], "unverified_lpips")
                 self.assertEqual(result["metrics"], {})
 
+    def test_legacy_manifest_invalidates_nested_measured_verdicts(self):
+        from fidelis.eval.metric_contract import sanitize_legacy_manifest
+        original = {
+            "metrics": {"psnr": 32},
+            "telemetry": {
+                "status": "measured",
+                "reference_kind": "ground_truth",
+                "is_ground_truth": True,
+                "metrics": {"PSNR_DB": 32, "SSIM_SCORE": 0.94},
+                "output_sha256": "safe",
+            },
+            "events": [{
+                "status": "measured",
+                "LPIPS_PROXY": 0.12,
+                "reference_kind": "ground_truth",
+                "elapsed_ms": 8,
+            }],
+            "unrelated": {"status": "measured", "elapsed_ms": 2},
+        }
+        sanitized = sanitize_legacy_manifest(original)
+        nested = sanitized["telemetry"]
+        self.assertEqual(nested["status"], "unavailable")
+        self.assertNotIn("reference_kind", nested)
+        self.assertNotIn("is_ground_truth", nested)
+        self.assertEqual(nested["metrics"], {})
+        self.assertEqual(nested["output_sha256"], "safe")
+        self.assertEqual(sanitized["events"][0],
+                         {"status": "unavailable", "elapsed_ms": 8})
+        self.assertEqual(sanitized["unrelated"],
+                         {"status": "measured", "elapsed_ms": 2})
+        self.assertEqual(original["telemetry"]["status"], "measured")
+        self.assertEqual(original["events"][0]["LPIPS_PROXY"], 0.12)
+
 if __name__ == "__main__":
     unittest.main()
