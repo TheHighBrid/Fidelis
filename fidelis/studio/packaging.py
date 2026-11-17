@@ -62,6 +62,7 @@ REQUIRED_ARCHIVE_PATHS: tuple[str, ...] = (
     "fidelis/studio/__init__.py",
     "fidelis/studio/store.py",
     "fidelis/studio/brush.py",
+    "fidelis/studio/browser_evidence.py",
     "fidelis/studio/http.py",
     "fidelis/studio/studio.html",
     "fidelis/studio/editor.js",
