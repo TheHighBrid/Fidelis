@@ -6,6 +6,7 @@ import logging
 from pathlib import Path
 import tempfile
 import time
+from typing import Any, Dict
 import unittest
 from unittest.mock import patch
 
@@ -20,7 +21,7 @@ def load_provenance_function():
     selected = [node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name in names]
     assert len(selected) == 2, "Provenance helpers not found"
     namespace = {
-        "Path": Path, "hashlib": hashlib, "json": json,
+        "Path": Path, "hashlib": hashlib, "json": json, "Dict": Dict, "Any": Any,
         "time": time, "logger": logging.getLogger("test_provenance"),
     }
     exec(compile(ast.Module(body=selected, type_ignores=[]), str(SOURCE), "exec"), namespace)
