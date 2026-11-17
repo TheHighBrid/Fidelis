@@ -36,7 +36,7 @@ when a background task completes. Packshot Strict rejects generation.
 | applying | Atomic revision-checked result commit has started; cancellation returns conflict |
 | completed | Candidate committed; result revision recorded |
 | waiting | Poll deadline reached; explicitly resume the existing run |
-| needs_review | Submission cannot be confirmed; resume attempts reconciliation, never automatic resubmission |
+| needs_review | Submission cannot be confirmed or local output publication is blocked; resume uses the existing run, never automatic resubmission |
 | interrupted | Worker stopped/restarted; explicitly resume to reconcile the existing run |
 | failed | Error or stale/deleted job prevented application; inspect before intentionally starting another task |
 | cancelled | Local task abandoned; it cannot apply a late result |
@@ -67,9 +67,13 @@ One worker decodes/runs a job at a time. Polling defaults to 300 seconds; HTTP
 calls use two-second connect/read timeouts. These are cooperative timeouts, not a
 certified end-to-end latency bound. Image decoding, downloads, rendering and
 process memory still need target-device measurement. The backend response limit
-is 200 MiB per output. The existing JobStore byte budget does not include the
-separate generated PNG cache; aggregate cache retention/quota is still release
-work. Do not infer an 8GB/8K memory guarantee from queue capacity.
+is 200 MiB per output. The separate generated PNG cache has its own 2048 MiB
+default cap (`--generation-cache-mib`). If it fills, a task requiring a new cache
+write enters `needs_review` without applying anything to the job. Stop the server,
+raise the limit according to available storage, restart and explicitly resume the
+same task; the stored prompt ID is reused. Existing outputs and run records are
+not pruned automatically. Operator-managed retention and disk/RSS measurements
+remain release work. Do not infer an 8GB/8K memory guarantee from queue capacity.
 
 On restart, untouched queued work can execute. Former running/applying tasks become
 `interrupted` and require explicit resume. Resume retains the source revision,
