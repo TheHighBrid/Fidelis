@@ -81,6 +81,15 @@ def validate_model_selector(value):
     return name
 
 
+def _read_product_source(args):
+    with args.source.open("rb") as stream:
+        source = read_rgb8_png(stream, max_pixels=MAX_OUTPUT_PIXELS // SCALE**2)
+    rois = validate_rois(json.loads(args.rois_json.read_text()) if args.rois_json else [], source.shape[:2])
+    for roi in rois:
+        roi["rect"] = [value * SCALE for value in roi["rect"]]
+    return source, rois
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("source", type=Path)
@@ -92,11 +101,7 @@ def main():
         model = validate_model_selector(args.model)
         if args.output.suffix.lower() != ".png" or args.output.resolve() == args.source.resolve():
             raise ValueError("Output must be a separate PNG")
-        with args.source.open("rb") as stream:
-            source = read_rgb8_png(stream, max_pixels=MAX_OUTPUT_PIXELS // SCALE**2)
-        rois = validate_rois(json.loads(args.rois_json.read_text()) if args.rois_json else [], source.shape[:2])
-        for roi in rois:
-            roi["rect"] = [v * SCALE for v in roi["rect"]]
+        source, rois = _read_product_source(args)
         size = (source.shape[1] * SCALE, source.shape[0] * SCALE)
         base = np.asarray(Image.fromarray(source).resize(size, Image.Resampling.BICUBIC))
         with tempfile.TemporaryDirectory(prefix="fidelis-product-", dir=args.output.parent) as tmp:
