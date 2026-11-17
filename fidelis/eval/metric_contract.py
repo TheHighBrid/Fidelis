@@ -21,6 +21,8 @@ def format_quality_summary(metrics: Mapping[str, Any], *, reference_kind: str | 
         return "Quality:      unavailable (legacy metrics lack verified reference/provenance)"
     if reference_kind not in {"ground_truth", "source_consistency"}:
         raise ValueError("Unknown quality reference kind")
+    if not isinstance(metrics, Mapping):
+        return "Quality:      unavailable (invalid metric payload)"
     if "lpips" in metrics:
         raise ValueError("Legacy gradient-derived 'lpips' is not a real LPIPS measurement")
     values = []
@@ -47,6 +49,8 @@ def sanitize_quality_payload(metrics: Mapping[str, Any], *, reference_kind: str 
         return {"status": "unavailable", "reason": "reference_not_verified", "metrics": {}}
     if reference_kind not in {"ground_truth", "source_consistency"}:
         raise ValueError("Unknown quality reference kind")
+    if not isinstance(metrics, Mapping):
+        return {"status": "unavailable", "reason": "invalid_payload", "metrics": {}}
     if "lpips" in metrics:
         return {"status": "unavailable", "reason": "unverified_lpips", "metrics": {}}
     values: dict[str, float] = {}
