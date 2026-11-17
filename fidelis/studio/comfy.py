@@ -122,7 +122,7 @@ class ComfyTextureBackend:
             raise ValueError('Use a loopback ComfyUI HTTP address or an explicit SSH tunnel')
         if not 0 < timeout <= 60 or not 0 <= poll_interval <= 10:
             raise ValueError('Invalid backend time limits')
-        if type(cache_budget) is not int or cache_budget <= 0:
+        if not isinstance(cache_budget, int) or isinstance(cache_budget, bool) or cache_budget <= 0:
             raise ValueError('Generation PNG cache budget must be a positive integer in bytes')
         self.cache_budget = cache_budget
         self.root = Path(root)
