@@ -3,7 +3,11 @@ import unittest
 
 import numpy as np
 
-from fidelis.postprocess.color_fix import adain_color_fix, stabilize_colors, wavelet_color_fix
+from fidelis.postprocess.color_fix import (
+    adain_color_fix,
+    stabilize_colors,
+    wavelet_color_fix,
+)
 
 
 class ColorStabilizationRoutingTests(unittest.TestCase):
@@ -23,7 +27,7 @@ class ColorStabilizationRoutingTests(unittest.TestCase):
                     stabilize_colors(self.source, self.reference, scale_factor=scale, preferred_mode=mode)
 
     def test_hybrid_float_preserves_float_range_and_dtype(self):
-        sr = np.linspace(0.1, 0.9, num=8 * 8 * 3, dtype=np.float32).reshape(8, 8, 3)
+        sr = np.linspace(0.1, 0.9, num=8 * 8 * 3, dtype=np.float32).reshape((8, 8, 3))
         ref = np.flip(sr, axis=0).copy()
         actual = stabilize_colors(sr, ref, preferred_mode="hybrid")
         expected = (wavelet_color_fix(sr, ref) + adain_color_fix(sr, ref)) / 2
@@ -33,7 +37,7 @@ class ColorStabilizationRoutingTests(unittest.TestCase):
         self.assertLessEqual(actual.max(), 1)
 
     def test_hybrid_uint8_rounds_instead_of_truncating(self):
-        sr = np.arange(8 * 8 * 3, dtype=np.uint8).reshape(8, 8, 3)
+        sr = np.arange(8 * 8 * 3, dtype=np.uint8).reshape((8, 8, 3))
         ref = np.flip(sr, axis=1).copy()
         actual = stabilize_colors(sr, ref, preferred_mode="hybrid")
         expected = np.rint((wavelet_color_fix(sr, ref).astype(np.float32) +
