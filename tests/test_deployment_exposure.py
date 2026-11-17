@@ -29,11 +29,11 @@ class ComposeExposureAuditTests(unittest.TestCase):
             "127.0.0.1:8080:65536",
         ):
             with self.subTest(mapping=mapping):
-                errors = audit.check_compose(f"ports:\\n  - '{mapping}'\\n")
+                errors = audit.check_compose(f"ports:\n  - '{mapping}'\n")
                 self.assertTrue(any("port range" in error for error in errors), errors)
 
     def test_port_boundaries_accepted(self):
-        config = "ports:\\n  - '127.0.0.1:1:65535'\\n"
+        config = "ports:\n  - '127.0.0.1:1:65535'\n"
         self.assertEqual(audit.check_compose(config), [])
 
     def test_unknown_long_syntax_rejected(self):
