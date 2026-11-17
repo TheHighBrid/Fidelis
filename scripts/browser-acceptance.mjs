@@ -246,6 +246,28 @@ async function stopProcess(proc) {
 
 // Keep the evidence even when an acceptance measurement fails. The exit code
 // must agree with the report, so automation cannot interpret a defect as a pass.
+function writeReportFile(reportPath, formatted) {
+  // The CLI's caller explicitly selects the destination. Resolve its parent
+  // once, stage a private file there, and publish atomically instead of writing
+  // through an existing symlink or leaving a partial receipt.
+  const destination = path.resolve(reportPath);
+  fs.mkdirSync(path.dirname(destination), { recursive: true });
+  const parent = fs.realpathSync(path.dirname(destination));
+  const target = path.join(parent, path.basename(destination));
+  const existing = fs.lstatSync(target, { throwIfNoEntry: false });
+  if (existing && !existing.isFile()) {
+    throw new Error('Acceptance report destination must be a regular file');
+  }
+  const staging = fs.mkdtempSync(path.join(parent, '.fidelis-report-'));
+  try {
+    const receipt = path.join(staging, 'receipt.json');
+    fs.writeFileSync(receipt, formatted, { encoding: 'utf8', flag: 'wx', mode: 0o600 });
+    fs.renameSync(receipt, target);
+  } finally {
+    fs.rmSync(staging, { recursive: true, force: true });
+  }
+}
+
 export function writeAcceptanceReport(report, reportPath, output = process.stdout) {
   const failedChecks = Object.entries(report.checks).filter(([name, value]) =>
     name.endsWith('_count') ? value !== 0 : value !== true,
@@ -258,8 +280,7 @@ export function writeAcceptanceReport(report, reportPath, output = process.stdou
     failed_checks: failedChecks,
   }, null, 2) + '\n';
   if (reportPath) {
-    fs.mkdirSync(path.dirname(reportPath), { recursive: true });
-    fs.writeFileSync(reportPath, formatted, 'utf8');
+    writeReportFile(reportPath, formatted);
   }
   output.write(formatted);
   return acceptancePassed ? 0 : 1;
