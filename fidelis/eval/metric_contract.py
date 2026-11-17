@@ -98,6 +98,7 @@ def sanitize_legacy_manifest(manifest: Mapping[str, Any]) -> dict[str, Any]:
     spans = result.get("spans")
     if isinstance(spans, list):
         for span in spans:
-            if isinstance(span, dict):
-                redact_quality_attributes(span.get("attributes"))
+            # Span exporters may put metrics in events or directly on spans.
+            # Scrub the complete span without changing root execution evidence.
+            redact_quality_attributes(span)
     return result
