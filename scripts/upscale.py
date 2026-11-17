@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import argparse
 import json
-from pathlib import Path
 import sys
+from pathlib import Path
 
 # Ensure repository root is in sys.path
 repo_root = Path(__file__).resolve().parents[1]
