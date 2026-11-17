@@ -2,8 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
-const path = require('node:path');
-const page = fs.readFileSync(path.join(__dirname, '../scripts/web-ui.py'), 'utf8');
+const page = fs.readFileSync(require.resolve('../scripts/web-ui.py'), 'utf8');
 const script = page.split('<script>')[1].split('</script>')[0];
 
 function studio() {
@@ -14,7 +13,7 @@ function studio() {
       elements.set(id, {
         style: {}, dataset: {}, disabled: false, value: '0.7', checked: false,
         listeners: {}, attributes: {}, options: [], textContent: '',
-        classList: { add: (...xs) => xs.forEach(x => classes.add(x)), remove: (...xs) => xs.forEach(x => classes.delete(x)),
+        classList: { add: (...xs) => xs.forEach(x => { classes.add(x); }), remove: (...xs) => xs.forEach(x => { classes.delete(x); }),
           toggle: (x, on) => on ? classes.add(x) : classes.delete(x), contains: x => classes.has(x) },
         addEventListener(name, fn) { this.listeners[name] = fn; },
         setAttribute(name, value) { this.attributes[name] = value; },
