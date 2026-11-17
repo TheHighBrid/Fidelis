@@ -98,6 +98,8 @@ def sanitize_legacy_manifest(manifest: Mapping[str, Any]) -> dict[str, Any]:
     # Other exporters may attach span-like events and telemetry outside "spans".
     # Redact their nested claims as well, while retaining the root-level
     # normalized metrics contract and unrelated execution evidence.
+    for key in quality_keys:
+        result.pop(key, None)
     for key, value in result.items():
         if key != "metrics":
             redact_quality_attributes(value)
