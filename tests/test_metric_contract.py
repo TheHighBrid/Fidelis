@@ -117,6 +117,27 @@ class MetricContractTests(unittest.TestCase):
         self.assertEqual(sanitized["output_sha256"], "top-level-hash")
         self.assertEqual(original["spans"][0]["attributes"]["diagnostics"]["quality"]["psnr"], 31)
 
+    def test_legacy_manifest_redacts_span_events_and_direct_quality_fields(self):
+        from fidelis.eval.metric_contract import sanitize_legacy_manifest
+        original = {
+            "metrics": {"psnr": 30},
+            "spans": [{
+                "name": "quality-check", "psnr": 30,
+                "events": [{"name": "sample", "lpips": 0.3,
+                            "payload": {"ssim": 0.9, "duration_ms": 7}}],
+                "attributes": {"output_sha256": "abc"},
+            }],
+            "output_sha256": "top-level-hash",
+        }
+        sanitized = sanitize_legacy_manifest(original)
+        span = sanitized["spans"][0]
+        self.assertNotIn("psnr", span)
+        self.assertEqual(span["events"], [{"name": "sample",
+                                           "payload": {"duration_ms": 7}}])
+        self.assertEqual(span["attributes"]["output_sha256"], "abc")
+        self.assertEqual(sanitized["output_sha256"], "top-level-hash")
+        self.assertEqual(original["spans"][0]["psnr"], 30)
+
     def test_legacy_manifest_preserves_unrelated_quality_named_metadata(self):
         from fidelis.eval.metric_contract import sanitize_legacy_manifest
         record = {
