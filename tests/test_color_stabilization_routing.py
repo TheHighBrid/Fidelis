@@ -3,7 +3,7 @@ import unittest
 
 import numpy as np
 
-from fidelis.postprocess.color_fix import stabilize_colors, wavelet_color_fix, adain_color_fix
+from fidelis.postprocess.color_fix import adain_color_fix, stabilize_colors, wavelet_color_fix
 
 
 class ColorStabilizationRoutingTests(unittest.TestCase):
@@ -13,19 +13,17 @@ class ColorStabilizationRoutingTests(unittest.TestCase):
 
     def test_unknown_mode_rejected_instead_of_silent_noop(self):
         for mode in ("", "WAVELET", "none", "off"):
-            with self.subTest(mode=mode):
-                with self.assertRaisesRegex(ValueError, "Unsupported color stabilization mode"):
-                    stabilize_colors(self.source, self.reference, preferred_mode=mode)
+            with self.subTest(mode=mode), self.assertRaisesRegex(ValueError, "Unsupported color stabilization mode"):
+                stabilize_colors(self.source, self.reference, preferred_mode=mode)
 
     def test_invalid_scale_rejected_in_all_modes(self):
         for scale in (0, -1, float("nan"), float("inf"), -float("inf")):
             for mode in ("auto", "wavelet", "adain", "hybrid"):
-                with self.subTest(scale=scale, mode=mode):
-                    with self.assertRaisesRegex(ValueError, "finite positive"):
-                        stabilize_colors(self.source, self.reference, scale_factor=scale, preferred_mode=mode)
+                with self.subTest(scale=scale, mode=mode), self.assertRaisesRegex(ValueError, "finite positive"):
+                    stabilize_colors(self.source, self.reference, scale_factor=scale, preferred_mode=mode)
 
     def test_hybrid_float_preserves_float_range_and_dtype(self):
-        sr = np.linspace(0.1, 0.9, 8 * 8 * 3, dtype=np.float32).reshape(8, 8, 3)
+        sr = np.linspace(0.1, 0.9, num=8 * 8 * 3, dtype=np.float32).reshape(8, 8, 3)
         ref = np.flip(sr, axis=0).copy()
         actual = stabilize_colors(sr, ref, preferred_mode="hybrid")
         expected = (wavelet_color_fix(sr, ref) + adain_color_fix(sr, ref)) / 2
