@@ -21,6 +21,21 @@ class ComposeExposureAuditTests(unittest.TestCase):
             with self.subTest(mapping=mapping):
                 self.assertTrue(audit.check_compose(f"ports:\n  - '{mapping}'\n"))
 
+    def test_invalid_port_numbers_rejected(self):
+        for mapping in (
+            "127.0.0.1:0:8080",
+            "127.0.0.1:65536:8080",
+            "127.0.0.1:8080:0",
+            "127.0.0.1:8080:65536",
+        ):
+            with self.subTest(mapping=mapping):
+                errors = audit.check_compose(f"ports:\\n  - '{mapping}'\\n")
+                self.assertTrue(any("port range" in error for error in errors), errors)
+
+    def test_port_boundaries_accepted(self):
+        config = "ports:\\n  - '127.0.0.1:1:65535'\\n"
+        self.assertEqual(audit.check_compose(config), [])
+
     def test_unknown_long_syntax_rejected(self):
         self.assertTrue(audit.check_compose("ports:\n  - target: 8080\n    published: 8080\n"))
 
