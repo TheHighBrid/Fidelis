@@ -200,5 +200,22 @@ class MetricContractTests(unittest.TestCase):
                 self.assertEqual(payload["reason"], "unverified_lpips")
                 self.assertEqual(payload["metrics"], {})
 
+    def test_legacy_manifest_redacts_metric_aliases_in_all_telemetry_locations(self):
+        from fidelis.eval.metric_contract import sanitize_legacy_manifest
+        original = {
+            "PSNR_DB": 35.5,
+            "metrics": {"psnr": 35.5},
+            "telemetry": {"SSIM_SCORE": 0.95, "LPIPS_PROXY": 0.12,
+                          "elapsed_ms": 11},
+            "spans": [{"events": [{"PsNr_Db": 35.5, "LpIpS_PrOxY": 0.12,
+                                    "output_sha256": "safe"}]}],
+        }
+        result = sanitize_legacy_manifest(original)
+        self.assertNotIn("PSNR_DB", result)
+        self.assertEqual(result["telemetry"], {"elapsed_ms": 11})
+        self.assertEqual(result["spans"][0]["events"], [{"output_sha256": "safe"}])
+        self.assertEqual(result["metrics"]["status"], "unavailable")
+        self.assertEqual(original["telemetry"]["LPIPS_PROXY"], 0.12)
+
 if __name__ == "__main__":
     unittest.main()
