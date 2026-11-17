@@ -1,8 +1,8 @@
 """Regression coverage for paired legacy calibration fixtures."""
 
+import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
-import unittest
 
 import cv2
 import numpy as np
