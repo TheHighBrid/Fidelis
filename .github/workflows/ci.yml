@@ -88,8 +88,19 @@ jobs:
       - name: Instrumented pipeline integrity and metric reference tests
         run: python -m unittest discover -s tests -p 'test_pipeline_integrity.py'
 
+      - name: Pipeline metric reference routing regressions
+        run: python -m unittest discover -s tests -p 'test_pipeline_reference_routing.py'
+
+      - name: ROI normalization regressions
+        run: python -m unittest discover -s tests -p 'test_roi_normalization.py'
+
       - name: Local server and deployment boundary tests
         run: python -m unittest discover -s tests -p 'test_local_server_defaults.py'
+
+      - name: Main branch loopback and streamed export ownership regressions
+        run: |
+          python -m unittest discover -s tests -p 'test_local_bind_default.py'
+          python -m unittest discover -s tests -p 'test_streaming_output_ownership.py'
 
       - name: Structural ROI protection and crop check tests
         run: python -m unittest discover -s tests -p 'test_structural_roi.py'
