@@ -28,6 +28,16 @@ def check_compose(text: str) -> list[str]:
         stripped = line.strip()
         if in_ports and depth <= indent:
             in_ports = False
+        # Host networking bypasses published-port restrictions.
+        if stripped.startswith("network_mode:"):
+            value = stripped.partition(":")[2].strip().strip(chr(34)).strip(chr(39))
+            if not value or value == "host" or "$" in value:
+                errors.append(f"line {number}: host or unresolved network mode is unsafe")
+        if stripped.startswith(("include:", "extends:")):
+            errors.append(f"line {number}: external Compose configuration requires separate audit")
+        if stripped.startswith("ports:") and stripped != "ports:":
+            errors.append(f"line {number}: inline ports syntax is unsupported")
+            seen_ports = True
         if stripped == "ports:":
             in_ports, indent, seen_ports = True, depth, True
             continue
@@ -37,6 +47,9 @@ def check_compose(text: str) -> list[str]:
             errors.append(f"line {number}: unsupported port mapping syntax")
             continue
         value = stripped[2:].strip().strip("'\"")
+        if any(token in value for token in ("$", "&", "*")):
+            errors.append(f"line {number}: interpolated or aliased port mapping is unsupported")
+            continue
         match = PORT.fullmatch(value)
         if not match:
             errors.append(f"line {number}: unsupported or ambiguous port mapping {value!r}")
