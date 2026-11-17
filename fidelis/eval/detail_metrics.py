@@ -13,11 +13,8 @@ from typing import Any
 import cv2
 import numpy as np
 
-from fidelis.postprocess.roi_protection import (
-    VALID_POLICIES,
-    VALID_ROI_KINDS,
-    screen_internal_drift,
-)
+from fidelis.eval.roi_normalization import normalize_rois_to_target as _normalize_rois_to_target
+from fidelis.postprocess.roi_protection import screen_internal_drift
 
 _TEXTURE_ROI_KINDS = frozenset({"fabric", "crema", "skin", "hair"})
 _CONTOUR_ROI_KINDS = frozenset({"hardware", "seam", "logo", "text"})
@@ -27,99 +24,6 @@ _HW_SEAM_ROI_KINDS = frozenset({"hardware", "seam"})
 def _bt709_luminance(rgb: np.ndarray) -> np.ndarray:
     arr = rgb.astype(np.float32)
     return 0.2126 * arr[:, :, 0] + 0.7152 * arr[:, :, 1] + 0.0722 * arr[:, :, 2]
-
-
-def _normalize_rois_to_target(
-    rois: Sequence[Mapping[str, Any]] | None,
-    target_shape: tuple[int, int],
-    source_shape: tuple[int, int] | None = None,
-    roi_space: str = "auto",
-) -> list[dict[str, Any]]:
-    """Normalize ROI dicts (``rect`` or ``bbox``) into target-grid ``rect: [x, y, w, h]``."""
-    if not rois:
-        return []
-    th, tw = target_shape
-    if roi_space not in ("auto", "source", "target"):
-        raise ValueError(f"Unsupported roi_space {roi_space!r}")
-
-    scale_x = 1.0
-    scale_y = 1.0
-    if source_shape is not None and roi_space in ("auto", "source"):
-        sh, sw = source_shape
-        if sw > 0 and sh > 0 and (roi_space == "source" or tw != sw or th != sh):
-            scale_x = tw / float(sw)
-            scale_y = th / float(sh)
-
-    normalized: list[dict[str, Any]] = []
-    seen_ids: set[str] = set()
-    for idx, entry in enumerate(rois):
-        if not isinstance(entry, Mapping):
-            continue
-        kind = str(entry.get("kind", "fabric"))
-        if kind not in VALID_ROI_KINDS:
-            # Allow domain-specific aliases like "crema" for interior texture ROIs,
-            # mapping unknown kinds safely for roi_protection compatibility.
-            roi_kind_for_drift = "background" if kind == "crema" else kind
-        else:
-            roi_kind_for_drift = kind
-
-        raw_policy = entry.get("policy")
-        if raw_policy in VALID_POLICIES:
-            policy = str(raw_policy)
-        elif kind in _CONTOUR_ROI_KINDS or kind == "identity":
-            policy = "preserve"
-        else:
-            policy = "texture_allowed"
-
-        override = entry.get("override")
-        if override not in (None, "lock", "unlock"):
-            override = None
-
-        if "rect" in entry and isinstance(entry["rect"], (list, tuple)) and len(entry["rect"]) == 4:
-            rx, ry, rw, rh = [float(v) for v in entry["rect"]]
-        elif "bbox" in entry and isinstance(entry["bbox"], (list, tuple)) and len(entry["bbox"]) == 4:
-            x0, y0, x1, y1 = [float(v) for v in entry["bbox"]]
-            rx, ry, rw, rh = x0, y0, x1 - x0, y1 - y0
-        else:
-            continue
-
-        tx = round(rx * scale_x)
-        ty = round(ry * scale_y)
-        tw_r = round(rw * scale_x)
-        th_r = round(rh * scale_y)
-
-        if tw_r <= 0 or th_r <= 0:
-            continue
-
-        x0_c = max(0, tx)
-        y0_c = max(0, ty)
-        x1_c = min(tw, tx + tw_r)
-        y1_c = min(th, ty + th_r)
-        if x1_c <= x0_c or y1_c <= y0_c:
-            continue
-
-        tx = x0_c
-        ty = y0_c
-        tw_r = x1_c - x0_c
-        th_r = y1_c - y0_c
-
-        rid = str(entry.get("id") or f"roi_{idx}").strip() or f"roi_{idx}"
-        while rid in seen_ids:
-            rid = f"{rid}_{idx}"
-        seen_ids.add(rid)
-
-        normalized.append(
-            {
-                "id": rid,
-                "kind": kind,
-                "drift_kind": roi_kind_for_drift,
-                "policy": policy,
-                "override": override,
-                "rect": [tx, ty, tw_r, th_r],
-                "label": str(entry.get("label", rid)),
-            }
-        )
-    return normalized
 
 
 def _radial_frequency_grid(height: int, width: int) -> np.ndarray:
