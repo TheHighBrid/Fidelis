@@ -56,6 +56,19 @@ class MetricContractTests(unittest.TestCase):
         self.assertFalse(payload["is_ground_truth"])
         self.assertEqual(payload["metrics"], {"psnr": 30.0, "ssim": 0.9})
 
+    def test_non_mapping_payload_fails_closed(self):
+        from fidelis.eval.metric_contract import sanitize_quality_payload
+        for invalid in (None, [], "psnr=30", 30, True):
+            with self.subTest(invalid=invalid):
+                result = sanitize_quality_payload(invalid, reference_kind="ground_truth")
+                self.assertEqual(result, {"status": "unavailable", "reason": "invalid_payload", "metrics": {}})
+                self.assertIn("unavailable", format_quality_summary(invalid, reference_kind="ground_truth"))
+
+    def test_unknown_reference_rejected_even_with_malformed_payload(self):
+        from fidelis.eval.metric_contract import sanitize_quality_payload
+        with self.assertRaises(ValueError):
+            sanitize_quality_payload(None, reference_kind="untrusted")
+
 
 if __name__ == "__main__":
     unittest.main()
