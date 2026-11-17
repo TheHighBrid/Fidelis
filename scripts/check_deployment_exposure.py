@@ -55,6 +55,8 @@ def check_compose(text: str) -> list[str]:
             errors.append(f"line {number}: unsupported or ambiguous port mapping {value!r}")
         elif match.group("host") not in LOOPBACK:
             errors.append(f"line {number}: port {value!r} is not explicitly loopback-bound")
+        elif any(not 1 <= int(match.group(name)) <= 65535 for name in ("published", "target")):
+            errors.append(f"line {number}: port {value!r} is outside valid TCP/UDP port range")
     if not seen_ports:
         errors.append("no Compose ports section found; unable to verify publication policy")
     return errors
