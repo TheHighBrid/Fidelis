@@ -177,6 +177,21 @@ def _mock_comfy_worker(stats_payload: dict, object_info_payload: dict):
 
 
 class WorkerPreflightTest(unittest.TestCase):
+    def test_malformed_endpoint_node_is_incompatible(self):
+        bundle = _sample_workflow_bundle()
+        bundle["workflow"]["1"] = None
+        report = inspect_workflow_bundle(bundle, _sample_object_info())
+        self.assertFalse(report["structural_valid"])
+        self.assertFalse(report["schema_compatible"])
+        self.assertIn("input_node must identify a LoadImage node", report["structural_errors"])
+
+    def test_malformed_worker_node_spec_is_incompatible(self):
+        schema = _sample_object_info()
+        schema["CheckpointLoaderSimple"]["input"] = None
+        report = inspect_workflow_bundle(_sample_workflow_bundle(), schema)
+        self.assertFalse(report["schema_compatible"])
+        self.assertIsNotNone(report["validation_error"])
+
     def test_default_policy_is_valid_and_zero_spend(self):
         from fidelis.studio.worker_preflight import validate_endpoint_policy
 

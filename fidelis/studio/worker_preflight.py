@@ -151,13 +151,12 @@ def validate_endpoint_policy(address: str, policy: dict[str, Any]) -> dict[str, 
     }
 
 
-def inspect_workflow_bundle(
-    bundle: dict[str, Any],
-    object_info: dict[str, Any] | None = None,
-    *,
-    max_nodes: int = 500,
-) -> dict[str, Any]:
-    """Inspect an exported ComfyUI workflow bundle offline and optionally against live `/object_info`."""
+def _node_has_class(graph, node_id, expected):
+    node = graph.get(node_id) if isinstance(node_id, str) else None
+    return isinstance(node, dict) and node.get("class_type") == expected
+
+
+def _inspect_structure(bundle, max_nodes):
     structural_errors: list[str] = []
     if not isinstance(bundle, dict) or bundle.get("schema_version") != 1:
         structural_errors.append("Expected workflow bundle schema_version 1")
@@ -172,13 +171,17 @@ def inspect_workflow_bundle(
 
     input_node = bundle.get("input_node") if isinstance(bundle, dict) else None
     output_node = bundle.get("output_node") if isinstance(bundle, dict) else None
-    if not isinstance(input_node, str) or input_node not in graph or graph.get(input_node, {}).get("class_type") != "LoadImage":
+    if not _node_has_class(graph, input_node, "LoadImage"):
         structural_errors.append("input_node must identify a LoadImage node")
-    if not isinstance(output_node, str) or output_node not in graph or graph.get(output_node, {}).get("class_type") != "SaveImage":
+    if not _node_has_class(graph, output_node, "SaveImage"):
         structural_errors.append("output_node must identify a SaveImage node")
 
-    required_classes: set[str] = set()
-    referenced_models: list[dict[str, Any]] = []
+    return graph, family, input_node, output_node, structural_errors
+
+
+def _workflow_inventory(graph, structural_errors):
+    required_classes = set()
+    referenced_models = []
     for node_id in sorted(graph):
         node = graph[node_id]
         if not isinstance(node, dict):
@@ -199,6 +202,18 @@ def inspect_workflow_bundle(
                         "model_identifier": val,
                     })
 
+    return required_classes, referenced_models
+
+
+def inspect_workflow_bundle(
+    bundle: dict[str, Any],
+    object_info: dict[str, Any] | None = None,
+    *,
+    max_nodes: int = 500,
+) -> dict[str, Any]:
+    """Inspect an exported ComfyUI workflow bundle offline and optionally against live `/object_info`."""
+    graph, family, input_node, output_node, structural_errors = _inspect_structure(bundle, max_nodes)
+    required_classes, referenced_models = _workflow_inventory(graph, structural_errors)
     report: dict[str, Any] = {
         "workflow_sha256": canonical_hash(bundle) if isinstance(bundle, dict) else None,
         "family": family,
@@ -217,10 +232,36 @@ def inspect_workflow_bundle(
         "validation_error": None,
     }
 
-    if object_info is None:
-        return report
+    if object_info is not None:
+        _inspect_live_schema(report, bundle, graph, object_info)
+    return report
 
-    missing_classes = sorted(cls for cls in required_classes if cls not in object_info)
+
+def _node_choice_checks(node_id, class_type, inputs, specs, input_node):
+    required_spec, optional_spec = specs
+    checks = []
+    for name in sorted(inputs):
+        value = inputs[name]
+        if isinstance(value, list) and len(value) == 2 and isinstance(value[0], str) and isinstance(value[1], int):
+            continue
+        if node_id == input_node and name == "image":
+            continue
+        field = required_spec.get(name, optional_spec.get(name))
+        if isinstance(field, list) and field and isinstance(field[0], list):
+            allowed_choices = field[0]
+            checks.append({
+                "node_id": str(node_id),
+                "class_type": class_type,
+                "input_name": name,
+                "requested_value": value,
+                "available": value in allowed_choices,
+                "installed_choice_count": len(allowed_choices),
+            })
+    return checks
+
+
+def _inspect_live_schema(report, bundle, graph, object_info):
+    missing_classes = sorted(cls for cls in report["required_node_classes"] if cls not in object_info)
     missing_inputs: list[dict[str, Any]] = []
     choice_checks: list[dict[str, Any]] = []
 
@@ -233,6 +274,8 @@ def inspect_workflow_bundle(
         if not isinstance(class_type, str) or class_type not in object_info or not isinstance(inputs, dict):
             continue
         spec = object_info[class_type].get("input", {}) if isinstance(object_info[class_type], dict) else {}
+        if not isinstance(spec, dict):
+            continue
         required_spec = spec.get("required", {}) if isinstance(spec.get("required"), dict) else {}
         optional_spec = spec.get("optional", {}) if isinstance(spec.get("optional"), dict) else {}
 
@@ -244,24 +287,9 @@ def inspect_workflow_bundle(
                 "missing_inputs": missing_for_node,
             })
 
-        for name in sorted(inputs):
-            value = inputs[name]
-            if isinstance(value, list) and len(value) == 2 and isinstance(value[0], str) and isinstance(value[1], int):
-                continue
-            if node_id == input_node and name == "image":
-                continue
-            field = required_spec.get(name, optional_spec.get(name))
-            if isinstance(field, list) and field and isinstance(field[0], list):
-                allowed_choices = field[0]
-                available = value in allowed_choices
-                choice_checks.append({
-                    "node_id": str(node_id),
-                    "class_type": class_type,
-                    "input_name": name,
-                    "requested_value": value,
-                    "available": available,
-                    "installed_choice_count": len(allowed_choices),
-                })
+        choice_checks.extend(_node_choice_checks(
+            node_id, class_type, inputs, (required_spec, optional_spec), report["input_node"],
+        ))
 
     report["missing_node_classes"] = missing_classes
     report["missing_required_inputs"] = missing_inputs
@@ -270,11 +298,10 @@ def inspect_workflow_bundle(
     try:
         validate_workflow(bundle, object_info)
         report["schema_compatible"] = True
-    except ValueError as exc:
+    except (ValueError, TypeError, AttributeError, KeyError, IndexError) as exc:
         report["schema_compatible"] = False
         report["validation_error"] = str(exc)
 
-    return report
 
 
 def _sanitize_system_stats(stats: dict[str, Any]) -> dict[str, Any]:
@@ -355,21 +382,7 @@ def _probe_worker(address: str, *, timeout: float) -> tuple[dict[str, Any], dict
         client.close()
 
 
-def run_worker_preflight(
-    repo_root: Path | str,
-    *,
-    address: str = "http://127.0.0.1:8188",
-    workflow_path: Path | str | None = None,
-    policy_path: Path | str | None = None,
-    app_home: Path | str | None = None,
-    timeout: float = 2.0,
-    owner: str = "local-operator",
-    access_method: str = "loopback",
-) -> dict[str, Any]:
-    """Run a reproducible, secret-safe preflight of the local runtime, worker endpoint, and workflow."""
-    repo_root = Path(repo_root).resolve()
-    resolved_policy_path = Path(policy_path).resolve() if policy_path is not None else DEFAULT_POLICY_PATH
-    policy = load_worker_preflight_policy(resolved_policy_path)
+def _request_policy_check(policy, address, timeout, owner, access_method):
     forbidden_keys = set(policy.get("forbidden_secret_keys", []))
 
     policy_violations: list[str] = []
@@ -396,86 +409,101 @@ def run_worker_preflight(
         )
     )
 
-    workflow_bundle: dict[str, Any] | None = None
-    workflow_file_meta: dict[str, Any] | None = None
-    if workflow_path is not None:
-        wf_path = Path(workflow_path).resolve()
-        workflow_bundle = json.loads(wf_path.read_text(encoding="utf-8"))
-        try:
-            rel_wf = str(wf_path.relative_to(repo_root))
-        except ValueError:
-            rel_wf = wf_path.name
-        workflow_file_meta = {
-            "path": rel_wf,
-            "file_sha256": sha256(wf_path),
-        }
-        policy_violations.extend(
-            find_secret_violations(workflow_bundle, forbidden_keys=forbidden_keys, path="workflow")
-        )
+    return endpoint_check, owner_clean, policy_violations
 
-    local_inventory = inventory(repo_root, app_home)
 
-    worker_summary: dict[str, Any]
-    object_info: dict[str, Any] | None = None
+def _load_workflow(repo_root, workflow_path, forbidden_keys, policy_violations):
+    if workflow_path is None:
+        return None, None
+    wf_path = Path(workflow_path).resolve()
+    bundle = json.loads(wf_path.read_text(encoding="utf-8"))
+    try:
+        rel_wf = str(wf_path.relative_to(repo_root))
+    except ValueError:
+        rel_wf = wf_path.name
+    policy_violations.extend(find_secret_violations(bundle, forbidden_keys=forbidden_keys, path="workflow"))
+    return bundle, {"path": rel_wf, "file_sha256": sha256(wf_path)}
+
+
+def _probe_if_allowed(endpoint_check, policy_violations, timeout):
     if endpoint_check["policy_compliant"] and not policy_violations:
-        worker_summary, object_info = _probe_worker(endpoint_check["endpoint"], timeout=float(timeout))
-    else:
-        worker_summary = {
-            "reachable": False,
-            "reason": "PolicyViolation",
-            "detail": "Skipped network probe due to policy or secret violation",
-            "system": None,
-            "devices": [],
-            "installed_node_count": 0,
-            "node_classes": [],
-            "object_info_sha256": None,
-            "live_inference_verified": False,
-        }
+        return _probe_worker(endpoint_check["endpoint"], timeout=float(timeout))
+    return {
+        "reachable": False,
+        "reason": "PolicyViolation",
+        "detail": "Skipped network probe due to policy or secret violation",
+        "system": None,
+        "devices": [],
+        "installed_node_count": 0,
+        "node_classes": [],
+        "object_info_sha256": None,
+        "live_inference_verified": False,
+    }, None
 
-    max_nodes = int(policy["budget_policy"].get("max_workflow_nodes", 500))
-    workflow_report: dict[str, Any] | None = None
-    if workflow_bundle is not None:
-        workflow_report = inspect_workflow_bundle(
-            workflow_bundle,
-            object_info,
-            max_nodes=max_nodes,
-        )
-        if workflow_file_meta is not None:
-            workflow_report["source_file"] = workflow_file_meta
 
+def _preflight_status(policy_violations, workflow_report, worker_summary):
     if policy_violations:
-        preflight_status = "policy_violation"
-    elif workflow_report is not None and not workflow_report["structural_valid"]:
-        preflight_status = "workflow_incompatible"
-    elif not worker_summary["reachable"]:
-        preflight_status = "worker_unreachable"
-    elif workflow_report is None:
-        preflight_status = "reachable_no_workflow"
-    elif not workflow_report["schema_compatible"]:
-        preflight_status = "workflow_incompatible"
-    else:
-        preflight_status = "qualified_preflight"
+        return "policy_violation"
+    if workflow_report is not None and not workflow_report["structural_valid"]:
+        return "workflow_incompatible"
+    if not worker_summary["reachable"]:
+        return "worker_unreachable"
+    if workflow_report is None:
+        return "reachable_no_workflow"
+    if not workflow_report["schema_compatible"]:
+        return "workflow_incompatible"
+    return "qualified_preflight"
+
+
+def _policy_receipt(policy, policy_path, owner, access_method, endpoint_check, violations):
+    return {
+        "policy_schema": policy["schema"],
+        "policy_version": policy.get("version", "1.0.0"),
+        "policy_sha256": sha256(policy_path),
+        "owner": owner,
+        "access_method": access_method,
+        "endpoint": endpoint_check["endpoint"],
+        "allow_remote_cloud_fallback": False,
+        "max_paid_spend_usd": 0.0,
+        "secret_storage_policy": policy["resource_access_policy"]["secret_storage_policy"],
+        "policy_compliant": not violations,
+        "policy_violations": violations,
+    }
+
+
+def run_worker_preflight(
+    repo_root: Path | str,
+    *,
+    address: str = "http://127.0.0.1:8188",
+    workflow_path: Path | str | None = None,
+    policy_path: Path | str | None = None,
+    app_home: Path | str | None = None,
+    timeout: float = 2.0,
+    owner: str = "local-operator",
+    access_method: str = "loopback",
+) -> dict[str, Any]:
+    """Run a reproducible, secret-safe preflight of the local runtime, worker endpoint, and workflow."""
+    repo_root = Path(repo_root).resolve()
+    resolved_policy_path = Path(policy_path).resolve() if policy_path is not None else DEFAULT_POLICY_PATH
+    policy = load_worker_preflight_policy(resolved_policy_path)
+    forbidden_keys = set(policy.get("forbidden_secret_keys", []))
+    endpoint_check, owner_clean, policy_violations = _request_policy_check(policy, address, timeout, owner, access_method)
+    workflow_bundle, workflow_file_meta = _load_workflow(repo_root, workflow_path, forbidden_keys, policy_violations)
+    local_inventory = inventory(repo_root, app_home)
+    worker_summary, object_info = _probe_if_allowed(endpoint_check, policy_violations, timeout)
+    workflow_report = None
+    if workflow_bundle is not None:
+        workflow_report = inspect_workflow_bundle(workflow_bundle, object_info, max_nodes=int(policy["budget_policy"].get("max_workflow_nodes", 500)))
+        workflow_report["source_file"] = workflow_file_meta
 
     receipt = {
         "schema": WORKER_PREFLIGHT_SCHEMA,
         "generated_at_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "preflight_status": preflight_status,
+        "preflight_status": _preflight_status(policy_violations, workflow_report, worker_summary),
         "evidence_level": "E1_preflight_protocol_only",
         "live_inference_verified": False,
         "visual_quality_certified": False,
-        "policy": {
-            "policy_schema": policy["schema"],
-            "policy_version": policy.get("version", "1.0.0"),
-            "policy_sha256": sha256(resolved_policy_path),
-            "owner": owner_clean,
-            "access_method": access_method,
-            "endpoint": endpoint_check["endpoint"],
-            "allow_remote_cloud_fallback": False,
-            "max_paid_spend_usd": 0.0,
-            "secret_storage_policy": policy["resource_access_policy"]["secret_storage_policy"],
-            "policy_compliant": len(policy_violations) == 0,
-            "policy_violations": policy_violations,
-        },
+        "policy": _policy_receipt(policy, resolved_policy_path, owner_clean, access_method, endpoint_check, policy_violations),
         "local_runtime": local_inventory,
         "worker": worker_summary,
         "workflow": workflow_report,
