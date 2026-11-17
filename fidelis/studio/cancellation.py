@@ -15,6 +15,10 @@ class CancellationReceipt:
     already_requested: bool
 
 
+class CancellationRequested(Exception):
+    """Raised at a cooperative checkpoint when cancellation was requested."""
+
+
 class CancellationRegistry:
     def __init__(self):
         self._lock = Lock()
@@ -42,6 +46,15 @@ class CancellationRegistry:
             if not owner_id or self._owners.get(job_id) != owner_id:
                 raise PermissionError("job not found or not owned by requester")
             return job_id in self._cancelled
+
+    def checkpoint(self, job_id: str, owner_id: str) -> None:
+        """Abort cooperative work only when its owner requested cancellation.
+
+        Call between bounded worker steps; this cannot interrupt an active
+        external inference call and does not persist terminal job state.
+        """
+        if self.is_requested(job_id, owner_id):
+            raise CancellationRequested(job_id)
 
     def unregister(self, job_id: str, owner_id: str) -> None:
         with self._lock:
