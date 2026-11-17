@@ -55,6 +55,34 @@ class CancellationTests(unittest.TestCase):
         self.registry.register("j1", "bob")
         self.registry.checkpoint("j1", "bob")
 
+    def test_handle_observes_cancellation(self):
+        handle = self.registry.register("j2", "alice")
+        handle.checkpoint()
+        self.registry.request("j2", "alice")
+        with self.assertRaises(CancellationRequested):
+            handle.checkpoint()
+
+    def test_stale_handle_cannot_checkpoint_reused_job_same_owner(self):
+        handle = self.registry.register("j2", "alice")
+        handle.unregister()
+        replacement = self.registry.register("j2", "alice")
+        self.registry.request("j2", "alice")
+        with self.assertRaises(PermissionError):
+            handle.checkpoint()
+        with self.assertRaises(CancellationRequested):
+            replacement.checkpoint()
+
+    def test_stale_handle_cannot_unregister_reused_job(self):
+        handle = self.registry.register("j2", "alice")
+        handle.unregister()
+        replacement = self.registry.register("j2", "alice")
+        with self.assertRaises(PermissionError):
+            handle.unregister()
+        replacement.checkpoint()
+        replacement.unregister()
+        with self.assertRaises(PermissionError):
+            replacement.checkpoint()
+
     def test_duplicate_registration(self):
         with self.assertRaises(ValueError):
             self.registry.register("j1", "alice")
