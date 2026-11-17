@@ -42,7 +42,9 @@ class ComposeExposureAuditTests(unittest.TestCase):
 
     def test_interpolated_port_rejected(self):
         config = "ports:\n  - '${HOST_IP}:8080:8080'\n"
-        self.assertTrue(any("interpolated" in error for error in audit.check_compose(config)))\n\n    def test_no_ports_is_unverified(self):
+        self.assertTrue(any("interpolated" in error for error in audit.check_compose(config)))
+
+    def test_no_ports_is_unverified(self):
         self.assertTrue(audit.check_compose("services:\n  app:\n    image: fidelis\n"))
 
     def test_multiple_services_all_checked(self):
