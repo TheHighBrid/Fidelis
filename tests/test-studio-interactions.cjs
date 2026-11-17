@@ -2,7 +2,9 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
-const page = fs.readFileSync(require.resolve('../scripts/web-ui.py'), 'utf8');
+// CI runs this test from the repository root; the fixture path is fixed.
+assert.equal(process.cwd(), require('node:path').resolve(__dirname, '..'));
+const page = fs.readFileSync('scripts/web-ui.py', 'utf8');
 const script = page.split('<script>')[1].split('</script>')[0];
 
 function studio() {
