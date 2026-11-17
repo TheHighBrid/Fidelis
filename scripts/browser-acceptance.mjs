@@ -24,6 +24,15 @@ import zlib from 'node:zlib';
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 
+export function validateLocalStudioUrl(value) {
+  const url = new URL(value);
+  if (url.protocol !== 'http:' || !['127.0.0.1', '[::1]', 'localhost'].includes(url.hostname) ||
+      url.username || url.password || url.pathname !== '/' || url.search || url.hash) {
+    throw new Error('Browser acceptance requires a loopback HTTP origin');
+  }
+  return url.origin;
+}
+
 function parseArgs(argv) {
   const opts = {
     url: null,
@@ -41,6 +50,7 @@ function parseArgs(argv) {
     else if (arg === '--report') opts.report = argv[++i];
     else throw new Error(`Unknown argument: ${arg}`);
   }
+  if (opts.url) opts.url = validateLocalStudioUrl(opts.url);
   return opts;
 }
 
@@ -246,7 +256,7 @@ async function stopProcess(proc) {
 
 // Keep the evidence even when an acceptance measurement fails. The exit code
 // must agree with the report, so automation cannot interpret a defect as a pass.
-function writeReportFile(reportPath, formatted) {
+function writeEvidenceFile(reportPath, formatted) {
   // The CLI's caller explicitly selects the destination. Resolve its parent
   // once, stage a private file there, and publish atomically instead of writing
   // through an existing symlink or leaving a partial receipt.
@@ -280,7 +290,7 @@ export function writeAcceptanceReport(report, reportPath, output = process.stdou
     failed_checks: failedChecks,
   }, null, 2) + '\n';
   if (reportPath) {
-    writeReportFile(reportPath, formatted);
+    writeEvidenceFile(reportPath, formatted);
   }
   output.write(formatted);
   return acceptancePassed ? 0 : 1;
@@ -294,7 +304,6 @@ async function main() {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fidelis-browser-accept-'));
   const profileDir = path.join(tmpDir, 'chrome-profile');
   fs.mkdirSync(profileDir, { recursive: true });
-  if (opts.screenshotsDir) fs.mkdirSync(opts.screenshotsDir, { recursive: true });
 
   let serverProc = null;
   let chromeProc = null;
@@ -530,7 +539,7 @@ async function main() {
       await cdp.eval(`window.scrollTo(0, 0)`);
       await new Promise((r) => setTimeout(r, 80));
       const shot = await cdp.send('Page.captureScreenshot', { format: 'png' });
-      fs.writeFileSync(path.join(opts.screenshotsDir, '01-desktop-painted.png'), Buffer.from(shot.data, 'base64'));
+      writeEvidenceFile(path.join(opts.screenshotsDir, '01-desktop-painted.png'), Buffer.from(shot.data, 'base64'));
     }
 
     // Save revision -> reload page -> reopen persisted job -> verify saved mask layer
@@ -639,7 +648,7 @@ async function main() {
 
     if (opts.screenshotsDir) {
       const shot = await cdp.send('Page.captureScreenshot', { format: 'png' });
-      fs.writeFileSync(path.join(opts.screenshotsDir, '02-desktop-native-zoom.png'), Buffer.from(shot.data, 'base64'));
+      writeEvidenceFile(path.join(opts.screenshotsDir, '02-desktop-native-zoom.png'), Buffer.from(shot.data, 'base64'));
     }
 
     // 4. Stale save conflict test: draw stroke on rev 3 -> out-of-band save bumps to rev 4 -> Save fails 409 without wiping edits
@@ -660,6 +669,7 @@ async function main() {
     await waitFor(() => cdp.eval(`history.done.length === 1`), { label: 'unsaved stroke before stale conflict' });
 
     const revBeforeExternal = await cdp.eval(`current.revision`);
+    assert.ok(Number.isSafeInteger(revBeforeExternal) && revBeforeExternal >= 0 && revBeforeExternal < Number.MAX_SAFE_INTEGER, 'Invalid Studio revision');
     const externalSaveRes = await fetch(`${baseUrl}/api/regions/jobs/${jobAfterCreate.id}/reblend`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -689,7 +699,7 @@ async function main() {
 
     if (opts.screenshotsDir) {
       const shot = await cdp.send('Page.captureScreenshot', { format: 'png' });
-      fs.writeFileSync(path.join(opts.screenshotsDir, '03-desktop-stale-conflict.png'), Buffer.from(shot.data, 'base64'));
+      writeEvidenceFile(path.join(opts.screenshotsDir, '03-desktop-stale-conflict.png'), Buffer.from(shot.data, 'base64'));
     }
 
     // Measure desktop canvas visibility when lower sidebar controls (Save button) scroll into view.
@@ -753,7 +763,7 @@ async function main() {
 
     if (opts.screenshotsDir) {
       const shot = await cdp.send('Page.captureScreenshot', { format: 'png' });
-      fs.writeFileSync(path.join(opts.screenshotsDir, '04-mobile-touch-paint.png'), Buffer.from(shot.data, 'base64'));
+      writeEvidenceFile(path.join(opts.screenshotsDir, '04-mobile-touch-paint.png'), Buffer.from(shot.data, 'base64'));
     }
 
     const observedDefects = [];
