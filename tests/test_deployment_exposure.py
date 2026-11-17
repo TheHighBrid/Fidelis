@@ -24,6 +24,21 @@ class ComposeExposureAuditTests(unittest.TestCase):
     def test_unknown_long_syntax_rejected(self):
         self.assertTrue(audit.check_compose("ports:\n  - target: 8080\n    published: 8080\n"))
 
+    def test_host_network_rejected(self):
+        self.assertTrue(audit.check_compose("services:\\n  app:\\n    network_mode: host\\n    ports:\\n      - '127.0.0.1:8080:8080'\\n"))
+
+    def test_dynamic_network_rejected(self):
+        self.assertTrue(audit.check_compose("services:\\n  app:\\n    network_mode: ${NETWORK_MODE}\\n    ports:\\n      - '127.0.0.1:8080:8080'\\n"))
+
+    def test_external_include_rejected(self):
+        self.assertTrue(audit.check_compose("include:\\n  - other.yml\\nservices:\\n  app:\\n    ports:\\n      - '127.0.0.1:8080:8080'\\n"))
+
+    def test_inline_ports_rejected(self):
+        self.assertTrue(audit.check_compose("services:\\n  app:\\n    ports: ['0.0.0.0:8080:8080']\\n"))
+
+    def test_interpolated_port_rejected(self):
+        self.assertTrue(audit.check_compose("ports:\\n  - '${HOST_IP}:8080:8080'\\n"))
+
     def test_no_ports_is_unverified(self):
         self.assertTrue(audit.check_compose("services:\n  app:\n    image: fidelis\n"))
 
