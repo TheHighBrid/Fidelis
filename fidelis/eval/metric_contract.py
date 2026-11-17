@@ -83,39 +83,37 @@ def sanitize_legacy_manifest(manifest: Mapping[str, Any]) -> dict[str, Any]:
         "cielab_delta_e", "gradient_coherence_pct",
     }
 
-    def redact_quality_attributes(value: Any) -> None:
-        """Redact quality claims inside span attributes, including nested records.
+    def redact_quality_attributes(value: Any) -> bool:
+        """Redact nested legacy quality values and return whether any were found.
 
-        Only traverse the attributes subtree, not arbitrary execution metadata:
-        hashes, timings and non-quality evidence must survive export.
+        Propagate invalidation to enclosing measured quality records, so a
+        nested diagnostic cannot leave a misleading measured verdict behind.
         """
         if isinstance(value, dict):
-            # Nested reporting records can retain a false "measured" verdict
-            # even after their numeric quality fields have been removed.
-            # Invalidate that verdict before recursive redaction.
             has_quality_claim = any(
                 isinstance(key, str) and key.casefold() in quality_keys
                 for key in value
             )
-            nested_metrics = value.get("metrics")
-            if isinstance(nested_metrics, Mapping):
-                has_quality_claim = has_quality_claim or any(
-                    isinstance(key, str) and key.casefold() in quality_keys
-                    for key in nested_metrics
-                )
-            if has_quality_claim and value.get("status") == "measured":
-                value["status"] = "unavailable"
-                value.pop("reference_kind", None)
-                value.pop("is_ground_truth", None)
             for key in list(value):
                 if isinstance(key, str) and key.casefold() in quality_keys:
                     value.pop(key, None)
             for child in value.values():
-                redact_quality_attributes(child)
-        elif isinstance(value, (list, tuple)):
-            # Tuples are serialized as JSON arrays by standard exporters.
-            for child in value:
-                redact_quality_attributes(child)
+                has_quality_claim = redact_quality_attributes(child) or has_quality_claim
+            if has_quality_claim and value.get("status") == "measured":
+                value["status"] = "unavailable"
+                value.pop("reference_kind", None)
+                value.pop("is_ground_truth", None)
+            return has_quality_claim
+        if isinstance(value, (list, tuple)):
+            return any_claim(value)
+        return False
+
+    def any_claim(items: Any) -> bool:
+        # Do not short-circuit: every sibling must be sanitized.
+        found = False
+        for item in items:
+            found = redact_quality_attributes(item) or found
+        return found
 
     # Other exporters may attach span-like events and telemetry outside "spans".
     # Redact their nested claims as well, while retaining the root-level
