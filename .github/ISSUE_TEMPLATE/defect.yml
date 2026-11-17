@@ -1,0 +1,36 @@
+name: Defect or fidelity regression
+description: Record reproducible application, image-fidelity or evidence defects.
+title: "[Defect] "
+body:
+  - type: input
+    id: task
+    attributes:
+      label: Related F-ID or Linear issue
+      description: Check the execution board before duplicating an issue.
+  - type: textarea
+    id: result
+    attributes:
+      label: Expected and actual behaviour
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Reproduction and evidence
+      description: Include code SHA, commands, runtime/model versions and output dimensions. Do not attach private images or secrets.
+    validations:
+      required: true
+  - type: dropdown
+    id: level
+    attributes:
+      label: Evidence type
+      options:
+        - Source inspection
+        - Deterministic or HTTP fixture
+        - Live model run
+        - Visual or target-device review
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance and affected contracts
+      description: State what would resolve the defect and which current behaviours must remain intact.
