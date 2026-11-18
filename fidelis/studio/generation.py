@@ -207,7 +207,8 @@ class GenerationQueue:
             # committed or attributed to the existing run. Preserve the image
             # revision and require reconciliation rather than trusting it.
             if (not isinstance(record, dict) or not isinstance(record.get('prompt_id'), str)
-                    or not record['prompt_id'].strip()):
+                    or not record['prompt_id'].strip()
+                    or ('id' in record and record['id'] != task['run_id'])):
                 self._finish(task, 'needs_review', remote_may_continue=True,
                              message='Backend returned an invalid generation receipt; reconcile before resume')
                 return
