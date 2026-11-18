@@ -239,9 +239,15 @@ class GenerationQueue:
                              error=type(error).__name__,
                              message='Backend run state is invalid; reconcile before resume')
                 return
-            unresolved = record is not None and record['status'] in ('submitting', 'submission_unknown', 'submitted')
+            # Only explicitly recognized terminal/pre-submission states can
+            # establish that remote execution is not ongoing. New backend
+            # statuses must fail closed instead of silently becoming "failed".
+            safe_states = ('preparing', 'preparation_failed', 'rejected', 'completed')
+            unresolved = record is not None and record['status'] not in safe_states
             self._finish(task, 'needs_review' if unresolved else 'failed',
-                         remote_may_continue=unresolved, error=type(error).__name__, message=str(error))
+                         remote_may_continue=unresolved, error=type(error).__name__,
+                         message=('Unrecognized or active backend run state; reconcile before resume'
+                                  if unresolved else str(error)))
 
     def _work(self):
         while not self.stopping.is_set():
