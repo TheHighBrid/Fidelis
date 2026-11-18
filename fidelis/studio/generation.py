@@ -230,6 +230,10 @@ class GenerationQueue:
         while not self.stopping.is_set():
             task = None
             with self.lock, self._db() as db:
+                # Shutdown can be requested while the worker waits for this lock.
+                # Do not claim another durable task after that request.
+                if self.stopping.is_set():
+                    break
                 for item in self._all(db):
                     if item['status'] == 'queued':
                         task = item
