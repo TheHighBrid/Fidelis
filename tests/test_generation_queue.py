@@ -153,6 +153,7 @@ class GenerationTests(unittest.TestCase):
 
     def test_unregister_failure_does_not_terminate_queue_worker(self):
         q = self.queue()
+        old_registry = q.cancellations
         first = self.job()
         entered = threading.Event()
         release = threading.Event()
@@ -173,6 +174,12 @@ class GenerationTests(unittest.TestCase):
                 while task['id'] in q._active_handles and time.monotonic() < deadline:
                     time.sleep(.01)
                 self.assertNotIn(task['id'], q._active_handles)
+        deadline = time.monotonic() + 2
+        while q.cancellations is old_registry and time.monotonic() < deadline:
+            time.sleep(.01)
+        self.assertIsNot(q.cancellations, old_registry)
+        self.assertTrue(old_registry._closed)
+        self.assertEqual(old_registry._owners, {})
         self.assertTrue(q.worker.is_alive())
         # A failed unregister must not strand a registration. Its old token
         # must be invalidated even if the registry's unregister is broken.
