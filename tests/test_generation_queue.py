@@ -384,6 +384,24 @@ class GenerationTests(unittest.TestCase):
         self.assertFalse(result['remote_may_continue'])
         self.assertEqual(self.store.get(job['id'])['revision'], 1)
 
+    def test_persisted_failed_backend_run_is_terminal_and_worker_continues(self):
+        q = self.queue()
+        job = self.job()
+        with (patch.object(q.backend, 'run', side_effect=OSError('ComfyUI execution failed')),
+              patch.object(q.backend, '_get',
+                           return_value={'status': 'failed', 'prompt_id': 'fixture-prompt'})):
+            task = q.enqueue(job['id'], 1)
+            result = self.wait(q, job, task, ('failed',))
+        self.assertEqual(result['error'], 'OSError')
+        self.assertFalse(result['remote_may_continue'])
+        self.assertEqual(result['status'], 'failed')
+        self.assertEqual(self.store.get(job['id'])['revision'], 1)
+        self.assertTrue(q.worker.is_alive())
+        next_job = self.job()
+        next_task = q.enqueue(next_job['id'], 1)
+        self.wait(q, next_job, next_task, ('completed',))
+        self.assertEqual(self.store.get(next_job['id'])['revision'], 2)
+
     def test_poll_transport_error_preserves_unresolved_run(self):
         self.fixture.state['mode']='pending';q=self.queue();job=self.job()
         original=q.backend._json
