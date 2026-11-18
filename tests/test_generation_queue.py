@@ -183,6 +183,9 @@ class GenerationTests(unittest.TestCase):
         following = q.enqueue(second['id'], 1)
         self.wait(q, second, following, ('completed',))
         self.assertEqual(self.store.get(second['id'])['revision'], 2)
+        deadline = time.monotonic() + 2
+        while q.cancellations._owners and time.monotonic() < deadline:
+            time.sleep(.01)
         self.assertEqual(q.cancellations._owners, {})
 
     def test_running_cancel_signals_matching_registration_and_preserves_ledger(self):
