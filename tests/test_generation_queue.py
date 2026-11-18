@@ -251,6 +251,26 @@ class GenerationTests(unittest.TestCase):
         self.wait(q, next_job, next_task, ('completed',))
         self.assertEqual(self.store.get(next_job['id'])['revision'], 2)
 
+    def test_nonterminal_success_receipt_cannot_apply_texture(self):
+        q = self.queue()
+        for status in ('preparing', 'submitting', 'submitted',
+                       'submission_unknown', 'failed', None, 42):
+            with self.subTest(status=status):
+                job = self.job()
+                receipt = {'prompt_id': 'prompt-present', 'status': status}
+                with patch.object(q.backend, 'run',
+                                  return_value=(self.fixture.output, receipt)):
+                    task = q.enqueue(job['id'], 1)
+                    result = self.wait(q, job, task, ('needs_review',))
+                self.assertEqual(result['run_id'], task['run_id'])
+                self.assertTrue(result['remote_may_continue'])
+                self.assertEqual(self.store.get(job['id'])['revision'], 1)
+                self.assertTrue(q.worker.is_alive())
+        healthy = self.job()
+        task = q.enqueue(healthy['id'], 1)
+        self.wait(q, healthy, task, ('completed',))
+        self.assertEqual(self.store.get(healthy['id'])['revision'], 2)
+
     def test_running_cancel_cannot_apply_late_result(self):
         q=self.queue(); job=self.job(); ready=threading.Event(); release=threading.Event()
         self.addCleanup(release.set)
