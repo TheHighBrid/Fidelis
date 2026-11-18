@@ -219,7 +219,7 @@ class GenerationTests(unittest.TestCase):
         q = self.queue()
         for receipt in (None, [], {}, {'prompt_id': None},
                         {'prompt_id': 123}, {'prompt_id': ''},
-                        {'prompt_id': '   '}, {'prompt_id': '\\t\\n'}):
+                        {'prompt_id': '   '}, {'prompt_id': '\t\n'}):
             with self.subTest(receipt=receipt):
                 job = self.job()
                 with patch.object(q.backend, 'run', return_value=(self.fixture.output, receipt)):
