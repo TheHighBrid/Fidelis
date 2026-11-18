@@ -262,6 +262,26 @@ class GenerationTests(unittest.TestCase):
         self.assertEqual(q.get(first['id'],active['id'])['status'],'interrupted')
         self.assertEqual(self.fixture.state['submits'],2)
 
+    def test_resume_rejected_during_shutdown_preserves_durable_waiting_run(self):
+        self.fixture.state['mode'] = 'pending'
+        q = self.queue(deadline_seconds=.05)
+        job = self.job()
+        task = q.enqueue(job['id'], 1)
+        waiting = self.wait(q, job, task, ('waiting',))
+        submits = self.fixture.state['submits']
+        self.assertEqual(submits, 1)
+        with q.lock:
+            q.stopping.set()
+            q.wake.set()
+            with self.assertRaisesRegex(RuntimeError, 'stopping'):
+                q.resume(job['id'], task['id'])
+            current = q.get(job['id'], task['id'])
+        self.assertEqual(current['status'], 'waiting')
+        self.assertEqual(current['run_id'], waiting['run_id'])
+        self.assertEqual(current['updated_at_unix'], waiting['updated_at_unix'])
+        self.assertEqual(self.fixture.state['submits'], submits)
+        self.assertEqual(self.store.get(job['id'])['revision'], 1)
+
     def test_cancel_after_queued_resume_retains_remote_warning(self):
         self.fixture.state['mode']='pending';q=self.queue(deadline_seconds=.05);job=self.job()
         task=q.enqueue(job['id'],1);self.wait(q,job,task,('waiting',))
