@@ -215,6 +215,25 @@ class GenerationTests(unittest.TestCase):
             self.assertEqual(q.get(job['id'], task['id'])['status'], 'cancelled')
             self.assertEqual(self.store.get(job['id'])['revision'], 1)
 
+    def test_invalid_success_receipt_never_applies_texture_and_worker_survives(self):
+        q = self.queue()
+        for receipt in (None, [], {}, {'prompt_id': None},
+                        {'prompt_id': 123}, {'prompt_id': ''}):
+            with self.subTest(receipt=receipt):
+                job = self.job()
+                with patch.object(q.backend, 'run', return_value=(self.fixture.output, receipt)):
+                    task = q.enqueue(job['id'], 1)
+                    result = self.wait(q, job, task, ('needs_review',))
+                self.assertTrue(result['remote_may_continue'])
+                self.assertIn('reconcile', result['message'])
+                self.assertEqual(result['run_id'], task['run_id'])
+                self.assertEqual(self.store.get(job['id'])['revision'], 1)
+                self.assertTrue(q.worker.is_alive())
+        healthy = self.job()
+        task = q.enqueue(healthy['id'], 1)
+        self.wait(q, healthy, task, ('completed',))
+        self.assertEqual(self.store.get(healthy['id'])['revision'], 2)
+
     def test_running_cancel_cannot_apply_late_result(self):
         q=self.queue(); job=self.job(); ready=threading.Event(); release=threading.Event()
         self.addCleanup(release.set)
