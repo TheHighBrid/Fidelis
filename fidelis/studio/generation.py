@@ -221,7 +221,15 @@ class GenerationQueue:
         except SubmissionUnknown:
             self._finish(task, 'needs_review', remote_may_continue=True, message='Submission unresolved; resume reconciles without resubmission')
         except Exception as error:
-            record = self.backend._get(task['run_id'])
+            # A failed backend may also have an unreadable run ledger. Do not
+            # crash the queue worker or guess that remote submission was absent.
+            try:
+                record = self.backend._get(task['run_id'])
+            except Exception:
+                self._finish(task, 'needs_review', remote_may_continue=True,
+                             error=type(error).__name__,
+                             message='Backend failed and run state could not be read; reconcile before resume')
+                return
             unresolved = record is not None and record['status'] in ('submitting', 'submission_unknown', 'submitted')
             self._finish(task, 'needs_review' if unresolved else 'failed',
                          remote_may_continue=unresolved, error=type(error).__name__, message=str(error))
