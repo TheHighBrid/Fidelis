@@ -302,10 +302,14 @@ class GenerationQueue:
                             try:
                                 handle.unregister()
                             except Exception:
-                                # A broken cancellation registry must not kill
-                                # the sole queue worker after task finalization.
-                                # The registry is still closed on queue shutdown.
-                                pass
+                                # The queue has exactly one execution worker. If
+                                # unregister fails, retire the entire in-memory
+                                # registry rather than leave a stale owner/token
+                                # that could block a future claim or be signalled
+                                # for a different task. Closing invalidates all
+                                # handles; the next claim gets a fresh registry.
+                                self.cancellations.close()
+                                self.cancellations = CancellationRegistry()
             else:
                 self.wake.wait(.25)
 
