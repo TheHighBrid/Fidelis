@@ -299,7 +299,13 @@ class GenerationQueue:
                     with self.lock:
                         handle = self._active_handles.pop(task['id'], None)
                         if handle is not None:
-                            handle.unregister()
+                            try:
+                                handle.unregister()
+                            except Exception:
+                                # A broken cancellation registry must not kill
+                                # the sole queue worker after task finalization.
+                                # The registry is still closed on queue shutdown.
+                                pass
             else:
                 self.wake.wait(.25)
 
