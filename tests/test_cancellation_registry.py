@@ -1,5 +1,6 @@
 import unittest
 from concurrent.futures import ThreadPoolExecutor
+from threading import Event, Thread
 
 from fidelis.studio.cancellation import CancellationRegistry, CancellationRequested
 
@@ -124,6 +125,51 @@ class CancellationTests(unittest.TestCase):
         with ThreadPoolExecutor(max_workers=16) as pool:
             self.assertFalse(any(pool.map(attempt, range(64))))
         self.assertFalse(current.is_requested())
+
+    def test_wait_times_out_without_cancellation(self):
+        handle = self.registry.register("j2", "alice")
+        self.assertFalse(handle.wait_requested(0.001))
+        self.assertFalse(handle.is_requested())
+
+    def test_wait_wakes_on_cancel(self):
+        handle = self.registry.register("j2", "alice")
+        started = Event()
+        observed = []
+        def waiter():
+            started.set()
+            observed.append(handle.wait_requested(2))
+        thread = Thread(target=waiter)
+        thread.start()
+        self.assertTrue(started.wait(1))
+        handle.request()
+        thread.join(2)
+        self.assertFalse(thread.is_alive())
+        self.assertEqual(observed, [True])
+
+    def test_unregister_wakes_waiter_and_invalidates_stale_handle(self):
+        handle = self.registry.register("j2", "alice")
+        started = Event()
+        observed = []
+        def waiter():
+            started.set()
+            try:
+                observed.append(handle.wait_requested(2))
+            except PermissionError:
+                observed.append("stale")
+        thread = Thread(target=waiter)
+        thread.start()
+        self.assertTrue(started.wait(1))
+        handle.unregister()
+        replacement = self.registry.register("j2", "alice")
+        thread.join(2)
+        self.assertEqual(observed, ["stale"])
+        self.assertFalse(replacement.wait_requested(0))
+
+    def test_wait_rejects_invalid_timeout(self):
+        handle = self.registry.register("j2", "alice")
+        for timeout in (-1, float("inf"), float("nan"), True, "1"):
+            with self.subTest(timeout=timeout), self.assertRaises(ValueError):
+                handle.wait_requested(timeout)
 
     def test_duplicate_registration(self):
         with self.assertRaises(ValueError):
