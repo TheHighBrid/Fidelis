@@ -157,6 +157,10 @@ class GenerationQueue:
 
     def resume(self, job_id, task_id):
         with self.lock, self._db() as db:
+            # A stopped worker cannot claim a resumed task. Reject the request
+            # without changing durable state or implying that work was queued.
+            if self.stopping.is_set():
+                raise RuntimeError('Generation worker is stopping')
             task = self._owned(db, job_id, task_id)
             if task['status'] not in self.RESUMABLE:
                 raise RevisionConflict('Only interrupted, waiting or unresolved tasks can be resumed')
