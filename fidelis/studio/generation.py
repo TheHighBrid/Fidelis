@@ -193,7 +193,11 @@ class GenerationQueue:
                 raise ValueError('Queued task requires its original backend address')
             with self.store.open_array(task['job_id'], 'base', expected_revision=task['expected_revision']) as base:
                 source = np.array(base)
-            # Cancellation may arrive during the local source read. Do not enter\n            # inference or submit a remote run after the durable cancel commit.\n            if self._cancelled(task):\n                raise GenerationCancelled()\n            texture, record = self.backend.run(source, task['bundle'], run_id=task['run_id'],
+            # Cancellation may arrive during the local source read. Do not enter
+            # inference or submit a remote run after the durable cancel commit.
+            if self._cancelled(task):
+                raise GenerationCancelled()
+            texture, record = self.backend.run(source, task['bundle'], run_id=task['run_id'],
                          deadline_seconds=self.deadline_seconds, cancelled=lambda: self._cancelled(task))
             # The apply decision and cancellation are serialized. Once applying,
             # the atomic JobStore commit owns the result and cancellation conflicts.
