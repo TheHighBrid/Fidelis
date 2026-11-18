@@ -218,7 +218,8 @@ class GenerationTests(unittest.TestCase):
     def test_invalid_success_receipt_never_applies_texture_and_worker_survives(self):
         q = self.queue()
         for receipt in (None, [], {}, {'prompt_id': None},
-                        {'prompt_id': 123}, {'prompt_id': ''}):
+                        {'prompt_id': 123}, {'prompt_id': ''},
+                        {'prompt_id': '   '}, {'prompt_id': '\\t\\n'}):
             with self.subTest(receipt=receipt):
                 job = self.job()
                 with patch.object(q.backend, 'run', return_value=(self.fixture.output, receipt)):
