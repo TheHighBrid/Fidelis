@@ -323,6 +323,24 @@ class GenerationTests(unittest.TestCase):
         self.assertEqual(self.store.get(job['id'])['revision'],2)
         self.assertEqual(self.fixture.state['submits'],1)
 
+    def test_unreadable_backend_ledger_does_not_kill_queue_worker(self):
+        q = self.queue()
+        first = self.job()
+        with patch.object(q.backend, 'run', side_effect=OSError('backend offline')), \
+             patch.object(q.backend, '_get', side_effect=OSError('ledger offline')):
+            task = q.enqueue(first['id'], 1)
+            result = self.wait(q, first, task, ('needs_review',))
+        self.assertTrue(result['remote_may_continue'])
+        self.assertEqual(result['error'], 'OSError')
+        self.assertNotIn('ledger offline', result['message'])
+        self.assertEqual(self.store.get(first['id'])['revision'], 1)
+        self.assertTrue(q.worker.is_alive())
+        second = self.job()
+        next_task = q.enqueue(second['id'], 1)
+        self.wait(q, second, next_task, ('completed',))
+        self.assertEqual(self.store.get(second['id'])['revision'], 2)
+        self.assertEqual(q.get(first['id'], task['id'])['status'], 'needs_review')
+
     def test_poll_transport_error_preserves_unresolved_run(self):
         self.fixture.state['mode']='pending';q=self.queue();job=self.job()
         original=q.backend._json
