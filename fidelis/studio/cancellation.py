@@ -28,6 +28,16 @@ class CancellationHandle:
     owner_id: str
     registration_id: str
 
+    def __enter__(self) -> "CancellationHandle":
+        # A scoped registration is valid only for the lifetime of this handle.
+        self.registry.is_requested(self.job_id, self.owner_id,
+                                   registration_id=self.registration_id)
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        # Do not silently unregister a replacement registration with the same ID.
+        self.unregister()
+
     def checkpoint(self) -> None:
         self.registry.checkpoint(self.job_id, self.owner_id, registration_id=self.registration_id)
 
