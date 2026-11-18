@@ -58,17 +58,37 @@ class CancellationRegistry:
         self._owners = {}
         self._cancelled = set()
         self._events = {}
+        self._closed = False
 
     def register(self, job_id: str, owner_id: str) -> CancellationHandle:
         if not job_id or not owner_id:
             raise ValueError("job_id and owner_id are required")
         with self._lock:
+            if self._closed:
+                raise RuntimeError("cancellation registry is closed")
             if job_id in self._owners:
                 raise ValueError("job already registered")
             registration_id = uuid4().hex
             self._owners[job_id] = (owner_id, registration_id)
             self._events[job_id] = Event()
             return CancellationHandle(self, job_id, owner_id, registration_id)
+
+    def close(self) -> None:
+        """Invalidate every handle and wake blocked waiters on worker shutdown.
+
+        Closing does not mark durable jobs cancelled or interrupt remote work.
+        It only prevents abandoned local registrations from remaining usable.
+        """
+        with self._lock:
+            if self._closed:
+                return
+            self._closed = True
+            events = tuple(self._events.values())
+            self._owners.clear()
+            self._cancelled.clear()
+            self._events.clear()
+            for event in events:
+                event.set()
 
     def _require_owned(self, job_id, owner_id, registration_id=None):
         record = self._owners.get(job_id)
