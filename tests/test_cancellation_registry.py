@@ -216,6 +216,39 @@ class CancellationTests(unittest.TestCase):
             with self.assertRaises(PermissionError):
                 handle.checkpoint()
 
+    def test_scoped_handle_unregisters_on_success(self):
+        with self.registry.register("j2", "alice") as handle:
+            handle.checkpoint()
+        with self.assertRaises(PermissionError):
+            handle.checkpoint()
+        replacement = self.registry.register("j2", "alice")
+        replacement.checkpoint()
+
+    def test_scoped_handle_unregisters_after_worker_exception(self):
+        with self.assertRaisesRegex(RuntimeError, "worker failed"):
+            with self.registry.register("j2", "alice") as handle:
+                raise RuntimeError("worker failed")
+        with self.assertRaises(PermissionError):
+            handle.is_requested()
+        self.registry.register("j2", "alice").checkpoint()
+
+    def test_scoped_handle_clears_cancelled_registration(self):
+        with self.registry.register("j2", "alice") as handle:
+            handle.request()
+            with self.assertRaises(CancellationRequested):
+                handle.checkpoint()
+        self.assertFalse(self.registry.register("j2", "alice").is_requested())
+
+    def test_stale_scoped_handle_cannot_unregister_replacement(self):
+        handle = self.registry.register("j2", "alice")
+        handle.unregister()
+        replacement = self.registry.register("j2", "alice")
+        with self.assertRaises(PermissionError):
+            with handle:
+                pass
+        self.assertFalse(replacement.is_requested())
+        replacement.unregister()
+
     def test_duplicate_registration(self):
         with self.assertRaises(ValueError):
             self.registry.register("j1", "alice")
