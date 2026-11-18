@@ -108,6 +108,22 @@ class GenerationTests(unittest.TestCase):
         self.assertEqual(self.fixture.state['submits'],1)
         self.assertEqual(self.store.get(first['id'])['revision'],1)
 
+    def test_shutdown_request_before_claim_leaves_queued_task_durable(self):
+        q = self.queue()
+        job = self.job()
+        # Hold the queue lock across enqueue and shutdown so the worker
+        # cannot claim the task until stopping has already been requested.
+        with q.lock:
+            task = q.enqueue(job['id'], 1)
+            q.stopping.set()
+            q.wake.set()
+        q.worker.join(timeout=2)
+        self.assertFalse(q.worker.is_alive())
+        self.assertEqual(q.get(job['id'], task['id'])['status'], 'queued')
+        self.assertEqual(self.fixture.state['submits'], 0)
+        self.assertEqual(self.store.get(job['id'])['revision'], 1)
+        self.assertNotIn(task['id'], q._active_handles)
+
     def test_running_cancel_signals_matching_registration_and_preserves_ledger(self):
         q = self.queue()
         job = self.job()
