@@ -235,6 +235,22 @@ class GenerationTests(unittest.TestCase):
         self.wait(q, healthy, task, ('completed',))
         self.assertEqual(self.store.get(healthy['id'])['revision'], 2)
 
+    def test_foreign_run_receipt_cannot_commit_texture(self):
+        q = self.queue()
+        job = self.job()
+        with patch.object(q.backend, 'run', return_value=(
+                self.fixture.output, {'id': 'foreign-run', 'prompt_id': 'prompt-foreign'})):
+            task = q.enqueue(job['id'], 1)
+            result = self.wait(q, job, task, ('needs_review',))
+        self.assertEqual(result['run_id'], task['run_id'])
+        self.assertTrue(result['remote_may_continue'])
+        self.assertEqual(self.store.get(job['id'])['revision'], 1)
+        self.assertTrue(q.worker.is_alive())
+        next_job = self.job()
+        next_task = q.enqueue(next_job['id'], 1)
+        self.wait(q, next_job, next_task, ('completed',))
+        self.assertEqual(self.store.get(next_job['id'])['revision'], 2)
+
     def test_running_cancel_cannot_apply_late_result(self):
         q=self.queue(); job=self.job(); ready=threading.Event(); release=threading.Event()
         self.addCleanup(release.set)
