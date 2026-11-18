@@ -230,6 +230,15 @@ class GenerationQueue:
                              error=type(error).__name__,
                              message='Backend failed and run state could not be read; reconcile before resume')
                 return
+            # A damaged or incompatible ledger record cannot establish that a
+            # remote submission was absent. Preserve the run for reconciliation.
+            if record is not None and (
+                not isinstance(record, dict) or not isinstance(record.get('status'), str)
+            ):
+                self._finish(task, 'needs_review', remote_may_continue=True,
+                             error=type(error).__name__,
+                             message='Backend run state is invalid; reconcile before resume')
+                return
             unresolved = record is not None and record['status'] in ('submitting', 'submission_unknown', 'submitted')
             self._finish(task, 'needs_review' if unresolved else 'failed',
                          remote_may_continue=unresolved, error=type(error).__name__, message=str(error))
