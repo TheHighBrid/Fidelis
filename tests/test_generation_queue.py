@@ -360,6 +360,30 @@ class GenerationTests(unittest.TestCase):
         self.wait(q, healthy, task, ('completed',))
         self.assertEqual(self.store.get(healthy['id'])['revision'], 2)
 
+    def test_unknown_and_active_backend_statuses_fail_closed(self):
+        q = self.queue()
+        for status in ('submitting', 'submission_unknown', 'submitted', 'future_remote_state'):
+            with self.subTest(status=status):
+                job = self.job()
+                with (patch.object(q.backend, 'run', side_effect=OSError('backend offline')),
+                      patch.object(q.backend, '_get', return_value={'status': status})):
+                    task = q.enqueue(job['id'], 1)
+                    result = self.wait(q, job, task, ('needs_review',))
+                self.assertTrue(result['remote_may_continue'])
+                self.assertIn('reconcile', result['message'])
+                self.assertEqual(self.store.get(job['id'])['revision'], 1)
+                self.assertTrue(q.worker.is_alive())
+
+    def test_known_pre_submission_backend_failure_is_not_remote_unknown(self):
+        q = self.queue()
+        job = self.job()
+        with (patch.object(q.backend, 'run', side_effect=OSError('backend offline')),
+              patch.object(q.backend, '_get', return_value={'status': 'preparation_failed'})):
+            task = q.enqueue(job['id'], 1)
+            result = self.wait(q, job, task, ('failed',))
+        self.assertFalse(result['remote_may_continue'])
+        self.assertEqual(self.store.get(job['id'])['revision'], 1)
+
     def test_poll_transport_error_preserves_unresolved_run(self):
         self.fixture.state['mode']='pending';q=self.queue();job=self.job()
         original=q.backend._json
