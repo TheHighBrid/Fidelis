@@ -108,6 +108,66 @@ class GenerationTests(unittest.TestCase):
         self.assertEqual(self.fixture.state['submits'],1)
         self.assertEqual(self.store.get(first['id'])['revision'],1)
 
+    def test_running_cancel_signals_matching_registration_and_preserves_ledger(self):
+        q = self.queue()
+        job = self.job()
+        entered = threading.Event()
+        release = threading.Event()
+        self.addCleanup(release.set)
+        observed = []
+
+        def controlled(*args, **kwargs):
+            callback = kwargs['cancelled']
+            entered.set()
+            self.assertTrue(release.wait(2))
+            observed.append(callback())
+            raise GenerationCancelled()
+
+        with patch.object(q.backend, 'run', side_effect=controlled):
+            task = q.enqueue(job['id'], 1)
+            self.assertTrue(entered.wait(2))
+            with q.lock:
+                handle = q._active_handles[task['id']]
+                self.assertEqual(handle.owner_id, job['id'])
+                self.assertFalse(handle.is_requested())
+            cancelled = q.cancel(job['id'], task['id'])
+            self.assertEqual(cancelled['status'], 'cancelled')
+            self.assertTrue(handle.is_requested())
+            release.set()
+            self.wait(q, job, task, ('cancelled',))
+            deadline = time.monotonic() + 2
+            while task['id'] in q._active_handles and time.monotonic() < deadline:
+                time.sleep(.01)
+            self.assertNotIn(task['id'], q._active_handles)
+            self.assertEqual(observed, [True])
+            self.assertEqual(self.store.get(job['id'])['revision'], 1)
+
+    def test_queued_cancel_does_not_register_or_interrupt_unrelated_worker(self):
+        q = self.queue(capacity=2)
+        first = self.job()
+        second = self.job()
+        entered = threading.Event()
+        release = threading.Event()
+        self.addCleanup(release.set)
+
+        def controlled(*args, **kwargs):
+            entered.set()
+            self.assertTrue(release.wait(2))
+            return self.fixture.output, {'prompt_id': 'fixture'}
+
+        with patch.object(q.backend, 'run', side_effect=controlled):
+            active = q.enqueue(first['id'], 1)
+            self.assertTrue(entered.wait(2))
+            queued = q.enqueue(second['id'], 1)
+            q.cancel(second['id'], queued['id'])
+            with q.lock:
+                self.assertIn(active['id'], q._active_handles)
+                self.assertNotIn(queued['id'], q._active_handles)
+                self.assertFalse(q._active_handles[active['id']].is_requested())
+            release.set()
+            self.wait(q, first, active, ('completed',))
+            self.assertEqual(q.get(second['id'], queued['id'])['status'], 'cancelled')
+
     def test_running_cancel_cannot_apply_late_result(self):
         q=self.queue(); job=self.job(); ready=threading.Event(); release=threading.Event()
         self.addCleanup(release.set)
