@@ -280,6 +280,11 @@ class GenerationQueue:
                         try:
                             handle = self.cancellations.register(task['id'], task['job_id'])
                         except Exception:
+                            # A registration implementation can fail after creating
+                            # its owner/event. Retire that registry before the next
+                            # claim so no stale token survives a partial failure.
+                            self.cancellations.close()
+                            self.cancellations = CancellationRegistry()
                             task.update(status='needs_review', remote_may_continue=False,
                                         message='Local cancellation registration failed; inspect before resume')
                             self._save(db, task)
