@@ -168,6 +168,37 @@ class GenerationTests(unittest.TestCase):
             self.wait(q, first, active, ('completed',))
             self.assertEqual(q.get(second['id'], queued['id'])['status'], 'cancelled')
 
+    def test_cancel_during_source_load_never_enters_inference(self):
+        q = self.queue()
+        job = self.job()
+        entered = threading.Event()
+        release = threading.Event()
+        self.addCleanup(release.set)
+        original = self.store.open_array
+
+        from contextlib import contextmanager
+
+        @contextmanager
+        def slow_source(*args, **kwargs):
+            with original(*args, **kwargs) as pixels:
+                entered.set()
+                self.assertTrue(release.wait(2))
+                yield pixels
+
+        with patch.object(self.store, 'open_array', side_effect=slow_source), \
+             patch.object(q.backend, 'run') as inference:
+            task = q.enqueue(job['id'], 1)
+            self.assertTrue(entered.wait(2))
+            self.assertEqual(q.cancel(job['id'], task['id'])['status'], 'cancelled')
+            release.set()
+            deadline = time.monotonic() + 2
+            while task['id'] in q._active_handles and time.monotonic() < deadline:
+                time.sleep(.01)
+            self.assertNotIn(task['id'], q._active_handles)
+            inference.assert_not_called()
+            self.assertEqual(q.get(job['id'], task['id'])['status'], 'cancelled')
+            self.assertEqual(self.store.get(job['id'])['revision'], 1)
+
     def test_running_cancel_cannot_apply_late_result(self):
         q=self.queue(); job=self.job(); ready=threading.Event(); release=threading.Event()
         self.addCleanup(release.set)
