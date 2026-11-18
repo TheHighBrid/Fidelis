@@ -166,8 +166,6 @@ class GenerationTests(unittest.TestCase):
         with patch.object(q.backend, 'run', side_effect=controlled):
             task = q.enqueue(first['id'], 1)
             self.assertTrue(entered.wait(2))
-            with q.lock:
-                handle = q._active_handles[task['id']]
             with patch.object(q.cancellations, 'unregister', side_effect=RuntimeError('cleanup unavailable')):
                 release.set()
                 self.wait(q, first, task, ('completed',))
