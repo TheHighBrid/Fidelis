@@ -203,6 +203,13 @@ class GenerationQueue:
                 raise GenerationCancelled()
             texture, record = self.backend.run(source, task['bundle'], run_id=task['run_id'],
                          deadline_seconds=self.deadline_seconds, cancelled=lambda: self._cancelled(task))
+            # An inference result without a usable receipt cannot be safely
+            # committed or attributed to the existing run. Preserve the image
+            # revision and require reconciliation rather than trusting it.
+            if not isinstance(record, dict) or not isinstance(record.get('prompt_id'), str) or not record['prompt_id']:
+                self._finish(task, 'needs_review', remote_may_continue=True,
+                             message='Backend returned an invalid generation receipt; reconcile before resume')
+                return
             # The apply decision and cancellation are serialized. Once applying,
             # the atomic JobStore commit owns the result and cancellation conflicts.
             with self.lock, self._db() as db:
