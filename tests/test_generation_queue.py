@@ -271,6 +271,37 @@ class GenerationTests(unittest.TestCase):
         self.wait(q, healthy, task, ('completed',))
         self.assertEqual(self.store.get(healthy['id'])['revision'], 2)
 
+    def test_cancelled_task_stays_cancelled_after_invalid_receipt(self):
+        q = self.queue()
+        job = self.job()
+        entered = threading.Event()
+        release = threading.Event()
+        self.addCleanup(release.set)
+
+        def late_invalid_receipt(*args, **kwargs):
+            entered.set()
+            self.assertTrue(release.wait(2))
+            return self.fixture.output, {'prompt_id': ' ', 'status': 'submitted'}
+
+        with patch.object(q.backend, 'run', side_effect=late_invalid_receipt):
+            task = q.enqueue(job['id'], 1)
+            self.assertTrue(entered.wait(2))
+            cancelled = q.cancel(job['id'], task['id'])
+            self.assertEqual(cancelled['status'], 'cancelled')
+            release.set()
+            # Wait for the worker to finish its exception/receipt path before
+            # asserting that a late result did not resurrect the cancelled task.
+            deadline = time.monotonic() + 2
+            while task['id'] in q._active_handles and time.monotonic() < deadline:
+                time.sleep(.01)
+            self.assertNotIn(task['id'], q._active_handles)
+        result = q.get(job['id'], task['id'])
+        self.assertEqual(result['status'], 'cancelled')
+        self.assertTrue(result['remote_may_continue'])
+        self.assertEqual(result['run_id'], task['run_id'])
+        self.assertEqual(self.store.get(job['id'])['revision'], 1)
+        self.assertTrue(q.worker.is_alive())
+
     def test_running_cancel_cannot_apply_late_result(self):
         q=self.queue(); job=self.job(); ready=threading.Event(); release=threading.Event()
         self.addCleanup(release.set)
