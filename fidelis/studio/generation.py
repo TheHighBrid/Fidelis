@@ -17,6 +17,7 @@ from fidelis.studio.comfy import (
     SubmissionUnknown,
 )
 from fidelis.studio.store import BudgetExceeded, RevisionConflict
+from fidelis.studio.cancellation import CancellationRegistry
 
 
 class QueueFull(BudgetExceeded):
@@ -56,6 +57,8 @@ class GenerationQueue:
         self.capacity, self.max_records, self.deadline_seconds = capacity, max_records, deadline_seconds
         self.lock = threading.RLock()
         self.wake, self.stopping = threading.Event(), threading.Event()
+        self.cancellations = CancellationRegistry()
+        self._active_handles = {}
         try:
             self.backend = backend or ComfyTextureBackend(self.root / 'runs', address, timeout=2)
         except BaseException:
@@ -147,6 +150,9 @@ class GenerationQueue:
                             remote_may_continue=task.get('remote_may_continue', False) or task['status'] != 'queued',
                             message='Local task cancelled; submitted GPU work may continue. No global interrupt was sent.')
                 self._save(db, task)
+                handle = self._active_handles.get(task_id)
+                if handle is not None:
+                    handle.request()  # Wake the matching worker only after durable cancellation.
             return self._public(task)
 
     def resume(self, job_id, task_id):
@@ -166,8 +172,12 @@ class GenerationQueue:
     def _cancelled(self, task):
         if self.stopping.is_set():
             return True
-        with self.lock, self._db() as db:
-            return self._owned(db, task['job_id'], task['id'])['cancel_requested']
+        with self.lock:
+            handle = self._active_handles.get(task['id'])
+            if handle is not None and handle.is_requested():
+                return True
+            with self._db() as db:
+                return self._owned(db, task['job_id'], task['id'])['cancel_requested']
 
     def _finish(self, task, status, **fields):
         with self.lock, self._db() as db:
@@ -221,10 +231,19 @@ class GenerationQueue:
                         task = item
                         task.update(status='running')
                         self._save(db, task)
+                        # Registration and running transition share the queue lock,
+                        # preventing cancellation from slipping between them.
+                        self._active_handles[task['id']] = self.cancellations.register(task['id'], task['job_id'])
                         break
                 self.wake.clear()
             if task:
-                self._execute(task)
+                try:
+                    self._execute(task)
+                finally:
+                    with self.lock:
+                        handle = self._active_handles.pop(task['id'], None)
+                        if handle is not None:
+                            handle.unregister()
             else:
                 self.wake.wait(.25)
 
@@ -232,5 +251,6 @@ class GenerationQueue:
         self.stopping.set()
         self.wake.set()
         self.worker.join()  # HTTP calls and polling are bounded; never release ownership while active.
+        self.cancellations.close()
         self.backend.close()
         self._owner.close()
