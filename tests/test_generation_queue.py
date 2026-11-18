@@ -174,10 +174,16 @@ class GenerationTests(unittest.TestCase):
                     time.sleep(.01)
                 self.assertNotIn(task['id'], q._active_handles)
         self.assertTrue(q.worker.is_alive())
+        # A failed unregister must not strand a registration. Its old token
+        # must be invalidated even if the registry's unregister is broken.
+        self.assertEqual(q.cancellations._owners, {})
+        self.assertEqual(q.cancellations._events, {})
+        self.assertEqual(q.cancellations._cancelled, set())
         second = self.job()
         following = q.enqueue(second['id'], 1)
         self.wait(q, second, following, ('completed',))
         self.assertEqual(self.store.get(second['id'])['revision'], 2)
+        self.assertEqual(q.cancellations._owners, {})
 
     def test_running_cancel_signals_matching_registration_and_preserves_ledger(self):
         q = self.queue()
