@@ -274,11 +274,22 @@ class GenerationQueue:
                 for item in self._all(db):
                     if item['status'] == 'queued':
                         task = item
+                        # Register before committing the running transition. A
+                        # registration failure must not terminate the worker or
+                        # leave a task falsely marked as executing remotely.
+                        try:
+                            handle = self.cancellations.register(task['id'], task['job_id'])
+                        except Exception:
+                            task.update(status='needs_review', remote_may_continue=False,
+                                        message='Local cancellation registration failed; inspect before resume')
+                            self._save(db, task)
+                            task = None
+                            break
                         task.update(status='running')
                         self._save(db, task)
                         # Registration and running transition share the queue lock,
                         # preventing cancellation from slipping between them.
-                        self._active_handles[task['id']] = self.cancellations.register(task['id'], task['job_id'])
+                        self._active_handles[task['id']] = handle
                         break
                 self.wake.clear()
             if task:
