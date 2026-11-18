@@ -346,8 +346,8 @@ class GenerationTests(unittest.TestCase):
         for malformed in ('invalid', [], {}, {'status': None}, {'status': 123}):
             with self.subTest(record=malformed):
                 job = self.job()
-                with patch.object(q.backend, 'run', side_effect=OSError('backend offline')), \\
-                     patch.object(q.backend, '_get', return_value=malformed):
+                with (patch.object(q.backend, 'run', side_effect=OSError('backend offline')),
+                      patch.object(q.backend, '_get', return_value=malformed)):
                     task = q.enqueue(job['id'], 1)
                     result = self.wait(q, job, task, ('needs_review',))
                 self.assertTrue(result['remote_may_continue'])
