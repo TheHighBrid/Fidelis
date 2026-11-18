@@ -242,7 +242,7 @@ class GenerationQueue:
             # Only explicitly recognized terminal/pre-submission states can
             # establish that remote execution is not ongoing. New backend
             # statuses must fail closed instead of silently becoming "failed".
-            safe_states = ('preparing', 'preparation_failed', 'rejected', 'completed')
+            safe_states = ('preparing', 'preparation_failed', 'rejected', 'failed', 'completed')
             unresolved = record is not None and record['status'] not in safe_states
             self._finish(task, 'needs_review' if unresolved else 'failed',
                          remote_may_continue=unresolved, error=type(error).__name__,
