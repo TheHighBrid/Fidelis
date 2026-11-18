@@ -151,6 +151,34 @@ class GenerationTests(unittest.TestCase):
         self.assertEqual(self.store.get(second['id'])['revision'], 2)
         self.assertEqual(self.fixture.state['submits'], 1)
 
+    def test_partial_registration_failure_retires_stale_token(self):
+        q = self.queue()
+        original_registry = q.cancellations
+        first = self.job()
+        original_register = original_registry.register
+
+        def register_then_fail(*args, **kwargs):
+            original_register(*args, **kwargs)
+            raise RuntimeError('registration failed after allocation')
+
+        with patch.object(original_registry, 'register', side_effect=register_then_fail):
+            task = q.enqueue(first['id'], 1)
+            result = self.wait(q, first, task, ('needs_review',))
+        self.assertFalse(result['remote_may_continue'])
+        self.assertEqual(result['run_id'], task['run_id'])
+        self.assertEqual(self.store.get(first['id'])['revision'], 1)
+        self.assertEqual(self.fixture.state['submits'], 0)
+        self.assertIsNot(q.cancellations, original_registry)
+        self.assertTrue(original_registry._closed)
+        self.assertEqual(original_registry._owners, {})
+        self.assertEqual(original_registry._events, {})
+        self.assertNotIn(task['id'], q._active_handles)
+        self.assertTrue(q.worker.is_alive())
+        second = self.job()
+        following = q.enqueue(second['id'], 1)
+        self.wait(q, second, following, ('completed',))
+        self.assertEqual(self.store.get(second['id'])['revision'], 2)
+
     def test_unregister_failure_does_not_terminate_queue_worker(self):
         q = self.queue()
         old_registry = q.cancellations
