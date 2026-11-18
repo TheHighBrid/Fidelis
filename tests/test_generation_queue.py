@@ -151,6 +151,36 @@ class GenerationTests(unittest.TestCase):
         self.assertEqual(self.store.get(second['id'])['revision'], 2)
         self.assertEqual(self.fixture.state['submits'], 1)
 
+    def test_unregister_failure_does_not_terminate_queue_worker(self):
+        q = self.queue()
+        first = self.job()
+        entered = threading.Event()
+        release = threading.Event()
+        self.addCleanup(release.set)
+
+        def controlled(*args, **kwargs):
+            entered.set()
+            self.assertTrue(release.wait(2))
+            return self.fixture.output, {'prompt_id': 'fixture'}
+
+        with patch.object(q.backend, 'run', side_effect=controlled):
+            task = q.enqueue(first['id'], 1)
+            self.assertTrue(entered.wait(2))
+            with q.lock:
+                handle = q._active_handles[task['id']]
+            with patch.object(handle, 'unregister', side_effect=RuntimeError('cleanup unavailable')):
+                release.set()
+                self.wait(q, first, task, ('completed',))
+                deadline = time.monotonic() + 2
+                while task['id'] in q._active_handles and time.monotonic() < deadline:
+                    time.sleep(.01)
+                self.assertNotIn(task['id'], q._active_handles)
+        self.assertTrue(q.worker.is_alive())
+        second = self.job()
+        following = q.enqueue(second['id'], 1)
+        self.wait(q, second, following, ('completed',))
+        self.assertEqual(self.store.get(second['id'])['revision'], 2)
+
     def test_running_cancel_signals_matching_registration_and_preserves_ledger(self):
         q = self.queue()
         job = self.job()
