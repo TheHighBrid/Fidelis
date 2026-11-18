@@ -341,6 +341,25 @@ class GenerationTests(unittest.TestCase):
         self.assertEqual(self.store.get(second['id'])['revision'], 2)
         self.assertEqual(q.get(first['id'], task['id'])['status'], 'needs_review')
 
+    def test_malformed_backend_ledger_requires_review_and_worker_survives(self):
+        q = self.queue()
+        for malformed in ('invalid', [], {}, {'status': None}, {'status': 123}):
+            with self.subTest(record=malformed):
+                job = self.job()
+                with patch.object(q.backend, 'run', side_effect=OSError('backend offline')), \\
+                     patch.object(q.backend, '_get', return_value=malformed):
+                    task = q.enqueue(job['id'], 1)
+                    result = self.wait(q, job, task, ('needs_review',))
+                self.assertTrue(result['remote_may_continue'])
+                self.assertEqual(result['error'], 'OSError')
+                self.assertIn('reconcile', result['message'])
+                self.assertEqual(self.store.get(job['id'])['revision'], 1)
+                self.assertTrue(q.worker.is_alive())
+        healthy = self.job()
+        task = q.enqueue(healthy['id'], 1)
+        self.wait(q, healthy, task, ('completed',))
+        self.assertEqual(self.store.get(healthy['id'])['revision'], 2)
+
     def test_poll_transport_error_preserves_unresolved_run(self):
         self.fixture.state['mode']='pending';q=self.queue();job=self.job()
         original=q.backend._json
