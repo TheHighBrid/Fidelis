@@ -171,6 +171,51 @@ class CancellationTests(unittest.TestCase):
             with self.subTest(timeout=timeout), self.assertRaises(ValueError):
                 handle.wait_requested(timeout)
 
+
+    def test_close_invalidates_handles_and_rejects_new_work(self):
+        handle = self.registry.register("j2", "alice")
+        self.registry.close()
+        self.registry.close()
+        for operation in (handle.checkpoint, handle.request, handle.is_requested,
+                          handle.unregister):
+            with self.subTest(operation=operation.__name__), self.assertRaises(PermissionError):
+                operation()
+        with self.assertRaises(RuntimeError):
+            self.registry.register("j3", "alice")
+
+    def test_close_wakes_waiters_without_claiming_cancellation(self):
+        handle = self.registry.register("j2", "alice")
+        started = Event()
+        result = []
+        def waiter():
+            started.set()
+            try:
+                result.append(handle.wait_requested(2))
+            except PermissionError:
+                result.append("closed")
+        thread = Thread(target=waiter)
+        thread.start()
+        self.assertTrue(started.wait(1))
+        self.registry.close()
+        thread.join(2)
+        self.assertFalse(thread.is_alive())
+        self.assertEqual(result, ["closed"])
+
+    def test_close_is_safe_after_a_prior_request(self):
+        handle = self.registry.register("j2", "alice")
+        handle.request()
+        self.registry.close()
+        with self.assertRaises(PermissionError):
+            handle.wait_requested(0)
+
+    def test_close_invalidates_multiple_independent_registrations(self):
+        first = self.registry.register("j2", "alice")
+        second = self.registry.register("j3", "bob")
+        self.registry.close()
+        for handle in (first, second):
+            with self.assertRaises(PermissionError):
+                handle.checkpoint()
+
     def test_duplicate_registration(self):
         with self.assertRaises(ValueError):
             self.registry.register("j1", "alice")
