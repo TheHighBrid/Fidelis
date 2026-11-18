@@ -168,7 +168,7 @@ class GenerationTests(unittest.TestCase):
             self.assertTrue(entered.wait(2))
             with q.lock:
                 handle = q._active_handles[task['id']]
-            with patch.object(handle, 'unregister', side_effect=RuntimeError('cleanup unavailable')):
+            with patch.object(q.cancellations, 'unregister', side_effect=RuntimeError('cleanup unavailable')):
                 release.set()
                 self.wait(q, first, task, ('completed',))
                 deadline = time.monotonic() + 2
