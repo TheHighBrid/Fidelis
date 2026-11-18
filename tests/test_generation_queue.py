@@ -124,6 +124,33 @@ class GenerationTests(unittest.TestCase):
         self.assertEqual(self.store.get(job['id'])['revision'], 1)
         self.assertNotIn(task['id'], q._active_handles)
 
+    def test_registration_failure_is_durable_and_does_not_kill_worker(self):
+        q = self.queue()
+        first = self.job()
+        original = q.cancellations.register
+        calls = [0]
+
+        def fail_once(*args, **kwargs):
+            calls[0] += 1
+            if calls[0] == 1:
+                raise RuntimeError('registration unavailable')
+            return original(*args, **kwargs)
+
+        with patch.object(q.cancellations, 'register', side_effect=fail_once):
+            task = q.enqueue(first['id'], 1)
+            result = self.wait(q, first, task, ('needs_review',))
+            self.assertFalse(result['remote_may_continue'])
+            self.assertEqual(result['run_id'], task['run_id'])
+            self.assertEqual(self.store.get(first['id'])['revision'], 1)
+            self.assertEqual(self.fixture.state['submits'], 0)
+            self.assertNotIn(task['id'], q._active_handles)
+            self.assertTrue(q.worker.is_alive())
+            second = self.job()
+            following = q.enqueue(second['id'], 1)
+            self.wait(q, second, following, ('completed',))
+        self.assertEqual(self.store.get(second['id'])['revision'], 2)
+        self.assertEqual(self.fixture.state['submits'], 1)
+
     def test_running_cancel_signals_matching_registration_and_preserves_ledger(self):
         q = self.queue()
         job = self.job()
