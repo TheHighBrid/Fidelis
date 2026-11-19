@@ -91,6 +91,49 @@ class IntegrationGateTests(unittest.TestCase):
         self.assertTrue(moved)
         self.assertEqual(self.git('status', '--porcelain'), '')
 
+    def test_concurrent_base_move_fails_closed(self):
+        self.git('switch', '-qc', 'feature')
+        self.commit('feature version')
+        self.git('switch', '-q', 'base')
+        original_git = gate.git
+        moved = False
+
+        def move_base_after_diff(*args, **kwargs):
+            nonlocal moved
+            result = original_git(*args, **kwargs)
+            if args[:2] == ('diff', '--name-only') and not moved:
+                moved = True
+                (self.root / 'base-only.txt').write_text('new base commit')
+                self.git('add', 'base-only.txt')
+                self.git('commit', '-qm', 'advance base')
+            return result
+
+        with patch.object(gate, 'git', side_effect=move_base_after_diff):
+            with self.assertRaisesRegex(RuntimeError, 'ref changed'):
+                gate.inspect('base', 'feature', self.root)
+        self.assertTrue(moved)
+        self.assertEqual(self.git('status', '--porcelain'), '')
+
+    def test_merge_tree_unavailable_fails_closed(self):
+        self.git('switch', '-qc', 'feature')
+        self.commit('feature version')
+        original_run = subprocess.run
+
+        def reject_merge_tree(command, **kwargs):
+            if command[:3] == ['git', 'merge-tree', '--write-tree']:
+                return subprocess.CompletedProcess(command, 129, '', 'unsupported option')
+            return original_run(command, **kwargs)
+
+        with patch.object(gate.subprocess, 'run', side_effect=reject_merge_tree):
+            with self.assertRaisesRegex(RuntimeError, 'merge-tree'):
+                gate.inspect('base', 'feature', self.root)
+        self.assertEqual(self.git('status', '--porcelain'), '')
+
+    def test_no_feature_commits_is_blocked(self):
+        self.git('branch', 'feature', 'base')
+        self.assertEqual(gate.main(['--base', 'base', '--head', 'feature',
+                                    '--repo', str(self.root)]), 1)
+
     def test_dirty_tree_is_rejected(self):
         self.git('switch', '-qc', 'feature')
         self.commit('feature change')
