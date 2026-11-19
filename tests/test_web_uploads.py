@@ -52,8 +52,9 @@ class UploadTests(unittest.TestCase):
                     self.assertIn("error", data)
 
     def test_oversized_request_rejected_before_read(self):
-        status, _ = self.post(b"{}", headers={"Content-Length": str(web.MAX_REQUEST_BYTES + 1)})
+        status, data = self.post(b"{}", headers={"Content-Length": str(web.MAX_REQUEST_BYTES + 1)})
         self.assertEqual(status, 413)
+        self.assertIn("error", data)
 
     def test_bad_length(self):
         status, _ = self.post(b"{}", headers={"Content-Length": "invalid"})

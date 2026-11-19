@@ -243,3 +243,11 @@ dependencies plus pytest so `tests/e2e` can import:
   executed by `tests/test_native_inspection.py`, which is inside the 312.
 - `git diff --check` is recorded with the commit. No GPU, visual, or device
   acceptance is claimed. Remote CI is separate evidence.
+
+The first macOS CI job failed in `test_oversized_request_rejected_before_read`
+with `ConnectionResetError` while reading the 413 response. The handler now
+sends that JSON error with `Content-Length` and discards at most 64 KiB of
+bytes already buffered, so the socket can close. It still does not read the
+declared oversized body. Local discovery after that change remained 312 tests,
+OK. Ubuntu CI and the browser-report job had passed on the previous head.
+Codacy on this draft is a separate finding and is not cleared here.

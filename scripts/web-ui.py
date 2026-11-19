@@ -1288,6 +1288,43 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         pass  # Quiet logs
 
+    def _send_upload_error(self, error):
+        """Return a complete JSON error and close without reading a rejected body."""
+        payload = json.dumps({"error": str(error)}).encode("utf-8")
+        self.close_connection = True
+        try:
+            self.connection.settimeout(None)
+        except OSError:
+            pass
+        self.send_response(error.status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(payload)))
+        self.send_header("Connection", "close")
+        self.end_headers()
+        self.wfile.write(payload)
+        self.wfile.flush()
+        self._discard_pending_request_bytes()
+
+    def _discard_pending_request_bytes(self, limit=65536):
+        """Drop bytes already buffered so macOS can close without a TCP reset.
+
+        The cap stays far below the upload limit. An oversized Content-Length is
+        never read into the request handler.
+        """
+        discarded = 0
+        try:
+            self.connection.settimeout(0)
+            while discarded < limit:
+                try:
+                    chunk = self.rfile.read1(min(8192, limit - discarded))
+                except (TimeoutError, BlockingIOError, OSError):
+                    break
+                if not chunk:
+                    break
+                discarded += len(chunk)
+        except OSError:
+            return
+
     def dispatch_regions(self):
         path = urlparse(self.path).path
         if path != "/regions" and not path.startswith("/api/regions/"):
@@ -1652,11 +1689,7 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
                 self.send_response(404)
                 self.end_headers()
         except UploadError as e:
-            self.close_connection = True
-            self.send_response(e.status)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
+            self._send_upload_error(e)
         except Exception as e:
             traceback.print_exc()
             self.send_response(500)
