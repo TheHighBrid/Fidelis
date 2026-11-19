@@ -1,6 +1,7 @@
 """Single-owner durable local generation queue; no global GPU interruption."""
 import copy
 import fcntl
+import hashlib
 import json
 import sqlite3
 import threading
@@ -22,6 +23,76 @@ from fidelis.studio.cancellation import CancellationRegistry
 
 class QueueFull(BudgetExceeded):
     pass
+
+
+class QueueStorageError(RuntimeError):
+    """The on-disk queue database is partial or unreadable.
+
+    Callers must leave the file in place. A readable database with a damaged
+    task row is quarantined separately and is not executed.
+    """
+
+
+QUARANTINE_MESSAGE = 'Corrupt queue record was quarantined and was not executed'
+RESTART_MESSAGE = 'Worker restarted; explicitly resume to reconcile the existing run'
+ABANDON_MESSAGE = 'Worker fault before a terminal queue update; explicitly resume to reconcile the existing run'
+
+_STATUSES = frozenset({
+    'queued', 'running', 'applying', 'completed', 'waiting',
+    'needs_review', 'interrupted', 'failed', 'cancelled',
+})
+_SQLITE_HEADER = b'SQLite format 3\x00'
+
+
+class CancellationSignals:
+    """Read and signal one worker token.
+
+    A retired registration raises PermissionError or RuntimeError. The queue
+    keeps the SQLite record authoritative in that case. Implementations must
+    not re-enter the queue.
+    """
+
+    def requested(self, handle) -> bool:
+        return bool(handle.is_requested())
+
+    def request(self, handle):
+        return handle.request()
+
+
+class _Settlements:
+    """Count of finished claims, waitable without a polling sleep."""
+
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._count = 0
+        self._event = threading.Event()
+
+    def pulse(self):
+        with self._lock:
+            self._count += 1
+            self._event.set()
+
+    @property
+    def count(self):
+        with self._lock:
+            return self._count
+
+    def wait_until(self, count, timeout):
+        if timeout is not None and (not isinstance(timeout, (int, float)) or isinstance(timeout, bool) or timeout < 0):
+            raise ValueError('timeout must be nonnegative')
+        deadline = None if timeout is None else time.monotonic() + timeout
+        while True:
+            with self._lock:
+                if self._count >= count:
+                    return True
+                self._event.clear()
+            if deadline is None:
+                self._event.wait()
+                continue
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return False
+            self._event.wait(remaining)
 
 
 class GenerationQueue:
@@ -58,50 +129,172 @@ class GenerationQueue:
         self.lock = threading.RLock()
         self.wake, self.stopping = threading.Event(), threading.Event()
         self.cancellations = CancellationRegistry()
+        self.signals = CancellationSignals()
+        self._settled = _Settlements()
         self._active_handles = {}
+        self._inflight = None
+        self.worker = None
         try:
             self.backend = backend or ComfyTextureBackend(self.root / 'runs', address, timeout=2)
         except BaseException:
             self._owner.close()
             raise
         try:
+            self._reject_partial_database(self.root / 'queue.sqlite3')
             with self._db() as db:
-                db.execute('CREATE TABLE IF NOT EXISTS tasks (id TEXT PRIMARY KEY, record TEXT NOT NULL)')
-                for task in self._all(db):
-                    if task['status'] in ('running', 'applying'):
-                        task.update(status='interrupted', message='Worker restarted; explicitly resume to reconcile the existing run')
-                        self._save(db, task)
-            self.worker = threading.Thread(target=self._work, name='fidelis-generation', daemon=True)
-            self.worker.start()
-            self.wake.set()
+                self._recover_inflight(db)
+            self._start_worker()
         except BaseException:
+            if self.worker is not None and self.worker.is_alive():
+                self.stopping.set()
+                self.wake.set()
+                self.worker.join(timeout=2)
+            self.cancellations.close()
             self.backend.close()
             self._owner.close()
             raise
 
+    def _reject_partial_database(self, path):
+        """Refuse an empty, truncated, or malformed database without rewriting it."""
+        if not path.exists():
+            return
+        if not path.is_file():
+            raise QueueStorageError('Queue database path is not a file')
+        before = path.stat().st_size
+        if before == 0:
+            raise QueueStorageError('Partial queue database: queue.sqlite3 is empty')
+        with path.open('rb') as handle:
+            header = handle.read(len(_SQLITE_HEADER))
+        if header != _SQLITE_HEADER:
+            raise QueueStorageError('Partial or corrupt queue database: invalid SQLite header')
+        uri = path.resolve().as_uri() + '?mode=ro'
+        try:
+            connection = sqlite3.connect(uri, uri=True, timeout=2)
+            try:
+                row = connection.execute('PRAGMA integrity_check').fetchone()
+            finally:
+                connection.close()
+        except sqlite3.DatabaseError as error:
+            raise QueueStorageError(f'Partial or corrupt queue database: {error}') from error
+        if not row or row[0] != 'ok':
+            detail = row[0] if row else None
+            raise QueueStorageError(f'Queue database failed integrity check: {detail}')
+
     @contextmanager
     def _db(self):
-        connection = sqlite3.connect(self.root / 'queue.sqlite3', timeout=2)
+        connection = sqlite3.connect(self.root / 'queue.sqlite3', timeout=2, isolation_level=None)
         try:
-            with connection:
-                yield connection
+            connection.execute('PRAGMA synchronous=FULL')
+            connection.execute('BEGIN IMMEDIATE')
+            yield connection
+            connection.commit()
+        except BaseException:
+            try:
+                connection.rollback()
+            except sqlite3.Error:
+                pass
+            raise
         finally:
             connection.close()
 
-    @staticmethod
-    def _all(db):
-        return [json.loads(row[0]) for row in db.execute('SELECT record FROM tasks ORDER BY rowid')]
+    def _ensure_table(self, db):
+        db.execute('CREATE TABLE IF NOT EXISTS tasks (id TEXT PRIMARY KEY, record TEXT NOT NULL)')
 
-    @staticmethod
-    def _save(db, task):
+    def _structurally_valid(self, task, row_id):
+        if not isinstance(task, dict) or task.get('id') != row_id:
+            return False
+        if not isinstance(task.get('job_id'), str) or not task['job_id']:
+            return False
+        if not isinstance(task.get('run_id'), str) or not task['run_id']:
+            return False
+        if task.get('status') not in _STATUSES:
+            return False
+        if type(task.get('expected_revision')) is not int:
+            return False
+        if not isinstance(task.get('bundle'), dict):
+            return False
+        if not isinstance(task.get('backend_address'), str) or not task['backend_address']:
+            return False
+        for name in ('cancel_requested', 'remote_may_continue', 'live_quality_verified'):
+            if not isinstance(task.get(name), bool):
+                return False
+        if 'quarantined' in task and not isinstance(task.get('quarantined'), bool):
+            return False
+        return True
+
+    def _quarantine_record(self, row_id, raw, parsed):
+        parsed = parsed if isinstance(parsed, dict) else {}
+
+        def text(key, fallback):
+            value = parsed.get(key)
+            return value if isinstance(value, str) and value else fallback
+
+        revision = parsed.get('expected_revision')
+        bundle = parsed.get('bundle')
+        address = parsed.get('backend_address')
+        payload = raw.encode('utf-8') if isinstance(raw, str) else bytes(raw)
+        return {
+            'id': row_id,
+            'run_id': text('run_id', 'unknown'),
+            'job_id': text('job_id', 'unknown'),
+            'expected_revision': revision if type(revision) is int else 0,
+            'status': 'needs_review',
+            'bundle': bundle if isinstance(bundle, dict) else {},
+            'backend_address': address if isinstance(address, str) and address else 'unrecorded',
+            'cancel_requested': False,
+            'remote_may_continue': True,
+            'live_quality_verified': False,
+            'quarantined': True,
+            'error': 'CorruptRecord',
+            'message': QUARANTINE_MESSAGE,
+            'invalid_record_sha256': hashlib.sha256(payload).hexdigest(),
+            'invalid_record_bytes': len(payload),
+            'created_at_unix': time.time(),
+        }
+
+    def _parse_record(self, db, row_id, raw):
+        parsed = None
+        if isinstance(raw, str):
+            try:
+                loaded = json.loads(raw)
+            except json.JSONDecodeError:
+                loaded = None
+            else:
+                if isinstance(loaded, dict):
+                    parsed = loaded
+        if parsed is not None and self._structurally_valid(parsed, row_id):
+            return parsed
+        repaired = self._quarantine_record(row_id, raw, parsed)
+        self._save(db, repaired)
+        return repaired
+
+    def _all(self, db):
+        self._ensure_table(db)
+        rows = list(db.execute('SELECT id, record FROM tasks ORDER BY rowid'))
+        return [self._parse_record(db, row_id, raw) for row_id, raw in rows]
+
+    def _save(self, db, task):
         task['updated_at_unix'] = time.time()
-        db.execute('UPDATE tasks SET record=? WHERE id=?', (json.dumps(task, allow_nan=False), task['id']))
+        db.execute(
+            'UPDATE tasks SET record=? WHERE id=?',
+            (json.dumps(task, allow_nan=False), task['id']),
+        )
+
+    def _recover_inflight(self, db):
+        """Mark crashed in-flight work interrupted and quarantine damaged rows."""
+        for task in self._all(db):
+            if task['status'] in ('running', 'applying'):
+                task.update(status='interrupted', message=RESTART_MESSAGE)
+                self._save(db, task)
 
     def _owned(self, db, job_id, task_id):
         row = db.execute('SELECT record FROM tasks WHERE id=?', (task_id,)).fetchone()
-        if not row or json.loads(row[0])['job_id'] != job_id:
+        if not row:
             raise KeyError('Generation task not found for this job')
-        return json.loads(row[0])
+        task = self._parse_record(db, task_id, row[0])
+        if task['job_id'] != job_id:
+            raise KeyError('Generation task not found for this job')
+        return task
 
     def list(self, job_id):
         with self.lock, self._db() as db:
@@ -156,7 +349,7 @@ class GenerationQueue:
                     # make an already-persisted cancellation appear to fail.
                     # The worker also reads the durable flag at checkpoints.
                     try:
-                        handle.request()
+                        self.signals.request(handle)
                     except (PermissionError, RuntimeError):
                         pass
             return self._public(task)
@@ -168,6 +361,8 @@ class GenerationQueue:
             if self.stopping.is_set():
                 raise RuntimeError('Generation worker is stopping')
             task = self._owned(db, job_id, task_id)
+            if task.get('quarantined'):
+                raise RevisionConflict('Corrupt queue record cannot be resumed')
             if task['status'] not in self.RESUMABLE:
                 raise RevisionConflict('Only interrupted, waiting or unresolved tasks can be resumed')
             if sum(item['status'] in self.ACTIVE for item in self._all(db)) >= self.capacity:
@@ -186,7 +381,7 @@ class GenerationQueue:
             handle = self._active_handles.get(task['id'])
             if handle is not None:
                 try:
-                    if handle.is_requested():
+                    if self.signals.requested(handle):
                         return True
                 except (PermissionError, RuntimeError):
                     # Registry retirement invalidates old handles. Durable SQLite
@@ -279,65 +474,134 @@ class GenerationQueue:
                          message=('Unrecognized or active backend run state; reconcile before resume'
                                   if unresolved else str(error)))
 
+    def _retire_registry(self):
+        self.cancellations.close()
+        self.cancellations = CancellationRegistry()
+
+    def _claim_next(self, db):
+        """Claim at most one queued task. A second call is refused while it runs."""
+        if self.stopping.is_set() or self._inflight is not None:
+            return None
+        for item in self._all(db):
+            if item.get('status') != 'queued' or item.get('quarantined'):
+                continue
+            try:
+                handle = self.cancellations.register(item['id'], item['job_id'])
+            except Exception:
+                # A registration implementation can fail after creating its
+                # owner/event. Retire that registry before the next claim so no
+                # stale token survives a partial failure.
+                self._retire_registry()
+                item.update(status='needs_review', remote_may_continue=False,
+                            message='Local cancellation registration failed; inspect before resume')
+                self._save(db, item)
+                continue
+            item.update(status='running')
+            try:
+                self._save(db, item)
+            except Exception:
+                try:
+                    handle.unregister()
+                except Exception:
+                    self._retire_registry()
+                raise
+            self._active_handles[item['id']] = handle
+            self._inflight = item['id']
+            return item
+        return None
+
+    def _rollback_inflight_memory(self):
+        with self.lock:
+            inflight = self._inflight
+            self._inflight = None
+            handle = self._active_handles.pop(inflight, None) if inflight is not None else None
+            if handle is None:
+                return
+            try:
+                handle.unregister()
+            except Exception:
+                self._retire_registry()
+
+    def _release_claim(self, task):
+        with self.lock:
+            if self._inflight == task['id']:
+                self._inflight = None
+            handle = self._active_handles.pop(task['id'], None)
+            if handle is not None:
+                try:
+                    handle.unregister()
+                except Exception:
+                    # The queue has exactly one execution worker. If unregister
+                    # fails, retire the entire in-memory registry rather than
+                    # leave a stale owner/token that could block a future claim
+                    # or be signalled for a different task.
+                    self._retire_registry()
+        self._settled.pulse()
+
+    def _abandon(self, task, error):
+        with self.lock, self._db() as db:
+            current = self._owned(db, task['job_id'], task['id'])
+            if current['status'] not in ('running', 'applying'):
+                return
+            current.update(status='interrupted', remote_may_continue=True,
+                           error=type(error).__name__, message=ABANDON_MESSAGE)
+            self._save(db, current)
+
+    def _run_claimed(self, task):
+        try:
+            try:
+                self._execute(task)
+            except Exception as error:
+                try:
+                    self._abandon(task, error)
+                except Exception:
+                    pass
+        finally:
+            self._release_claim(task)
+
     def _work(self):
+        fault = False
         while not self.stopping.is_set():
             task = None
-            with self.lock, self._db() as db:
-                # Shutdown can be requested while the worker waits for this lock.
-                # Do not claim another durable task after that request.
-                if self.stopping.is_set():
-                    break
-                for item in self._all(db):
-                    if item['status'] == 'queued':
-                        task = item
-                        # Register before committing the running transition. A
-                        # registration failure must not terminate the worker or
-                        # leave a task falsely marked as executing remotely.
-                        try:
-                            handle = self.cancellations.register(task['id'], task['job_id'])
-                        except Exception:
-                            # A registration implementation can fail after creating
-                            # its owner/event. Retire that registry before the next
-                            # claim so no stale token survives a partial failure.
-                            self.cancellations.close()
-                            self.cancellations = CancellationRegistry()
-                            task.update(status='needs_review', remote_may_continue=False,
-                                        message='Local cancellation registration failed; inspect before resume')
-                            self._save(db, task)
-                            task = None
-                            break
-                        task.update(status='running')
-                        self._save(db, task)
-                        # Registration and running transition share the queue lock,
-                        # preventing cancellation from slipping between them.
-                        self._active_handles[task['id']] = handle
+            try:
+                with self.lock, self._db() as db:
+                    if self.stopping.is_set():
                         break
-                self.wake.clear()
-            if task:
-                try:
-                    self._execute(task)
-                finally:
+                    task = self._claim_next(db)
+                    if task is None:
+                        self.wake.clear()
+                fault = False
+            except Exception:
+                self._rollback_inflight_memory()
+                if fault and not self.stopping.is_set():
+                    # A repeated claim fault waits for the next queue event
+                    # instead of spinning. The short bound also covers a wake
+                    # that was cleared while the producer was between insert
+                    # and set. Healthy claims do not use this path.
                     with self.lock:
-                        handle = self._active_handles.pop(task['id'], None)
-                        if handle is not None:
-                            try:
-                                handle.unregister()
-                            except Exception:
-                                # The queue has exactly one execution worker. If
-                                # unregister fails, retire the entire in-memory
-                                # registry rather than leave a stale owner/token
-                                # that could block a future claim or be signalled
-                                # for a different task. Closing invalidates all
-                                # handles; the next claim gets a fresh registry.
-                                self.cancellations.close()
-                                self.cancellations = CancellationRegistry()
-            else:
-                self.wake.wait(.25)
+                        self.wake.clear()
+                    self.wake.wait(0.25)
+                    fault = False
+                    continue
+                fault = True
+                continue
+            if task is not None:
+                self._run_claimed(task)
+            elif not self.stopping.is_set():
+                self.wake.wait()
+
+    def _start_worker(self):
+        if self.worker is not None and self.worker.is_alive():
+            raise RuntimeError('A generation worker is already running')
+        self.worker = threading.Thread(target=self._work, name='fidelis-generation', daemon=True)
+        self.worker.start()
+        self.wake.set()
 
     def close(self):
         self.stopping.set()
         self.wake.set()
-        self.worker.join()  # HTTP calls and polling are bounded; never release ownership while active.
+        if self.worker is not None:
+            self.worker.join()  # HTTP calls and polling are bounded; never release ownership while active.
         self.cancellations.close()
         self.backend.close()
         self._owner.close()
