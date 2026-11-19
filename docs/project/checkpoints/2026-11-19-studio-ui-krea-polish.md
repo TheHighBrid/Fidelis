@@ -61,10 +61,28 @@ narrower rail, and the open dock follows the tested placement helper.
 No paid call, live worker, physical Android/iOS device, or human visual signoff
 was involved. The synthetic pair does not evidence restoration quality.
 
+## Narrow reading order · follow-up
+
+At widths through 780px the review stage and paint section, including the mask
+legend, now come before the import form. Wider layouts keep the rail on the left
+and the canvas on the right. Save, crop, and protection behaviour are unchanged.
+
+Headless Google Chrome 157.0.8103.50 on this Linux host, still using the synthetic
+64×48 pair and `127.0.0.1`:
+
+- 390px: layout `stack`. Canvas top 230, mask legend top 1483, import form top
+  2161. `scrollWidth <= clientWidth + 1`.
+- 900px: layout `tablet`. Import stays in the left column, left of the canvas.
+  The same overflow check passed. The open inspector remained `sheet`.
+- 1440px: layout `desk`. Import stayed left of the canvas. The same overflow
+  check passed. The open inspector remained `side`.
+
+`node tests/review-ui.cjs` passed, including the narrow source-order sort.
+`node tests/native-inspection-ui.cjs` passed. This is not device or visual
+acceptance.
+
 ## Remaining
 
 F08 and F15 stay in progress. Physical touch hardware, photographic visual
-acceptance, and the external E2–E4 gates are unchanged. On a phone the import
-form still precedes the canvas, so the new legend sits below that existing form.
-Next independent UI step: keep the canvas and mask legend reachable without
-scrolling past import on narrow widths, then repeat the headless overflow check.
+acceptance, and the external E2–E4 gates are unchanged. The narrow order is
+implemented and headless-checked; it is not a physical-device signoff.

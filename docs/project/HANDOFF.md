@@ -142,5 +142,6 @@ channel controls and native-inspector docking/nudging/readout on top of
 importer; web UI, smoke and JavaScript syntax checks passed. Headless Chrome
 157.0.8103.50 on Linux exercised a synthetic pair. This is not device or visual
 acceptance. See [the receipt](checkpoints/2026-11-19-studio-ui-krea-polish.md).
-Next UI step: keep the canvas and mask legend above the import form on narrow
-widths. Do not treat that as F08-B or F15 device signoff.
+The same branch now places the canvas and mask legend before the import form at
+widths through 780px. The repeated headless Chrome check passed at 390, 900 and
+1440px with no horizontal overflow. Do not treat that as F08-B or F15 device signoff.

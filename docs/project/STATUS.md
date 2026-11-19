@@ -208,6 +208,10 @@ Local discovery passed **263 tests in 59.962s** after the executor's missing
 `pytest` import was installed. The same command had first reported 268 tests and
 5 E2E import errors. Web UI integration, static smoke, `git diff --check` and
 the touched JavaScript syntax checks passed. Headless Chrome 157.0.8103.50 on
-this Linux host exercised a synthetic 64×48 pair at 1440, 900 and 390px. That
-is not physical-device or human visual acceptance. See
+this Linux host exercised a synthetic 64×48 pair at 1440, 900 and 390px. A
+follow-up on the same branch places the canvas and mask legend before the import
+form at widths through 780px. The repeated headless check kept 390px in stack
+order (canvas, then legend, then import) and kept 900px and 1440px as a left
+rail plus canvas, with no horizontal overflow at those three widths. That is
+not physical-device or human visual acceptance. See
 [the receipt](checkpoints/2026-11-19-studio-ui-krea-polish.md).

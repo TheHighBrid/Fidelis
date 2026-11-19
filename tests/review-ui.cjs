@@ -107,4 +107,23 @@ assert.match(html, /Preview zoom scales the reduced overview\. It is not native 
 assert.match(html, /min-width:781px\) and \(max-width:1099px\)/);
 assert.match(html, /data-inspector="side"/);
 
+const source = ['savedWork', 'importPasses', 'paintRegions', 'suggestions', 'generation', 'balance', 'main'];
+assert.deepEqual(review.narrowReadingOrder(), ['main', 'paintRegions', 'savedWork', 'importPasses', 'suggestions', 'generation', 'balance']);
+assert.deepEqual(review.stackReadingOrder(source, { main: -2, paintRegions: -1 }), review.narrowReadingOrder());
+assert.ok(review.narrowReadingOrder().indexOf('main') < review.narrowReadingOrder().indexOf('paintRegions'));
+assert.ok(review.narrowReadingOrder().indexOf('paintRegions') < review.narrowReadingOrder().indexOf('importPasses'));
+assert.equal(review.layoutMode(390), 'stack');
+assert.notEqual(review.layoutMode(900), 'stack');
+assert.notEqual(review.layoutMode(1440), 'stack');
+const marks = source.map((id) => [id, id === 'main' ? html.indexOf('<main>') : html.indexOf(`id="${id}"`)]);
+assert.ok(marks.every(([, index]) => index > 0));
+assert.deepEqual(marks.sort((a, b) => a[1] - b[1]).map(([id]) => id), source);
+const narrowCss = html.slice(html.lastIndexOf('@media(max-width:780px)'));
+assert.match(narrowCss, /#workspace>aside\{display:contents\}/);
+assert.match(narrowCss, /#workspace>main\{order:-2;/);
+assert.match(narrowCss, /#paintRegions\{order:-1\}/);
+const wideBlocks = html.match(/@media\(min-width:781px\)(?: and \(max-width:1099px\))?\{[^}]*\}/g);
+assert.ok(wideBlocks && wideBlocks.length >= 2);
+assert.ok(wideBlocks.every((block) => !block.includes('order:-2') && !block.includes('display:contents')));
+
 console.log('Review UI helper contracts passed: overlay, nudge, layout, keys, readout and markup.');

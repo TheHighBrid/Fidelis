@@ -123,6 +123,22 @@
     return layoutMode(width) === 'desk' ? 'side' : 'sheet';
   }
 
+  /* Source order of the rail, then the review stage. Narrow CSS pulls the stage
+     and paint section ahead of import without moving wide-layout columns. */
+  const NARROW_SOURCE = ['savedWork', 'importPasses', 'paintRegions', 'suggestions', 'generation', 'balance', 'main'];
+  const NARROW_CSS_ORDER = { main: -2, paintRegions: -1 };
+
+  function stackReadingOrder(sourceOrder = NARROW_SOURCE, cssOrder = NARROW_CSS_ORDER) {
+    return sourceOrder
+      .map((id, index) => ({ id, index, order: Object.prototype.hasOwnProperty.call(cssOrder, id) ? cssOrder[id] : 0 }))
+      .sort((a, b) => a.order - b.order || a.index - b.index)
+      .map((item) => item.id);
+  }
+
+  function narrowReadingOrder() {
+    return stackReadingOrder();
+  }
+
   function isTextField(state) {
     if (state.editable) return true;
     const tag = String(state.targetTag || '').toUpperCase();
@@ -227,6 +243,8 @@
     clampBrushDiameter,
     layoutMode,
     inspectorPlacement,
+    stackReadingOrder,
+    narrowReadingOrder,
     keyboardAction,
     cropPixel,
     rgbaAt,
