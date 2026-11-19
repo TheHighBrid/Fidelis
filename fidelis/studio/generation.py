@@ -11,13 +11,13 @@ from pathlib import Path
 
 import numpy as np
 
+from fidelis.studio.cancellation import CancellationRegistry
 from fidelis.studio.comfy import (
     ComfyTextureBackend,
     GenerationCancelled,
     SubmissionUnknown,
 )
 from fidelis.studio.store import BudgetExceeded, RevisionConflict
-from fidelis.studio.cancellation import CancellationRegistry
 
 
 class QueueFull(BudgetExceeded):
