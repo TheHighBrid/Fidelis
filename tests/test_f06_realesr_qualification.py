@@ -7,7 +7,8 @@ import hashlib
 import importlib.util
 import json
 import os
-import subprocess
+import platform
+import subprocess  # nosec B404
 import sys
 import tempfile
 import unittest
@@ -15,7 +16,6 @@ from pathlib import Path
 
 import numpy as np
 from PIL import Image
-
 
 REPO = Path(__file__).resolve().parents[1]
 SCRIPT = REPO / 'scripts' / 'qualify-realesr-general-v3.py'
@@ -30,6 +30,26 @@ SPEC.loader.exec_module(qualify)
 VERIFIER_SPEC = importlib.util.spec_from_file_location('verify_protected_export', VERIFIER)
 verify_export = importlib.util.module_from_spec(VERIFIER_SPEC)
 VERIFIER_SPEC.loader.exec_module(verify_export)
+
+
+# B603 is suppressed on the call below: argv0 is absolute /usr/bin/env.
+def _run_qualifier_script(args: list[str], env: dict | None) -> subprocess.CompletedProcess:
+    script = str(SCRIPT.resolve())
+    if not Path(script).is_absolute():
+        raise AssertionError(f'qualifier script is not absolute: {script}')
+    if not Path('/usr/bin/env').is_file():
+        raise AssertionError('absolute env was not found')
+    return subprocess.run(  # nosec B603
+        ['/usr/bin/env', sys.executable, script, *args],
+        capture_output=True,
+        text=True,
+        env=env,
+        check=False,
+    )
+
+
+def _protection_record(passed: bool) -> dict:
+    return {'pass': passed, 'changed_protected_pixels': 0}
 
 
 def write_png(path: Path, pixels: np.ndarray) -> None:
@@ -123,13 +143,9 @@ PY
         (directory / 'x4.bin').write_bytes(self.bin)
 
     def run_qualifier(self, *extra: str) -> subprocess.CompletedProcess:
-        return subprocess.run(
-            [sys.executable, str(SCRIPT), str(self.input), str(self.output), str(self.mask), *extra,
-             '--receipt', str(self.receipt)],
-            capture_output=True,
-            text=True,
-            env=self.environment(),
-            check=False,
+        return _run_qualifier_script(
+            [str(self.input), str(self.output), str(self.mask), *extra, '--receipt', str(self.receipt)],
+            self.environment(),
         )
 
     def test_committed_catalog_pin_is_the_documented_realesr_pair(self):
@@ -202,7 +218,7 @@ PY
         self.assertEqual(receipt['e4_released'], 'not_run')
         self.assertNotEqual(receipt['hardware']['target_m1_8gb'], 'accepted')
         self.assertNotEqual(receipt['hardware']['target_android'], 'accepted')
-        self.assertEqual(receipt['hardware']['system'], qualify.platform.system())
+        self.assertEqual(receipt['hardware']['system'], platform.system())
         self.assertEqual(receipt['model']['param_sha256'], self.param_sha)
         self.assertEqual(receipt['model']['bin_sha256'], self.bin_sha)
         self.assertFalse(receipt['model']['matches_committed_pin'])
@@ -287,7 +303,7 @@ cp "{self.root / 'bin.src'}" "$FIDELIS_HOME/runtime/models-{qualify.MODEL_NAME}/
             'hardware': {'target_m1_8gb': 'not_run', 'target_android': 'not_run'},
             'model': {'matches_committed_pin': True},
             'output': {'dimensions_match_scale': True},
-            'protection': {'pass': True, 'changed_protected_pixels': 0},
+            'protection': _protection_record(True),
         }
         with self.assertRaisesRegex(qualify.QualificationError, 'without a real run'):
             qualify.assert_receipt_honest(forged)
@@ -320,19 +336,13 @@ cp "{self.root / 'bin.src'}" "$FIDELIS_HOME/runtime/models-{qualify.MODEL_NAME}/
             dimensions_match=True,
             protection_pass=True,
         ), 'E2')
-        accepted = dict(forged)
-        accepted['live_inference'] = True
+        accepted = dict(forged, live_inference=True)
         accepted['hardware'] = {'target_m1_8gb': 'accepted', 'target_android': 'not_run'}
         with self.assertRaisesRegex(qualify.QualificationError, 'device acceptance'):
             qualify.assert_receipt_honest(accepted)
 
     def test_help_has_no_evidence_override(self):
-        proc = subprocess.run(
-            [sys.executable, str(SCRIPT), '--help'],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
+        proc = _run_qualifier_script(['--help'], None)
         self.assertEqual(proc.returncode, 0)
         self.assertNotIn('--evidence', proc.stdout)
 
