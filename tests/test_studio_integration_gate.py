@@ -114,6 +114,26 @@ class IntegrationGateTests(unittest.TestCase):
         self.assertTrue(moved)
         self.assertEqual(self.git('status', '--porcelain'), '')
 
+    def test_concurrent_checkout_change_fails_closed(self):
+        self.git('switch', '-qc', 'feature')
+        self.commit('feature version')
+        original_git = gate.git
+        changed = False
+
+        def dirty_after_diff(*args, **kwargs):
+            nonlocal changed
+            result = original_git(*args, **kwargs)
+            if args[:2] == ('diff', '--name-only') and not changed:
+                changed = True
+                (self.root / 'untracked.txt').write_text('concurrent edit')
+            return result
+
+        with patch.object(gate, 'git', side_effect=dirty_after_diff):
+            with self.assertRaisesRegex(RuntimeError, 'Working tree changed'):
+                gate.inspect('base', 'feature', self.root)
+        self.assertTrue(changed)
+        self.assertEqual((self.root / 'untracked.txt').read_text(), 'concurrent edit')
+
     def test_merge_tree_unavailable_fails_closed(self):
         self.git('switch', '-qc', 'feature')
         self.commit('feature version')
