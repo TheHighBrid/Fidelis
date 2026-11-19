@@ -22,21 +22,27 @@ def inspect(base, head, cwd=None):
     root = git('rev-parse', '--show-toplevel', cwd=cwd)
     if git('status', '--porcelain', cwd=root):
         raise RuntimeError('Working tree is not clean; refusing integration preflight')
-    for ref in (base, head):
-        git('rev-parse', '--verify', f'{ref}^{{commit}}', cwd=root)
-    merge_base = git('merge-base', base, head, cwd=root)
+    # Pin refs before inspection so a concurrent branch update cannot mix
+    # different histories across merge, ahead/behind and diff checks.
+    base_sha = git('rev-parse', '--verify', f'{base}^{{commit}}', cwd=root)
+    head_sha = git('rev-parse', '--verify', f'{head}^{{commit}}', cwd=root)
+    merge_base = git('merge-base', base_sha, head_sha, cwd=root)
     # Git's merge-tree performs an in-memory three-way merge, without touching
     # the index or working tree. Nonzero exit means conflict or unsupported Git.
-    merge_check = subprocess.run(['git', 'merge-tree', '--write-tree', base, head],
+    merge_check = subprocess.run(['git', 'merge-tree', '--write-tree', base_sha, head_sha],
                                  cwd=root, text=True, capture_output=True,
                                  check=False)
     if merge_check.returncode:
         raise RuntimeError('Integration merge-tree failed or has conflicts: ' +
                            (merge_check.stderr.strip() or merge_check.stdout.strip())[:500])
-    ahead = int(git('rev-list', '--count', f'{base}..{head}', cwd=root))
-    behind = int(git('rev-list', '--count', f'{head}..{base}', cwd=root))
-    files = git('diff', '--name-only', f'{base}...{head}', cwd=root).splitlines()
-    return {'base': base, 'head': head, 'merge_base': merge_base,
+    ahead = int(git('rev-list', '--count', f'{base_sha}..{head_sha}', cwd=root))
+    behind = int(git('rev-list', '--count', f'{head_sha}..{base_sha}', cwd=root))
+    files = git('diff', '--name-only', f'{base_sha}...{head_sha}', cwd=root).splitlines()
+    if (git('rev-parse', '--verify', f'{base}^{{commit}}', cwd=root) != base_sha
+            or git('rev-parse', '--verify', f'{head}^{{commit}}', cwd=root) != head_sha):
+        raise RuntimeError('Branch ref changed during integration preflight')
+    return {'base': base, 'head': head, 'base_sha': base_sha,
+            'head_sha': head_sha, 'merge_base': merge_base,
             'ahead': ahead, 'behind': behind, 'files': files}
 
 
