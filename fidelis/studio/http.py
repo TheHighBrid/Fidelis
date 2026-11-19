@@ -91,6 +91,14 @@ def _public(manifest):
             "base_artifact_sha256": manifest["artifacts"]["base"]["sha256"]}
 
 
+_REGION_ASSETS = {
+    "/regions": ("studio.html", "text/html; charset=utf-8"),
+    "/api/regions/editor.js": ("editor.js", "text/javascript; charset=utf-8"),
+    "/api/regions/inspection.js": ("inspection.js", "text/javascript; charset=utf-8"),
+    "/api/regions/review-ui.js": ("review-ui.js", "text/javascript; charset=utf-8"),
+}
+
+
 def dispatch(handler, workspace_root):
     """Handle /regions and /api/regions/*; return False for unrelated requests."""
     url = urlparse(handler.path)
@@ -98,11 +106,11 @@ def dispatch(handler, workspace_root):
         return False
     try:
         _local_request(handler)
-        if url.path in ("/regions", "/api/regions/editor.js", "/api/regions/inspection.js") and handler.command == "GET":
-            is_script = url.path.endswith(".js")
-            content = (Path(__file__).with_name(url.path.rsplit("/", 1)[-1] if is_script else "studio.html")).read_bytes()
+        if url.path in _REGION_ASSETS and handler.command == "GET":
+            filename, content_type = _REGION_ASSETS[url.path]
+            content = Path(__file__).with_name(filename).read_bytes()
             handler.send_response(200)
-            handler.send_header("Content-Type", "text/javascript; charset=utf-8" if is_script else "text/html; charset=utf-8")
+            handler.send_header("Content-Type", content_type)
             handler.send_header("Content-Length", str(len(content)))
             handler.send_header("Cache-Control", "no-store")
             handler.end_headers()

@@ -132,3 +132,15 @@ Do **not** re-implement `F05-A`, `F05-B`, `F08-B`, `F10`, `F11`, `F12`, `F13`, `
 2. Rights-cleared 60-case photographic corpus population (`F12-A`) and live comparator runs (`F12`).
 3. Dual-reviewer blind held-out quality signoff (`F13`) and physical Android/iOS touch review (`F08-B`/`F15`).
 4. PR #12 merge and owner release signoff (`F16`).
+
+## Studio review UI polish · 2026-11-19
+
+A scoped branch `work/bot06-studio-ui-krea-polish-20261119` adds display-only mask
+channel controls and native-inspector docking/nudging/readout on top of
+`feat/region-aware-studio` at `26d80750`. It does not rewrite that branch.
+**263 Python tests passed** in 59.962s after installing the missing pytest
+importer; web UI, smoke and JavaScript syntax checks passed. Headless Chrome
+157.0.8103.50 on Linux exercised a synthetic pair. This is not device or visual
+acceptance. See [the receipt](checkpoints/2026-11-19-studio-ui-krea-polish.md).
+Next UI step: keep the canvas and mask legend above the import form on narrow
+widths. Do not treat that as F08-B or F15 device signoff.

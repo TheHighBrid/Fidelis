@@ -152,6 +152,7 @@ class HttpTests(unittest.TestCase):
             self.request(path+'/mask-data?revision=1')
         self.assertEqual(caught.exception.code,409)
         self.assertIn(b'MaskHistory',self.request('/api/regions/editor.js')[1])
+        self.assertIn(b'compositeOverlay',self.request('/api/regions/review-ui.js')[1])
 
     def test_cross_origin_and_dns_rebinding_rejected(self):
         with self.assertRaises(PermissionError):

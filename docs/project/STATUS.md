@@ -195,3 +195,19 @@ interpolating executable expressions. Provenance, comparator execution, blind re
 held-out acceptance, and release readiness were decomposed into independently
 testable stages without relaxing their evidence requirements. No live-worker,
 physical-device, human visual, or release acceptance is implied by these changes.
+
+## Studio review UI polish · 2026-11-19
+
+On `work/bot06-studio-ui-krea-polish-20261119`, based on `26d80750`, the regional
+page now has display-only per-channel mask visibility, overlay strength, a
+protection hatch, a docked or pinned native inspector, arrow-key crop nudging,
+and a browser-decoded crop RGB readout. Preview zoom stays labelled as the
+reduced overview. Blend saving and protection semantics are unchanged.
+
+Local discovery passed **263 tests in 59.962s** after the executor's missing
+`pytest` import was installed. The same command had first reported 268 tests and
+5 E2E import errors. Web UI integration, static smoke, `git diff --check` and
+the touched JavaScript syntax checks passed. Headless Chrome 157.0.8103.50 on
+this Linux host exercised a synthetic 64×48 pair at 1440, 900 and 390px. That
+is not physical-device or human visual acceptance. See
+[the receipt](checkpoints/2026-11-19-studio-ui-krea-polish.md).

@@ -169,5 +169,20 @@ const assert=require('node:assert/strict');const m=require(process.argv[1]);
         result=subprocess.run([node,'-e',source,str(module)],capture_output=True,text=True,timeout=10)
         self.assertEqual(result.returncode,0,result.stderr)
 
+    def test_review_ui_script_is_served_and_helpers_pass(self):
+        response=self.fixture.request('/api/regions/review-ui.js')
+        self.assertEqual(response[0],200)
+        self.assertIn(b'compositeOverlay',response[1])
+        self.assertIn(b'do not modify mask values',response[1])
+        self.assertIn('javascript',response[2]['Content-Type'])
+        node=shutil.which('node')
+        if not node:self.skipTest('Node unavailable: review UI helpers not verified')
+        root=Path(__file__).resolve().parents[1]
+        for rel in ('fidelis/studio/review-ui.js','fidelis/studio/editor.js','fidelis/studio/inspection.js'):
+            checked=subprocess.run([node,'--check',str(root/rel)],capture_output=True,text=True,timeout=10)
+            self.assertEqual(checked.returncode,0,checked.stderr)
+        result=subprocess.run([node,str(root/'tests/review-ui.cjs')],capture_output=True,text=True,timeout=10)
+        self.assertEqual(result.returncode,0,result.stderr+result.stdout)
+
 
 if __name__=='__main__':unittest.main()
