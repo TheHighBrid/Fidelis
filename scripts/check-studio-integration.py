@@ -25,6 +25,14 @@ def inspect(base, head, cwd=None):
     for ref in (base, head):
         git('rev-parse', '--verify', f'{ref}^{{commit}}', cwd=root)
     merge_base = git('merge-base', base, head, cwd=root)
+    # Git's merge-tree performs an in-memory three-way merge, without touching
+    # the index or working tree. Nonzero exit means conflict or unsupported Git.
+    merge_check = subprocess.run(['git', 'merge-tree', '--write-tree', base, head],
+                                 cwd=root, text=True, capture_output=True,
+                                 check=False)
+    if merge_check.returncode:
+        raise RuntimeError('Integration merge-tree failed or has conflicts: ' +
+                           (merge_check.stderr.strip() or merge_check.stdout.strip())[:500])
     ahead = int(git('rev-list', '--count', f'{base}..{head}', cwd=root))
     behind = int(git('rev-list', '--count', f'{head}..{base}', cwd=root))
     files = git('diff', '--name-only', f'{base}...{head}', cwd=root).splitlines()
