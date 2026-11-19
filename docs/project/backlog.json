@@ -449,6 +449,27 @@
       "verification_checkpoint": "docs/project/checkpoints/2026-11-10-async-generation.md"
     },
     {
+      "id": "F07-B",
+      "title": "Enforce aggregate local generation PNG cache budget",
+      "parent": "F07",
+      "milestone": "M1",
+      "state": "In Review",
+      "implementation": "implemented_protocol_tested_in_review",
+      "depends_on": ["F07-A"],
+      "role": "Job orchestration",
+      "scope": "Bound shared backend PNG cache publication without deleting outputs or run identities.",
+      "acceptance": "Concurrent callers respect the payload cap; existing cache hits remain usable; quota exhaustion is resumable with the same prompt after raising the cap.",
+      "evidence": "fidelis/studio/comfy.py; tests/test_comfy_backend.py; tests/test_generation_queue.py; docs/COMFY_TEXTURE_BACKEND.md",
+      "priority": 2,
+      "linear": {
+        "id": "MEL-82",
+        "uuid": "27e07374-4180-4924-9810-bf3cfd1025c1",
+        "url": "https://linear.app/melato/issue/MEL-82/f07-b-enforce-aggregate-local-generation-png-cache-budget",
+        "title": "F07-B · Enforce aggregate local generation PNG cache budget"
+      },
+      "verification_checkpoint": "docs/project/checkpoints/2026-11-16-generation-cache-budget.md"
+    },
+    {
       "id": "F08-A",
       "title": "Add actual native image-pixel crop inspection",
       "parent": "F08",
@@ -480,7 +501,7 @@
       "role": "QA / UX",
       "scope": "Arrange a reachable local test surface and verify pointer/touch/keyboard, masks, undo and stale saves.",
       "acceptance": "Actual browser/device/version, screenshots or interaction evidence and defects recorded. Do not infer visual acceptance from Node math parity.",
-      "evidence": "scripts/browser-acceptance.mjs; tests/test-browser-acceptance.sh; docs/BROWSER_ACCEPTANCE.md; docs/project/checkpoints/2026-11-10-browser-acceptance.md; Google Chrome 157.0.8103.79 CDP verified on darwin arm64 across 1440x900 desktop and 390x844 mobile touch viewports with 0 defects; physical Android/iOS touch hardware review remains open",
+      "evidence": "scripts/browser-acceptance.mjs; tests/test-browser-acceptance.sh; docs/BROWSER_ACCEPTANCE.md; docs/project/checkpoints/2026-11-10-browser-acceptance.md; Google Chrome 157.0.8103.79 CDP verified on darwin arm64 across 1440x900 desktop and 390x844 mobile touch viewports with 0 defects; 2026-11-16 gate integrity follow-up has 8 passing Node tests, Linux Chromium startup aborted, physical Android/iOS touch hardware review remains open",
       "priority": 2,
       "linear": {
         "id": "MEL-80",
@@ -488,7 +509,7 @@
         "url": "https://linear.app/melato/issue/MEL-80/f08-b-complete-same-host-browser-and-target-device-acceptance",
         "title": "F08-B \u00b7 Complete same-host browser and target-device acceptance"
       },
-      "verification_checkpoint": "docs/project/checkpoints/2026-11-10-browser-acceptance.md"
+      "verification_checkpoint": "docs/project/checkpoints/2026-11-16-browser-gate-integrity.md"
     },
     {
       "id": "F12-A",

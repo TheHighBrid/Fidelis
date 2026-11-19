@@ -52,3 +52,16 @@ touchscreen ergonomics, stylus pressure/palm rejection, or human visual quality 
 ```bash
 bash tests/test-browser-acceptance.sh --screenshots-dir /tmp/fidelis-f08b-shots
 ```
+
+Use `--report /tmp/fidelis-f08b.json` to retain the completed JSON receipt.
+Exit zero requires every reported functional check to pass, zero unexpected
+HTTP/runtime errors and an empty `observed_defects` array. The receipt records
+`acceptance_passed` and `failed_checks`; known minor regressions are not silently
+accepted. Browser launch/transport failures also exit nonzero but do not imply
+a completed browser receipt. Actual physical-device acceptance is still separate.
+
+The report/transport contract has dependency-free regression coverage:
+
+```bash
+node --test tests/test_browser_acceptance_report.mjs
+```

@@ -24,6 +24,7 @@ def main():
     group.add_argument('--job', help='Existing regional job ID to update')
     parser.add_argument('--workspace', type=Path, default=Path('.cache/web_outputs/region_jobs'))
     parser.add_argument('--runs', type=Path, default=Path('.cache/generation_runs'))
+    parser.add_argument('--cache-mib', type=int, default=2048, help='Aggregate local generation PNG cache cap in MiB')
     parser.add_argument('--address', default='http://127.0.0.1:8188')
     parser.add_argument('--run-id', help='Explicit UUID to resume; default is derived from source + recipe')
     parser.add_argument('--deadline', type=float, default=300)
@@ -46,7 +47,7 @@ def main():
         else:
             with args.source.open('rb') as stream:
                 source = read_rgb8_png(stream)
-        backend = ComfyTextureBackend(args.runs, args.address)
+        backend = ComfyTextureBackend(args.runs, args.address, cache_budget=args.cache_mib * 1024**2)
         run_id = args.run_id or backend.default_cli_run_id(source, bundle, args.address)
         print(f'Generation run ID: {run_id}', file=sys.stderr)
         texture, record = backend.run(source, bundle, run_id=run_id, deadline_seconds=args.deadline)

@@ -10,7 +10,6 @@ face pore preservation, wavelet color stabilization) with telemetry span tracing
 """
 from __future__ import annotations
 
-import hashlib
 import json
 import logging
 import os
@@ -31,6 +30,7 @@ import cv2
 import numpy as np
 from PIL import Image
 
+from fidelis.core.provenance import compute_sha256, generate_c2pa_provenance
 from fidelis.core.router import DegradationProfiler
 from fidelis.eval.pipeline_metrics import measure_pipeline_metrics
 from fidelis.modules.face_restorer import FaceRestorer
@@ -127,93 +127,6 @@ def get_peak_memory_mb() -> float:
         return round(usage.ru_maxrss / 1024.0, 2)
     except Exception:
         return 0.0
-
-
-def compute_sha256(file_path: Path | str) -> str:
-    """Compute SHA-256 digest of a file."""
-    h = hashlib.sha256()
-    with open(file_path, "rb") as f:
-        while chunk := f.read(65536):
-            h.update(chunk)
-    return h.hexdigest()
-
-
-def generate_c2pa_provenance(
-    input_path: Path | str,
-    output_path: Path | str,
-    model_profile: str,
-    scale: int,
-    tile_size: int,
-    output_sha256: str,
-) -> dict[str, Any]:
-    """Create an unsigned execution record; legacy name/path are retained for compatibility.
-
-    No signing or C2PA verification takes place here. The .c2pa.json suffix does
-    not make this sidecar a conformant signed C2PA manifest.
-    """
-    input_sha256 = compute_sha256(input_path)
-    claim = {
-        "claim_generator": "Fidelis-Precision-Engine/2.0",
-        "format": "application/json",
-        "schema_version": 1,
-        "record_type": "unsigned_execution_record",
-        "title": "Fidelis Super-Resolution & Photographic Enhancement",
-        "assertions": [
-            {
-                "label": "c2pa.actions",
-                "data": {
-                    "actions": [
-                        {
-                            "action": "c2pa.upscaled",
-                            "parameters": {
-                                "scale": scale,
-                                "model_profile": model_profile,
-                                "tile_size": tile_size,
-                            },
-                            "softwareAgent": "Fidelis Precision Engine v2.0",
-                        }
-                    ]
-                },
-            },
-            {
-                "label": "c2pa.hash.data",
-                "data": {
-                    "input_sha256": input_sha256,
-                    "output_sha256": output_sha256,
-                    "algorithm": "sha256",
-                },
-            },
-        ],
-        "signature_info": {
-            "status": "unsigned",
-            "signed": False,
-            "issuer": None,
-            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        },
-    }
-
-    # Preserve the legacy filename, with explicit unsigned content and atomic write.
-    sidecar_path = Path(output_path).with_suffix(Path(output_path).suffix + ".c2pa.json")
-    pending = None
-    claim['sidecar_written'] = True
-    try:
-        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=sidecar_path.parent,
-                                         prefix=".fidelis-provenance-", suffix=".tmp", delete=False) as f:
-            pending = Path(f.name)
-            json.dump(claim, f, indent=2, allow_nan=False)
-        os.replace(pending, sidecar_path)
-        claim['sidecar_written'] = True
-    except OSError as error:
-        claim['sidecar_written'] = False
-        logger.warning("Could not write unsigned provenance sidecar: %s", error)
-    finally:
-        if pending is not None:
-            try:
-                pending.unlink(missing_ok=True)
-            except OSError as error:
-                logger.warning("Could not remove temporary provenance record: %s", error)
-
-    return claim
 
 
 class UpscalePipeline:
@@ -320,6 +233,8 @@ class UpscalePipeline:
 
             use_tiling = tiled and (in_w > tile_size or in_h > tile_size)
             if use_tiling:
+                # The tiled CLI is a hyphenated script, invoked by _run_tiled_upscale.
+                # Importing scripts.tiled_upscale fails before the subprocess can run.
                 self._run_tiled_upscale(
                     input_path=in_p,
                     output_path=step1_out,
@@ -527,7 +442,7 @@ class UpscalePipeline:
             "processing_time_per_megapixel": ms_per_mp,
             "processing_time_unit": "ms",
             "output_sha256": out_sha,
-            "c2pa_status": "unsigned",
+            "c2pa_status": c2pa_claim["signature_info"]["status"],
             "exif_preserved": exif_preserved,
             "zero_black_tiles": zero_black_tiles,
             "psnr": psnr_val,
@@ -584,7 +499,7 @@ class UpscalePipeline:
             "has_nans": has_nans,
             "input_sha256": in_sha,
             "output_sha256": out_sha,
-            "c2pa_status": "unsigned",
+            "c2pa_status": c2pa_claim["signature_info"]["status"],
             "spans": [asdict(s) for s in spans],
         }
 
@@ -628,7 +543,7 @@ class UpscalePipeline:
             megapixels=megapixels,
             processing_time_per_megapixel_ms=ms_per_mp,
             output_sha256=out_sha,
-            c2pa_status="unsigned",
+            c2pa_status=c2pa_claim["signature_info"]["status"],
             c2pa_manifest=c2pa_claim,
             exif_preserved=exif_preserved,
             zero_black_tiles=zero_black_tiles,
@@ -697,6 +612,10 @@ class UpscalePipeline:
             return "RealeSR-general-v3"
         return "RealeSR-general-v3"
 
+    def run_native_pass(self, input_path: Path, output_path: Path, model: str) -> None:
+        """Execute only the native base pass, without telemetry or restoration."""
+        self._run_direct_upscale(input_path, output_path, model)
+
     def _run_direct_upscale(self, input_path: Path, output_path: Path, model: str) -> None:
         cmd = [self.cli_path, "upscale", str(input_path), str(output_path), "--model", model]
         res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
@@ -721,8 +640,8 @@ class UpscalePipeline:
             "-m", model,
             "-t", str(tile_size),
             "--overlap", str(overlap),
-            "--scale", str(scale),
             "--cli-path", str(self.cli_path),
+            "--scale", str(scale),
         ]
         res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         if res.returncode != 0:

@@ -103,6 +103,21 @@ class GenerationTests(unittest.TestCase):
         self.assertNotIn('backend_address',result)
         self.assertFalse(result['live_quality_verified'])
 
+    def test_cache_budget_exhaustion_resumes_same_run_without_new_submission(self):
+        q=self.queue(); q.backend.cache_budget=1
+        job=self.job(); task=q.enqueue(job['id'],1)
+        blocked=self.wait(q,job,task,('needs_review',))
+        self.assertEqual(blocked['error'],'CacheBudgetExceeded')
+        self.assertTrue(blocked['remote_may_continue'])
+        self.assertEqual(self.store.get(job['id'])['revision'],1)
+        self.close_queues()
+        q=self.queue()
+        q.resume(job['id'],task['id'])
+        result=self.wait(q,job,task,('completed',))
+        self.assertEqual(result['run_id'],task['run_id'])
+        self.assertEqual(result['result_revision'],2)
+        self.assertEqual(self.fixture.state['submits'],1)
+
     def test_queued_cancel_bounds_and_no_unrelated_remote_interrupt(self):
         self.fixture.state['mode']='pending'
         q=self.queue(capacity=2); first=self.job(); second=self.job(); third=self.job()

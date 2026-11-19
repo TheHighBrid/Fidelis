@@ -6,12 +6,12 @@ from typing import Any
 
 import numpy as np
 
+from fidelis.eval.material_metrics import measure_fabric_hardware_faithfulness
 from fidelis.eval.roi_normalization import normalize_rois_to_target as _normalize_rois_to_target
 from fidelis.eval.texture_metrics import (
     measure_interior_texture_retention,
     measure_oversharpening_restraint,
 )
-from fidelis.eval.material_metrics import measure_fabric_hardware_faithfulness
 
 __all__ = [
     "measure_interior_texture_retention",

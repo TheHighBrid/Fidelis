@@ -49,6 +49,9 @@ jobs:
       - name: Fidelity metrics evaluation tests
         run: bash tests/test-fidelity-metrics.sh
 
+      - name: Legacy synthetic calibration pair alignment
+        run: python -m unittest discover -s tests -p 'test_corpus_alignment.py'
+
       - name: Geometric and drift detector tests
         run: bash tests/test-detect-drift.sh
 
@@ -60,6 +63,9 @@ jobs:
 
       - name: Region protection and reblend export tests
         run: python -m unittest discover -s tests -p 'test_region*.py'
+
+      - name: Product edge and ROI preservation tests
+        run: python -m unittest discover -s tests -p 'test_product_upscale.py'
 
       - name: Saved master export recovery tests
         run: python -m unittest discover -s tests -p 'test_studio_batch_export.py'
@@ -84,6 +90,20 @@ jobs:
 
       - name: Optional face detector fallback tests
         run: python -m unittest discover -s tests -p 'test_face_fallback.py'
+
+      - name: Web upload validation tests
+        run: python -m unittest discover -s tests -p 'test_web_uploads.py'
+
+      - name: Main integrity gates for provenance, tiling, export, exposure and color
+        run: |
+          python -m unittest discover -s tests -p 'test_unsigned_provenance.py'
+          python -m unittest discover -s tests -p 'test_tiled_pipeline_entrypoint.py'
+          python -m unittest discover -s tests -p 'test_protected_export_integrity.py'
+          python -m unittest discover -s tests -p 'test_deployment_exposure.py'
+          python -m unittest discover -s tests -p 'test_color_stabilization_routing.py'
+
+      - name: Studio interaction regression tests
+        run: node --test tests/test-studio-interactions.cjs
 
       - name: Instrumented pipeline integrity and metric reference tests
         run: python -m unittest discover -s tests -p 'test_pipeline_integrity.py'
