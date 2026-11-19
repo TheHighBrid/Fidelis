@@ -184,8 +184,15 @@ class GenerationQueue:
             return True
         with self.lock:
             handle = self._active_handles.get(task['id'])
-            if handle is not None and handle.is_requested():
-                return True
+            if handle is not None:
+                try:
+                    if handle.is_requested():
+                        return True
+                except (PermissionError, RuntimeError):
+                    # Registry retirement invalidates old handles. Durable SQLite
+                    # cancellation remains authoritative even when the token
+                    # cannot be inspected during worker cleanup or recovery.
+                    pass
             with self._db() as db:
                 return self._owned(db, task['job_id'], task['id'])['cancel_requested']
 
