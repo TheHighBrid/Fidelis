@@ -11,6 +11,7 @@ models/
 *.webp
 !tests/fixtures/.gitkeep
 !tests/fixtures/*.png
+!tests/fixtures/photographic_protocol/*.png
 !experiments/eval_crops/*.png
 experiments/eval_crops/audition_*/
 experiments/eval_crops/web_audition/

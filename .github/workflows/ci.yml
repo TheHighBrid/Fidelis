@@ -52,6 +52,12 @@ jobs:
       - name: Legacy synthetic calibration pair alignment
         run: python -m unittest discover -s tests -p 'test_corpus_alignment.py'
 
+      - name: Corpus rights and ROI manifest validation
+        run: python -m unittest discover -s tests -p 'test_corpus_manifest.py'
+
+      - name: Photographic restoration protocol regressions
+        run: python -m unittest discover -s tests -p 'test_photographic_protocol.py'
+
       - name: Geometric and drift detector tests
         run: bash tests/test-detect-drift.sh
 
