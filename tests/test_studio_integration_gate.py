@@ -42,11 +42,32 @@ class IntegrationGateTests(unittest.TestCase):
         self.git('switch', '-qc', 'feature')
         self.commit('feature change')
         self.git('switch', '-q', 'base')
-        self.commit('base change')
+        (self.root / 'base-only.txt').write_text('base change')
+        self.git('add', 'base-only.txt')
+        self.git('commit', '-qm', 'base change')
         result = gate.inspect('base', 'feature', self.root)
         self.assertEqual((result['ahead'], result['behind']), (1, 1))
         self.assertEqual(gate.main(['--base', 'base', '--head', 'feature',
                                     '--repo', str(self.root)]), 1)
+
+    def test_conflicting_feature_is_rejected_without_mutating_checkout(self):
+        self.git('switch', '-qc', 'feature')
+        self.commit('feature version')
+        self.git('switch', '-q', 'base')
+        self.commit('base version')
+        before = self.git('status', '--porcelain')
+        with self.assertRaisesRegex(RuntimeError, 'merge-tree'):
+            gate.inspect('base', 'feature', self.root)
+        self.assertEqual(self.git('status', '--porcelain'), before)
+        self.assertEqual((self.root / 'sample.txt').read_text(), 'base version')
+
+    def test_conflict_is_reported_as_blocked_by_cli(self):
+        self.git('switch', '-qc', 'feature')
+        self.commit('feature version')
+        self.git('switch', '-q', 'base')
+        self.commit('base version')
+        self.assertEqual(gate.main(['--base', 'base', '--head', 'feature',
+                                    '--repo', str(self.root)]), 2)
 
     def test_dirty_tree_is_rejected(self):
         self.git('switch', '-qc', 'feature')
