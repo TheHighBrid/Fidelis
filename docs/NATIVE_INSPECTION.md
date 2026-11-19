@@ -19,6 +19,17 @@ raw candidate. It does not enlarge the reduced overview or alter masks/unsaved e
   pixel ratio affect physical screen pixels; this is not a physical-display promise.
 - Scroll the crop on narrow/mobile layouts. Its CSS dimensions do not shrink to fit.
   The existing overview zoom remains explicitly labelled in preview pixels.
+- With Inspect / pan selected and the panel open, arrow keys move the crop centre by
+  one original image pixel. Shift+arrows jump by at least 8 pixels, or one quarter of
+  the crop side. The same saved-crop request loads after the keys settle.
+- Hovering the crop, or choosing **Read centre pixel**, samples browser-decoded RGB
+  from the two images already loaded for that crop. It is not a new API, not a
+  colour-managed measurement, and not the reduced overview zoom. If the browser
+  cannot read the pixels, the caption says the readout is unavailable and the
+  comparison images stay on the saved grid.
+- **Dock inspector** places the open panel beside the canvas at desk widths and pins
+  it below the canvas on narrower widths. Closing the panel returns that space to
+  the overview. Docking does not change crop bytes or mask values.
 
 The panel shows the saved revision, including when there are unsaved mask/slider
 changes. Save and reopen inspection to review those changes. Selecting another

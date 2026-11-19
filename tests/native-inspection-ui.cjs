@@ -1,10 +1,11 @@
 // DOM-contract fixture, not a browser/rendering or target-device acceptance test.
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const inspection=require('../fidelis/studio/inspection.js');
+const review=require('../fidelis/studio/review-ui.js');
 const html=fs.readFileSync(process.argv[2],'utf8');
 const elements=new Map();
 class Element{
- constructor(){this.children=[];this.style={};this.dataset={};this.handlers={};this.value='';this.hidden=false;this.disabled=false;this.options=[];this.classList={toggle(){}};this.attributes={};this.tagName='DIV';}
+ constructor(){this.children=[];this.style={};this.dataset={};this.handlers={};this.value='';this.hidden=false;this.disabled=false;this.options=[];const on=new Set();this.classList={toggle(name,force){const next=force===undefined?!on.has(name):!!force;if(next)on.add(name);else on.delete(name);return next;},add(name){on.add(name);},remove(name){on.delete(name);},contains(name){return on.has(name);}};this.attributes={};this.tagName='DIV';}
  set id(value){this._id=value;elements.set(value,this);}
  get id(){return this._id;}
  addEventListener(type,handler){this.handlers[type]=handler;}
@@ -13,20 +14,23 @@ class Element{
  append(...children){this.children.push(...children);}
  replaceChildren(...children){this.children=children;}
  scrollIntoView(){}
+ dispatchEvent(event){const type=event&&event.type;if(typeof this['on'+type]==='function')this['on'+type](event);if(typeof this.handlers[type]==='function')this.handlers[type](event);}
  getBoundingClientRect(){return {left:0,top:0,width:800,height:600};}
  getContext(){return {clearRect(){},putImageData(){},createImageData(){return {data:new Uint8ClampedArray(0)}}};}
 }
 for(const match of html.matchAll(/id="([^"]+)"/g))elements.set(match[1],new Element());
-for(const [id,value] of Object.entries({nativeZoom:'1',nativeRole:'master',nativeSide:'256',nativeSplit:'50',paintMode:'off'}))elements.get(id).value=value;
+for(const [id,value] of Object.entries({nativeZoom:'1',nativeRole:'master',nativeSide:'256',nativeSplit:'50',paintMode:'off',brushSize:'48',overlayOpacity:'0.6',paintLayer:'protected'}))elements.get(id).value=value;
 elements.get('nativePanel').hidden=true;
 const pending=[];
 class FixtureImage extends Element{
  set src(value){this.url=value;pending.push(this);}
 }
 class History{constructor(){this.done=[];this.undone=[];this.dirty=false;}reset(){this.done=[];this.undone=[];this.dirty=false;}strokes(){return []}}
-const context={console,URLSearchParams,Image:FixtureImage,FidelisInspection:inspection,FidelisMaskHistory:History,
+const timers=[];
+const context={console,URLSearchParams,Image:FixtureImage,FidelisInspection:inspection,FidelisReview:review,FidelisMaskHistory:History,Event,
  document:{getElementById:id=>elements.get(id),createElement:()=>new Element(),activeElement:{tagName:'DIV'}},
- window:{addEventListener(){}},setTimeout(){},requestAnimationFrame(){},confirm:()=>true,
+ window:{listeners:{},innerWidth:1440,addEventListener(type,handler){(this.listeners[type]||=[]).push(handler);}},
+ timers,setTimeout(fn,delay){timers.push({fn,delay});return timers.length;},clearTimeout(id){if(!id||!timers[id-1])return;timers[id-1].fn=null;},requestAnimationFrame(){},confirm:()=>true,
  fetch:async()=>({ok:true,json:async()=>({jobs:[],profiles:{},generation_enabled:false})}),Option:function(){}};
 vm.createContext(context);
 const code=html.match(/<script>([\s\S]*?)<\/script>/)[1];vm.runInContext(code,context);
@@ -94,5 +98,28 @@ function finish(images){for(const image of images){const params=new URL(image.ur
  assert.equal(elements.get('nativePanel').hidden,false);
  assert.equal(elements.get('nativeRole').value,'master');
  assert.match(pending.at(-1).url,/revision=4/);
+ assert.match(elements.get('jobChip').textContent,/revision 4/);
+ assert.doesNotMatch(elements.get('jobChip').textContent,/unsaved/);
+ elements.get('paintMode').value='off';
+ const x0=Number(elements.get('nativeX').value);
+ const beforeNudge=pending.length;
+ context.window.listeners.keydown[0]({key:'ArrowRight',ctrlKey:false,metaKey:false,altKey:false,shiftKey:false,preventDefault(){}});
+ assert.equal(Number(elements.get('nativeX').value),x0+1);
+ assert.equal(pending.length,beforeNudge);
+ assert.equal(context.timers.some(timer=>timer.delay===120&&timer.fn),true);
+ context.document.activeElement={tagName:'INPUT',type:'number'};
+ context.window.listeners.keydown[0]({key:'ArrowRight',ctrlKey:false,metaKey:false,altKey:false,shiftKey:false,preventDefault(){}});
+ assert.equal(Number(elements.get('nativeX').value),x0+1);
+ context.document.activeElement={tagName:'DIV'};
+ elements.get('channelSkin').handlers.click({shiftKey:true,altKey:false});
+ assert.equal(elements.get('channelSkin').attributes['aria-pressed'],'true');
+ assert.equal(elements.get('channelProtected').attributes['aria-pressed'],'false');
+ elements.get('dockNative').onclick();
+ assert.equal(elements.get('workspace').classList.contains('inspector-docked'),true);
+ assert.equal(elements.get('workspace').dataset.inspector,'side');
+ assert.equal(elements.get('dockNative').attributes['aria-pressed'],'true');
+ elements.get('toolInspect').onclick();
+ assert.equal(elements.get('paintMode').value,'off');
+ assert.equal(elements.get('toolInspect').attributes['aria-pressed'],'true');
  console.log('Inspector and suggestion DOM contracts passed: paired loading, scales, unsaved state, review gates and stale rejection.');
 })().catch(error=>{console.error(error);process.exitCode=1});

@@ -331,7 +331,7 @@
       "role": "UX / release engineering",
       "scope": "Complete accessible premium UI, device checks and reproducible install/upgrade/rollback.",
       "acceptance": "Actual M1/Android/browser checks and measured resource budgets; packaging includes intended modules/dependencies and protects saved data on upgrade/rollback.",
-      "evidence": "fidelis/studio/packaging.py; scripts/verify-upgrade-rollback.py; scripts/package-release.sh; scripts/package-offline-bundle.sh; Dockerfile; tests/test_release_packaging.py; tests/test-release-pipeline.sh; docs/RELEASE_PACKAGING.md; docs/project/checkpoints/2026-11-10-studio-packaging.md; Apple M1 8GB NCNN budgets and Chrome CDP responsive checks recorded; physical Android device signoff remains open",
+      "evidence": "fidelis/studio/packaging.py; scripts/verify-upgrade-rollback.py; scripts/package-release.sh; scripts/package-offline-bundle.sh; Dockerfile; tests/test_release_packaging.py; tests/test-release-pipeline.sh; docs/RELEASE_PACKAGING.md; docs/project/checkpoints/2026-11-10-studio-packaging.md; Apple M1 8GB NCNN budgets and Chrome CDP responsive checks recorded; physical Android device signoff remains open; 2026-11-19 display-only mask legend, inspector dock/nudge/readout and mid-width layout are fixture-tested in docs/project/checkpoints/2026-11-19-studio-ui-krea-polish.md and are not device acceptance",
       "priority": 3,
       "linear": {
         "id": "MEL-69",
