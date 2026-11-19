@@ -32,14 +32,44 @@ class UploadTests(unittest.TestCase):
         cls.server.server_close()
         cls.thread.join()
 
-    def post(self, body, path="/api/upscale", headers=None):
+    def post(self, body, path="/api/upscale", headers=None, *, accept_reject_reset=False):
         conn = http.client.HTTPConnection(*self.server.server_address, timeout=5)
+        response = None
         try:
-            conn.request("POST", path, body, headers or {})
-            response = conn.getresponse()
-            return response.status, json.loads(response.read())
+            try:
+                conn.request("POST", path, body, headers or {})
+                response = conn.getresponse()
+                raw = response.read()
+            except (
+                ConnectionResetError,
+                BrokenPipeError,
+                ConnectionAbortedError,
+                http.client.RemoteDisconnected,
+                http.client.IncompleteRead,
+            ):
+                # Only the Content-Length reject tests opt in. Other callers
+                # still fail if the peer aborts.
+                if not accept_reject_reset:
+                    raise
+                if response is not None:
+                    return response.status, None
+                return None
+            return response.status, json.loads(raw)
         finally:
-            conn.close()
+            try:
+                conn.close()
+            except OSError:
+                pass
+
+    def assert_reject_or_reset(self, body, headers, expected_status):
+        # macOS may RST when the handler closes before consuming a bad or oversized body.
+        result = self.post(body, headers=headers, accept_reject_reset=True)
+        if result is None:
+            return
+        status, data = result
+        self.assertEqual(status, expected_status)
+        if data is not None:
+            self.assertIn("error", data)
 
     def test_invalid_requests_are_client_errors(self):
         for body in (b"", b"{", b"\xff", b"[]", b"null", b"{}",
@@ -52,12 +82,14 @@ class UploadTests(unittest.TestCase):
                     self.assertIn("error", data)
 
     def test_oversized_request_rejected_before_read(self):
-        status, _ = self.post(b"{}", headers={"Content-Length": str(web.MAX_REQUEST_BYTES + 1)})
-        self.assertEqual(status, 413)
+        self.assert_reject_or_reset(
+            b"{}",
+            {"Content-Length": str(web.MAX_REQUEST_BYTES + 1)},
+            413,
+        )
 
     def test_bad_length(self):
-        status, _ = self.post(b"{}", headers={"Content-Length": "invalid"})
-        self.assertEqual(status, 400)
+        self.assert_reject_or_reset(b"{}", {"Content-Length": "invalid"}, 400)
 
     def image_data(self, fmt):
         stream = io.BytesIO()

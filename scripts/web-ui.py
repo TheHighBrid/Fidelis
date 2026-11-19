@@ -1278,6 +1278,39 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         pass  # Quiet logs
 
+    def _discard_queued_request_bytes(self, limit=8192):
+        """Drop a short prefix already received on a request we refused to read.
+
+        Invalid and oversized Content-Length checks return before rfile.read().
+        The advertised length is never consumed. Only bytes already sitting in
+        the kernel buffer are discarded so close() can finish the error body
+        instead of aborting it.
+        """
+        sock = self.connection
+        if sock is None:
+            return
+        try:
+            sock.setblocking(False)
+        except OSError:
+            return
+        try:
+            remaining = limit
+            while remaining > 0:
+                try:
+                    chunk = sock.recv(remaining)
+                except BlockingIOError:
+                    break
+                except OSError:
+                    break
+                if not chunk:
+                    break
+                remaining -= len(chunk)
+        finally:
+            try:
+                sock.setblocking(True)
+            except OSError:
+                pass
+
     def do_GET(self):
         url = urlparse(self.path)
         if url.path in ["/", "/index.html"]:
@@ -1610,11 +1643,19 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
                 self.send_response(404)
                 self.end_headers()
         except UploadError as e:
-            self.close_connection = True
-            self.send_response(e.status)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
+            payload = json.dumps({"error": str(e)}).encode("utf-8")
+            try:
+                self.send_response(e.status)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(payload)))
+                self.end_headers()
+                self.wfile.write(payload)
+                self.wfile.flush()
+                # Drop only bytes already queued. Closing with an unread body
+                # still in the socket buffer makes macOS RST the error response.
+                self._discard_queued_request_bytes()
+            finally:
+                self.close_connection = True
         except Exception as e:
             traceback.print_exc()
             self.send_response(500)
