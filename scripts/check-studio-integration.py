@@ -41,6 +41,10 @@ def inspect(base, head, cwd=None):
     if (git('rev-parse', '--verify', f'{base}^{{commit}}', cwd=root) != base_sha
             or git('rev-parse', '--verify', f'{head}^{{commit}}', cwd=root) != head_sha):
         raise RuntimeError('Branch ref changed during integration preflight')
+    # A concurrent editor may dirty the checkout after the initial status check.
+    # Refuse to certify a snapshot that no longer matches the working tree.
+    if git('status', '--porcelain', cwd=root):
+        raise RuntimeError('Working tree changed during integration preflight')
     return {'base': base, 'head': head, 'base_sha': base_sha,
             'head_sha': head_sha, 'merge_base': merge_base,
             'ahead': ahead, 'behind': behind, 'files': files}
