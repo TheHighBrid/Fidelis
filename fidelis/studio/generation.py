@@ -152,7 +152,13 @@ class GenerationQueue:
                 self._save(db, task)
                 handle = self._active_handles.get(task_id)
                 if handle is not None:
-                    handle.request()  # Wake the matching worker only after durable cancellation.
+                    # SQLite is authoritative: a stale in-memory token must not
+                    # make an already-persisted cancellation appear to fail.
+                    # The worker also reads the durable flag at checkpoints.
+                    try:
+                        handle.request()
+                    except (PermissionError, RuntimeError):
+                        pass
             return self._public(task)
 
     def resume(self, job_id, task_id):
@@ -178,8 +184,15 @@ class GenerationQueue:
             return True
         with self.lock:
             handle = self._active_handles.get(task['id'])
-            if handle is not None and handle.is_requested():
-                return True
+            if handle is not None:
+                try:
+                    if handle.is_requested():
+                        return True
+                except (PermissionError, RuntimeError):
+                    # Registry retirement invalidates old handles. Durable SQLite
+                    # cancellation remains authoritative even when the token
+                    # cannot be inspected during worker cleanup or recovery.
+                    pass
             with self._db() as db:
                 return self._owned(db, task['job_id'], task['id'])['cancel_requested']
 
@@ -257,7 +270,10 @@ class GenerationQueue:
             # establish that remote execution is not ongoing. New backend
             # statuses must fail closed instead of silently becoming "failed".
             safe_states = ('preparing', 'preparation_failed', 'rejected', 'failed', 'completed')
-            unresolved = record is not None and record['status'] not in safe_states
+            # A missing run row is not proof that submission never happened:
+            # the ledger may have been deleted after ComfyUI accepted a prompt.
+            # Only a persisted, recognized terminal state permits failure.
+            unresolved = record is None or record['status'] not in safe_states
             self._finish(task, 'needs_review' if unresolved else 'failed',
                          remote_may_continue=unresolved, error=type(error).__name__,
                          message=('Unrecognized or active backend run state; reconcile before resume'
@@ -274,11 +290,27 @@ class GenerationQueue:
                 for item in self._all(db):
                     if item['status'] == 'queued':
                         task = item
+                        # Register before committing the running transition. A
+                        # registration failure must not terminate the worker or
+                        # leave a task falsely marked as executing remotely.
+                        try:
+                            handle = self.cancellations.register(task['id'], task['job_id'])
+                        except Exception:
+                            # A registration implementation can fail after creating
+                            # its owner/event. Retire that registry before the next
+                            # claim so no stale token survives a partial failure.
+                            self.cancellations.close()
+                            self.cancellations = CancellationRegistry()
+                            task.update(status='needs_review', remote_may_continue=False,
+                                        message='Local cancellation registration failed; inspect before resume')
+                            self._save(db, task)
+                            task = None
+                            break
                         task.update(status='running')
                         self._save(db, task)
                         # Registration and running transition share the queue lock,
                         # preventing cancellation from slipping between them.
-                        self._active_handles[task['id']] = self.cancellations.register(task['id'], task['job_id'])
+                        self._active_handles[task['id']] = handle
                         break
                 self.wake.clear()
             if task:
@@ -288,7 +320,17 @@ class GenerationQueue:
                     with self.lock:
                         handle = self._active_handles.pop(task['id'], None)
                         if handle is not None:
-                            handle.unregister()
+                            try:
+                                handle.unregister()
+                            except Exception:
+                                # The queue has exactly one execution worker. If
+                                # unregister fails, retire the entire in-memory
+                                # registry rather than leave a stale owner/token
+                                # that could block a future claim or be signalled
+                                # for a different task. Closing invalidates all
+                                # handles; the next claim gets a fresh registry.
+                                self.cancellations.close()
+                                self.cancellations = CancellationRegistry()
             else:
                 self.wake.wait(.25)
 

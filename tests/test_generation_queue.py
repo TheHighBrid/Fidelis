@@ -108,6 +108,34 @@ class GenerationTests(unittest.TestCase):
         self.assertEqual(self.fixture.state['submits'],1)
         self.assertEqual(self.store.get(first['id'])['revision'],1)
 
+    def test_retired_token_uses_durable_cancellation_before_result_apply(self):
+        q = self.queue()
+        job = self.job()
+        entered = threading.Event()
+        release = threading.Event()
+        self.addCleanup(release.set)
+
+        def controlled(*args, **kwargs):
+            entered.set()
+            if not release.wait(2):
+                raise TimeoutError('test backend did not release')
+            return self.fixture.output, {'prompt_id': 'fixture'}
+
+        with patch.object(q.backend, 'run', side_effect=controlled):
+            task = q.enqueue(job['id'], 1)
+            self.assertTrue(entered.wait(2))
+            handle = q._active_handles[task['id']]
+            # A token can become invalid after registry retirement. It must
+            # never override the cancellation already committed to SQLite.
+            with patch.object(handle, 'is_requested', side_effect=PermissionError('stale registration')):
+                cancelled = q.cancel(job['id'], task['id'])
+                self.assertEqual(cancelled['status'], 'cancelled')
+                self.assertTrue(q._cancelled(task))
+                release.set()
+                self.wait(q, job, task, ('cancelled',))
+            self.assertEqual(self.store.get(job['id'])['revision'], 1)
+            self.assertTrue(q.worker.is_alive())
+
     def test_shutdown_request_before_claim_leaves_queued_task_durable(self):
         q = self.queue()
         job = self.job()
@@ -123,6 +151,133 @@ class GenerationTests(unittest.TestCase):
         self.assertEqual(self.fixture.state['submits'], 0)
         self.assertEqual(self.store.get(job['id'])['revision'], 1)
         self.assertNotIn(task['id'], q._active_handles)
+
+    def test_registration_failure_is_durable_and_does_not_kill_worker(self):
+        q = self.queue()
+        first = self.job()
+        original = q.cancellations.register
+        calls = [0]
+
+        def fail_once(*args, **kwargs):
+            calls[0] += 1
+            if calls[0] == 1:
+                raise RuntimeError('registration unavailable')
+            return original(*args, **kwargs)
+
+        with patch.object(q.cancellations, 'register', side_effect=fail_once):
+            task = q.enqueue(first['id'], 1)
+            result = self.wait(q, first, task, ('needs_review',))
+            self.assertFalse(result['remote_may_continue'])
+            self.assertEqual(result['run_id'], task['run_id'])
+            self.assertEqual(self.store.get(first['id'])['revision'], 1)
+            self.assertEqual(self.fixture.state['submits'], 0)
+            self.assertNotIn(task['id'], q._active_handles)
+            self.assertTrue(q.worker.is_alive())
+            second = self.job()
+            following = q.enqueue(second['id'], 1)
+            self.wait(q, second, following, ('completed',))
+        self.assertEqual(self.store.get(second['id'])['revision'], 2)
+        self.assertEqual(self.fixture.state['submits'], 1)
+
+    def test_partial_registration_failure_retires_stale_token(self):
+        q = self.queue()
+        original_registry = q.cancellations
+        first = self.job()
+        original_register = original_registry.register
+
+        def register_then_fail(*args, **kwargs):
+            original_register(*args, **kwargs)
+            raise RuntimeError('registration failed after allocation')
+
+        with patch.object(original_registry, 'register', side_effect=register_then_fail):
+            task = q.enqueue(first['id'], 1)
+            result = self.wait(q, first, task, ('needs_review',))
+        self.assertFalse(result['remote_may_continue'])
+        self.assertEqual(result['run_id'], task['run_id'])
+        self.assertEqual(self.store.get(first['id'])['revision'], 1)
+        self.assertEqual(self.fixture.state['submits'], 0)
+        self.assertIsNot(q.cancellations, original_registry)
+        self.assertTrue(original_registry._closed)
+        self.assertEqual(original_registry._owners, {})
+        self.assertEqual(original_registry._events, {})
+        self.assertNotIn(task['id'], q._active_handles)
+        self.assertTrue(q.worker.is_alive())
+        second = self.job()
+        following = q.enqueue(second['id'], 1)
+        self.wait(q, second, following, ('completed',))
+        self.assertEqual(self.store.get(second['id'])['revision'], 2)
+
+    def test_unregister_failure_does_not_terminate_queue_worker(self):
+        q = self.queue()
+        old_registry = q.cancellations
+        first = self.job()
+        entered = threading.Event()
+        release = threading.Event()
+        self.addCleanup(release.set)
+
+        def controlled(*args, **kwargs):
+            entered.set()
+            self.assertTrue(release.wait(2))
+            return self.fixture.output, {'prompt_id': 'fixture'}
+
+        with patch.object(q.backend, 'run', side_effect=controlled):
+            task = q.enqueue(first['id'], 1)
+            self.assertTrue(entered.wait(2))
+            with patch.object(q.cancellations, 'unregister', side_effect=RuntimeError('cleanup unavailable')):
+                release.set()
+                self.wait(q, first, task, ('completed',))
+                deadline = time.monotonic() + 2
+                while task['id'] in q._active_handles and time.monotonic() < deadline:
+                    time.sleep(.01)
+                self.assertNotIn(task['id'], q._active_handles)
+        deadline = time.monotonic() + 2
+        while q.cancellations is old_registry and time.monotonic() < deadline:
+            time.sleep(.01)
+        self.assertIsNot(q.cancellations, old_registry)
+        self.assertTrue(old_registry._closed)
+        self.assertEqual(old_registry._owners, {})
+        self.assertTrue(q.worker.is_alive())
+        # A failed unregister must not strand a registration. Its old token
+        # must be invalidated even if the registry's unregister is broken.
+        self.assertEqual(q.cancellations._owners, {})
+        self.assertEqual(q.cancellations._events, {})
+        self.assertEqual(q.cancellations._cancelled, set())
+        second = self.job()
+        following = q.enqueue(second['id'], 1)
+        self.wait(q, second, following, ('completed',))
+        self.assertEqual(self.store.get(second['id'])['revision'], 2)
+        deadline = time.monotonic() + 2
+        while q.cancellations._owners and time.monotonic() < deadline:
+            time.sleep(.01)
+        self.assertEqual(q.cancellations._owners, {})
+
+    def test_cancel_survives_stale_registration_and_preserves_durable_flag(self):
+        q = self.queue()
+        job = self.job()
+        entered = threading.Event()
+        release = threading.Event()
+        self.addCleanup(release.set)
+
+        def controlled(*args, **kwargs):
+            entered.set()
+            self.assertTrue(release.wait(2))
+            # Cancellation is persisted even when token signalling fails.
+            self.assertTrue(kwargs['cancelled']())
+            raise GenerationCancelled()
+
+        with patch.object(q.backend, 'run', side_effect=controlled):
+            task = q.enqueue(job['id'], 1)
+            self.assertTrue(entered.wait(2))
+            with q.lock:
+                handle = q._active_handles[task['id']]
+            with patch.object(handle.registry, 'request', side_effect=PermissionError('stale token')):
+                cancelled = q.cancel(job['id'], task['id'])
+            self.assertEqual(cancelled['status'], 'cancelled')
+            self.assertTrue(cancelled['cancel_requested'])
+            release.set()
+            self.wait(q, job, task, ('cancelled',))
+            self.assertEqual(self.store.get(job['id'])['revision'], 1)
+            self.assertEqual(self.fixture.state['submits'], 0)
 
     def test_running_cancel_signals_matching_registration_and_preserves_ledger(self):
         q = self.queue()
@@ -480,6 +635,23 @@ class GenerationTests(unittest.TestCase):
                 self.assertIn('reconcile', result['message'])
                 self.assertEqual(self.store.get(job['id'])['revision'], 1)
                 self.assertTrue(q.worker.is_alive())
+
+    def test_missing_backend_run_row_requires_reconciliation(self):
+        q = self.queue()
+        first = self.job()
+        with (patch.object(q.backend, 'run', side_effect=OSError('backend offline')),
+              patch.object(q.backend, '_get', return_value=None)):
+            task = q.enqueue(first['id'], 1)
+            result = self.wait(q, first, task, ('needs_review',))
+        self.assertTrue(result['remote_may_continue'])
+        self.assertIn('reconcile', result['message'])
+        self.assertEqual(result['error'], 'OSError')
+        self.assertEqual(self.store.get(first['id'])['revision'], 1)
+        self.assertTrue(q.worker.is_alive())
+        healthy = self.job()
+        next_task = q.enqueue(healthy['id'], 1)
+        self.wait(q, healthy, next_task, ('completed',))
+        self.assertEqual(self.store.get(healthy['id'])['revision'], 2)
 
     def test_known_pre_submission_backend_failure_is_not_remote_unknown(self):
         q = self.queue()
