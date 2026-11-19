@@ -638,6 +638,9 @@ class UpscalePipeline:
             "--overlap", str(overlap),
             "--scale", str(scale),
         ]
+        # A successful subprocess must produce a fresh artifact, not reuse a stale one.
+        if output_path.exists() or output_path.is_symlink():
+            raise RuntimeError("Tiled upscale output path already exists")
         res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         if res.returncode != 0:
             err = res.stderr.strip() or res.stdout.strip()
