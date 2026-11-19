@@ -311,6 +311,55 @@ class CorpusManifestTests(unittest.TestCase):
             )
             self.assertEqual(summary["files_verified"], 1)
 
+    def test_available_cases_reject_non_ground_truth_regardless_of_storage(self) -> None:
+        for flags in ({"synthetic": True}, {"ground_truth_eligible": False},
+                      {"set": "non_ground_truth"}):
+            with self.subTest(flags=flags):
+                manifest = build_template_manifest()
+                case = manifest["cases"][0]
+                case.update(flags, availability="available")
+                case["rights"].update(cleared=True, permission_basis="test", license_id="TEST",
+                                      model_release_verified=True)
+                case["source"] = {"relative_path": "sample.png", "sha256": "a" * 64,
+                                  "width": 64, "height": 48}
+                case["critical_rois"][0]["bbox_norm"] = [0.1, 0.1, 0.9, 0.9]
+                with self.assertRaises(ManifestValidationError):
+                    validate_corpus_manifest(manifest)
+
+    def test_off_repo_filenames_cannot_escape_master_root(self) -> None:
+        frozen, _ = load_corpus_manifest(REPO_ROOT / "experiments" / "corpus_manifest.json")
+        melato, _ = load_melato_corpus_manifest(REPO_ROOT / "experiments" / "melato_corpus_manifest.json")
+        case = next(c for c in frozen["cases"] if c["availability"] == "available")
+        asset = melato["assets"][0]
+        for filename in ("../outside.png", "/tmp/outside.png", "..\\outside.png",
+                         "C:\\outside.png", "nested/sample.png", ".", "..", "bad\x00.png"):
+            with self.subTest(filename=filename):
+                case["source"]["filename"] = filename
+                asset["source"]["filename"] = filename
+                with self.assertRaises(ManifestValidationError):
+                    validate_corpus_manifest(frozen)
+                with self.assertRaises(ManifestValidationError):
+                    validate_melato_corpus_manifest(melato)
+
+    def test_off_repo_symlink_cannot_escape_master_root(self) -> None:
+        frozen, _ = load_corpus_manifest(REPO_ROOT / "experiments" / "corpus_manifest.json")
+        melato, _ = load_melato_corpus_manifest(REPO_ROOT / "experiments" / "melato_corpus_manifest.json")
+        case = next(c for c in frozen["cases"] if c["availability"] == "available")
+        asset = melato["assets"][0]
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td) / "masters"
+            root.mkdir()
+            outside = Path(td) / "outside.png"
+            Image.new("RGB", (64, 48)).save(outside)
+            (root / "escape.png").symlink_to(outside)
+            for entry in (case, asset):
+                entry["source"].update(filename="escape.png", sha256=sha256_file(outside),
+                                       width=64, height=48)
+            with self.assertRaisesRegex(ManifestValidationError, "escapes"):
+                validate_corpus_manifest(frozen, master_root=root, verify_files=True)
+            with self.assertRaisesRegex(ManifestValidationError, "escapes"):
+                validate_melato_corpus_manifest(melato, master_root=root, verify_files=True)
+
 
 
 if __name__ == "__main__":
