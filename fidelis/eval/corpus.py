@@ -126,21 +126,27 @@ class EvaluationCorpus:
         self.items = discovered
 
     def ensure_minimum_corpus(self, items_per_bucket: int = 1) -> list[CorpusItem]:
-        """Ensures every critical test bucket has at least `items_per_bucket` samples.
+        """Add an aligned 4× synthetic pair to each bucket below the threshold.
 
-        Generates calibrated high-order synthetic pairs from available seeds if a bucket is empty.
+        Small inputs remain available as unpaired samples.
         """
-        gen = DegradationGenerator(scale=4, seed=42)
-
-        # Base seed image
-        seed_item = self.items[0] if self.items else None
-        if not seed_item:
+        scale = 4
+        # The first- and second-order degradations use a 16-pixel LR floor.
+        min_seed_side = 16 * scale
+        for item in self.items:
+            if item.is_paired:
+                continue
+            seed_cv = cv2.imread(item.source_path)
+            if seed_cv is None or min(seed_cv.shape[:2]) < min_seed_side:
+                continue
+            height, width = seed_cv.shape[:2]
+            lr_height, lr_width = height // scale, width // scale
+            reference = seed_cv[:lr_height * scale, :lr_width * scale]
+            break
+        else:
             return self.items
 
-        seed_cv = cv2.imread(seed_item.source_path)
-        if seed_cv is None:
-            return self.items
-
+        gen = DegradationGenerator(scale=scale, seed=42)
         for bucket in TestBucket:
             count = sum(1 for item in self.items if item.bucket == bucket)
             if count < items_per_bucket:
@@ -151,20 +157,20 @@ class EvaluationCorpus:
                 out_hr = bucket_dir / "syn_hr.png"
 
                 # Tailor degradation to bucket intent
-                degraded = seed_cv.copy()
+                degraded = reference.copy()
                 if bucket == TestBucket.JPEG_COMPRESSION:
                     degraded = gen.random_compression(degraded, quality_range=(20, 45))
-                    degraded = gen.random_resize(degraded, degraded.shape[1] // 4, degraded.shape[0] // 4)
+                    degraded = gen.random_resize(degraded, lr_width, lr_height)
                 elif bucket == TestBucket.LOW_LIGHT_NOISE:
                     degraded = gen.random_noise(degraded, gaussian_sigma_range=(15, 30))
-                    degraded = gen.random_resize(degraded, degraded.shape[1] // 4, degraded.shape[0] // 4)
+                    degraded = gen.random_resize(degraded, lr_width, lr_height)
                 elif bucket == TestBucket.SEVERE_DEGRADATION:
                     degraded = gen.apply_second_order(degraded)
                 else:
                     degraded = gen.apply_first_order(degraded)
 
                 cv2.imwrite(str(out_lr), degraded)
-                cv2.imwrite(str(out_hr), seed_cv)
+                cv2.imwrite(str(out_hr), reference)
 
                 h, w = degraded.shape[:2]
                 new_item = CorpusItem(

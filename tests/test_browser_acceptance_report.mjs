@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -153,4 +154,19 @@ test('browser acceptance rejects non-loopback URLs and ambiguous origins', () =>
   }
   assert.equal(validateLocalStudioUrl('http://127.0.0.1:8765/'), 'http://127.0.0.1:8765');
   assert.equal(validateLocalStudioUrl('http://[::1]:8765'), 'http://[::1]:8765');
+});
+
+test('a failed fixture publisher produces a nonzero CLI exit and no acceptance receipt', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fidelis-runner-failure-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const reportPath = path.join(dir, 'report.json');
+  // Node accepts --version for browser discovery but is not a Python interpreter.
+  // The fixture publisher therefore fails inside the runner's guarded execution.
+  const run = spawnSync(process.execPath, [
+    'scripts/browser-acceptance.mjs', '--url', 'http://127.0.0.1:1',
+    '--chrome', process.execPath, '--python', process.execPath, '--report', reportPath,
+  ], { encoding: 'utf8', timeout: 10000 });
+  assert.equal(run.status, 1, run.stderr);
+  assert.match(run.stderr, /Command failed/);
+  assert.equal(fs.existsSync(reportPath), false);
 });

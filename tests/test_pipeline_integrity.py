@@ -70,7 +70,10 @@ with Image.open(source) as image:
         self.assertIsNone(result.c2pa_manifest['signature_info']['issuer'])
         sidecar = json.loads(self.output.with_suffix('.png.c2pa.json').read_text())
         self.assertEqual(sidecar['record_type'], 'unsigned_execution_record')
-        self.assertEqual(sidecar['format'], 'application/json')
+        # MEL-73 names the unsigned record. The .c2pa.json suffix stays, and
+        # the media type is not a signed C2PA manifest.
+        self.assertEqual(sidecar['format'], 'application/vnd.fidelis.provenance+json')
+        self.assertNotEqual(sidecar['format'], 'application/x-c2pa-manifest-1.3')
         self.assertEqual(sidecar['assertions'][1]['data']['output_sha256'], compute_sha256(self.output))
         self.assertEqual(result.spans[0]['attributes']['c2pa_status'], 'unsigned')
         self.assertIsNone(result.metrics['lpips'])
@@ -106,11 +109,20 @@ with Image.open(source) as image:
 
     def test_optional_sidecar_failure_is_not_verified(self):
         Image.fromarray(self.source).save(self.output)
-        with patch.object(pipeline_module.os, 'replace', side_effect=OSError('disk full')):
-            record = generate_c2pa_provenance(self.input,self.output,'fixture',4,8,compute_sha256(self.output))
-        self.assertFalse(record['sidecar_written'])
-        self.assertEqual(record['signature_info']['status'],'unsigned')
-        self.assertFalse(list(self.root.glob('.fidelis-provenance-*.tmp')))
+        digest = compute_sha256(self.output)
+        original_open = open
+
+        def fail_sidecar(path, *args, **kwargs):
+            if str(path).endswith('.c2pa.json'):
+                raise OSError('disk full')
+            return original_open(path, *args, **kwargs)
+
+        with patch('builtins.open', side_effect=fail_sidecar):
+            record = generate_c2pa_provenance(self.input, self.output, 'fixture', 4, 8, digest)
+        self.assertEqual(record['signature_info']['status'], 'write_failed')
+        self.assertNotEqual(record['signature_info']['status'], 'verified')
+        self.assertFalse(record['signature_info']['signed'])
+        self.assertFalse(self.output.with_suffix('.png.c2pa.json').exists())
         self.assertTrue(self.output.is_file())
 
     def test_telemetry_failure_has_bounded_timeout_and_does_not_raise(self):

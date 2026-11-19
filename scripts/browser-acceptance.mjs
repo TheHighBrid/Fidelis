@@ -851,6 +851,10 @@ async function main() {
     };
 
     return writeAcceptanceReport(report, opts.report, process.stdout, pythonBin);
+  } catch (error) {
+    // Runtime failures must remain nonzero and visible, even while cleaning up.
+    console.error(error.stack || error.message || String(error));
+    return 1;
   } finally {
     if (cdp) cdp.close();
     await stopProcess(chromeProc);

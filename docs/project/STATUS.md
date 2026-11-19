@@ -7,8 +7,8 @@ This is a committed checkpoint, not a live status feed.
 
 | Record | Verified state |
 | --- | --- |
-| Audited baseline code on main | `0f10ca6`; subsequent documentation publication does not merge Studio code |
-| Studio code | `feat/region-aware-studio`, open PR #12; latest delivery receipts below |
+| Audited baseline code on main | Historical audit `0f10ca6`; current main at integration time is `1c954cd` |
+| Studio code | This branch folds PR #12 and PR #14 onto that main. It is not merged or released. Source heads `feat/region-aware-studio` `26d80750` and `codex/product-edge-protection` `62f55cb` were not rewritten |
 | Project coordination | Linear Fidelis Studio, P-MEL-3; existing umbrella MEL-53 linked to GH #11 |
 | Product status | Engineering alpha; no GPU quality certificate or parity claim |
 | Latest runtime work | D01-D04, F07-A and F08-A implemented/tested in PR #12; pending review/merge |
@@ -195,6 +195,62 @@ interpolating executable expressions. Provenance, comparator execution, blind re
 held-out acceptance, and release readiness were decomposed into independently
 testable stages without relaxing their evidence requirements. No live-worker,
 physical-device, human visual, or release acceptance is implied by these changes.
+
+## F10 / PR #14 product upscale review remediation · 2026-11-17
+
+The opt-in product command now feathers inward from the union of permitted
+texture ROIs while preserving every unknown and locked base pixel. It creates
+missing output parent directories before staging, and rejects wrong-sized model
+outputs without replacing a prior export. The inherited browser runner now
+handles execution failures explicitly while retaining cleanup and a nonzero exit.
+These changes are fixture/protocol evidence on the PR #14 branch, not photographic
+acceptance or release. See [ROI protection](../ROI_DRIFT_SCREENING.md).
+
+## Integration onto main · 2026-11-19
+
+This branch starts at main `1c954cd5d3b949c124b467228669213a50d47355` and merges
+PR #12 (`26d80750`) and then PR #14 (`62f55cb`). It does not merge those pull
+requests, rewrite their heads, or claim visual, GPU, or release acceptance.
+
+Conflict resolution, where the two histories disagreed:
+
+- `.github/workflows/ci.yml`: both sides. Main's upload and interaction jobs stay, and the Studio suite stays, including the product-upscale job from PR #14. The main provenance, tiling, protected-export, Compose exposure, and color-routing tests are now explicit CI jobs.
+- `fidelis/core/pipeline.py`: main's provenance module and hyphenated tiled entrypoint. PR #12's nullable metrics stay, and the selected CLI is passed to tiled upscale. PR #14's `run_native_pass` stays. A gradient value is not labelled LPIPS.
+- `fidelis/eval/corpus.py`: main's aligned 4× synthetic pairs.
+- `scripts/web-ui.py`: main's 32 MiB upload gate, image decode, and 16-megapixel limit, plus the regional routes. The server still defaults to `127.0.0.1`.
+
+The unsigned sidecar keeps main's MEL-73 writer. Its media type is
+`application/vnd.fidelis.provenance+json`. A successful write is `unsigned`; a
+failed write is `write_failed`. The record also carries
+`record_type: unsigned_execution_record` and `signature_info.signed: false`.
+The 2026-11-10 pipeline-integrity receipt describes the earlier PR #12 writer,
+including `application/json`. That receipt is not the current sidecar contract.
+Nothing here is a verified C2PA manifest.
+
+Local verification on this branch, Python 3.12 with the documented test
+dependencies plus pytest so `tests/e2e` can import:
+
+- `unittest discover -s tests -p 'test_*.py'`: 312 tests, OK. Without pytest the
+  same command reported 5 e2e import errors. Discovery does not execute the
+  pytest functions.
+- `tests/test-web-ui.sh` and `tests/smoke-test.sh` passed.
+- `node --check` passed for `fidelis/studio/editor.js`,
+  `fidelis/studio/inspection.js`, `scripts/browser-acceptance.mjs`,
+  `tests/native-inspection-ui.cjs`, and
+  `tests/test_browser_acceptance_report.mjs`.
+- `node --test` passed for `tests/test-studio-interactions.cjs` and
+  `tests/test_browser_acceptance_report.mjs`. The native inspection fixture is
+  executed by `tests/test_native_inspection.py`, which is inside the 312.
+- `git diff --check` is recorded with the commit. No GPU, visual, or device
+  acceptance is claimed. Remote CI is separate evidence.
+
+The first macOS CI job failed in `test_oversized_request_rejected_before_read`
+with `ConnectionResetError` while reading the 413 response. The handler now
+sends that JSON error with `Content-Length` and discards at most 64 KiB of
+bytes already buffered, so the socket can close. It still does not read the
+declared oversized body. Local discovery after that change remained 312 tests,
+OK. Ubuntu CI and the browser-report job had passed on the previous head.
+Codacy on this draft is a separate finding and is not cleared here.
 
 ## Studio review UI polish · 2026-11-19
 
