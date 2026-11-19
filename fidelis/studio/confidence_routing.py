@@ -41,12 +41,13 @@ def route_confidence_masks(
             raise ValueError(f"{name} must be real numeric data")
         if not np.all(np.isfinite(a)) or np.any(a < 0) or np.any(a > 1):
             raise ValueError(f"{name} must contain finite values in [0, 1]")
-        return a.astype(np.float32, copy=True)
+        return a.astype(np.float64, copy=True)
 
+    # Evaluate decision boundaries before float32 quantization; only output masks are float32.
     lock = valid("protect", protect)
     shape = lock.shape
     stack = np.stack([valid(label, probabilities[label], shape) for label in CLASSES], axis=0)
-    certainty = np.ones(shape, dtype=np.float32) if confidence is None else valid("confidence", confidence, shape)
+    certainty = np.ones(shape, dtype=np.float64) if confidence is None else valid("confidence", confidence, shape)
     winner = np.argmax(stack, axis=0)
     top = np.max(stack, axis=0)
     runner_up = np.partition(stack, -2, axis=0)[-2]
@@ -54,5 +55,5 @@ def route_confidence_masks(
     allowed = (top >= threshold) & (gap > 0) & (gap >= margin) & (lock < 1)
     weight = np.where(allowed, top * certainty * (1 - lock), 0).astype(np.float32)
     result = {label: np.where(winner == i, weight, 0).astype(np.float32) for i, label in enumerate(CLASSES)}
-    result["protect"] = lock
+    result["protect"] = lock.astype(np.float32)
     return result
