@@ -1051,6 +1051,33 @@ class GenerationTests(unittest.TestCase):
         self.assertEqual(q.get(healthy['id'], following['id'])['status'], 'completed')
         self.assertEqual(self.store.get(healthy['id'])['revision'], 2)
 
+    def test_abandon_failure_is_recorded_and_worker_continues(self):
+        q = self.queue()
+        job = self.job()
+
+        def explode(task):
+            raise RuntimeError('worker fault')
+
+        def abandon_fails(task, error):
+            raise OSError('ledger full')
+
+        with patch.object(q, '_execute', side_effect=explode), \
+                patch.object(q, '_abandon', side_effect=abandon_fails):
+            finished = q._settled.count
+            task = q.enqueue(job['id'], 1)
+            self.assertTrue(q._settled.wait_until(finished + 1, 2))
+        self.assertEqual(q._last_worker_fault[0], task['id'])
+        self.assertEqual(q._last_worker_fault[1], 'OSError')
+        self.assertEqual(q.get(job['id'], task['id'])['status'], 'interrupted')
+        self.assertEqual(q.get(job['id'], task['id'])['error'], 'OSError')
+        self.assertEqual(self.store.get(job['id'])['revision'], 1)
+        self.assertTrue(q.worker.is_alive())
+        healthy = self.job()
+        finished = q._settled.count
+        following = q.enqueue(healthy['id'], 1)
+        self.assertTrue(q._settled.wait_until(finished + 1, 2))
+        self.assertEqual(q.get(healthy['id'], following['id'])['status'], 'completed')
+
 
 class QueuePackagingTests(unittest.TestCase):
     def test_queue_dependencies_are_packaged_without_network_installer(self):

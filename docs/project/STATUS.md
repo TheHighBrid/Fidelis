@@ -205,7 +205,9 @@ Local checks on this workspace, final tree:
 
 GitHub Actions run [44510346371](https://github.com/TheHighBrid/Fidelis/actions/runs/44510346371) on `650e87442e764214c796195fb12366f1c6f636b7` completed with conclusion `success`. Both `shell-and-sweep-tests` jobs succeeded, and **Durable background generation and cancellation tests** succeeded on Ubuntu (10:57:54Z–10:58:21Z) and macOS (11:00:31Z–11:01:39Z). Codacy Static Code Analysis on that same SHA completed `action_required` (“3 new issues”). Live cancellation against a real ComfyUI worker remains a separate gate.
 
-This branch then merges Bot01 tip `b03100192544024f56646c91ee560b8857de7e1c` (`origin/cursor/integrate-pr12-pr14-7a85`) with a merge commit. PR #12/#14 integration notes below stay. Queue behavior stays the MEL-77 record above.
+This branch then merges Bot01 tip `b03100192544024f56646c91ee560b8857de7e1c` (`origin/cursor/integrate-pr12-pr14-7a85`) with merge commit `15423b9f3ea9ba2b3ae28104dca64f6ce231ac51`. PR #12/#14 integration notes below stay. Queue behavior stays the MEL-77 record above.
+
+Codacy on `650e874` reported three new medium issues in `fidelis/studio/generation.py`: two `type()` integer checks (lines 212 and 240) and one `try/except/pass` (line 557). The revision check now uses `isinstance` and still rejects booleans. A failed abandon write is recorded and retried instead of discarded. Local checks after that edit and the merge: `unittest discover` **371 tests, OK, 75.676s**; `tests/test-web-ui.sh` and `tests/smoke-test.sh` passed; `git diff --check` was clean. Remote CI and a cleared Codacy check for the new tip are separate evidence.
 
 ## F08-B browser gate integrity follow-up · 2026-11-16
 

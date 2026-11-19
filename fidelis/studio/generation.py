@@ -43,6 +43,11 @@ _STATUSES = frozenset({
     'queued', 'running', 'applying', 'completed', 'waiting',
     'needs_review', 'interrupted', 'failed', 'cancelled',
 })
+
+
+def _json_int(value):
+    """An integer revision from JSON. Booleans are integers in Python and are rejected."""
+    return isinstance(value, int) and not isinstance(value, bool)
 _SQLITE_HEADER = b'SQLite format 3\x00'
 
 
@@ -136,6 +141,7 @@ class GenerationQueue:
         self._settled = _Settlements()
         self._active_handles = {}
         self._inflight = None
+        self._last_worker_fault = None
         self.worker = None
         try:
             self.backend = backend or ComfyTextureBackend(self.root / 'runs', address, timeout=2,
@@ -192,11 +198,15 @@ class GenerationQueue:
             connection.execute('BEGIN IMMEDIATE')
             yield connection
             connection.commit()
-        except BaseException:
-            try:
-                connection.rollback()
-            except sqlite3.Error:
-                pass
+        except BaseException as error:
+            rollback_error = None
+            if connection.in_transaction:
+                try:
+                    connection.rollback()
+                except sqlite3.Error as failure:
+                    rollback_error = failure
+            if rollback_error is not None:
+                raise rollback_error from error
             raise
         finally:
             connection.close()
@@ -213,7 +223,7 @@ class GenerationQueue:
             return False
         if task.get('status') not in _STATUSES:
             return False
-        if type(task.get('expected_revision')) is not int:
+        if not _json_int(task.get('expected_revision')):
             return False
         if not isinstance(task.get('bundle'), dict):
             return False
@@ -241,7 +251,7 @@ class GenerationQueue:
             'id': row_id,
             'run_id': text('run_id', 'unknown'),
             'job_id': text('job_id', 'unknown'),
-            'expected_revision': revision if type(revision) is int else 0,
+            'expected_revision': revision if _json_int(revision) else 0,
             'status': 'needs_review',
             'bundle': bundle if isinstance(bundle, dict) else {},
             'backend_address': address if isinstance(address, str) and address else 'unrecorded',
@@ -309,7 +319,7 @@ class GenerationQueue:
             return self._public(self._owned(db, job_id, task_id))
 
     def enqueue(self, job_id, expected_revision):
-        if type(expected_revision) is not int:
+        if not _json_int(expected_revision):
             raise ValueError('expected_revision must be an integer')
         job = self.store.get(job_id)
         if job['revision'] != expected_revision:
@@ -554,6 +564,25 @@ class GenerationQueue:
                            error=type(error).__name__, message=ABANDON_MESSAGE)
             self._save(db, current)
 
+    def _record_unpersisted_fault(self, task, error):
+        """Keep a worker fault when the first terminal write fails.
+
+        A second write marks a still-running row interrupted. If that write
+        also fails, the row stays running for restart recovery and the fault
+        names both exceptions. The worker keeps its claim cleanup either way.
+        """
+        self._last_worker_fault = (task['id'], type(error).__name__)
+        try:
+            with self.lock, self._db() as db:
+                current = self._owned(db, task['job_id'], task['id'])
+                if current['status'] in ('running', 'applying'):
+                    current.update(status='interrupted', remote_may_continue=True,
+                                   error=type(error).__name__, message=ABANDON_MESSAGE)
+                    self._save(db, current)
+        except Exception as persist_error:
+            self._last_worker_fault = (
+                task['id'], type(error).__name__, type(persist_error).__name__)
+
     def _run_claimed(self, task):
         try:
             try:
@@ -561,8 +590,8 @@ class GenerationQueue:
             except Exception as error:
                 try:
                     self._abandon(task, error)
-                except Exception:
-                    pass
+                except Exception as abandon_error:
+                    self._record_unpersisted_fault(task, abandon_error)
         finally:
             self._release_claim(task)
 
