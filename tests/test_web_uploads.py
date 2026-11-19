@@ -5,9 +5,11 @@ import http.server
 import importlib.util
 import io
 import json
+import tempfile
 import threading
 import unittest
 from pathlib import Path
+from urllib.parse import urlencode
 from unittest.mock import Mock, patch
 
 from PIL import Image
@@ -104,6 +106,46 @@ class UploadTests(unittest.TestCase):
         with patch.object(web.shutil, "rmtree") as remove:
             self.post(b'{"image":"@@@"}', "/api/audition")
             remove.assert_not_called()
+
+    def get_cached(self, endpoint, **query):
+        conn = http.client.HTTPConnection(*self.server.server_address, timeout=5)
+        try:
+            conn.request("GET", f"/api/{endpoint}?{urlencode(query)}")
+            response = conn.getresponse()
+            return response.status, response.read(), response.headers
+        finally:
+            conn.close()
+
+    def test_cache_routes_reject_sibling_symlink_and_path_aliases(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "cache"
+            root.mkdir()
+            sibling = Path(directory) / "cache-private"
+            sibling.mkdir()
+            (sibling / "private.png").write_bytes(b"private")
+            (root / "escape.png").symlink_to(sibling / "private.png")
+            (root / "valid.png").write_bytes(b"valid")
+            with patch.object(web, "CACHE_DIR", root):
+                for endpoint in ("view", "download"):
+                    for file_id in ("escape", "../valid", "/valid", "nested/valid", "..\\valid"):
+                        with self.subTest(endpoint=endpoint, file_id=file_id):
+                            self.assertEqual(self.get_cached(endpoint, id=file_id)[0], 404)
+                    self.assertEqual(self.get_cached(endpoint, id="valid")[:2], (200, b"valid"))
+
+    def test_download_filename_cannot_inject_response_headers(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "valid.png").write_bytes(b"valid")
+            with patch.object(web, "CACHE_DIR", root):
+                status, _, headers = self.get_cached(
+                    "download", id="valid", filename="image.png\r\nX-Injected: yes"
+                )
+                self.assertEqual(status, 200)
+                self.assertIsNone(headers.get("X-Injected"))
+                self.assertEqual(headers.get("Content-Disposition"), 'attachment; filename="fidelis_upscaled.png"')
+                self.assertEqual(headers.get("X-Content-Type-Options"), "nosniff")
+                _, _, normal = self.get_cached("download", id="valid", filename="My image.png")
+                self.assertEqual(normal.get("Content-Disposition"), 'attachment; filename="My image.png"')
 
 
 if __name__ == "__main__":

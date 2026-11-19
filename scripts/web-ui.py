@@ -14,11 +14,10 @@ Features:
 import argparse
 import base64
 import binascii
-import html
 import http.server
 import io
 import json
-import os
+import re
 import shutil
 import socketserver
 import subprocess
@@ -28,7 +27,7 @@ import time
 import traceback
 import uuid
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, urlencode, urlparse
 
 from PIL import Image, UnidentifiedImageError
 
@@ -523,7 +522,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
       <div id="self-improve-box" style="margin-top: 8px; font-size: 11px; padding: 8px; background: rgba(31,111,235,0.1); border: 1px solid #1f6feb; border-radius: 6px; display: none;">
         <div>Calibration Gate: <strong id="si-status">Calibrated</strong></div>
         <div style="margin-top: 4px;">Optimal Face w: <strong id="si-opt-w">0.70</strong> | Text: <strong id="si-opt-txt">0.65</strong></div>
-        <div style="margin-top: 4px;"><a id="si-report-link" href="/results/experiments/self_improvement/self_improvement_report.html" target="_blank" style="color: #58a6ff; text-decoration: underline;">Open HTML Quality Report</a></div>
+        <div style="margin-top: 4px;"><a id="si-report-link" href="/results/experiments/self_improvement/self_improvement_report.html" target="_blank" rel="noopener noreferrer" style="color: #58a6ff; text-decoration: underline;">Open HTML Quality Report</a></div>
       </div>
     </div>
   </div>
@@ -540,7 +539,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
         <button class="tool-btn" data-zoom="100" onclick="setZoom('100')">100%</button>
         <button class="tool-btn" data-zoom="200" onclick="setZoom('200')">200% Grid</button>
         <button id="btn-download" class="tool-btn" style="display:none; background:#238636; color:#ffffff; font-weight:600; cursor:pointer;" onclick="downloadResultImage()">Download PNG</button>
-        <a id="btn-open-tab" class="tool-btn" style="display:none; text-decoration: none; color: inherit;" target="_blank">View Full Image</a>
+        <a id="btn-open-tab" class="tool-btn" style="display:none; text-decoration: none; color: inherit;" target="_blank" rel="noopener noreferrer">View Full Image</a>
       </div>
     </div>
 
@@ -623,7 +622,7 @@ fetch('/api/models').then(r => r.json()).then(models => {
   ['model-select', 'model-a-select', 'model-b-select'].forEach(id => {
     const sel = document.getElementById(id);
     if (!sel) return;
-    sel.innerHTML = '';
+    sel.replaceChildren();
     models.forEach(m => {
       const opt = document.createElement('option');
       opt.value = m;
@@ -782,6 +781,36 @@ let currentDownloadUrl = null;
 let currentOutputBase64 = null;
 let currentViewUrl = null;
 
+function setComparisonTitle(prefix, label) {
+  const title = document.getElementById('view-title');
+  const strong = document.createElement('strong');
+  strong.textContent = label;
+  title.textContent = prefix;
+  title.appendChild(strong);
+}
+
+function localResultUrl(value, expectedPath) {
+  if (typeof value !== 'string' || value.split('?')[0] !== expectedPath || value.includes('#')) return null;
+  try {
+    const url = new URL(value, window.location.origin);
+    return url.origin === window.location.origin && url.pathname === expectedPath ? url.pathname + url.search : null;
+  } catch {
+    return null;
+  }
+}
+
+function pngResultData(value) {
+  return typeof value === 'string' && /^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/.test(value) ? value : null;
+}
+
+function setResultLinks(downloadUrl, viewUrl) {
+  currentDownloadUrl = localResultUrl(downloadUrl, '/api/download');
+  currentViewUrl = localResultUrl(viewUrl, '/api/view');
+  const openBtn = document.getElementById('btn-open-tab');
+  openBtn.href = currentViewUrl || '';
+  openBtn.style.display = currentViewUrl ? 'inline-block' : 'none';
+}
+
 function downloadResultImage() {
   if (!currentOutputBase64 && !currentDownloadUrl) {
     return alert('No upscaled image available to download.');
@@ -831,8 +860,7 @@ function downloadResultImage() {
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
   } catch (err) {
-    // 4. Fallback: open in new window
-    window.open(currentOutputBase64, '_blank');
+    alert('Unable to download the image.');
   }
 }
 
@@ -876,21 +904,17 @@ function runUpscale() {
     if (!r.ok || data.error) return alert('Upscale failed: ' + (data.error || 'Unknown error'));
 
     const titlePrefix = portrait ? `Portrait Pore Engine (${preset})` : `${preset} - ${model}`;
-    document.getElementById('view-title').innerHTML = `Split Comparison: <strong>Source vs ${titlePrefix}</strong>`;
+    const output = pngResultData(data.output_image);
+    if (!output) return alert('Upscale did not return a valid PNG payload.');
+    setComparisonTitle('Split Comparison: ', `Source vs ${titlePrefix}`);
     document.getElementById('badge-left').style.display = 'none';
     document.getElementById('badge-right').style.display = 'none';
 
-    currentOutputBase64 = data.output_image;
-    currentDownloadUrl = data.download_url;
-    currentViewUrl = data.view_url;
+    currentOutputBase64 = output;
+    setResultLinks(data.download_url, data.view_url);
 
-    document.getElementById('img-after').src = data.output_image;
+    document.getElementById('img-after').src = output;
     document.getElementById('btn-download').style.display = 'inline-block';
-    if (data.view_url) {
-      const openBtn = document.getElementById('btn-open-tab');
-      openBtn.href = data.view_url;
-      openBtn.style.display = 'inline-block';
-    }
     setSplitPosition(50);
 
     // Update 5-dimension metrics HUD
@@ -973,20 +997,17 @@ function runCompare() {
     finishProcessing();
     if (!r.ok || data.error) return alert('Comparison failed: ' + (data.error || 'Unknown error'));
 
-    document.getElementById('img-before').src = data.output_a;
-    document.getElementById('img-after').src = data.output_b;
-    currentOutputBase64 = data.output_b;
-    currentDownloadUrl = data.download_url_b;
-    currentViewUrl = data.view_url_b;
+    const outputA = pngResultData(data.output_a);
+    const outputB = pngResultData(data.output_b);
+    if (!outputA || !outputB) return alert('Comparison did not return valid PNG payloads.');
+    document.getElementById('img-before').src = outputA;
+    document.getElementById('img-after').src = outputB;
+    currentOutputBase64 = outputB;
+    setResultLinks(data.download_url_b, data.view_url_b);
     document.getElementById('btn-download').style.display = 'inline-block';
-    if (data.view_url_b) {
-      const openBtn = document.getElementById('btn-open-tab');
-      openBtn.href = data.view_url_b;
-      openBtn.style.display = 'inline-block';
-    }
     setSplitPosition(50);
 
-    document.getElementById('view-title').innerHTML = `Split: <strong>${data.model_a} (Left) vs ${data.model_b} (Right)</strong>`;
+    setComparisonTitle('Split: ', `${data.model_a} (Left) vs ${data.model_b} (Right)`);
     document.getElementById('badge-left').textContent = `Left: ${data.model_a}`;
     document.getElementById('badge-right').textContent = `Right: ${data.model_b}`;
     document.getElementById('badge-left').style.display = 'inline-block';
@@ -1049,9 +1070,9 @@ function runAudition() {
     finishProcessing();
     if (!r.ok || data.error) return alert('Audition failed: ' + (data.error || 'Unknown error'));
 
-    if (data.report_url) {
+    if (data.report_url === '/results/experiments/eval_crops/web_audition/report.html') {
       if (confirm('Audition complete! Open full comparison report?')) {
-        window.location.href = data.report_url;
+        window.location.assign('/results/experiments/eval_crops/web_audition/report.html');
       }
     } else {
       alert('Audition complete.');
@@ -1075,7 +1096,7 @@ function runSelfImprovement() {
 
     loadSelfImprovementStatus();
     if (confirm(`Self-improvement cycle complete!\n\nQuality Status: ${data.quality_status}\nImprovements Landed: ${data.improvements_found}\nTrials: ${data.total_trials}\n\nOpen full HTML quality & calibration report?`)) {
-      window.open(data.report_url || '/results/experiments/self_improvement/self_improvement_report.html', '_blank');
+      window.open('/results/experiments/self_improvement/self_improvement_report.html', '_blank', 'noopener,noreferrer');
     }
   }).catch(err => {
     finishProcessing();
@@ -1272,6 +1293,24 @@ def execute_restoration(cli, in_p, out_p, model, tiled=False, tile_size=256, por
     return int((time.time() - t0) * 1000)
 
 
+def cached_output_path(file_id):
+    """Resolve an opaque result ID to a regular PNG directly in the cache."""
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", file_id):
+        return None
+    root = CACHE_DIR.resolve()
+    target = root / f"{file_id}.png"
+    if target.is_symlink() or not target.is_file() or target.resolve().parent != root:
+        return None
+    return target
+
+
+def download_filename(value):
+    """Allow only a bounded ASCII filename safe for a quoted HTTP header."""
+    if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._ -]{0,119}", value) and value.lower().endswith(".png"):
+        return value
+    return "fidelis_upscaled.png"
+
+
 class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
     timeout = 15
 
@@ -1287,6 +1326,27 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
 
     def log_message(self, format, *args):
         pass  # Quiet logs
+
+    def send_cached_output(self, query, *, attachment):
+        ids = query.get("id", [])
+        target = cached_output_path(ids[0]) if len(ids) == 1 else None
+        if target is None:
+            self.send_response(404)
+            self.end_headers()
+            return
+        data = target.read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", "image/png")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        if attachment:
+            name = download_filename(query.get("filename", [""])[0])
+            self.send_header("Content-Disposition", f'attachment; filename="{name}"')
+        else:
+            self.send_header("Content-Disposition", "inline")
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-cache")
+        self.end_headers()
+        self.wfile.write(data)
 
     def _send_upload_error(self, error):
         """Return a complete JSON error and close without reading a rejected body."""
@@ -1388,40 +1448,9 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
                 self.send_response(404)
                 self.end_headers()
         elif url.path == "/api/download":
-            query = parse_qs(url.query)
-            file_id = query.get("id", [""])[0]
-            filename = query.get("filename", ["fidelis_upscaled.png"])[0]
-            safe_id = os.path.basename(file_id)
-            safe_name = os.path.basename(filename) or "fidelis_upscaled.png"
-            target = (CACHE_DIR / f"{safe_id}.png").resolve()
-            if safe_id and target.is_file() and str(target).startswith(str(CACHE_DIR.resolve())):
-                data = target.read_bytes()
-                self.send_response(200)
-                self.send_header("Content-Type", "image/png")
-                self.send_header("Content-Disposition", f'attachment; filename="{safe_name}"')
-                self.send_header("Content-Length", str(len(data)))
-                self.send_header("Cache-Control", "no-cache")
-                self.end_headers()
-                self.wfile.write(data)
-            else:
-                self.send_response(404)
-                self.end_headers()
+            self.send_cached_output(parse_qs(url.query), attachment=True)
         elif url.path == "/api/view":
-            query = parse_qs(url.query)
-            file_id = query.get("id", [""])[0]
-            safe_id = os.path.basename(file_id)
-            target = (CACHE_DIR / f"{safe_id}.png").resolve()
-            if safe_id and target.is_file() and str(target).startswith(str(CACHE_DIR.resolve())):
-                data = target.read_bytes()
-                self.send_response(200)
-                self.send_header("Content-Type", "image/png")
-                self.send_header("Content-Disposition", "inline")
-                self.send_header("Content-Length", str(len(data)))
-                self.end_headers()
-                self.wfile.write(data)
-            else:
-                self.send_response(404)
-                self.end_headers()
+            self.send_cached_output(parse_qs(url.query), attachment=False)
         elif url.path == "/api/self-improve/status":
             manifest_p = REPO_ROOT / "experiments" / "self_improvement" / "manifest.json"
             summary = {}
@@ -1542,7 +1571,7 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
                     token = f"fidelis_{int(time.time())}_{uuid.uuid4().hex[:6]}"
                     (CACHE_DIR / f"{token}.png").write_bytes(raw_out_bytes)
                     model_slug = "portrait" if portrait else model.replace(" ", "_")
-                    download_url = f"/api/download?id={token}&filename=fidelis_{model_slug}.png"
+                    download_url = "/api/download?" + urlencode({"id": token, "filename": f"fidelis_{model_slug}.png"})
                     view_url = f"/api/view?id={token}"
 
                     resp = {
@@ -1630,8 +1659,8 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
                     resp = {
                         "output_a": "data:image/png;base64," + base64.b64encode(bytes_a).decode("ascii"),
                         "output_b": "data:image/png;base64," + base64.b64encode(bytes_b).decode("ascii"),
-                        "download_url_a": f"/api/download?id={token_a}&filename=fidelis_{model_a}.png",
-                        "download_url_b": f"/api/download?id={token_b}&filename=fidelis_{model_b}.png",
+                        "download_url_a": "/api/download?" + urlencode({"id": token_a, "filename": f"fidelis_{model_a}.png"}),
+                        "download_url_b": "/api/download?" + urlencode({"id": token_b, "filename": f"fidelis_{model_b}.png"}),
                         "view_url_a": f"/api/view?id={token_a}",
                         "view_url_b": f"/api/view?id={token_b}",
                         "model_a": model_a,
