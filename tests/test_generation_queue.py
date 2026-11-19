@@ -223,6 +223,34 @@ class GenerationTests(unittest.TestCase):
             time.sleep(.01)
         self.assertEqual(q.cancellations._owners, {})
 
+    def test_cancel_survives_stale_registration_and_preserves_durable_flag(self):
+        q = self.queue()
+        job = self.job()
+        entered = threading.Event()
+        release = threading.Event()
+        self.addCleanup(release.set)
+
+        def controlled(*args, **kwargs):
+            entered.set()
+            self.assertTrue(release.wait(2))
+            # Cancellation is persisted even when token signalling fails.
+            self.assertTrue(kwargs['cancelled']())
+            raise GenerationCancelled()
+
+        with patch.object(q.backend, 'run', side_effect=controlled):
+            task = q.enqueue(job['id'], 1)
+            self.assertTrue(entered.wait(2))
+            with q.lock:
+                handle = q._active_handles[task['id']]
+            with patch.object(handle.registry, 'request', side_effect=PermissionError('stale token')):
+                cancelled = q.cancel(job['id'], task['id'])
+            self.assertEqual(cancelled['status'], 'cancelled')
+            self.assertTrue(cancelled['cancel_requested'])
+            release.set()
+            self.wait(q, job, task, ('cancelled',))
+            self.assertEqual(self.store.get(job['id'])['revision'], 1)
+            self.assertEqual(self.fixture.state['submits'], 0)
+
     def test_running_cancel_signals_matching_registration_and_preserves_ledger(self):
         q = self.queue()
         job = self.job()
