@@ -10,7 +10,7 @@ import base64
 import html
 import json
 from pathlib import Path
-import sys
+
 
 def encode_img_base64(path: Path) -> str:
     if not path.is_file():

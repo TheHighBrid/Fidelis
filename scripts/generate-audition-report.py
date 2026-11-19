@@ -14,8 +14,9 @@ import argparse
 import base64
 import html
 import json
-from pathlib import Path
 import sys
+from pathlib import Path
+
 
 def encode_img_base64(path: Path) -> str:
     if not path.is_file():
@@ -25,6 +26,18 @@ def encode_img_base64(path: Path) -> str:
     return f"data:{mime};base64,{data}"
 
 def generate_report(results_dir: Path, output_html: Path):
+    audition_p = results_dir / "audition_report.json"
+    if audition_p.is_file():
+        repo_root = str(Path(__file__).resolve().parents[1])
+        if repo_root not in sys.path:
+            sys.path.insert(0, repo_root)
+        from fidelis.studio.audition import render_audition_html
+
+        metadata = json.loads(audition_p.read_text(encoding="utf-8"))
+        render_audition_html(metadata, output_html)
+        print(f"Report generated: {output_html}")
+        return
+
     manifest_p = results_dir / "manifest.json"
     benchmark_p = results_dir / "benchmark.json"
 
@@ -330,7 +343,7 @@ def generate_report(results_dir: Path, output_html: Path):
   </div>
 """
 
-    html_content += f"""
+    html_content += """
 </div>
 
 <h2 style="margin-top: 40px;">Evidence Provenance</h2>

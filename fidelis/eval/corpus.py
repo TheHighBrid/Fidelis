@@ -17,12 +17,9 @@ Fidelis Flagship Blueprint:
 
 from dataclasses import dataclass, field
 from enum import Enum
-import json
-import os
 from pathlib import Path
-from typing import Dict, List, Optional
+
 import cv2
-import numpy as np
 
 from fidelis.data.degradation import DegradationGenerator
 
@@ -46,20 +43,20 @@ class CorpusItem:
     item_id: str
     bucket: TestBucket
     source_path: str
-    ground_truth_path: Optional[str] = None
+    ground_truth_path: str | None = None
     width: int = 0
     height: int = 0
     is_paired: bool = False
-    metadata: Dict = field(default_factory=dict)
+    metadata: dict = field(default_factory=dict)
 
 
 class EvaluationCorpus:
     """Manages local and synthetic evaluation test sets across the 11 buckets."""
 
-    def __init__(self, corpus_dir: Optional[Path] = None):
+    def __init__(self, corpus_dir: Path | None = None):
         self.corpus_dir = corpus_dir or (Path(__file__).resolve().parent.parent.parent / "experiments" / "eval_corpus")
         self.corpus_dir.mkdir(parents=True, exist_ok=True)
-        self.items: List[CorpusItem] = []
+        self.items: list[CorpusItem] = []
         self._discover_items()
 
     def _discover_items(self):
@@ -128,7 +125,7 @@ class EvaluationCorpus:
 
         self.items = discovered
 
-    def ensure_minimum_corpus(self, items_per_bucket: int = 1) -> List[CorpusItem]:
+    def ensure_minimum_corpus(self, items_per_bucket: int = 1) -> list[CorpusItem]:
         """Add an aligned 4× synthetic pair to each bucket below the threshold.
 
         Small inputs remain available as unpaired samples.
@@ -190,10 +187,10 @@ class EvaluationCorpus:
 
         return self.items
 
-    def get_bucket_items(self, bucket: TestBucket) -> List[CorpusItem]:
+    def get_bucket_items(self, bucket: TestBucket) -> list[CorpusItem]:
         return [it for it in self.items if it.bucket == bucket]
 
-    def list_summary(self) -> Dict[str, int]:
+    def list_summary(self) -> dict[str, int]:
         summary = {}
         for b in TestBucket:
             summary[b.value] = sum(1 for it in self.items if it.bucket == b)

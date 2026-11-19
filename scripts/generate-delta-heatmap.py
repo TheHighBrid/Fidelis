@@ -11,11 +11,13 @@ Supports standalone image pairs or batch audition directories.
 
 import argparse
 import json
-from pathlib import Path
 import sys
-from PIL import Image
+from pathlib import Path
+
 import numpy as np
+from PIL import Image
 from scipy import ndimage
+
 
 def get_thermal_lut() -> np.ndarray:
     """Returns a 256x3 RGB lookup table for thermal hallucination visualization."""

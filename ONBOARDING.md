@@ -106,3 +106,14 @@ Choose a ready work unit from the parallel lanes. Use its issue ID in the branch
 and PR; include scope, before/after behaviour, tests and remaining acceptance.
 Update the related docs, evidence and Linear issue. Stop only at a concrete gate
 that requires unavailable access or owner judgment; finish independent work first.
+
+## Optional background generation
+
+Enable a trusted local graph explicitly using `--texture-workflow`. Read the
+[background queue guide](docs/ASYNC_GENERATION.md) before using its cancel/resume
+controls; local cancellation does not interrupt submitted GPU work.
+
+## Master export
+
+See [Master exports](docs/STUDIO_EXPORT.md) for ICC, 16-bit and alpha reblending
+through the CLI and resumable export of saved Studio jobs.

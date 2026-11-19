@@ -6,7 +6,7 @@ formal EDM diffusion sampling schedules, Linear CFG, and stochastic churn.
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Optional
+
 import yaml
 
 CONFIG_PATH = Path(__file__).resolve().parent.parent / "configs/presets.yaml"
@@ -29,7 +29,7 @@ class DiffusionSchedule:
 class DiffusionPresetsEngine:
     """Loads and modulates production diffusion schedules for Fidelis."""
 
-    def __init__(self, config_file: Optional[Path] = None):
+    def __init__(self, config_file: Path | None = None):
         cfg_path = config_file or CONFIG_PATH
         if cfg_path.is_file():
             with open(cfg_path, "r", encoding="utf-8") as f:
@@ -38,7 +38,7 @@ class DiffusionPresetsEngine:
         else:
             self.presets = {}
 
-    def get_preset(self, name: str) -> Dict:
+    def get_preset(self, name: str) -> dict:
         return self.presets.get(name, self.presets.get("Smart_Balanced", {}))
 
     def build_schedule(
@@ -51,7 +51,7 @@ class DiffusionPresetsEngine:
         raw = self.get_preset(preset_name)
 
         base_steps = raw.get("diffusion_steps", 1)
-        base_guidance = raw.get("guidance_scale", 1.0)
+        _base_guidance = raw.get("guidance_scale", 1.0)
         linear_cfg = raw.get("linear_cfg", False)
         s_noise = raw.get("s_noise", 1.0)
         s_churn = raw.get("s_churn", 0.0)

@@ -23,3 +23,5 @@ experiments/eval_corpus/
 __pycache__/
 *.py[cod]
 *$py.class
+.cache/
+!fidelis/studio/studio.html

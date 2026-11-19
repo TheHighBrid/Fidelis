@@ -1,0 +1,40 @@
+# Structural ROI protection and internal drift screening (`F10` / `MEL-64`)
+
+F10 guards geometry-sensitive structures (`logo`, `text`, `seam`, `hardware`,
+`identity`, `alpha_boundary`, `background`) across already-aligned sRGB passes and
+screens for localized spatial drift hidden beneath matching image dimensions.
+
+## Contracts and invariants
+
+- **Explicit overrides always win.** Default or corpus `policy: "preserve"` locks ROI
+  pixels into `protected` (`1.0`). Setting `override: "unlock"` opens an automatically
+  protected ROI box; setting `override: "lock"` forces a `protected` lock even when
+  `policy` is `"texture_allowed"`. Pre-existing user `protected` canvas locks are never
+  weakened.
+- **Sobel is a secondary heuristic, never semantic proof.** Enabling
+  `use_sobel_heuristic=True` populates `edge_guard` cleanly capped below `1.0` and
+  cleared inside `override: "unlock"` boxes. Sobel gradient fires on skin pores and
+  fabric weave and can miss low-contrast hardware; it does not verify semantic identity.
+- **Equal dimensions do not imply internal registration.** [`screen_internal_drift`](fidelis/postprocess/roi_protection.py)
+  rejects size mismatches without resizing and searches block-grid and per-ROI patch
+  displacements plus local gradient coherence. On composed `master` outputs, every
+  expected-locked pixel must match `base` bit-for-bit (`LOCKED_EXACT` vs `LOCK_VIOLATION`).
+
+## Usage
+
+```bash
+.venv/bin/python scripts/screen-roi-drift.py \
+  --base base.png \
+  --candidate candidate.png \
+  --master master.png \
+  --rois-json rois.json \
+  --out-masks-npz roi_masks.npz \
+  --fail-on-drift
+```
+
+## Current boundaries
+
+Fixture tests verify local shift detection (`>= 1.5 px` warn / `>= 2.5 px` fail),
+exact-lock pixel verification on composed outputs, override precedence, flat
+backdrop stability, and CLI exit contracts. Live model candidate outputs, OCR text
+verification, and cleared 60-case corpus ROI acceptance (`F12`/`F13`) remain open.

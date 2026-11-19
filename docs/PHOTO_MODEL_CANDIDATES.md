@@ -113,23 +113,35 @@ Judge candidates in this order:
 
 A sharper image loses if it invents pores, weave, edges or geometry.
 
-### Promotion decision: RealeSR-general-v3 Promoted
+### Historical local audition note vs. current Studio provenance (`F05-B` / `MEL-75`)
 
-Following full multi-class auditions across real photographic benchmarks (portrait skin, dark textured fabric, and metallic product hardware), **`RealeSR-general-v3` is promoted as the primary Fidelis local model target.**
+`config/model-provenance-v1.json` extends `config/photo-candidates.tsv` with explicit
+source revisions, pinned versus unpinned byte hashes, and separate usage terms across
+the NCNN runtime, legacy portrait ONNX helpers (`yunet.onnx`, `codeformer.onnx`), and
+Studio generative/segmentation candidates (`sdxl`, `clarity`, `flux-1-dev`,
+`segformer_b2_clothes`).
 
-#### Empirical Evaluation Summary
+Validate provenance and local weight checksums without making quality claims:
 
-| Candidate Model | Weights | License | Avg SSIM | Avg PSNR | Avg Color Drift | Background Noise | Status |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
-| **`RealeSR-general-v3`** | **2.4 MB** | **BSD-3-Clause** | **0.9097** | **28.44 dB** | **4.89** | **2.588** | **Promoted (Primary Target)** |
-| `ESRGAN-Remacri` | 33.4 MB | Unverified | 0.8702 | 28.37 dB | 5.52 | 3.321 | Comparator (Evaluation only) |
-| `RealSR-DF2K` | 33.4 MB | Custom | 0.6577 | 25.29 dB | 8.24 | 7.577 | Comparator (Fidelity Ceiling) |
-| `ESRGAN-Nomos8kSC` | 33.4 MB | Baseline | - | - | - | High | Legacy Baseline (Negative comparator) |
+```bash
+.venv/bin/python scripts/audit-model-provenance.py
+```
 
-#### Promotion Rationale
+Historical local crop scores below are retained from earlier workstation/mobile notes
+prior to the Studio `F12` 60-case frozen corpus and `F13` held-out acceptance gates.
+`RealeSR-general-v3` carries permissive upstream `BSD-3-Clause` terms and pinned
+hashes, while `ESRGAN-Remacri` (`evaluation_only_unverified`), `RealSR-DF2K`,
+`4x-UltraSharp`, `codeformer.onnx` (`S-Lab License 1.0` non-commercial restriction),
+and `clarity-upscaler` (`AGPL-3.0`) keep separate licensing constraints.
 
-1. **Photographic Fidelity & Restraint**: Scored the highest structural similarity across all categories (SSIM 0.9169 on skin, 0.8783 on fabric, 0.9339 on product hardware), with the lowest chromatic drift. It preserves smooth backgrounds with ~3× less synthetic noise than DF2K.
-2. **Mobile Efficiency**: At 2.4 MB, it is over 13.7× lighter than RRDBNet models (33.4 MB), running in under 200 ms on mobile Snapdragon 8 Gen 2 / Adreno 740 and Apple Silicon GPUs without memory pressure.
-3. **Licensing**: Permissive BSD-3-Clause license enables unencumbered integration.
+| Candidate Model | Weights | Upstream terms / status | Legacy local note | Studio gate (`F05-B` / `F13`) |
+| :--- | :---: | :--- | :--- | :--- |
+| `RealeSR-general-v3` | 2.4 MB | `BSD-3-Clause` (pinned SHA) | SSIM 0.9097 / PSNR 28.44 on historical local test crops | `quality_certified: false` (candidate for F05/F13 audition) |
+| `ESRGAN-Remacri` | 33.4 MB | `evaluation_only_unverified` (pinned SHA) | Comparator | `quality_certified: false` (unverified terms) |
+| `RealSR-DF2K` | 33.4 MB | `unverified_terms` (pinned SHA) | Comparator | `quality_certified: false` (verify commercial terms) |
+| `ESRGAN-Nomos8kSC` | 33.4 MB | `rejected_quality` (unpinned upstream) | Negative baseline | Rejected per `DECISIONS.md` (checkerboard texture) |
 
-`RealSR-DF2K` remains available as an optional heavy comparator, and `ESRGAN-Remacri` is retained for community comparison. Nomos8kSC remains the legacy baseline.
+No model is promoted or certified for Studio M3/M4 production from historical local
+crop metrics alone; see `docs/project/QUALITY_GATES.md`, `config/model-provenance-v1.json`,
+and the target-device Apple M1 (8 GB) NCNN Vulkan audition report in
+[`docs/APPLE_M1_PRECISION_BASE_AUDITION.md`](APPLE_M1_PRECISION_BASE_AUDITION.md).

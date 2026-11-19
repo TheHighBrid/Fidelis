@@ -5,13 +5,13 @@ import argparse
 import json
 import sys
 from pathlib import Path
+
 import cv2
 
 # Add repo root to sys.path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
-import fidelis
 from fidelis.core.router import SmartRouter, UpscaleMode
 
 

@@ -8,10 +8,13 @@ Grades super-resolution quality across:
 5. Semantic Grounding (Face Identity, Text Stroke Integrity)
 """
 
-from dataclasses import asdict, dataclass
+from __future__ import annotations
+
 import math
+from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
+
 import cv2
 import numpy as np
 from PIL import Image
@@ -28,7 +31,7 @@ class EvaluationReport:
     hallucination_risk: str
     quality_verdict: str  # PASS / WARN / FAIL
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         d = asdict(self)
         d["cielab_delta_e"] = self.color_drift_delta_e
         d["edge_energy_gain_pct"] = round((self.edge_energy_gain - 1.0) * 100.0, 1)
@@ -69,8 +72,10 @@ class BenchmarkSuite:
 
     @staticmethod
     def compute_cielab_delta_e(img1: np.ndarray, img2: np.ndarray) -> float:
-        lab1 = cv2.cvtColor(img1, cv2.COLOR_RGB2LAB).astype(np.float32)
-        lab2 = cv2.cvtColor(img2, cv2.COLOR_RGB2LAB).astype(np.float32)
+        # Float RGB [0,1] produces physical L* [0,100], a*, b* units.
+        # uint8 Lab is encoded/scaled and is not a CIE76 coordinate system.
+        lab1 = cv2.cvtColor(img1.astype(np.float32) / 255.0, cv2.COLOR_RGB2LAB)
+        lab2 = cv2.cvtColor(img2.astype(np.float32) / 255.0, cv2.COLOR_RGB2LAB)
         # Euclidean distance in CIE L*a*b* color space
         delta = np.sqrt(np.sum((lab1 - lab2) ** 2, axis=2))
         return float(np.mean(delta))
@@ -97,8 +102,8 @@ class BenchmarkSuite:
 
     def evaluate_pair(
         self,
-        lq_source: Union[np.ndarray, str, Path],
-        sr_output: Union[np.ndarray, str, Path]
+        lq_source: np.ndarray | str | Path,
+        sr_output: np.ndarray | str | Path
     ) -> EvaluationReport:
         if isinstance(lq_source, (str, Path)):
             lq_source = np.array(Image.open(str(lq_source)).convert("RGB"))
@@ -138,6 +143,13 @@ class BenchmarkSuite:
             verdict = "FAIL"
             hallucination = "HIGH"
 
+        if lq_source.shape[:2] != (sh, sw):
+            from fidelis.eval.detail_metrics import measure_oversharpening_restraint
+            os_res = measure_oversharpening_restraint(sr_output, ref_bicubic)
+            if not os_res.get("passed", True):
+                verdict = "FAIL"
+                hallucination = "HIGH"
+
         return EvaluationReport(
             psnr_db=round(psnr_val, 2),
             ssim=round(ssim_val, 4),
@@ -147,4 +159,44 @@ class BenchmarkSuite:
             gradient_coherence_pct=round(coherence, 2),
             hallucination_risk=hallucination,
             quality_verdict=verdict
+        )
+
+    def evaluate_4x_detail(
+        self,
+        lq_source: np.ndarray | str | Path,
+        sr_output: np.ndarray | str | Path,
+        *,
+        bicubic_ref: np.ndarray | str | Path | None = None,
+        rois: list[dict[str, Any]] | None = None,
+        roi_space: str = "auto",
+        protected: np.ndarray | None = None,
+        master: np.ndarray | str | Path | None = None,
+    ) -> dict[str, Any]:
+        """Evaluate native 4x interior texture (F2), oversharpening (F3), and fabric/hardware faithfulness (F4)."""
+        from fidelis.eval.detail_metrics import measure_scale_matched_metrics
+
+        src_arr = np.array(Image.open(str(lq_source)).convert("RGB")) if isinstance(lq_source, (str, Path)) else np.asarray(lq_source)
+        sr_arr = np.array(Image.open(str(sr_output)).convert("RGB")) if isinstance(sr_output, (str, Path)) else np.asarray(sr_output)
+
+        sh, sw = sr_arr.shape[:2]
+        if bicubic_ref is not None:
+            bic_arr = np.array(Image.open(str(bicubic_ref)).convert("RGB")) if isinstance(bicubic_ref, (str, Path)) else np.asarray(bicubic_ref)
+        elif src_arr.shape[:2] != (sh, sw):
+            bic_arr = np.array(Image.fromarray(src_arr).resize((sw, sh), Image.Resampling.BICUBIC))
+        else:
+            bic_arr = src_arr
+
+        master_arr = None
+        if master is not None:
+            master_arr = np.array(Image.open(str(master)).convert("RGB")) if isinstance(master, (str, Path)) else np.asarray(master)
+
+        return measure_scale_matched_metrics(
+            sr_arr,
+            bic_arr,
+            src_arr,
+            rois=rois,
+            roi_space=roi_space,
+            protected=protected,
+            master_bgr=master_arr,
+            input_color_order="rgb",
         )

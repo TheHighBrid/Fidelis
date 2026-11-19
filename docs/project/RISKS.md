@@ -1,7 +1,7 @@
 # Risk, blocker and defect register
 
 Snapshot: source audit of `5f32fba`, 2026-11-10. This document records known work;
-it does not quietly fix runtime behaviour or imply that every path was exercised.
+the original findings remain the historical baseline, not a claim that every path was exercised.
 The four D-items are actionable source-confirmed findings with direct evidence in
 `backlog.json` and their Linear issue bodies. Their release blockers are linked.
 
@@ -17,7 +17,7 @@ The four D-items are actionable source-confirmed findings with direct evidence i
 The metric finding includes gradient-derived pseudo-LPIPS, numeric fallback
 quality defaults, and RGB/BGR/reference semantics requiring correction. These
 must not become published quality evidence. The import finding is established by
-the tracked module/file mismatch; a runtime reproduction is still part of its fix.
+the tracked module/file mismatch; a controlled-runtime regression now exercises the actual subprocess path.
 
 ## Capability and acceptance blockers
 
@@ -25,14 +25,16 @@ the tracked module/file mismatch; a runtime reproduction is still part of its fi
 | --- | --- | --- | --- |
 | B01 | No configured live worker/weights in audited executor | Doctor found no native candidate/runtime or reachable ComfyUI; no live quality result exists | F05-A/F05-B prepare actual worker and provenance, then F06 live audition |
 | B02 | Browser/device acceptance outstanding | Prior review browser could not connect to the execution server; Node/HTTP tests do not verify UI appearance/touch | F08-B use a reachable same-host browser/device path |
-| B03 | Current preview zoom is not native source-pixel inspection | UI labels correctly say preview pixels | F08-A implement actual native crop inspection |
-| B04 | No frozen production comparison corpus | Few crops/synthetic fixtures are regression coverage only | F12-A rights/hash/ROI inventory before F13 tuning |
+| B03 | Native inspector awaits browser/device acceptance | F08-A exact crop/paired-load implementation is protocol/DOM tested in PR #12; overview zoom remains preview-only | F08-B verify actual rendering/touch on target devices |
+| B04 | No frozen production comparison corpus | F12-A tooling/inventory verified: eight regression assets, zero eligible production cases, 60 missing slots | Populate reviewed rights/ROIs/groups and freeze actual cases before F13 tuning |
 
 ## Architectural and release risks
 
 - The chosen precision base can itself invent detail. Exact protection only
   preserves that base, not a hypothetical perfect original.
-- Segmentation labels do not inherently identify seams, logos or zipper teeth.
+- F09 imported probability gating/review is fixture-tested; no actual automatic
+  model is configured. Declared scores can be confidently wrong and nearest expansion
+  is not fine matting. Segmentation labels do not inherently identify seams, logos or zipper teeth.
   Automatic masking remains a candidate, not a guaranteed structural guard.
 - Current inputs are untagged uint8 sRGB RGB PNGs. ICC/alpha/high-precision support
   is not established by the uint16 file container or old colour-fix claims.
@@ -40,8 +42,10 @@ the tracked module/file mismatch; a runtime reproduction is still part of its fi
   codecs still require memory, especially on 8GB Apple Silicon.
 - Existing Docker/server packaging is not an authenticated public service. Regional
   loopback checks do not certify inherited routes or a production deployment.
-- Run identity/reconciliation exists, but a bounded asynchronous worker and scoped
-  cancellation are incomplete. No automatic ambiguous retry is allowed.
+- F07-A adds a fixture-tested bounded worker and scoped local cancellation, pending
+  review/merge. Submitted GPU work can continue after local cancellation. Crash during
+  apply needs ledger/job inspection; cache quotas and live/device acceptance remain open.
+  No automatic ambiguous retry is allowed.
 - Graph hashes do not verify actual worker checkpoint bytes or compatible terms.
   Model licences, node/runtime revisions and weight integrity require separate evidence.
 - Old README/changelog promotion, speed and quality statements are historical;
@@ -53,3 +57,12 @@ Use the defect template with exact source/runtime evidence, scope and acceptance
 Do not call a source finding a measured exploit or a model-quality result. Record
 false alarms and rejected hypotheses as such. An issue closes only with its
 regression/evidence receipt, delivery SHA and any remaining limitation.
+
+## D01-D04 resolution checkpoint
+
+All four findings have implementations and regression evidence in the Studio
+branch, pending review/merge in PR #12. They remain inherited defects on the audited
+main runtime until delivery merges. See the [integrity receipt](checkpoints/2026-11-10-pipeline-integrity.md).
+The full Python suite passed 77 tests. Null metric compatibility, physical Delta E
+recalibration and the local container/client boundary are explicit in that receipt.
+No real inference, public service deployment or competitive quality was certified.

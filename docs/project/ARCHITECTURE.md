@@ -35,6 +35,7 @@ The native CLI remains a separate, preserved lane rather than a hidden replaceme
 | Masks | `fidelis/studio/brush.py`, `editor.js` | Native stripe raster and browser parity | Manual masks; not automatic semantics |
 | Persistence | `fidelis/studio/store.py` | SQLite manifests, immutable NPYs, revisions, budgets | Synchronous, single-user; not total-RSS certification |
 | HTTP/UI | `scripts/web-ui.py`, `fidelis/studio/http.py`, `studio.html` | Local review/edit/save/export | Visual/device acceptance pending |
+| Background generation | `fidelis/studio/generation.py`, optional server workflow | Durable bounded worker, scoped local cancel and same-run resume | Protocol-tested; no global GPU cancel; aggregate cache quota pending |
 | Texture bridge | `fidelis/studio/comfy.py`, `scripts/generate-texture.py` | Graph schema preflight, run ledger and polling | Fixture/protocol tested; no certified model graph |
 | Capabilities | `capabilities.py`, `scripts/backend-doctor.py` | Installed/checksummed versus declared | Availability is not quality certification |
 | Evaluation | `fidelis/eval/`, experiments and scripts | Existing metrics/corpus tooling | Frozen production corpus/true perceptual evidence pending |
@@ -87,3 +88,16 @@ there is no universal SDXL-to-FLUX node substitution or automatic cloud failover
 See [Risks](RISKS.md) for inherited pipeline defects and [Decisions](DECISIONS.md)
 for the current tradeoffs. The detailed technical plan remains in
 [FIDELIS_STUDIO_PLAN.md](../FIDELIS_STUDIO_PLAN.md).
+
+Current F07-A queue and crash/cancellation contracts: [Background generation](../ASYNC_GENERATION.md).
+
+Native read-only crop endpoint and paired inspector: [Inspection contract](../NATIVE_INSPECTION.md). Crops are revision-pinned, bounded to 512 px per side and never resampled by the server.
+
+The explicit [benchmark inventory](../BENCHMARK_CORPUS.md) is separate from legacy
+corpus discovery/synthetic generation; only validated reviewed production records
+can enter an unsigned benchmark lock.
+
+Imported [mask suggestions](../MASK_SUGGESTIONS.md) use optional `suggestion_*`
+artifacts and `mask_suggestion` review metadata in the existing manifest. Stage
+advances revision without changing active masks/master; accept performs a striped
+fill-only-unclassified merge. Model inference is a separate unqualified boundary.

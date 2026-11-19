@@ -14,12 +14,9 @@ Routes execution dynamically across:
 
 from dataclasses import dataclass
 from enum import Enum
-import math
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+
 import cv2
 import numpy as np
-from PIL import Image
 
 from fidelis.modules.face_restorer import FaceRestorer
 from fidelis.modules.text_restorer import TextRestorer
@@ -140,7 +137,7 @@ class SmartRouter:
         image_rgb: np.ndarray,
         requested_mode: UpscaleMode = UpscaleMode.AUTO,
         preserve_text: bool = True
-    ) -> Dict:
+    ) -> dict:
         profile = self.profiler.profile(image_rgb)
 
         if requested_mode == UpscaleMode.AUTO:

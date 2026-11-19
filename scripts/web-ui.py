@@ -60,16 +60,14 @@ except Exception:
 try:
     import cv2
     import numpy as np
-    import fidelis
+
     from fidelis.core.router import SmartRouter, UpscaleMode
-    from fidelis.engine.diffusion_sr import DiffusionPresetsEngine
-    from fidelis.modules.face_restorer import FaceRestorer
+    from fidelis.eval.benchmark_suite import BenchmarkSuite
     from fidelis.modules.text_restorer import TextRestorer
     from fidelis.postprocess.color_fix import stabilize_colors
-    from fidelis.eval.benchmark_suite import BenchmarkSuite
     from fidelis.tune.optimizer import SelfImprovementEngine
     HAS_FIDELIS = True
-except Exception as e:
+except Exception:
     HAS_FIDELIS = False
 
 # Bound memory use before JSON parsing, image decoding, or model execution.
@@ -399,8 +397,8 @@ HTML_PAGE = r"""<!DOCTYPE html>
       
       <div style="margin-top: 12px; font-size: 12px; color: var(--text-muted);">Or load standard evaluation crop:</div>
       <div class="sample-btns">
-        <button class="btn" onclick="loadSample('user_test_blonde.png')">Blonde Portrait (1022x1024)</button>
-        <button class="btn" onclick="loadSample('user_test_darkhair.png')">Dark Hair Portrait (1024x1024)</button>
+        <button class="btn" onclick="loadSample('portrait_skin.png')">Synthetic Portrait</button>
+        <button class="btn" onclick="loadSample('fabric_weave.png')">Synthetic Fabric</button>
         <button class="btn" onclick="loadSample('portrait_skin_real.png')">Portrait Skin Crop (150x150)</button>
         <button class="btn" onclick="loadSample('fashion_fabric_real.png')">Fashion Fabric Weave (200x200)</button>
         <button class="btn" onclick="loadSample('product_edges_real.png')">Product Metal Hardware (250x250)</button>
@@ -1275,16 +1273,46 @@ def execute_restoration(cli, in_p, out_p, model, tiled=False, tile_size=256, por
 
 
 class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
+    timeout = 15
+
+    def allow_local_request(self):
+        from fidelis.studio.local_request import require_local_request
+
+        try:
+            require_local_request(self)
+        except (PermissionError, ValueError):
+            self.send_error(403, "Studio accepts same-origin loopback requests only")
+            return False
+        return True
+
     def log_message(self, format, *args):
         pass  # Quiet logs
 
+    def dispatch_regions(self):
+        path = urlparse(self.path).path
+        if path != "/regions" and not path.startswith("/api/regions/"):
+            return False
+        try:
+            from fidelis.studio.http import dispatch
+        except ImportError:
+            self.send_error(503, "Regional workspace dependencies unavailable")
+            return True
+        return dispatch(self, CACHE_DIR / "region_jobs")
+
     def do_GET(self):
+        if not self.allow_local_request():
+            return
+        if self.dispatch_regions():
+            return
         url = urlparse(self.path)
         if url.path in ["/", "/index.html"]:
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.end_headers()
-            self.wfile.write(HTML_PAGE.encode("utf-8"))
+            self.wfile.write(HTML_PAGE.replace("<body>", '<body><nav style="padding:12px 20px"><a href="/regions" style="color:#d2dabb">Open saved regional review ↗</a></nav>', 1).encode("utf-8"))
+        elif url.path == "/favicon.ico":
+            self.send_response(204)
+            self.end_headers()
         elif url.path == "/api/models":
             models = get_installed_models()
             self.send_response(200)
@@ -1305,12 +1333,18 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
                 self.send_response(404)
                 self.end_headers()
         elif url.path.startswith("/results/"):
-            # Serve local HTML reports
-            rel_path = url.path.replace("/results/", "")
+            rel_path = url.path.removeprefix("/results/")
+            if rel_path not in (
+                "experiments/eval_crops/web_audition/report.html",
+                "experiments/self_improvement/self_improvement_report.html",
+            ):
+                self.send_error(404)
+                return
             target = (REPO_ROOT / rel_path).resolve()
-            if target.is_file() and str(target).startswith(str(REPO_ROOT)):
+            if target == REPO_ROOT / rel_path and target.is_file():
                 self.send_response(200)
                 self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Security-Policy", "sandbox; default-src 'none'; img-src data:; style-src 'unsafe-inline'")
                 self.end_headers()
                 self.wfile.write(target.read_bytes())
             else:
@@ -1368,6 +1402,10 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
 
     def do_POST(self):
+        if not self.allow_local_request():
+            return
+        if self.dispatch_regions():
+            return
         url = urlparse(self.path)
         try:
             try:
@@ -1569,7 +1607,6 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
                     self.wfile.write(json.dumps(resp).encode("utf-8"))
 
             elif url.path == "/api/audition":
-
                 aud_dir = REPO_ROOT / "experiments/eval_crops/web_audition"
                 shutil.rmtree(aud_dir, ignore_errors=True)
                 aud_dir.mkdir(parents=True, exist_ok=True)
@@ -1622,7 +1659,8 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
 
-def run_server(port: int = 8765, host: str = "127.0.0.1"):
+def run_server(port: int = 8765, host: str = "127.0.0.1", region_workspace=None, region_store_options=None, texture_workflow=None,
+               generation_root=None, comfy_address="http://127.0.0.1:8188", generation_cache_mib=2048):
     handler = FidelisRequestHandler
     # Allow port reuse
     socketserver.TCPServer.allow_reuse_address = True
@@ -1643,20 +1681,58 @@ def run_server(port: int = 8765, host: str = "127.0.0.1"):
     if not httpd:
         raise OSError(f"Could not find an open port starting from {port}")
 
+    httpd.region_workspace_root = region_workspace or CACHE_DIR / "region_jobs"
+    httpd.region_store_options = region_store_options or {}
+    httpd.generation_queue = None
+    if texture_workflow is not None:
+        from fidelis.studio.generation import GenerationQueue
+        from fidelis.studio.store import JobStore
+        try:
+            bundle = json.loads(Path(texture_workflow).read_text(encoding="utf-8"))
+            httpd.region_store = JobStore(httpd.region_workspace_root, **httpd.region_store_options)
+            httpd.generation_queue = GenerationQueue(
+                generation_root or CACHE_DIR / "async_generation", httpd.region_store, bundle,
+                address=comfy_address, cache_budget=generation_cache_mib * 1024**2)
+        except BaseException:
+            httpd.server_close()
+            raise
     with httpd:
-        display_host = "127.0.0.1" if host in ("0.0.0.0", "") else host
-        print(f"\n=======================================================")
-        print(f" Fidelis Studio Web UI is running at:")
-        print(f" http://{display_host}:{current_port} (bound to: {host})")
-        print(f"=======================================================\n")
+        display_host = "127.0.0.1" if host in ("0.0.0.0", "") else host  # nosec B104  # Display string check only; bind strictly controlled by CLI args
+        print("\n=======================================================")
+        print(" Fidelis Studio Web UI is running at:")
+        print(f" http://{display_host}:{current_port} (bind address: {host})")
+        print("=======================================================\n")
         try:
             httpd.serve_forever()
         except KeyboardInterrupt:
             print("\nShutting down server.")
+        finally:
+            if httpd.generation_queue is not None:
+                httpd.generation_queue.close()
 
-if __name__ == "__main__":
+def build_argument_parser():
     parser = argparse.ArgumentParser(description="Run Fidelis Web UI.")
     parser.add_argument("-b", "--bind", "--host", default="127.0.0.1", help="Host interface to bind (default: 127.0.0.1; explicit --bind required for non-loopback)")
     parser.add_argument("-p", "--port", type=int, default=8765, help="Port to bind (default: 8765)")
+    parser.add_argument("--region-workspace", type=Path, help="Persistent regional job directory")
+    parser.add_argument("--region-disk-mib", type=int, default=2048, help="Regional artifact storage cap in MiB")
+    parser.add_argument("--region-workspace-mib", type=int, default=32, help="Composition stripe workspace allowance in MiB")
+    parser.add_argument("--region-max-pixels", type=int, default=40_000_000, help="Regional image pixel limit")
+    parser.add_argument("--texture-workflow", type=Path, help="Trusted local ComfyUI workflow bundle; opt in to background generation")
+    parser.add_argument("--generation-root", type=Path, help="Durable generation queue directory")
+    parser.add_argument("--generation-cache-mib", type=int, default=2048, help="Aggregate generation PNG cache cap in MiB")
+    parser.add_argument("--comfy-address", default="http://127.0.0.1:8188", help="Explicit loopback ComfyUI address")
+    return parser
+
+
+if __name__ == "__main__":
+    parser = build_argument_parser()
     args = parser.parse_args()
-    run_server(port=args.port, host=args.bind)
+    if min(args.region_disk_mib, args.region_workspace_mib, args.region_max_pixels, args.generation_cache_mib) <= 0:
+        parser.error("Storage, workspace and pixel limits must be positive")
+    run_server(port=args.port, host=args.bind, region_workspace=args.region_workspace,
+               region_store_options={"disk_budget": args.region_disk_mib * 1024**2,
+                                     "workspace_budget": args.region_workspace_mib * 1024**2,
+                                     "max_pixels": args.region_max_pixels},
+               texture_workflow=args.texture_workflow, generation_root=args.generation_root,
+               comfy_address=args.comfy_address, generation_cache_mib=args.generation_cache_mib)

@@ -1,0 +1,330 @@
+{
+  "schema_version": 1,
+  "production_ready": false,
+  "production_target": 60,
+  "production_eligible": 0,
+  "regression_available": 8,
+  "missing_slots": [
+    "macro-01",
+    "macro-02",
+    "macro-03",
+    "macro-04",
+    "macro-05",
+    "macro-06",
+    "macro-07",
+    "macro-08",
+    "macro-09",
+    "macro-10",
+    "macro-11",
+    "macro-12",
+    "model_apparel-01",
+    "model_apparel-02",
+    "model_apparel-03",
+    "model_apparel-04",
+    "model_apparel-05",
+    "model_apparel-06",
+    "model_apparel-07",
+    "model_apparel-08",
+    "model_apparel-09",
+    "model_apparel-10",
+    "model_apparel-11",
+    "model_apparel-12",
+    "packshot_edge-01",
+    "packshot_edge-02",
+    "packshot_edge-03",
+    "packshot_edge-04",
+    "packshot_edge-05",
+    "packshot_edge-06",
+    "packshot_edge-07",
+    "packshot_edge-08",
+    "packshot_edge-09",
+    "packshot_edge-10",
+    "packshot_edge-11",
+    "packshot_edge-12",
+    "portrait-01",
+    "portrait-02",
+    "portrait-03",
+    "portrait-04",
+    "portrait-05",
+    "portrait-06",
+    "portrait-07",
+    "portrait-08",
+    "portrait-09",
+    "portrait-10",
+    "portrait-11",
+    "portrait-12",
+    "textile-01",
+    "textile-02",
+    "textile-03",
+    "textile-04",
+    "textile-05",
+    "textile-06",
+    "textile-07",
+    "textile-08",
+    "textile-09",
+    "textile-10",
+    "textile-11",
+    "textile-12"
+  ],
+  "unready_slots": [],
+  "global_blockers": [
+    "coverage_review_unapproved",
+    "coverage_evidence_missing_or_changed"
+  ],
+  "cases": [
+    {
+      "id": "legacy-01",
+      "role": "regression",
+      "slot_id": null,
+      "available": true,
+      "eligible": false,
+      "blockers": [
+        "critical_rois_unreviewed",
+        "local_rights_unapproved",
+        "not_a_photographic_production_case",
+        "rights_evidence_missing_or_changed",
+        "rights_review_incomplete",
+        "subject_consent_unresolved",
+        "target_dimensions_missing_or_invalid",
+        "text_review_incomplete"
+      ],
+      "observed": {
+        "sha256": "61e5cf53caf817e108f29e823419896e0c83a4718f761e317101f497fb1cbe78",
+        "pixel_sha256": "ad92a18c428f9bd5a5fcd3f688cf12c3cc3895d9c695a933e7160f4eac39f217",
+        "dimensions": [
+          256,
+          256
+        ],
+        "mode": "RGB",
+        "format": "PNG",
+        "icc_present": false,
+        "orientation": 1
+      }
+    },
+    {
+      "id": "legacy-02",
+      "role": "regression",
+      "slot_id": null,
+      "available": true,
+      "eligible": false,
+      "blockers": [
+        "critical_rois_unreviewed",
+        "local_rights_unapproved",
+        "not_a_photographic_production_case",
+        "rights_evidence_missing_or_changed",
+        "rights_review_incomplete",
+        "subject_consent_unresolved",
+        "target_dimensions_missing_or_invalid",
+        "text_review_incomplete"
+      ],
+      "observed": {
+        "sha256": "af92bc9873b5492ed58827e770b87e51412cdafefaf0b9692d4200f163bc20ab",
+        "pixel_sha256": "263fa113528a221945536e0d1c816a337adef4cc074e901a780107b15b6de610",
+        "dimensions": [
+          256,
+          256
+        ],
+        "mode": "RGB",
+        "format": "PNG",
+        "icc_present": false,
+        "orientation": 1
+      }
+    },
+    {
+      "id": "legacy-03",
+      "role": "regression",
+      "slot_id": null,
+      "available": true,
+      "eligible": false,
+      "blockers": [
+        "critical_rois_unreviewed",
+        "local_rights_unapproved",
+        "not_a_photographic_production_case",
+        "rights_evidence_missing_or_changed",
+        "rights_review_incomplete",
+        "subject_consent_unresolved",
+        "target_dimensions_missing_or_invalid",
+        "text_review_incomplete"
+      ],
+      "observed": {
+        "sha256": "f359733001a56045193e4eb789e99da69bb30bad779ab7711a178f76cd8b03b7",
+        "pixel_sha256": "883a0d98e08c1b87ccbb74288ba6f4bf5a1edddad3d6bf0bb4c0a44e05c98d04",
+        "dimensions": [
+          256,
+          256
+        ],
+        "mode": "RGB",
+        "format": "PNG",
+        "icc_present": false,
+        "orientation": 1
+      }
+    },
+    {
+      "id": "legacy-04",
+      "role": "regression",
+      "slot_id": null,
+      "available": true,
+      "eligible": false,
+      "blockers": [
+        "critical_rois_unreviewed",
+        "local_rights_unapproved",
+        "rights_evidence_missing_or_changed",
+        "rights_review_incomplete",
+        "subject_consent_unresolved",
+        "target_dimensions_missing_or_invalid",
+        "text_review_incomplete"
+      ],
+      "observed": {
+        "sha256": "b4a45272f520bbfbb669a118a8a0caa78a6e98a5d5446c1152048d25843bfc84",
+        "pixel_sha256": "7b8b32bebf1493374ade9cb0032331098c0577d293f06f602cd5acea584f79f4",
+        "dimensions": [
+          150,
+          150
+        ],
+        "mode": "RGB",
+        "format": "PNG",
+        "icc_present": false,
+        "orientation": 1
+      }
+    },
+    {
+      "id": "legacy-05",
+      "role": "regression",
+      "slot_id": null,
+      "available": true,
+      "eligible": false,
+      "blockers": [
+        "critical_rois_unreviewed",
+        "local_rights_unapproved",
+        "rights_evidence_missing_or_changed",
+        "rights_review_incomplete",
+        "subject_consent_unresolved",
+        "target_dimensions_missing_or_invalid",
+        "text_review_incomplete"
+      ],
+      "observed": {
+        "sha256": "077a8b160032e0a0b7b415219cc38820d8b0268b130055cd5e51a494d6c0fc7e",
+        "pixel_sha256": "4bd491b5747b2b3c2a5c183e1405ebb1673f0050a5074f5edb0d98f75f811c39",
+        "dimensions": [
+          200,
+          200
+        ],
+        "mode": "RGB",
+        "format": "PNG",
+        "icc_present": false,
+        "orientation": 1
+      }
+    },
+    {
+      "id": "legacy-06",
+      "role": "regression",
+      "slot_id": null,
+      "available": true,
+      "eligible": false,
+      "blockers": [
+        "critical_rois_unreviewed",
+        "local_rights_unapproved",
+        "rights_evidence_missing_or_changed",
+        "rights_review_incomplete",
+        "subject_consent_unresolved",
+        "target_dimensions_missing_or_invalid",
+        "text_review_incomplete"
+      ],
+      "observed": {
+        "sha256": "7438b31b49304bcd9bc9f460347dd38bfb35e81802a81a6917beb97b54628c38",
+        "pixel_sha256": "e22fb944614ba29bf50ee4aa206397cec8546585039e2138576d438ce4a666ce",
+        "dimensions": [
+          250,
+          250
+        ],
+        "mode": "RGB",
+        "format": "PNG",
+        "icc_present": false,
+        "orientation": 1
+      }
+    },
+    {
+      "id": "legacy-07",
+      "role": "regression",
+      "slot_id": null,
+      "available": true,
+      "eligible": false,
+      "blockers": [
+        "critical_rois_unreviewed",
+        "leakage_group_unresolved",
+        "local_rights_unapproved",
+        "not_a_photographic_production_case",
+        "rights_evidence_missing_or_changed",
+        "rights_review_incomplete",
+        "subject_consent_unresolved",
+        "target_dimensions_missing_or_invalid",
+        "text_review_incomplete"
+      ],
+      "observed": {
+        "sha256": "7e983c8332ec7e475dd88571f38892e363323321b467652c4776791a1e4ca525",
+        "pixel_sha256": "2114483070a2961b3e19bdf09569c7b75b7fc570efeff80789888f41f8d7a5f8",
+        "dimensions": [
+          1022,
+          1024
+        ],
+        "mode": "RGB",
+        "format": "PNG",
+        "icc_present": true,
+        "orientation": 1
+      }
+    },
+    {
+      "id": "legacy-08",
+      "role": "regression",
+      "slot_id": null,
+      "available": true,
+      "eligible": false,
+      "blockers": [
+        "critical_rois_unreviewed",
+        "leakage_group_unresolved",
+        "local_rights_unapproved",
+        "not_a_photographic_production_case",
+        "rights_evidence_missing_or_changed",
+        "rights_review_incomplete",
+        "subject_consent_unresolved",
+        "target_dimensions_missing_or_invalid",
+        "text_review_incomplete"
+      ],
+      "observed": {
+        "sha256": "af8dbccf5c05443bedab5d89790564f84ff8544888813b7f56549aeb2b790b95",
+        "pixel_sha256": "02d7ce18112e9c5fb8f2f6dbfa36cb4387f26ee84cf2aa60f9328140d9686edd",
+        "dimensions": [
+          1024,
+          1024
+        ],
+        "mode": "RGB",
+        "format": "PNG",
+        "icc_present": true,
+        "orientation": 1
+      }
+    }
+  ],
+  "coverage": {
+    "portrait": {
+      "calibration": 0,
+      "held_out": 0
+    },
+    "model_apparel": {
+      "calibration": 0,
+      "held_out": 0
+    },
+    "textile": {
+      "calibration": 0,
+      "held_out": 0
+    },
+    "macro": {
+      "calibration": 0,
+      "held_out": 0
+    },
+    "packshot_edge": {
+      "calibration": 0,
+      "held_out": 0
+    }
+  },
+  "permissions_are_declarations_not_legal_verification": true
+}

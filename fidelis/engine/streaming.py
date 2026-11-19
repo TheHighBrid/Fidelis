@@ -5,8 +5,14 @@ RGB and weight buffers. The final array is a disk-backed memmap.
 """
 import os
 from pathlib import Path
+
 import numpy as np
-from .tiler import MultiDiffusionTiler, generate_gaussian_weights, generate_cosine_weights
+
+from .tiler import (
+    MultiDiffusionTiler,
+    generate_cosine_weights,
+    generate_gaussian_weights,
+)
 
 
 def process_streamed(tiler: MultiDiffusionTiler, image: np.ndarray, tile_fn, output_path, progress_callback=None):

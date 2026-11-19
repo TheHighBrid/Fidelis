@@ -35,10 +35,10 @@ No task-count percentage is used as a quality or product completion score.
 | [F08 / MEL-59](https://linear.app/melato/issue/MEL-59/f08-accept-editable-regional-review-and-native-pixel-inspection) · Accept editable regional review and native-pixel inspection | M2 | partial | In Progress | F03, F04 |
 | [F09 / MEL-62](https://linear.app/melato/issue/MEL-62/f09-qualify-confidence-gated-automatic-segmentation) · Qualify confidence-gated automatic segmentation | M2 | not_started | Backlog | F05, F08 |
 | [F10 / MEL-64](https://linear.app/melato/issue/MEL-64/f10-protect-structural-rois-and-screen-internal-drift) · Protect structural ROIs and screen internal drift | M2 | not_started | Backlog | F06, F09 |
-| [F11 / MEL-65](https://linear.app/melato/issue/MEL-65/f11-implement-colour-managed-alpha-and-high-precision-exports) · Implement colour-managed alpha and high-precision exports | M2 | not_started | Backlog | F10 |
+| [F11 / MEL-65](https://linear.app/melato/issue/MEL-65/f11-implement-colour-managed-alpha-and-high-precision-exports) · Implement colour-managed alpha and high-precision exports | M2 | partial | In Progress | F10 |
 | [F12 / MEL-63](https://linear.app/melato/issue/MEL-63/f12-freeze-rights-cleared-corpus-and-comparator-runners) · Freeze rights-cleared corpus and comparator runners | M3 | not_started | Backlog | F05 |
 | [F13 / MEL-66](https://linear.app/melato/issue/MEL-66/f13-calibrate-and-pass-held-out-quality-acceptance) · Calibrate and pass held-out quality acceptance | M3 | not_started | Backlog | F06, F07, F08, F09, F10, F11, F12 |
-| [F14 / MEL-67](https://linear.app/melato/issue/MEL-67/f14-deliver-resumable-bounded-batch-processing) · Deliver resumable bounded batch processing | M4 | not_started | Backlog | F07, F11 |
+| [F14 / MEL-67](https://linear.app/melato/issue/MEL-67/f14-deliver-resumable-bounded-batch-processing) · Deliver resumable bounded batch processing | M4 | partial | In Progress | F07, F11 |
 | [F15 / MEL-69](https://linear.app/melato/issue/MEL-69/f15-polish-responsive-studio-and-verify-packaging) · Polish responsive studio and verify packaging | M4 | not_started | Backlog | F08, F14 |
 | [F16 / MEL-68](https://linear.app/melato/issue/MEL-68/f16-publish-evidence-backed-production-release) · Publish evidence-backed production release | M4 | not_started | Backlog | F13, F15 |
 | [F17 / MEL-70](https://linear.app/melato/issue/MEL-70/f17-evaluate-optional-challenger-adapters-after-core-release) · Evaluate optional challenger adapters after core release | M5 | deferred | Backlog | F16 |

@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "id": "fidelis-coffee-regression-v1",
+  "notes": "Coffee 1000x1000 regression case from ORIGINAL_REQUEST.md: verifies interior crema texture retention vs 4x bicubic, hard contour preservation on cup rim and spoon hardware, and oversharpening restraint.",
+  "cases": [
+    {
+      "id": "coffee-1000-regression",
+      "role": "regression",
+      "slot_id": null,
+      "category": "packshot_edge",
+      "split": "held_out",
+      "source_kind": "photograph",
+      "leakage_group": "coffee-1000",
+      "source_path": "experiments/eval_crops/product_edges_real.png",
+      "source": {
+        "path": "experiments/eval_crops/product_edges_real.png",
+        "sha256": "7438b31b49304bcd9bc9f460347dd38bfb35e81802a81a6917beb97b54628c38",
+        "pixel_sha256": "e22fb944614ba29bf50ee4aa206397cec8546585039e2138576d438ce4a666ce",
+        "dimensions": [
+          250,
+          250
+        ],
+        "mode": "RGB",
+        "format": "PNG",
+        "icc_present": false,
+        "orientation": 1
+      },
+      "target_dimensions": [
+        1000,
+        1000
+      ],
+      "scale": 4,
+      "roi_space": "source",
+      "expected_behavior": "enhance",
+      "rois": [
+        {
+          "id": "coffee_crema",
+          "kind": "crema",
+          "policy": "texture_allowed",
+          "override": null,
+          "rect": [
+            25,
+            22,
+            130,
+            62
+          ]
+        },
+        {
+          "id": "cup_rim",
+          "kind": "hardware",
+          "policy": "preserve",
+          "override": null,
+          "rect": [
+            30,
+            88,
+            135,
+            32
+          ]
+        },
+        {
+          "id": "spoon_hardware",
+          "kind": "hardware",
+          "policy": "preserve",
+          "override": null,
+          "rect": [
+            125,
+            135,
+            90,
+            95
+          ]
+        }
+      ],
+      "text_review": "completed",
+      "known_text": []
+    }
+  ]
+}
