@@ -108,6 +108,34 @@ class GenerationTests(unittest.TestCase):
         self.assertEqual(self.fixture.state['submits'],1)
         self.assertEqual(self.store.get(first['id'])['revision'],1)
 
+    def test_retired_token_uses_durable_cancellation_before_result_apply(self):
+        q = self.queue()
+        job = self.job()
+        entered = threading.Event()
+        release = threading.Event()
+        self.addCleanup(release.set)
+
+        def controlled(*args, **kwargs):
+            entered.set()
+            if not release.wait(2):
+                raise TimeoutError('test backend did not release')
+            return self.fixture.output, {'prompt_id': 'fixture'}
+
+        with patch.object(q.backend, 'run', side_effect=controlled):
+            task = q.enqueue(job['id'], 1)
+            self.assertTrue(entered.wait(2))
+            handle = q._active_handles[task['id']]
+            # A token can become invalid after registry retirement. It must
+            # never override the cancellation already committed to SQLite.
+            with patch.object(handle, 'is_requested', side_effect=PermissionError('stale registration')):
+                cancelled = q.cancel(job['id'], task['id'])
+                self.assertEqual(cancelled['status'], 'cancelled')
+                self.assertTrue(q._cancelled(task))
+                release.set()
+                self.wait(q, job, task, ('cancelled',))
+            self.assertEqual(self.store.get(job['id'])['revision'], 1)
+            self.assertTrue(q.worker.is_alive())
+
     def test_shutdown_request_before_claim_leaves_queued_task_durable(self):
         q = self.queue()
         job = self.job()
