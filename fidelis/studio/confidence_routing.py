@@ -45,6 +45,9 @@ def route_confidence_masks(
 
     # Evaluate decision boundaries before float32 quantization; only output masks are float32.
     lock = valid("protect", protect)
+    # The public protection mask is float32. Apply its rounded value to gating too:
+    # a near-one float64 lock can round to fully protected on output.
+    output_lock = lock.astype(np.float32)
     shape = lock.shape
     stack = np.stack([valid(label, probabilities[label], shape) for label in CLASSES], axis=0)
     certainty = np.ones(shape, dtype=np.float64) if confidence is None else valid("confidence", confidence, shape)
@@ -52,8 +55,8 @@ def route_confidence_masks(
     top = np.max(stack, axis=0)
     runner_up = np.partition(stack, -2, axis=0)[-2]
     gap = top - runner_up
-    allowed = (top >= threshold) & (gap > 0) & (gap >= margin) & (lock < 1)
+    allowed = (top >= threshold) & (gap > 0) & (gap >= margin) & (output_lock < 1)
     weight = np.where(allowed, top * certainty * (1 - lock), 0).astype(np.float32)
     result = {label: np.where(winner == i, weight, 0).astype(np.float32) for i, label in enumerate(CLASSES)}
-    result["protect"] = lock.astype(np.float32)
+    result["protect"] = output_lock
     return result
