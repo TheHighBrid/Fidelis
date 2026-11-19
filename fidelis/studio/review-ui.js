@@ -1,8 +1,6 @@
 /* Display and review-interaction helpers. These do not modify mask values,
    blend weights, crop bytes or saved revisions. */
-(function (root) {
-  'use strict';
-
+((root) => {
   const CHANNELS = ['skin', 'hair', 'fabric', 'protected'];
   const COLORS = {
     skin: [239, 90, 90],
@@ -19,7 +17,7 @@
 
   function normalizeVisibility(input) {
     const visibility = {};
-    for (const name of CHANNELS) visibility[name] = !input || input[name] !== false;
+    for (const name of CHANNELS) visibility[name] = input?.[name] !== false;
     return visibility;
   }
 
@@ -54,7 +52,7 @@
       let a = 0;
       for (const name of CHANNELS) {
         if (!visible[name]) continue;
-        const source = layers && layers[name];
+        const source = layers?.[name];
         const value = source && i < source.length ? source[i] : 0;
         if (!(value > 0)) continue;
         let gain = strength;
@@ -130,7 +128,7 @@
 
   function stackReadingOrder(sourceOrder = NARROW_SOURCE, cssOrder = NARROW_CSS_ORDER) {
     return sourceOrder
-      .map((id, index) => ({ id, index, order: Object.prototype.hasOwnProperty.call(cssOrder, id) ? cssOrder[id] : 0 }))
+      .map((id, index) => ({ id, index, order: Object.hasOwn(cssOrder, id) ? cssOrder[id] : 0 }))
       .sort((a, b) => a.order - b.order || a.index - b.index)
       .map((item) => item.id);
   }
@@ -188,16 +186,19 @@
   }
 
   function rgbaAt(imageData, x, y) {
-    if (!imageData || !imageData.data || !Number.isSafeInteger(imageData.width) || !Number.isSafeInteger(imageData.height) || !Number.isSafeInteger(x) || !Number.isSafeInteger(y)) return null;
+    if (!imageData?.data || !Number.isSafeInteger(imageData.width) || !Number.isSafeInteger(imageData.height) || !Number.isSafeInteger(x) || !Number.isSafeInteger(y)) return null;
     if (x < 0 || y < 0 || x >= imageData.width || y >= imageData.height) return null;
     const index = (y * imageData.width + x) * 4;
     const data = imageData.data;
     return [data[index], data[index + 1], data[index + 2], data[index + 3]];
   }
 
+  function channelText(pixel) {
+    return pixel ? `${pixel[0]} ${pixel[1]} ${pixel[2]}` : 'unreadable';
+  }
+
   function formatPixelReadout(sample) {
-    const text = (pixel) => (pixel ? `${pixel[0]} ${pixel[1]} ${pixel[2]}` : 'unreadable');
-    return `Native crop pixel x ${sample.imageX}, y ${sample.imageY} · base RGB ${text(sample.base)} · ${sample.resultLabel} RGB ${text(sample.result)}. Browser-decoded from the loaded crop, not preview zoom.`;
+    return `Native crop pixel x ${sample.imageX}, y ${sample.imageY} · base RGB ${channelText(sample.base)} · ${sample.resultLabel} RGB ${channelText(sample.result)}. Browser-decoded from the loaded crop, not preview zoom.`;
   }
 
   function centreReadout(rect, base, result, resultLabel) {
