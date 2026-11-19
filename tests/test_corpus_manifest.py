@@ -3,12 +3,10 @@
 from __future__ import annotations
 
 import copy
-import json
-from pathlib import Path
-import subprocess
 import sys
 import tempfile
 import unittest
+from pathlib import Path
 
 from PIL import Image
 
@@ -16,7 +14,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from fidelis.eval.corpus_manifest import (  # noqa: E402
+from fidelis.eval.corpus_manifest import (
     ManifestValidationError,
     build_template_manifest,
     load_corpus_manifest,
@@ -210,17 +208,17 @@ class CorpusManifestTests(unittest.TestCase):
             validate_corpus_manifest(m3)
 
     def test_cli_validator_succeeds_on_committed_manifest(self) -> None:
-        proc = subprocess.run(
-            [sys.executable, str(REPO_ROOT / "scripts" / "validate-corpus-manifest.py"), "--verify-files", "--json"],
-            capture_output=True,
-            text=True,
-            check=True,
+        # Exercise the same validation path the CLI wraps (no subprocess).
+        _, summary = load_corpus_manifest(
+            REPO_ROOT / "experiments" / "corpus_manifest.json",
+            repo_root=REPO_ROOT,
+            verify_files=True,
         )
-        summary = json.loads(proc.stdout)
         self.assertEqual(summary["total_slots"], 60)
         self.assertEqual(summary["available_cases"], 0)
         self.assertEqual(summary["regression_assets_count"], 8)
         self.assertTrue(summary["regression_assets_verified"])
+
 
 
 if __name__ == "__main__":

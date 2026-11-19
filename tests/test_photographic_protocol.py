@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import json
-import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = REPO_ROOT / "tests" / "fixtures" / "photographic_protocol"
@@ -167,28 +167,31 @@ class PhotographicProtocolTests(unittest.TestCase):
         self.assertFalse(payload["is_production_corpus"])
 
     def test_cli_emits_json_receipt(self) -> None:
-        script = REPO_ROOT / "scripts" / "run-photographic-protocol.py"
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location(
+            "run_photographic_protocol",
+            REPO_ROOT / "scripts" / "run-photographic-protocol.py",
+        )
+        assert spec and spec.loader
+        cli_mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cli_mod)
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp) / "receipt.json"
-            proc = subprocess.run(
-                [
-                    sys.executable,
-                    str(script),
-                    "--base",
-                    str(FIXTURES / "product_base.png"),
-                    "--candidate",
-                    str(FIXTURES / "product_invented.png"),
-                    "--category",
-                    "products",
-                    "--json-out",
-                    str(out),
-                ],
-                cwd=str(REPO_ROOT),
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            self.assertEqual(proc.returncode, 2, msg=proc.stdout + proc.stderr)
+            argv = [
+                "run-photographic-protocol.py",
+                "--base",
+                str(FIXTURES / "product_base.png"),
+                "--candidate",
+                str(FIXTURES / "product_invented.png"),
+                "--category",
+                "products",
+                "--json-out",
+                str(out),
+            ]
+            with mock.patch.object(sys, "argv", argv):
+                code = cli_mod.main()
+            self.assertEqual(code, 2)
             payload = json.loads(out.read_text(encoding="utf-8"))
             self.assertEqual(payload["verdict"], "FAIL")
 
