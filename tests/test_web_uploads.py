@@ -52,20 +52,18 @@ class UploadTests(unittest.TestCase):
                     self.assertIn("error", data)
 
     def test_oversized_request_rejected_before_read(self):
-        status, _ = self.post(b"{}", headers={"Content-Length": str(web.MAX_REQUEST_BYTES + 1)})
+        # Send only headers: an implementation that reads the claimed body
+        # instead of rejecting it will block until the client times out.
+        status, data = self.post(b"", headers={"Content-Length": str(web.MAX_REQUEST_BYTES + 1)})
         self.assertEqual(status, 413)
+        self.assertIn("error", data)
 
     def test_bad_length(self):
-        # An invalid Content-Length is rejected before the request body is read.
-        # On macOS, closing that unread socket can reset the connection while
-        # http.client drains the response. The status is the HTTP contract.
-        conn = http.client.HTTPConnection(*self.server.server_address, timeout=5)
-        try:
-            conn.request("POST", "/api/upscale", b"{}", {"Content-Length": "invalid"})
-            response = conn.getresponse()
-            self.assertEqual(response.status, 400)
-        finally:
-            conn.close()
+        # No unread payload remains to cause a TCP reset on macOS. Still
+        # verify the actual HTTP response, including its JSON error body.
+        status, data = self.post(b"", headers={"Content-Length": "invalid"})
+        self.assertEqual(status, 400)
+        self.assertIn("error", data)
 
     def image_data(self, fmt):
         stream = io.BytesIO()
