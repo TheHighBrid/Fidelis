@@ -152,7 +152,13 @@ class GenerationQueue:
                 self._save(db, task)
                 handle = self._active_handles.get(task_id)
                 if handle is not None:
-                    handle.request()  # Wake the matching worker only after durable cancellation.
+                    # SQLite is authoritative: a stale in-memory token must not
+                    # make an already-persisted cancellation appear to fail.
+                    # The worker also reads the durable flag at checkpoints.
+                    try:
+                        handle.request()
+                    except (PermissionError, RuntimeError):
+                        pass
             return self._public(task)
 
     def resume(self, job_id, task_id):
