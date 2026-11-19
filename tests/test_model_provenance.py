@@ -26,6 +26,21 @@ from fidelis.studio.provenance import (  # noqa: E402
 class ModelProvenanceTests(unittest.TestCase):
     """Verify real revisions/hashes vs unpinned/missing weights and separate license terms."""
 
+    def test_weight_integrity_status_precedence(self):
+        from fidelis.studio.provenance import _weight_integrity
+
+        for statuses, expected in (
+            (["missing", "missing"], (False, "missing")),
+            (["matched", "missing"], (False, "incomplete")),
+            (["mismatch", "missing"], (False, "mismatch")),
+            (["matched", "matched"], (True, "matched")),
+            (["matched", "unpinned_local"], (True, "unpinned_local")),
+            (["mismatch", "matched"], (True, "mismatch")),
+        ):
+            with self.subTest(statuses=statuses):
+                checks = {str(i): {"status": status} for i, status in enumerate(statuses)}
+                self.assertEqual(_weight_integrity(checks), expected)
+
     def test_committed_catalog_cross_checks_tsv_and_never_certifies_missing_or_restricted(self) -> None:
         catalog_path = REPO_ROOT / "config" / "model-provenance-v1.json"
         tsv_path = REPO_ROOT / "config" / "photo-candidates.tsv"

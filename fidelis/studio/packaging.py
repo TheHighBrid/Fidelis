@@ -9,8 +9,8 @@ and atomic rollback for `JobStore` (`jobs.sqlite3` + `artifacts/*.npy`) and
 
 from __future__ import annotations
 
-import fnmatch
 import fcntl
+import fnmatch
 import gzip
 import hashlib
 import json
@@ -45,6 +45,7 @@ REQUIRED_ARCHIVE_PATHS: tuple[str, ...] = (
     "scripts/audit-model-provenance.py",
     "scripts/worker-preflight.py",
     "scripts/screen-roi-drift.py",
+    "scripts/product-upscale.py",
     "scripts/export-master.py",
     "scripts/run-comparators.py",
     "scripts/evaluate-quality-acceptance.py",
@@ -62,6 +63,7 @@ REQUIRED_ARCHIVE_PATHS: tuple[str, ...] = (
     "fidelis/studio/__init__.py",
     "fidelis/studio/store.py",
     "fidelis/studio/brush.py",
+    "fidelis/studio/browser_evidence.py",
     "fidelis/studio/http.py",
     "fidelis/studio/studio.html",
     "fidelis/studio/editor.js",
@@ -69,6 +71,7 @@ REQUIRED_ARCHIVE_PATHS: tuple[str, ...] = (
     "fidelis/studio/inspection.js",
     "fidelis/studio/comfy.py",
     "fidelis/studio/generation.py",
+    "fidelis/studio/cancellation.py",
     "fidelis/studio/capabilities.py",
     "fidelis/studio/provenance.py",
     "fidelis/studio/worker_preflight.py",
@@ -84,7 +87,9 @@ REQUIRED_ARCHIVE_PATHS: tuple[str, ...] = (
     "fidelis/eval/pipeline_metrics.py",
     "fidelis/eval/benchmark_suite.py",
     "fidelis/eval/comparators.py",
+    "fidelis/eval/blind_review.py",
     "fidelis/eval/quality_acceptance.py",
+    "fidelis/eval/quality_statistics.py",
     "config/photo-candidates.tsv",
     "config/model-provenance-v1.json",
     "config/worker-preflight-policy-v1.json",

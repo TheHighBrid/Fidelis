@@ -7,8 +7,8 @@ This is a committed checkpoint, not a live status feed.
 
 | Record | Verified state |
 | --- | --- |
-| Audited baseline code on main | `0f10ca6`; subsequent documentation publication does not merge Studio code |
-| Studio code | `feat/region-aware-studio`, open PR #12; latest delivery receipts below |
+| Audited baseline code on main | Historical audit `0f10ca6`; current main at integration time is `1c954cd` |
+| Studio code | This branch folds PR #12 and PR #14 onto that main. It is not merged or released. Source heads `feat/region-aware-studio` `26d80750` and `codex/product-edge-protection` `62f55cb` were not rewritten |
 | Project coordination | Linear Fidelis Studio, P-MEL-3; existing umbrella MEL-53 linked to GH #11 |
 | Product status | Engineering alpha; no GPU quality certificate or parity claim |
 | Latest runtime work | D01-D04, F07-A and F08-A implemented/tested in PR #12; pending review/merge |
@@ -162,8 +162,124 @@ Target-device **Apple M1 (8 GB RAM) Vulkan NCNN precision-base audition** (`F05`
 
 Remaining gates are strictly external `E2..E4` operational/human gates: live ComfyUI GPU texture worker (`F05-A`/`F06`/`F07`), 60-case licensed photographic corpus & paid comparator runs (`F12-A`/`F12`), 30-case blind human signoff (`F13`), physical Android/iOS touch hardware review (`F08-B`/`F15`), PR #12 merge, and owner release signoff (`F16`).
 
+## F07-B generation cache budget · 2026-11-16
+
+On the isolated MEL-82 branch, the local Comfy PNG cache now has an explicit
+2048 MiB default payload cap, bounded atomic staging and same-run recovery after
+quota rejection. Existing cached outputs and run identities are retained.
+See [the checkpoint](checkpoints/2026-11-16-generation-cache-budget.md).
+Operator-managed retention, complete filesystem/RSS measurement and live F07
+acceptance remain open. This is a scoped change awaiting review, not a release.
+
 ## PR #12 review-remediation checkpoint · 2026-11-15
 
 The Studio branch now includes five independently regression-tested corrections to the 2026-11-14 Codex review of PR #12: mandatory F13 comparator coverage (#17), fail-closed unknown-region fidelity (#18), separate audition image artifacts (#19), truthful Comfy weight/workflow provenance (#20), and actual generation SQLite backup schemas (#21). All five changes were merged into `feat/region-aware-studio` as squash commits; combined branch head after this delivery is `929334bed65de8db54e4a1bc6732f7176a91c5e6`. Each PR passed its Linux/macOS matrix and latest code review; focused integrated local tests passed **33 tests plus 4 subtests**. On 2026-11-15, the branch-head CI run [43673811216](https://github.com/TheHighBrid/Fidelis/actions/runs/43673811216) was independently checked through GitHub's run API and reported `completed` with conclusion `success` for that exact head SHA. This verifies the combined CI run; it does not merge, deploy, release or satisfy the remaining operational/human acceptance gates.
 
 See [review remediation checkpoint](checkpoints/2026-11-15-pr12-review-remediation.md) for precise PR links, evidence scope and residual issues. The Docker Compose bridge-to-loopback transport defect remains open pending a security-preserving deployment test. No production promotion, paid comparator, live Comfy GPU acceptance or physical Android/iOS touch acceptance is claimed by these corrections.
+
+## MEL-77 queue reliability handoff · 2026-11-19
+
+Owner approved this run. Base is `f120f222f3b62890d17d760eb21a32294440fc0d` on `work/mel-77-registration-recovery-20261118` (draft PR #57). Delivery branch: `work/mel-77-ci-queue-bot03-20261119`. The commit that adds this note is the branch head. This is fixture/protocol evidence, not live GPU verification, merge, or release.
+
+Claimed files:
+
+- `fidelis/studio/generation.py`
+- `tests/test_generation_queue.py`
+- `fidelis/studio/packaging.py` (required archive path for `fidelis/studio/cancellation.py` only)
+- `docs/ASYNC_GENERATION.md`
+- `docs/project/STATUS.md`
+
+`CancellationHandle` stays frozen. CI failure `test_retired_token_uses_durable_cancellation_before_result_apply` was reproduced locally on Python 3.12.3 as `dataclasses.FrozenInstanceError: cannot assign to field 'is_requested'` and then `cannot delete field 'is_requested'` from `patch.object(handle, 'is_requested', ...)`. The test now injects `PermissionError` through `CancellationSignals` and still requires a durable cancel to block an applicable receipt. A retired token with no durable flag does not cancel or block apply.
+
+Queue hardening in the same module: SQLite writes use `BEGIN IMMEDIATE` and `synchronous=FULL`; a raised transaction does not publish the partial row; an empty, truncated, or non-SQLite `queue.sqlite3` raises `QueueStorageError` and is not rewritten; a readable database with a damaged task row is quarantined as `needs_review` (`quarantined`, `CorruptRecord`, SHA-256 of the rejected bytes) and is not executed or resumed until an explicit cancel; process restart marks valid `running`/`applying` rows `interrupted` and still runs untouched `queued` work; one in-flight claim and one worker thread are enforced; an unexpected worker exception marks the in-flight row `interrupted` and later tasks still run. No new ADR: the task table and single-owner boundary are unchanged.
+
+Deliberately left out: `scripts/install-macos-runtime.sh` still downloads the native NCNN runtime and is not called by `scripts/package-offline-bundle.sh`; no WAL migration; no cross-database exactly-once apply reconciliation; no generated-cache quota; no edits to the region-aware studio UI or the codex product edge; no live Comfy worker run.
+
+Local checks on this workspace, final tree:
+
+- `unittest discover -s tests -p 'test_*.py'` without pytest: 314 results, 5 errors, all `tests/e2e/test_tier{1,2,3,4,5}_*.py` failing to import pytest. Those modules are pre-existing and are not in the CI per-file unittest steps. The other tests passed.
+- Same discover after pytest was installed so those modules can import: **309 tests, OK, 71.646s**. Unittest does not execute the pytest functions.
+- `tests/test-web-ui.sh`: `Web UI server tests passed.`
+- `tests/smoke-test.sh`: `Static smoke tests passed.`
+- `git diff --check`: clean.
+
+GitHub Actions run [44510346371](https://github.com/TheHighBrid/Fidelis/actions/runs/44510346371) on `650e87442e764214c796195fb12366f1c6f636b7` completed with conclusion `success`. Both `shell-and-sweep-tests` jobs succeeded, and **Durable background generation and cancellation tests** succeeded on Ubuntu (10:57:54Z–10:58:21Z) and macOS (11:00:31Z–11:01:39Z). Codacy Static Code Analysis on that same SHA completed `action_required` (“3 new issues”). Live cancellation against a real ComfyUI worker remains a separate gate.
+
+This branch then merges Bot01 tip `b03100192544024f56646c91ee560b8857de7e1c` (`origin/cursor/integrate-pr12-pr14-7a85`) with merge commit `15423b9f3ea9ba2b3ae28104dca64f6ce231ac51`. PR #12/#14 integration notes below stay. Queue behavior stays the MEL-77 record above.
+
+Codacy on `650e874` reported three new medium issues in `fidelis/studio/generation.py`: two `type()` integer checks (lines 212 and 240) and one `try/except/pass` (line 557). The revision check now uses `isinstance` and still rejects booleans. A failed abandon write is recorded and retried instead of discarded. Local checks after that edit and the merge: `unittest discover` **371 tests, OK, 75.676s**; `tests/test-web-ui.sh` and `tests/smoke-test.sh` passed; `git diff --check` was clean. Remote CI and a cleared Codacy check for the new tip are separate evidence.
+
+## F08-B browser gate integrity follow-up · 2026-11-16
+
+The bounded MEL-80 follow-up makes acceptance reports and exit codes agree, verifies
+the actual expected stale-save conflict, and bounds browser command failures. Eight
+Node regression tests pass; Linux Chromium aborted before DevTools startup, so this
+does not renew the historical macOS browser acceptance. See the
+[gate integrity receipt](checkpoints/2026-11-16-browser-gate-integrity.md).
+
+## PR #12 security and maintainability remediation · 2026-11-17
+
+The scoped browser security follow-up [PR #38](https://github.com/TheHighBrid/Fidelis/pull/38)
+passed Codacy and both GitHub workflows before integration into the Studio feature
+branch, not `main`. The runner now publishes artifacts using descriptor-relative
+atomic writes and transmits browser-derived values as CDP arguments instead of
+interpolating executable expressions. Provenance, comparator execution, blind review,
+held-out acceptance, and release readiness were decomposed into independently
+testable stages without relaxing their evidence requirements. No live-worker,
+physical-device, human visual, or release acceptance is implied by these changes.
+
+## F10 / PR #14 product upscale review remediation · 2026-11-17
+
+The opt-in product command now feathers inward from the union of permitted
+texture ROIs while preserving every unknown and locked base pixel. It creates
+missing output parent directories before staging, and rejects wrong-sized model
+outputs without replacing a prior export. The inherited browser runner now
+handles execution failures explicitly while retaining cleanup and a nonzero exit.
+These changes are fixture/protocol evidence on the PR #14 branch, not photographic
+acceptance or release. See [ROI protection](../ROI_DRIFT_SCREENING.md).
+
+## Integration onto main · 2026-11-19
+
+This branch starts at main `1c954cd5d3b949c124b467228669213a50d47355` and merges
+PR #12 (`26d80750`) and then PR #14 (`62f55cb`). It does not merge those pull
+requests, rewrite their heads, or claim visual, GPU, or release acceptance.
+
+Conflict resolution, where the two histories disagreed:
+
+- `.github/workflows/ci.yml`: both sides. Main's upload and interaction jobs stay, and the Studio suite stays, including the product-upscale job from PR #14. The main provenance, tiling, protected-export, Compose exposure, and color-routing tests are now explicit CI jobs.
+- `fidelis/core/pipeline.py`: main's provenance module and hyphenated tiled entrypoint. PR #12's nullable metrics stay, and the selected CLI is passed to tiled upscale. PR #14's `run_native_pass` stays. A gradient value is not labelled LPIPS.
+- `fidelis/eval/corpus.py`: main's aligned 4× synthetic pairs.
+- `scripts/web-ui.py`: main's 32 MiB upload gate, image decode, and 16-megapixel limit, plus the regional routes. The server still defaults to `127.0.0.1`.
+
+The unsigned sidecar keeps main's MEL-73 writer. Its media type is
+`application/vnd.fidelis.provenance+json`. A successful write is `unsigned`; a
+failed write is `write_failed`. The record also carries
+`record_type: unsigned_execution_record` and `signature_info.signed: false`.
+The 2026-11-10 pipeline-integrity receipt describes the earlier PR #12 writer,
+including `application/json`. That receipt is not the current sidecar contract.
+Nothing here is a verified C2PA manifest.
+
+Local verification on this branch, Python 3.12 with the documented test
+dependencies plus pytest so `tests/e2e` can import:
+
+- `unittest discover -s tests -p 'test_*.py'`: 312 tests, OK. Without pytest the
+  same command reported 5 e2e import errors. Discovery does not execute the
+  pytest functions.
+- `tests/test-web-ui.sh` and `tests/smoke-test.sh` passed.
+- `node --check` passed for `fidelis/studio/editor.js`,
+  `fidelis/studio/inspection.js`, `scripts/browser-acceptance.mjs`,
+  `tests/native-inspection-ui.cjs`, and
+  `tests/test_browser_acceptance_report.mjs`.
+- `node --test` passed for `tests/test-studio-interactions.cjs` and
+  `tests/test_browser_acceptance_report.mjs`. The native inspection fixture is
+  executed by `tests/test_native_inspection.py`, which is inside the 312.
+- `git diff --check` is recorded with the commit. No GPU, visual, or device
+  acceptance is claimed. Remote CI is separate evidence.
+
+The first macOS CI job failed in `test_oversized_request_rejected_before_read`
+with `ConnectionResetError` while reading the 413 response. The handler now
+sends that JSON error with `Content-Length` and discards at most 64 KiB of
+bytes already buffered, so the socket can close. It still does not read the
+declared oversized body. Local discovery after that change remained 312 tests,
+OK. Ubuntu CI and the browser-report job had passed on the previous head.
+Codacy on this draft is a separate finding and is not cleared here.

@@ -36,7 +36,7 @@ for a machine with Python 3.12 installed:
 ```bash
 python3.12 -m venv .venv
 .venv/bin/python -m pip install --upgrade pip
-.venv/bin/python -m pip install pillow numpy scipy scikit-image opencv-python-headless pyyaml
+.venv/bin/python -m pip install pillow numpy scipy scikit-image opencv-python-headless pyyaml pytest
 .venv/bin/python -m pip install -r requirements-studio.txt
 ```
 
@@ -62,6 +62,8 @@ stay unchanged. Saving bakes masks and resets unsaved undo history.
 
 ```bash
 .venv/bin/python -m unittest discover -s tests -p 'test_*.py' -v
+# Discovery imports tests/e2e, which needs pytest. It does not run those
+# pytest functions and is not E2E or browser acceptance.
 PATH="$PWD/.venv/bin:$PATH" bash tests/test-web-ui.sh
 PATH="$PWD/.venv/bin:$PATH" bash tests/smoke-test.sh
 node --check fidelis/studio/editor.js

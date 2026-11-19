@@ -24,6 +24,15 @@ import zlib from 'node:zlib';
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 
+export function validateLocalStudioUrl(value) {
+  const url = new URL(value);
+  if (url.protocol !== 'http:' || !['127.0.0.1', '[::1]', 'localhost'].includes(url.hostname) ||
+      url.username || url.password || url.pathname !== '/' || url.search || url.hash) {
+    throw new Error('Browser acceptance requires a loopback HTTP origin');
+  }
+  return url.origin;
+}
+
 function parseArgs(argv) {
   const opts = {
     url: null,
@@ -41,7 +50,17 @@ function parseArgs(argv) {
     else if (arg === '--report') opts.report = argv[++i];
     else throw new Error(`Unknown argument: ${arg}`);
   }
+  if (opts.url) opts.url = validateLocalStudioUrl(opts.url);
   return opts;
+}
+
+function locateExecutable(candidate) {
+  if (!candidate || candidate.startsWith('-')) return null;
+  try {
+    return execFileSync('which', [candidate], { encoding: 'utf8' }).trim() || null;
+  } catch {
+    return null;
+  }
 }
 
 function findChrome(explicitPath) {
@@ -55,16 +74,8 @@ function findChrome(explicitPath) {
     'chromium-browser',
   ].filter(Boolean);
   for (const candidate of candidates) {
-    if (candidate.startsWith('/')) {
-      if (fs.existsSync(candidate)) return candidate;
-      continue;
-    }
-    try {
-      const resolved = execFileSync('which', [candidate], { encoding: 'utf8' }).trim();
-      if (resolved) return resolved;
-    } catch {
-      // keep probing
-    }
+    const resolved = locateExecutable(candidate);
+    if (resolved) return resolved;
   }
   throw new Error('No Chrome/Chromium executable found; set CHROME_BIN or pass --chrome');
 }
@@ -72,8 +83,7 @@ function findChrome(explicitPath) {
 function resolvePython(repoRoot, explicitPython) {
   if (explicitPython) return explicitPython;
   const venvPython = path.join(repoRoot, '.venv', 'bin', 'python');
-  if (fs.existsSync(venvPython)) return venvPython;
-  return 'python3';
+  return locateExecutable(venvPython) || 'python3';
 }
 
 function findFreePort() {
@@ -132,9 +142,10 @@ function encodeRgbPng(width, height, pixelFn) {
   ]);
 }
 
-class CdpSession {
-  constructor(wsUrl) {
-    this.ws = new WebSocket(wsUrl);
+export class CdpSession {
+  constructor(wsUrl, { timeoutMs = 10000, socket = null } = {}) {
+    this.ws = socket || new WebSocket(wsUrl);
+    this.timeoutMs = timeoutMs;
     this.nextId = 1;
     this.pending = new Map();
     this.events = new Map();
@@ -142,15 +153,26 @@ class CdpSession {
 
   async connect() {
     await new Promise((resolve, reject) => {
-      this.ws.onopen = resolve;
-      this.ws.onerror = (err) => reject(new Error(`CDP WebSocket error: ${err.message || err}`));
+      const timer = setTimeout(() => reject(new Error('CDP WebSocket connection timed out')), this.timeoutMs);
+      this.ws.onopen = () => { clearTimeout(timer); resolve(); };
+      this.ws.onerror = (err) => {
+        clearTimeout(timer);
+        reject(new Error(`CDP WebSocket error: ${err.message || err}`));
+      };
+      this.ws.onclose = () => {
+        clearTimeout(timer);
+        reject(new Error('CDP WebSocket closed during connection'));
+      };
     });
+    this.ws.onclose = () => this.rejectPending(new Error('CDP WebSocket closed'));
+    this.ws.onerror = () => this.rejectPending(new Error('CDP WebSocket transport error'));
     this.ws.onmessage = (event) => {
       const msg = JSON.parse(event.data);
       if (msg.id) {
         const entry = this.pending.get(msg.id);
         if (!entry) return;
         this.pending.delete(msg.id);
+        clearTimeout(entry.timer);
         if (msg.error) entry.reject(new Error(`CDP ${entry.method}: ${msg.error.message}`));
         else entry.resolve(msg.result);
       } else if (msg.method) {
@@ -168,9 +190,27 @@ class CdpSession {
   send(method, params = {}) {
     const id = this.nextId++;
     return new Promise((resolve, reject) => {
-      this.pending.set(id, { resolve, reject, method });
-      this.ws.send(JSON.stringify({ id, method, params }));
+      const timer = setTimeout(() => {
+        this.pending.delete(id);
+        reject(new Error(`CDP ${method} timed out`));
+      }, this.timeoutMs);
+      this.pending.set(id, { resolve, reject, method, timer });
+      try {
+        this.ws.send(JSON.stringify({ id, method, params }));
+      } catch (error) {
+        clearTimeout(timer);
+        this.pending.delete(id);
+        reject(error);
+      }
     });
+  }
+
+  rejectPending(error) {
+    for (const entry of this.pending.values()) {
+      clearTimeout(entry.timer);
+      entry.reject(error);
+    }
+    this.pending.clear();
   }
 
   async eval(expression) {
@@ -179,6 +219,26 @@ class CdpSession {
       awaitPromise: true,
       returnByValue: true,
     });
+    return this.evaluationResult(res);
+  }
+
+  // Pass browser-derived values as protocol data, never as JavaScript source.
+  async callPage(functionDeclaration, ...values) {
+    const global = await this.send('Runtime.evaluate', { expression: 'globalThis' });
+    const objectId = global.result?.objectId;
+    if (!objectId || global.exceptionDetails) throw new Error('Page execution context unavailable');
+    try {
+      return this.evaluationResult(await this.send('Runtime.callFunctionOn', {
+        objectId, functionDeclaration,
+        arguments: values.map(value => ({ value })),
+        awaitPromise: true, returnByValue: true,
+      }));
+    } finally {
+      await this.send('Runtime.releaseObject', { objectId });
+    }
+  }
+
+  evaluationResult(res) {
     if (res.exceptionDetails) {
       const desc = res.exceptionDetails.exception?.description || res.exceptionDetails.text;
       throw new Error(`Page evaluation error: ${desc}`);
@@ -187,7 +247,8 @@ class CdpSession {
   }
 
   close() {
-    if (this.ws.readyState === WebSocket.OPEN) this.ws.close();
+    this.rejectPending(new Error('CDP session closed'));
+    if (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING) this.ws.close();
   }
 }
 
@@ -203,7 +264,7 @@ async function waitFor(fn, { timeoutMs = 10000, intervalMs = 50, label = 'condit
 }
 
 async function stopProcess(proc) {
-  if (!proc || proc.exitCode !== null) return;
+  if (!proc?.pid || proc.exitCode !== null || proc.signalCode !== null) return;
   const exited = new Promise((resolve) => proc.once('exit', resolve));
   proc.kill('SIGTERM');
   const timer = setTimeout(() => {
@@ -213,15 +274,44 @@ async function stopProcess(proc) {
   clearTimeout(timer);
 }
 
+// Keep the evidence even when an acceptance measurement fails. The exit code
+// must agree with the report, so automation cannot interpret a defect as a pass.
+function writeEvidenceFile(reportPath, formatted, pythonBin) {
+  // Python's dir_fd APIs pin the output directory across publication; Node's
+  // pathname-based rename cannot provide that guarantee. No shell is used and
+  // browser bytes are passed only on stdin, not as command arguments.
+  const repoRoot = path.resolve(SCRIPT_DIR, '..');
+  execFileSync(pythonBin || resolvePython(repoRoot, process.env.PYTHON_BIN), [
+    '-m', 'fidelis.studio.browser_evidence', path.resolve(reportPath),
+  ], { cwd: repoRoot, input: formatted, stdio: ['pipe', 'pipe', 'pipe'] });
+}
+
+export function writeAcceptanceReport(report, reportPath, output = process.stdout, pythonBin = null) {
+  const failedChecks = Object.entries(report.checks).filter(([name, value]) =>
+    name.endsWith('_count') ? value !== 0 : value !== true,
+  ).map(([name]) => name);
+  const acceptancePassed = Object.keys(report.checks).length > 0 &&
+    failedChecks.length === 0 && report.observed_defects.length === 0;
+  const formatted = JSON.stringify({
+    ...report,
+    acceptance_passed: acceptancePassed,
+    failed_checks: failedChecks,
+  }, null, 2) + '\n';
+  if (reportPath) {
+    writeEvidenceFile(reportPath, formatted, pythonBin);
+  }
+  output.write(formatted);
+  return acceptancePassed ? 0 : 1;
+}
+
 async function main() {
   const opts = parseArgs(process.argv.slice(2));
   const repoRoot = path.resolve(SCRIPT_DIR, '..');
+  const pythonBin = resolvePython(repoRoot, opts.python);
   const chromeBin = findChrome(opts.chrome);
   const chromeVersion = execFileSync(chromeBin, ['--version'], { encoding: 'utf8' }).trim();
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fidelis-browser-accept-'));
-  const profileDir = path.join(tmpDir, 'chrome-profile');
-  fs.mkdirSync(profileDir, { recursive: true });
-  if (opts.screenshotsDir) fs.mkdirSync(opts.screenshotsDir, { recursive: true });
+  const profileDir = fs.mkdtempSync(path.join(tmpDir, 'chrome-profile-'));
 
   let serverProc = null;
   let chromeProc = null;
@@ -231,7 +321,6 @@ async function main() {
     let baseUrl = opts.url;
     if (!baseUrl) {
       const port = await findFreePort();
-      const pythonBin = resolvePython(repoRoot, opts.python);
       const workspaceDir = path.join(tmpDir, 'region_jobs');
       serverProc = spawn(
         pythonBin,
@@ -247,7 +336,7 @@ async function main() {
       await waitFor(
         async () => {
           try {
-            const res = await fetch(`${baseUrl}/regions`);
+            const res = await fetch(`${baseUrl}/regions`, { signal: AbortSignal.timeout(2000) });
             return res.ok;
           } catch {
             return false;
@@ -259,21 +348,21 @@ async function main() {
 
     const basePng = path.join(tmpDir, 'base.png');
     const texPng = path.join(tmpDir, 'texture.png');
-    fs.writeFileSync(
+    writeEvidenceFile(
       basePng,
       encodeRgbPng(320, 240, (x, y) => [
         ((x * 3) % 180) + 40,
         ((y * 2) % 160) + 45,
         x >= 80 && x < 240 && y >= 60 && y < 180 ? 210 : 70,
-      ]),
+      ]), pythonBin,
     );
-    fs.writeFileSync(
+    writeEvidenceFile(
       texPng,
       encodeRgbPng(320, 240, (x, y) => [
         x % 16 < 8 ? 225 : 40,
         y % 16 < 8 ? 210 : 60,
         90,
-      ]),
+      ]), pythonBin,
     );
 
     chromeProc = spawn(
@@ -299,13 +388,17 @@ async function main() {
           resolve(match[1]);
         }
       });
-      chromeProc.on('exit', (code) => {
+      chromeProc.on('exit', (code, signal) => {
         clearTimeout(timer);
-        reject(new Error(`Chrome exited prematurely with code ${code}`));
+        reject(new Error(`Chrome exited prematurely (${signal ? `signal ${signal}` : `code ${code}`})`));
+      });
+      chromeProc.on('error', (error) => {
+        clearTimeout(timer);
+        reject(new Error(`Chrome launch failed: ${error.message}`));
       });
     });
 
-    const targets = await (await fetch(`http://127.0.0.1:${devToolsPort}/json/list`)).json();
+    const targets = await (await fetch(`http://127.0.0.1:${devToolsPort}/json/list`, { signal: AbortSignal.timeout(5000) })).json();
     const pageTarget = targets.find((t) => t.type === 'page') || targets[0];
     cdp = new CdpSession(pageTarget.webSocketDebuggerUrl);
     await cdp.connect();
@@ -313,6 +406,8 @@ async function main() {
     const runtimeErrors = [];
     const unexpectedResponses = [];
     const favicon404Urls = [];
+    let expectedConflictUrl = null;
+    let expectedConflictCount = 0;
     await cdp.send('Page.enable');
     await cdp.send('DOM.enable');
     await cdp.send('Runtime.enable');
@@ -337,7 +432,11 @@ async function main() {
         favicon404Urls.push(url);
         return;
       }
-      if (status >= 400 && status !== 409) {
+      if (status === 409 && url === expectedConflictUrl && expectedConflictCount === 0) {
+        expectedConflictCount += 1;
+        return;
+      }
+      if (status >= 400) {
         unexpectedResponses.push(`${status} ${url}`);
       }
     });
@@ -447,7 +546,7 @@ async function main() {
       await cdp.eval(`window.scrollTo(0, 0)`);
       await new Promise((r) => setTimeout(r, 80));
       const shot = await cdp.send('Page.captureScreenshot', { format: 'png' });
-      fs.writeFileSync(path.join(opts.screenshotsDir, '01-desktop-painted.png'), Buffer.from(shot.data, 'base64'));
+      writeEvidenceFile(path.join(opts.screenshotsDir, '01-desktop-painted.png'), Buffer.from(shot.data, 'base64'), pythonBin);
     }
 
     // Save revision -> reload page -> reopen persisted job -> verify saved mask layer
@@ -473,16 +572,16 @@ async function main() {
         ),
       { label: 'reloaded job list populated and unlocked' },
     );
-    await cdp.eval(`(() => {
+    await cdp.callPage(`function (jobId) {
       const jobs = document.getElementById('jobs');
-      jobs.value = ${JSON.stringify(jobAfterCreate.id)};
+      jobs.value = jobId;
       jobs.dispatchEvent(new Event('change'));
-    })()`);
+    }`, jobAfterCreate.id);
     await waitFor(
       () =>
-        cdp.eval(
-          `!busy && !loadingMask && Boolean(current) && current.id === ${JSON.stringify(jobAfterCreate.id)} && current.revision === 2`,
-        ),
+        cdp.callPage(`function (jobId) {
+          return !busy && !loadingMask && Boolean(current) && current.id === jobId && current.revision === 2;
+        }`, jobAfterCreate.id),
       { label: 'persisted job reopened after reload' },
     );
     await new Promise((r) => setTimeout(r, 120));
@@ -556,7 +655,7 @@ async function main() {
 
     if (opts.screenshotsDir) {
       const shot = await cdp.send('Page.captureScreenshot', { format: 'png' });
-      fs.writeFileSync(path.join(opts.screenshotsDir, '02-desktop-native-zoom.png'), Buffer.from(shot.data, 'base64'));
+      writeEvidenceFile(path.join(opts.screenshotsDir, '02-desktop-native-zoom.png'), Buffer.from(shot.data, 'base64'), pythonBin);
     }
 
     // 4. Stale save conflict test: draw stroke on rev 3 -> out-of-band save bumps to rev 4 -> Save fails 409 without wiping edits
@@ -577,9 +676,11 @@ async function main() {
     await waitFor(() => cdp.eval(`history.done.length === 1`), { label: 'unsaved stroke before stale conflict' });
 
     const revBeforeExternal = await cdp.eval(`current.revision`);
+    assert.ok(Number.isSafeInteger(revBeforeExternal) && revBeforeExternal >= 0 && revBeforeExternal < Number.MAX_SAFE_INTEGER, 'Invalid Studio revision');
     const externalSaveRes = await fetch(`${baseUrl}/api/regions/jobs/${jobAfterCreate.id}/reblend`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      signal: AbortSignal.timeout(5000),
       body: JSON.stringify({
         expected_revision: revBeforeExternal,
         blend: { skin: 0.25, hair: 0.2, fabric: 0.15, edge_protection: 0 },
@@ -587,6 +688,7 @@ async function main() {
     });
     assert.equal(externalSaveRes.status, 200);
 
+    expectedConflictUrl = `${baseUrl}/api/regions/jobs/${jobAfterCreate.id}/reblend`;
     await cdp.eval(`document.getElementById('save').click()`);
     await waitFor(
       () => cdp.eval(`!busy && document.getElementById('error').textContent.length > 0`),
@@ -599,10 +701,12 @@ async function main() {
     })`);
     assert.match(staleState.error, /revision|reload|changed|conflict/i);
     assert.equal(staleState.unsavedCount, 1, 'Unsaved stroke was discarded during stale save conflict');
+    assert.equal(staleState.revisionStill, revBeforeExternal, 'Stale save silently advanced the editor revision');
+    expectedConflictUrl = null;
 
     if (opts.screenshotsDir) {
       const shot = await cdp.send('Page.captureScreenshot', { format: 'png' });
-      fs.writeFileSync(path.join(opts.screenshotsDir, '03-desktop-stale-conflict.png'), Buffer.from(shot.data, 'base64'));
+      writeEvidenceFile(path.join(opts.screenshotsDir, '03-desktop-stale-conflict.png'), Buffer.from(shot.data, 'base64'), pythonBin);
     }
 
     // Measure desktop canvas visibility when lower sidebar controls (Save button) scroll into view.
@@ -613,7 +717,9 @@ async function main() {
 
     // Discard unsaved edits and switch to mobile 390x844 with real Chrome touch emulation
     await cdp.eval(`document.getElementById('discard').click(); document.getElementById('reload').click();`);
-    await waitFor(() => cdp.eval(`!busy && current && current.revision === ${revBeforeExternal + 1} && history.done.length === 0`), {
+    await waitFor(() => cdp.callPage(`function (revision) {
+      return !busy && current && current.revision === revision && history.done.length === 0;
+    }`, revBeforeExternal + 1), {
       label: 'reloaded latest revision before mobile touch test',
     });
 
@@ -666,11 +772,8 @@ async function main() {
 
     if (opts.screenshotsDir) {
       const shot = await cdp.send('Page.captureScreenshot', { format: 'png' });
-      fs.writeFileSync(path.join(opts.screenshotsDir, '04-mobile-touch-paint.png'), Buffer.from(shot.data, 'base64'));
+      writeEvidenceFile(path.join(opts.screenshotsDir, '04-mobile-touch-paint.png'), Buffer.from(shot.data, 'base64'), pythonBin);
     }
-
-    assert.equal(runtimeErrors.length, 0, `Browser runtime errors: ${runtimeErrors.join('; ')}`);
-    assert.equal(unexpectedResponses.length, 0, `Unexpected HTTP >=400 responses: ${unexpectedResponses.join('; ')}`);
 
     const observedDefects = [];
     if (historyAfterCtrlZOnSelect !== 0) {
@@ -718,7 +821,7 @@ async function main() {
         export_png_download_200: true,
         native_100_200_crop_and_split: true,
         native_structural_crop_check_and_lock: /^0 of 256 pixels differ/.test(structureAfterLock),
-        stale_409_conflict_preserves_unsaved_edit: true,
+        stale_409_conflict_preserves_unsaved_edit: expectedConflictCount === 1,
         mobile_390_no_horizontal_overflow: true,
         mobile_touch_event_paint: true,
         runtime_error_count: runtimeErrors.length,
@@ -736,20 +839,22 @@ async function main() {
         desktop_canvas_bottom_when_save_scrolled: desktopCanvasBottomWhenSidebarBottomFocused,
         favicon_404_count: favicon404Urls.length,
         stale_error_message: staleState.error,
+        expected_conflict_count: expectedConflictCount,
       },
       observed_defects: observedDefects,
+      runtime_errors: runtimeErrors,
+      unexpected_http_errors: unexpectedResponses,
       screenshots_dir: opts.screenshotsDir || null,
       limitations: [
-        'Verified in HeadlessChrome on macOS host loopback (127.0.0.1); physical Android/iOS touch hardware, Apple Pencil/stylus tilt/pressure and human visual signoff remain separate open gates.',
+        `Headless Chromium on ${os.platform()} ${os.arch()}; physical Android/iOS touch hardware, Apple Pencil/stylus tilt/pressure and human visual signoff remain separate open gates.`,
       ],
     };
 
-    const formatted = JSON.stringify(report, null, 2) + '\n';
-    if (opts.report) {
-      fs.mkdirSync(path.dirname(opts.report), { recursive: true });
-      fs.writeFileSync(opts.report, formatted, 'utf8');
-    }
-    process.stdout.write(formatted);
+    return writeAcceptanceReport(report, opts.report, process.stdout, pythonBin);
+  } catch (error) {
+    // Runtime failures must remain nonzero and visible, even while cleaning up.
+    console.error(error.stack || error.message || String(error));
+    return 1;
   } finally {
     if (cdp) cdp.close();
     await stopProcess(chromeProc);
@@ -758,7 +863,9 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error(err.stack || err.message || String(err));
-  process.exit(1);
-});
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().then((code) => { process.exitCode = code; }).catch((err) => {
+    console.error(err.stack || err.message || String(err));
+    process.exitCode = 1;
+  });
+}

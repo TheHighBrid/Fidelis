@@ -36,7 +36,7 @@ when a background task completes. Packshot Strict rejects generation.
 | applying | Atomic revision-checked result commit has started; cancellation returns conflict |
 | completed | Candidate committed; result revision recorded |
 | waiting | Poll deadline reached; explicitly resume the existing run |
-| needs_review | Submission cannot be confirmed; resume attempts reconciliation, never automatic resubmission |
+| needs_review | Submission cannot be confirmed or local output publication is blocked; resume uses the existing run, never automatic resubmission |
 | interrupted | Worker stopped/restarted; explicitly resume to reconcile the existing run |
 | failed | Error or stale/deleted job prevented application; inspect before intentionally starting another task |
 | cancelled | Local task abandoned; it cannot apply a late result |
@@ -63,13 +63,19 @@ Unresolved tasks prevent a second task for the same job. Terminal records count
 toward the record cap; there is no automatic pruning/retention policy yet. Hitting
 a cap returns an explicit error rather than silently dropping history.
 
-One worker decodes/runs a job at a time. Polling defaults to 300 seconds; HTTP
+One worker decodes/runs a job at a time. A second claim is refused while that
+task is in flight, and a second worker thread is refused for the same queue.
+The directory lock still allows only one process owner. Polling defaults to 300 seconds; HTTP
 calls use two-second connect/read timeouts. These are cooperative timeouts, not a
 certified end-to-end latency bound. Image decoding, downloads, rendering and
 process memory still need target-device measurement. The backend response limit
-is 200 MiB per output. The existing JobStore byte budget does not include the
-separate generated PNG cache; aggregate cache retention/quota is still release
-work. Do not infer an 8GB/8K memory guarantee from queue capacity.
+is 200 MiB per output. The separate generated PNG cache has its own 2048 MiB
+default cap (`--generation-cache-mib`). If it fills, a task requiring a new cache
+write enters `needs_review` without applying anything to the job. Stop the server,
+raise the limit according to available storage, restart and explicitly resume the
+same task; the stored prompt ID is reused. Existing outputs and run records are
+not pruned automatically. Operator-managed retention and disk/RSS measurements
+remain release work. Do not infer an 8GB/8K memory guarantee from queue capacity.
 
 On restart, untouched queued work can execute. Former running/applying tasks become
 `interrupted` and require explicit resume. Resume retains the source revision,
@@ -78,6 +84,31 @@ application can leave the job already committed; a resumed stale revision fails
 closed, and the saved job/ledger must be inspected. Exactly-once automatic apply
 reconciliation across those two databases is not claimed. A lost/expired ComfyUI
 history entry never authorizes a replacement prompt.
+
+Task updates use one SQLite transaction (`BEGIN IMMEDIATE`, `synchronous=FULL`).
+A failed transaction does not publish a partial row. An empty, truncated, or
+non-SQLite `queue.sqlite3` raises `QueueStorageError` and is left byte-for-byte
+in place; the queue does not create a replacement database over it. A readable
+database whose task JSON is damaged or missing required fields is rewritten to
+`needs_review` with `quarantined` set, `error` `CorruptRecord`, and
+`remote_may_continue` true. That row is not executed and cannot be resumed.
+It still owns its job until an explicit cancel. The SHA-256 of the rejected
+bytes is kept on the row; the raw payload is not copied into the record.
+
+Cancellation tokens are read through a queue-owned signal collaborator. A
+retired token raises `PermissionError` or `RuntimeError`. That failure does not
+clear a cancellation already stored in SQLite, and it does not by itself cancel
+a task whose durable flag is false. After the durable flag is set, a late
+applicable receipt does not change the job revision. An unexpected worker
+exception leaves `running` or `applying` as `interrupted` and the worker keeps
+serving later tasks. Restart is what marks in-flight rows when the process
+itself exits.
+
+The queue module does not download runtimes or open a non-loopback address.
+Offline bundles must include `fidelis/studio/cancellation.py` with
+`fidelis/studio/generation.py`. `scripts/package-offline-bundle.sh` does not
+invoke `scripts/install-macos-runtime.sh`; that installer remains the
+network-backed native NCNN path and is outside this queue.
 
 Shutdown stops polling cooperatively, preserves the existing run and waits for the
 worker before releasing ownership. It does not cancel remote GPU execution.

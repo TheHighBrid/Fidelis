@@ -148,6 +148,11 @@ def stabilize_colors(
     Automatically routes to Wavelet Color Fix for scale <= 2x and
     AdaIN Color Fix for scale >= 4x as recommended by the research blueprint.
     """
+    if preferred_mode not in ("auto", "wavelet", "adain", "hybrid"):
+        raise ValueError(f"Unsupported color stabilization mode: {preferred_mode!r}")
+    if not np.isfinite(scale_factor) or scale_factor <= 0:
+        raise ValueError("scale_factor must be a finite positive number")
+
     if preferred_mode == "wavelet" or (preferred_mode == "auto" and scale_factor <= 2.5):
         return wavelet_color_fix(sr_img, lq_img, levels=5)
     elif preferred_mode == "adain" or (preferred_mode == "auto" and scale_factor > 2.5):
@@ -156,5 +161,7 @@ def stabilize_colors(
         # 50/50 blending of Wavelet and AdaIN
         w_fix = wavelet_color_fix(sr_img, lq_img, levels=5)
         a_fix = adain_color_fix(sr_img, lq_img)
-        return ((w_fix.astype(np.float32) + a_fix.astype(np.float32)) / 2.0).clip(0, 255).astype(sr_img.dtype)
-    return sr_img
+        mixed = (w_fix.astype(np.float32) + a_fix.astype(np.float32)) / 2.0
+        if sr_img.dtype == np.uint8:
+            return np.rint(mixed).clip(0, 255).astype(np.uint8)
+        return mixed.astype(sr_img.dtype)

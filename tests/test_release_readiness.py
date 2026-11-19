@@ -85,6 +85,31 @@ def _make_complete_manifest(pkg_path: str, pkg_sha: str, *, signed: bool = True)
 
 
 class ReleaseReadinessTests(unittest.TestCase):
+    def test_each_manifest_gate_independently_prevents_release(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            artifact = root / "release.tar.gz"
+            artifact.write_bytes(b"release")
+            checksum = hashlib.sha256(b"release").hexdigest()
+            cases = (
+                ("release_sha", "unknown", "release_sha_or_main_merge_unverified"),
+                ("packages", [], "release_packages_unverified"),
+                ("quality_gate", {}, "held_out_quality_gate_not_accepted"),
+                ("operational_gate", {}, "operational_and_device_gates_incomplete"),
+                ("known_limits", "not a list", "scope_limits_or_rollback_plan_incomplete"),
+                ("owner_release_signoff", {}, "owner_release_signoff_missing"),
+            )
+            for key, value, reason in cases:
+                with self.subTest(key=key):
+                    manifest = _make_complete_manifest(artifact.name, checksum)
+                    manifest[key] = value
+                    dossier = evaluate_release_readiness(
+                        _make_closed_backlog(), release_manifest=manifest, repo_root=root
+                    )
+                    self.assertFalse(dossier["ready_for_release"])
+                    self.assertEqual(dossier["blocking_reasons"], [reason])
+                    self.assertNotEqual(dossier["certified_evidence_level"], "E4_released")
+
     def test_tracked_repository_backlog_is_honestly_blocked_at_e1(self) -> None:
         backlog_data = json.loads(
             (REPO_ROOT / "docs" / "project" / "backlog.json").read_text(encoding="utf-8")

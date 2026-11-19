@@ -1,5 +1,6 @@
 """Native-grid material, hardware, seam and exact-lock fidelity metrics."""
 from __future__ import annotations
+
 from collections.abc import Mapping, Sequence
 from typing import Any
 
