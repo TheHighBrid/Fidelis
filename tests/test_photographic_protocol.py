@@ -15,13 +15,13 @@ FIXTURES = REPO_ROOT / "tests" / "fixtures" / "photographic_protocol"
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from fidelis.eval.photographic_protocol import (  # noqa: E402
+from fidelis.eval.photographic_protocol import (
     DefectCode,
     ProtocolVerdict,
     evaluate_restoration_pair,
     list_rubrics,
 )
-from fidelis.eval.texture_eval_hooks import (  # noqa: E402
+from fidelis.eval.texture_eval_hooks import (
     TextureEvalRequest,
     evaluate_texture_candidate,
     hook_contract,
@@ -80,7 +80,7 @@ class PhotographicProtocolTests(unittest.TestCase):
             category="skin",
             case_id="synthetic_skin_good",
         )
-        self.assertEqual(report.verdict, ProtocolVerdict.PASS, msg=report.to_dict())
+        self.assertEqual(report.verdict, ProtocolVerdict.PASSED, msg=report.to_dict())
 
 
     def test_exaggerated_hair_fails(self) -> None:
@@ -135,7 +135,7 @@ class PhotographicProtocolTests(unittest.TestCase):
         )
         self.assertEqual(bad.verdict, ProtocolVerdict.FAIL, msg=bad.to_dict())
         self.assertIn(DefectCode.LETTERING_MUTATION, {d.code for d in bad.defects})
-        self.assertEqual(good.verdict, ProtocolVerdict.PASS, msg=good.to_dict())
+        self.assertEqual(good.verdict, ProtocolVerdict.PASSED, msg=good.to_dict())
 
     def test_refuses_production_corpus_flag_on_synthetic_path(self) -> None:
         with self.assertRaises(ValueError):

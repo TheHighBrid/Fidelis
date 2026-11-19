@@ -9,13 +9,13 @@ from __future__ import annotations
 
 import hashlib
 import json
-from pathlib import Path
 import re
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from pathlib import Path
+from typing import Any
 
 SCHEMA_VERSION = 1
 
-CORPUS_CATEGORIES: Dict[str, Dict[str, Any]] = {
+CORPUS_CATEGORIES: dict[str, dict[str, Any]] = {
     "portraits": {
         "label": "Portraits (diverse skin tones & lighting)",
         "target_count": 12,
@@ -69,7 +69,7 @@ VALID_ROI_TYPES = (
 
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
-_CATEGORY_PLANNED_SLOTS: Dict[str, List[Tuple[str, str, bool, List[str], List[Dict[str, Any]]]]] = {
+_CATEGORY_PLANNED_SLOTS: dict[str, list[tuple[str, str, bool, list[str], list[dict[str, Any]]]]] = {
     "portraits": [
         ("por_deep_skin_studio", "Studio portrait, deep skin tone, natural pores and catchlights", True, [], [{"roi_id": "eyes_mouth", "label": "Eyes, iris catchlights, teeth", "roi_type": "identity_landmark", "must_lock_base": True, "bbox_norm": None}]),
         ("por_medium_skin_daylight", "Daylight editorial portrait, medium skin tone and flyaway hair", True, [], [{"roi_id": "hairline", "label": "Soft hairline and stray strands", "roi_type": "hair_edge", "must_lock_base": False, "bbox_norm": None}]),
@@ -187,17 +187,17 @@ def _verify_image_file(path: Path, expected_sha256: str, expected_w: int, expect
             )
 
 
-def measure_regression_assets(repo_root: Path) -> List[Dict[str, Any]]:
+def measure_regression_assets(repo_root: Path) -> list[dict[str, Any]]:
     """Measure SHA-256, dimensions, and mode for tracked fixture/crop assets."""
     from PIL import Image
 
-    tracked_paths: List[Tuple[str, str]] = []
+    tracked_paths: list[tuple[str, str]] = []
     for p in sorted((repo_root / "tests" / "fixtures").glob("*.png")):
         tracked_paths.append((p.relative_to(repo_root).as_posix(), "synthetic_test_fixture"))
     for p in sorted((repo_root / "experiments" / "eval_crops").glob("*.png")):
         tracked_paths.append((p.relative_to(repo_root).as_posix(), "internal_eval_crop"))
 
-    records: List[Dict[str, Any]] = []
+    records: list[dict[str, Any]] = []
     for rel_path, origin in tracked_paths:
         abs_path = repo_root / rel_path
         with Image.open(abs_path) as im:
@@ -221,9 +221,9 @@ def measure_regression_assets(repo_root: Path) -> List[Dict[str, Any]]:
     return records
 
 
-def build_template_manifest(repo_root: Optional[Path] = None) -> Dict[str, Any]:
+def build_template_manifest(repo_root: Path | None = None) -> dict[str, Any]:
     """Generate the frozen 60-slot benchmark manifest (30 calibration / 30 held-out)."""
-    cases: List[Dict[str, Any]] = []
+    cases: list[dict[str, Any]] = []
     for category, slots in _CATEGORY_PLANNED_SLOTS.items():
         if len(slots) != CORPUS_CATEGORIES[category]["target_count"]:
             raise ManifestValidationError(f"Internal template count mismatch for {category}")
@@ -316,9 +316,9 @@ def _validate_roi(roi: Any, *, case_id: str, require_bbox: bool) -> None:
 def validate_corpus_manifest(
     data: Any,
     *,
-    repo_root: Optional[Path] = None,
+    repo_root: Path | None = None,
     verify_files: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Validate corpus manifest schema, split invariants, rights gates, and optional file hashes."""
     if not isinstance(data, dict):
         raise ManifestValidationError("Corpus manifest must be a JSON object")
@@ -332,13 +332,13 @@ def validate_corpus_manifest(
         raise ManifestValidationError("Manifest 'cases' must be a list")
 
     seen_ids = set()
-    split_shas: Dict[str, set] = {split: set() for split in VALID_SPLITS}
+    split_shas: dict[str, set] = {split: set() for split in VALID_SPLITS}
     available_shas = set()
-    by_category: Dict[str, Dict[str, int]] = {
+    by_category: dict[str, dict[str, int]] = {
         cat: {"total": 0, "calibration": 0, "held_out": 0, "available": 0, "missing": 0, "excluded": 0}
         for cat in CORPUS_CATEGORIES
     }
-    by_split: Dict[str, Dict[str, int]] = {
+    by_split: dict[str, dict[str, int]] = {
         split: {"total": 0, "available": 0, "missing": 0, "excluded": 0}
         for split in VALID_SPLITS
     }
@@ -480,9 +480,9 @@ def validate_corpus_manifest(
 def load_corpus_manifest(
     manifest_path: Path,
     *,
-    repo_root: Optional[Path] = None,
+    repo_root: Path | None = None,
     verify_files: bool = False,
-) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+) -> tuple[dict[str, Any], dict[str, Any]]:
     data = json.loads(manifest_path.read_text(encoding="utf-8"))
     summary = validate_corpus_manifest(data, repo_root=repo_root, verify_files=verify_files)
     return data, summary

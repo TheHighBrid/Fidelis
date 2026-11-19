@@ -22,10 +22,10 @@ available.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import json
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from fidelis.eval.photographic_protocol import (
     PROTOCOL_ID,
@@ -36,7 +36,7 @@ from fidelis.eval.photographic_protocol import (
     list_rubrics,
 )
 
-PathLike = Union[str, Path]
+PathLike = str | Path
 
 
 @dataclass
@@ -46,16 +46,16 @@ class TextureEvalRequest:
     base_path: PathLike
     candidate_path: PathLike
     category: str  # skin | hair | textiles | products | lettering
-    case_id: Optional[str] = None
-    protected_mask_path: Optional[PathLike] = None
-    known_text: List[str] = field(default_factory=list)
-    source_sha256: Optional[str] = None
-    candidate_sha256: Optional[str] = None
-    adapter_id: Optional[str] = None
-    notes: List[str] = field(default_factory=list)
+    case_id: str | None = None
+    protected_mask_path: PathLike | None = None
+    known_text: list[str] = field(default_factory=list)
+    source_sha256: str | None = None
+    candidate_sha256: str | None = None
+    adapter_id: str | None = None
+    notes: list[str] = field(default_factory=list)
 
 
-HOOK_CONTRACT: Dict[str, Any] = {
+HOOK_CONTRACT: dict[str, Any] = {
     "hook_id": "fidelis.bot05.texture_eval_hooks",
     "protocol_id": PROTOCOL_ID,
     "protocol_version": PROTOCOL_VERSION,
@@ -108,7 +108,7 @@ def evaluate_texture_candidate(request: TextureEvalRequest) -> ProtocolReport:
     return report
 
 
-def write_protocol_receipt(report: ProtocolReport, out_dir: PathLike, *, filename: Optional[str] = None) -> Path:
+def write_protocol_receipt(report: ProtocolReport, out_dir: PathLike, *, filename: str | None = None) -> Path:
     """Write a JSON protocol receipt Bot 04 / CI can archive."""
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
@@ -120,6 +120,6 @@ def write_protocol_receipt(report: ProtocolReport, out_dir: PathLike, *, filenam
     return path
 
 
-def hook_contract() -> Dict[str, Any]:
+def hook_contract() -> dict[str, Any]:
     """Return the static Bot 04 ↔ Bot 05 evaluation contract."""
     return dict(HOOK_CONTRACT)

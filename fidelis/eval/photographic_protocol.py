@@ -11,14 +11,14 @@ protocol in CI. They are NOT the production rights-cleared 60-case corpus.
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
-from enum import Enum
 import json
+from dataclasses import dataclass, field
+from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import Any
 
 import numpy as np
-from PIL import Image, ImageDraw, ImageFilter, ImageFont
+from PIL import Image, ImageFilter
 
 
 class RubricCategory(str, Enum):
@@ -41,13 +41,13 @@ class DefectCode(str, Enum):
 
 
 class ProtocolVerdict(str, Enum):
-    PASS = "PASS"
+    PASSED = "PASSED"
     WARN = "WARN"
     FAIL = "FAIL"
     INCONCLUSIVE = "INCONCLUSIVE"
 
 
-PathLike = Union[str, Path]
+PathLike = str | Path
 
 
 @dataclass(frozen=True)
@@ -60,7 +60,7 @@ class RubricCriterion:
 
 
 # Explicit rubrics: restoration quality ≠ sharpness.
-RUBRICS: Tuple[RubricCriterion, ...] = (
+RUBRICS: tuple[RubricCriterion, ...] = (
     RubricCriterion(
         "skin_microtexture_preserved",
         RubricCategory.SKIN,
@@ -112,10 +112,10 @@ RUBRICS: Tuple[RubricCriterion, ...] = (
 class DefectFinding:
     code: DefectCode
     severity: str  # blocking | warning
-    evidence: Dict[str, Any]
+    evidence: dict[str, Any]
     message: str
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "code": self.code.value,
             "severity": self.severity,
@@ -130,15 +130,15 @@ class ProtocolReport:
     protocol_version: str
     category: RubricCategory
     verdict: ProtocolVerdict
-    defects: List[DefectFinding] = field(default_factory=list)
-    metrics: Dict[str, float] = field(default_factory=dict)
-    rubrics_applied: List[str] = field(default_factory=list)
-    notes: List[str] = field(default_factory=list)
+    defects: list[DefectFinding] = field(default_factory=list)
+    metrics: dict[str, float] = field(default_factory=dict)
+    rubrics_applied: list[str] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
     evidence_level: str = "E1"
     is_production_corpus: bool = False
-    case_id: Optional[str] = None
+    case_id: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "protocol_id": self.protocol_id,
             "protocol_version": self.protocol_version,
@@ -253,7 +253,7 @@ def _mask_iou(a: np.ndarray, b: np.ndarray) -> float:
     return float(inter / union)
 
 
-def rubrics_for(category: RubricCategory) -> List[RubricCriterion]:
+def rubrics_for(category: RubricCategory) -> list[RubricCriterion]:
     shared = [r for r in RUBRICS if r.criterion_id == "no_sharpness_proxy"]
     specific = [r for r in RUBRICS if r.category == category and r.criterion_id != "no_sharpness_proxy"]
     # Always include the cross-cutting sharpness rule.
@@ -261,12 +261,168 @@ def rubrics_for(category: RubricCategory) -> List[RubricCriterion]:
     return out
 
 
+
+def _compute_pair_metrics(base: np.ndarray, cand: np.ndarray) -> dict[str, float]:
+    g0 = _to_gray(base)
+    g1 = _to_gray(cand)
+    lap0 = _laplacian_energy(g0)
+    lap1 = _laplacian_energy(g1)
+    sharp_gain = lap1 / max(lap0, 1e-4)
+    mid0 = _midband_energy(g0)
+    mid1 = _midband_energy(g1)
+    mid_ratio = mid1 / max(mid0, 1e-4)
+    coherence = _gradient_coherence(g0, g1)
+    local_var0 = float(np.mean(_local_variance(g0)))
+    local_var1 = float(np.mean(_local_variance(g1)))
+    var_ratio = local_var1 / max(local_var0, 1e-4)
+    gx0, gy0 = np.gradient(g0)
+    flat = np.sqrt(gx0 * gx0 + gy0 * gy0) < 2.0
+    invented_flat = 0.0
+    if np.any(flat):
+        gx1, gy1 = np.gradient(g1)
+        invented_flat = float(np.mean(np.sqrt(gx1[flat] ** 2 + gy1[flat] ** 2)))
+    abs_diff = float(np.mean(np.abs(g1 - g0)))
+    calm = np.sqrt(gx0 * gx0 + gy0 * gy0) < 3.0
+    new_structure = 0.0
+    if np.any(calm):
+        gx1, gy1 = np.gradient(g1)
+        cand_edge = np.sqrt(gx1 * gx1 + gy1 * gy1)
+        new_structure = float(np.mean(cand_edge[calm] > 18.0) * 100.0)
+    metrics = {
+        "laplacian_energy_base": round(lap0, 4),
+        "laplacian_energy_candidate": round(lap1, 4),
+        "sharpness_gain": round(sharp_gain, 4),
+        "midband_energy_base": round(mid0, 4),
+        "midband_energy_candidate": round(mid1, 4),
+        "midband_ratio": round(mid_ratio, 4),
+        "gradient_coherence_pct": round(coherence, 2),
+        "local_variance_ratio": round(var_ratio, 4),
+        "flat_region_invention_energy": round(invented_flat, 4),
+        "mean_abs_diff": round(abs_diff, 4),
+        "new_structure_in_calm_pct": round(new_structure, 4),
+        "letter_mask_iou": round(_mask_iou(_binary_letter_mask(g0), _binary_letter_mask(g1)), 4),
+    }
+    return metrics
+
+
+def _collect_defects(category: RubricCategory, metrics: dict[str, float]) -> list[DefectFinding]:
+    defects: list[DefectFinding] = []
+    sharp_gain = metrics["sharpness_gain"]
+    coherence = metrics["gradient_coherence_pct"]
+    mid_ratio = metrics["midband_ratio"]
+    var_ratio = metrics["local_variance_ratio"]
+    invented_flat = metrics["flat_region_invention_energy"]
+    new_structure = metrics["new_structure_in_calm_pct"]
+    abs_diff = metrics["mean_abs_diff"]
+
+    if sharp_gain >= 1.35 and (coherence < 88.0 or mid_ratio < 0.85):
+        defects.append(
+            DefectFinding(
+                DefectCode.SHARPNESS_WITHOUT_RESTORATION,
+                "blocking",
+                {
+                    "sharpness_gain": sharp_gain,
+                    "gradient_coherence_pct": coherence,
+                    "midband_ratio": mid_ratio,
+                },
+                "Edge energy rose without mid-band fidelity / gradient coherence; sharpness is not restoration.",
+            )
+        )
+
+    if category == RubricCategory.SKIN:
+        if mid_ratio < 0.75 and var_ratio < 0.80:
+            defects.append(
+                DefectFinding(
+                    DefectCode.PLASTIC_SKIN,
+                    "blocking",
+                    {"midband_ratio": mid_ratio, "local_variance_ratio": var_ratio},
+                    "Skin mid-frequency grain collapsed (plastic / beauty-smooth signature).",
+                )
+            )
+        if sharp_gain >= 1.5 and mid_ratio > 1.25 and coherence < 90.0:
+            defects.append(
+                DefectFinding(
+                    DefectCode.EXAGGERATED_TEXTURE,
+                    "blocking",
+                    {"sharpness_gain": sharp_gain, "midband_ratio": mid_ratio},
+                    "Exaggerated skin micro-texture / pore stamp risk.",
+                )
+            )
+
+    if category == RubricCategory.HAIR and sharp_gain >= 1.25 and coherence < 92.0:
+        defects.append(
+            DefectFinding(
+                DefectCode.EXAGGERATED_TEXTURE,
+                "blocking",
+                {"sharpness_gain": sharp_gain, "gradient_coherence_pct": coherence},
+                "Hair high-frequency glitter / invented strand noise.",
+            )
+        )
+
+    if category == RubricCategory.TEXTILES and sharp_gain >= 1.45 and (coherence < 87.0 or invented_flat > 6.0):
+        defects.append(
+            DefectFinding(
+                DefectCode.WEAVE_HALLUCINATION,
+                "blocking",
+                {
+                    "sharpness_gain": sharp_gain,
+                    "gradient_coherence_pct": coherence,
+                    "flat_region_invention_energy": invented_flat,
+                },
+                "Textile weave amplification looks invented rather than restored.",
+            )
+        )
+
+    if category == RubricCategory.PRODUCTS and (
+        invented_flat > 8.0
+        or new_structure >= 1.5
+        or abs_diff >= 2.5
+        or (sharp_gain >= 1.3 and coherence < 85.0)
+    ):
+        defects.append(
+            DefectFinding(
+                DefectCode.INVENTED_PRODUCT_DETAIL,
+                "blocking",
+                {
+                    "flat_region_invention_energy": invented_flat,
+                    "new_structure_in_calm_pct": new_structure,
+                    "mean_abs_diff": abs_diff,
+                    "gradient_coherence_pct": coherence,
+                },
+                "New high-contrast structure appeared where the base was flat/stable (invented product detail).",
+            )
+        )
+
+    if category == RubricCategory.LETTERING:
+        iou = metrics["letter_mask_iou"]
+        if iou < 0.92 or (sharp_gain >= 1.25 and coherence < 90.0):
+            defects.append(
+                DefectFinding(
+                    DefectCode.LETTERING_MUTATION,
+                    "blocking",
+                    {"letter_mask_iou": iou, "sharpness_gain": sharp_gain},
+                    "Lettering/logo stroke geometry drifted; crispness that rewrites glyphs fails.",
+                )
+            )
+
+    if invented_flat > 12.0 and category != RubricCategory.PRODUCTS:
+        defects.append(
+            DefectFinding(
+                DefectCode.BACKGROUND_INVENTION,
+                "warning",
+                {"flat_region_invention_energy": invented_flat},
+                "Spurious energy in formerly flat regions (background invention risk).",
+            )
+        )
+    return defects
+
+
 def evaluate_restoration_pair(
     base_path: PathLike,
     candidate_path: PathLike,
     *,
-    category: Union[str, RubricCategory],
-    case_id: Optional[str] = None,
+    category: str | RubricCategory,
+    case_id: str | None = None,
     is_production_corpus: bool = False,
 ) -> ProtocolReport:
     """Compare base vs candidate and emit a protocol receipt with defect flags."""
@@ -279,175 +435,28 @@ def evaluate_restoration_pair(
 
     base = _load_rgb(base_path)
     cand = _resize_match(base, _load_rgb(candidate_path))
-    g0 = _to_gray(base)
-    g1 = _to_gray(cand)
+    full_metrics = _compute_pair_metrics(base, cand)
+    defects = _collect_defects(cat, full_metrics)
+    if cat != RubricCategory.LETTERING:
+        defects = [d for d in defects if d.code != DefectCode.LETTERING_MUTATION]
+        metrics = {k: v for k, v in full_metrics.items() if k != "letter_mask_iou"}
+    else:
+        metrics = full_metrics
 
-    lap0 = _laplacian_energy(g0)
-    lap1 = _laplacian_energy(g1)
-    sharp_gain = lap1 / max(lap0, 1e-4)
-    mid0 = _midband_energy(g0)
-    mid1 = _midband_energy(g1)
-    mid_ratio = mid1 / max(mid0, 1e-4)
-    coherence = _gradient_coherence(g0, g1)
-    local_var0 = float(np.mean(_local_variance(g0)))
-    local_var1 = float(np.mean(_local_variance(g1)))
-    var_ratio = local_var1 / max(local_var0, 1e-4)
-
-    # Flat-region invention: energy in regions that were flat in the base.
-    gx0, gy0 = np.gradient(g0)
-    flat = np.sqrt(gx0 * gx0 + gy0 * gy0) < 2.0
-    invented_flat = 0.0
-    if np.any(flat):
-        gx1, gy1 = np.gradient(g1)
-        invented_flat = float(np.mean(np.sqrt(gx1[flat] ** 2 + gy1[flat] ** 2)))
-
-    abs_diff = np.mean(np.abs(g1 - g0))
-    # New high-contrast structure relative to a calm base region.
-    calm = np.sqrt(gx0 * gx0 + gy0 * gy0) < 3.0
-    new_structure = 0.0
-    if np.any(calm):
-        gx1, gy1 = np.gradient(g1)
-        cand_edge = np.sqrt(gx1 * gx1 + gy1 * gy1)
-        # Edges that appear only where the base was calm.
-        new_structure = float(np.mean(cand_edge[calm] > 18.0) * 100.0)
-
-    metrics = {
-        "laplacian_energy_base": round(lap0, 4),
-        "laplacian_energy_candidate": round(lap1, 4),
-        "sharpness_gain": round(sharp_gain, 4),
-        "midband_energy_base": round(mid0, 4),
-        "midband_energy_candidate": round(mid1, 4),
-        "midband_ratio": round(mid_ratio, 4),
-        "gradient_coherence_pct": round(coherence, 2),
-        "local_variance_ratio": round(var_ratio, 4),
-        "flat_region_invention_energy": round(invented_flat, 4),
-        "mean_abs_diff": round(float(abs_diff), 4),
-        "new_structure_in_calm_pct": round(new_structure, 4),
-    }
-
-    defects: List[DefectFinding] = []
     applied = [r.criterion_id for r in rubrics_for(cat)]
-
-    # Cross-cutting: sharpness without restoration.
-    if sharp_gain >= 1.35 and (coherence < 88.0 or mid_ratio < 0.85):
-        defects.append(
-            DefectFinding(
-                DefectCode.SHARPNESS_WITHOUT_RESTORATION,
-                "blocking",
-                {
-                    "sharpness_gain": metrics["sharpness_gain"],
-                    "gradient_coherence_pct": metrics["gradient_coherence_pct"],
-                    "midband_ratio": metrics["midband_ratio"],
-                },
-                "Edge energy rose without mid-band fidelity / gradient coherence; sharpness is not restoration.",
-            )
-        )
-
-    if cat == RubricCategory.SKIN:
-        # Plastic skin: smoothing (midband/local variance collapse) even if edges look crisp.
-        if mid_ratio < 0.75 and var_ratio < 0.80:
-            defects.append(
-                DefectFinding(
-                    DefectCode.PLASTIC_SKIN,
-                    "blocking",
-                    {"midband_ratio": metrics["midband_ratio"], "local_variance_ratio": metrics["local_variance_ratio"]},
-                    "Skin mid-frequency grain collapsed (plastic / beauty-smooth signature).",
-                )
-            )
-        if sharp_gain >= 1.5 and mid_ratio > 1.25 and coherence < 90.0:
-            defects.append(
-                DefectFinding(
-                    DefectCode.EXAGGERATED_TEXTURE,
-                    "blocking",
-                    {"sharpness_gain": metrics["sharpness_gain"], "midband_ratio": metrics["midband_ratio"]},
-                    "Exaggerated skin micro-texture / pore stamp risk.",
-                )
-            )
-
-    if cat == RubricCategory.HAIR:
-        if sharp_gain >= 1.25 and coherence < 92.0:
-            defects.append(
-                DefectFinding(
-                    DefectCode.EXAGGERATED_TEXTURE,
-                    "blocking",
-                    {"sharpness_gain": metrics["sharpness_gain"], "gradient_coherence_pct": metrics["gradient_coherence_pct"]},
-                    "Hair high-frequency glitter / invented strand noise.",
-                )
-            )
-
-    if cat == RubricCategory.TEXTILES:
-        if sharp_gain >= 1.45 and (coherence < 87.0 or invented_flat > 6.0):
-            defects.append(
-                DefectFinding(
-                    DefectCode.WEAVE_HALLUCINATION,
-                    "blocking",
-                    {
-                        "sharpness_gain": metrics["sharpness_gain"],
-                        "gradient_coherence_pct": metrics["gradient_coherence_pct"],
-                        "flat_region_invention_energy": metrics["flat_region_invention_energy"],
-                    },
-                    "Textile weave amplification looks invented rather than restored.",
-                )
-            )
-
-    if cat == RubricCategory.PRODUCTS:
-        if (
-            invented_flat > 8.0
-            or new_structure >= 1.5
-            or abs_diff >= 2.5
-            or (sharp_gain >= 1.3 and coherence < 85.0)
-        ):
-            defects.append(
-                DefectFinding(
-                    DefectCode.INVENTED_PRODUCT_DETAIL,
-                    "blocking",
-                    {
-                        "flat_region_invention_energy": metrics["flat_region_invention_energy"],
-                        "new_structure_in_calm_pct": metrics["new_structure_in_calm_pct"],
-                        "mean_abs_diff": metrics["mean_abs_diff"],
-                        "gradient_coherence_pct": metrics["gradient_coherence_pct"],
-                    },
-                    "New high-contrast structure appeared where the base was flat/stable (invented product detail).",
-                )
-            )
-
-    if cat == RubricCategory.LETTERING:
-        iou = _mask_iou(_binary_letter_mask(g0), _binary_letter_mask(g1))
-        metrics["letter_mask_iou"] = round(iou, 4)
-        if iou < 0.92 or (sharp_gain >= 1.25 and coherence < 90.0):
-            defects.append(
-                DefectFinding(
-                    DefectCode.LETTERING_MUTATION,
-                    "blocking",
-                    {"letter_mask_iou": metrics["letter_mask_iou"], "sharpness_gain": metrics["sharpness_gain"]},
-                    "Lettering/logo stroke geometry drifted; crispness that rewrites glyphs fails.",
-                )
-            )
-
-    if invented_flat > 12.0 and cat != RubricCategory.PRODUCTS:
-        defects.append(
-            DefectFinding(
-                DefectCode.BACKGROUND_INVENTION,
-                "warning",
-                {"flat_region_invention_energy": metrics["flat_region_invention_energy"]},
-                "Spurious energy in formerly flat regions (background invention risk).",
-            )
-        )
-
     blocking = [d for d in defects if d.severity == "blocking"]
     if blocking:
         verdict = ProtocolVerdict.FAIL
     elif defects:
         verdict = ProtocolVerdict.WARN
     else:
-        verdict = ProtocolVerdict.PASS
+        verdict = ProtocolVerdict.PASSED
 
     notes = [
-        "Sharpness/edge-energy gain is never sufficient for PASS.",
+        "Sharpness/edge-energy gain is never sufficient for PASSED.",
         "Synthetic protocol fixtures are not the rights-cleared production corpus.",
         f"Rubrics applied: {', '.join(applied)}",
     ]
-
     return ProtocolReport(
         protocol_id=PROTOCOL_ID,
         protocol_version=PROTOCOL_VERSION,
@@ -463,7 +472,8 @@ def evaluate_restoration_pair(
     )
 
 
-def list_rubrics() -> List[Dict[str, Any]]:
+
+def list_rubrics() -> list[dict[str, Any]]:
     return [
         {
             "criterion_id": r.criterion_id,
