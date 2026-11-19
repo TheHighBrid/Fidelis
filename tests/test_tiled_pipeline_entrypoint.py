@@ -58,6 +58,30 @@ class TiledPipelineEntrypointTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "without a nonempty output file"):
                 pipeline._run_tiled_upscale(source, output, "RealeSR-general-v3", 128, 16, 4)
 
+    def test_preexisting_output_is_rejected_without_running_subprocess(self):
+        pipeline = UpscalePipeline(cli_path="/unused/fidelis")
+        with TemporaryDirectory() as directory, patch("fidelis.core.pipeline.subprocess.run") as run:
+            source = Path(directory) / "source.png"
+            output = Path(directory) / "stale.png"
+            output.write_bytes(b"old successful output")
+            with self.assertRaisesRegex(RuntimeError, "output path already exists"):
+                pipeline._run_tiled_upscale(source, output, "RealeSR-general-v3", 128, 16, 4)
+            run.assert_not_called()
+            self.assertEqual(output.read_bytes(), b"old successful output")
+
+    def test_preexisting_output_symlink_is_rejected(self):
+        pipeline = UpscalePipeline(cli_path="/unused/fidelis")
+        with TemporaryDirectory() as directory, patch("fidelis.core.pipeline.subprocess.run") as run:
+            source = Path(directory) / "source.png"
+            target = Path(directory) / "target.png"
+            target.write_bytes(b"protected artifact")
+            output = Path(directory) / "output.png"
+            output.symlink_to(target)
+            with self.assertRaisesRegex(RuntimeError, "output path already exists"):
+                pipeline._run_tiled_upscale(source, output, "RealeSR-general-v3", 128, 16, 4)
+            run.assert_not_called()
+            self.assertEqual(target.read_bytes(), b"protected artifact")
+
     def test_success_with_nonempty_output_is_accepted(self):
         pipeline = UpscalePipeline(cli_path="/unused/fidelis")
         with TemporaryDirectory() as directory, patch("fidelis.core.pipeline.subprocess.run") as run:
