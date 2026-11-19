@@ -1,11 +1,13 @@
 # Rights-cleared corpus acquisition (Melato GO 2026-11-19)
 
-Status: **OWNER GO via Huncho** — Mohamed vouched all **97** Melato images under
-`/workspace/melato-corpus/fidelis` as cleared/licensed
-(`permission_basis: owner_melato_vouched_2026-11-19`).
+Status: **APPROVED — Melato-first / off-repo** (owner GO via Huncho, 2026-11-19).
+Mohamed vouched all **97** Melato images under `/workspace/melato-corpus/fidelis`
+as cleared/licensed (`permission_basis: owner_melato_vouched_2026-11-19`).
 
 Bot 05 inventories those masters **off-repo** (metadata only in git). Image binaries
-and Git LFS are intentionally not committed.
+and Git LFS are intentionally not committed. Textiles/macros specialty gaps in the
+frozen 60 stay **open** (do not invent fills). Real Madrid jersey stays unflagged
+until a specific filename is named.
 
 ## Production corpus targets (unchanged F12 structure)
 
@@ -46,3 +48,13 @@ Exact slot IDs live in `experiments/corpus_manifest.json`. Full Melato inventory
 .venv/bin/python scripts/validate-corpus-manifest.py --verify-files \
   --master-root /workspace/melato-corpus/fidelis
 ```
+
+## Open gaps (intentional)
+
+- Frozen 60 readiness: **30 available / 30 missing** after Melato-first fill.
+- Prefer leaving textiles/macros/specialty packshot slots **missing** over forcing
+  AI or weak matches into ground-truth slots.
+- If Mohamed adds more cleared masters later, slot them into remaining intents.
+- Trademark notes cover Nike / Mazda / Adidas / etc.; Real Madrid remains unflagged
+  until Huncho names a filename.
+
