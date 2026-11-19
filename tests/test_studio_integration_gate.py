@@ -4,6 +4,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+from unittest.mock import patch
 
 SCRIPT = Path(__file__).resolve().parents[1] / 'scripts' / 'check-studio-integration.py'
 spec = importlib.util.spec_from_file_location('integration_gate', SCRIPT)
@@ -68,6 +69,27 @@ class IntegrationGateTests(unittest.TestCase):
         self.commit('base version')
         self.assertEqual(gate.main(['--base', 'base', '--head', 'feature',
                                     '--repo', str(self.root)]), 2)
+
+    def test_concurrent_head_move_fails_closed(self):
+        self.git('switch', '-qc', 'feature')
+        self.commit('feature version')
+        self.git('switch', '-q', 'base')
+        original_git = gate.git
+        moved = False
+
+        def move_after_diff(*args, **kwargs):
+            nonlocal moved
+            result = original_git(*args, **kwargs)
+            if args[:2] == ('diff', '--name-only') and not moved:
+                moved = True
+                self.git('branch', '-f', 'feature', 'base')
+            return result
+
+        with patch.object(gate, 'git', side_effect=move_after_diff):
+            with self.assertRaisesRegex(RuntimeError, 'ref changed'):
+                gate.inspect('base', 'feature', self.root)
+        self.assertTrue(moved)
+        self.assertEqual(self.git('status', '--porcelain'), '')
 
     def test_dirty_tree_is_rejected(self):
         self.git('switch', '-qc', 'feature')
