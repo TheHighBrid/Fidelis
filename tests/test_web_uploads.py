@@ -59,6 +59,16 @@ class UploadTests(unittest.TestCase):
         status, _ = self.post(b"{}", headers={"Content-Length": "invalid"})
         self.assertEqual(status, 400)
 
+    def test_explicit_non_json_content_type_rejected(self):
+        status, data = self.post(b"{}", headers={"Content-Type": "text/plain"})
+        self.assertEqual(status, 415)
+        self.assertIn("error", data)
+        status, _ = self.post(
+            b"{}",
+            headers={"Content-Type": "application/json; charset=utf-8"},
+        )
+        self.assertEqual(status, 400)
+
     def image_data(self, fmt):
         stream = io.BytesIO()
         Image.new("RGB", (8, 8), "red").save(stream, format=fmt)

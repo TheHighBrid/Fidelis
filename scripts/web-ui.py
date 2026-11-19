@@ -1416,6 +1416,11 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
                 raise UploadError("A JSON request body is required.")
             if content_len > MAX_REQUEST_BYTES:
                 raise UploadError("The upload exceeds the 32 MiB request limit.", 413)
+            content_type = self.headers.get("Content-Type")
+            if content_type is not None:
+                media_type = content_type.split(";", 1)[0].strip().lower()
+                if media_type != "application/json":
+                    raise UploadError("Expected application/json.", 415)
             body = self.rfile.read(content_len)
             try:
                 data = json.loads(body.decode("utf-8")) if body else {}

@@ -226,3 +226,20 @@ failed write is `write_failed`. The record also carries
 The 2026-11-10 pipeline-integrity receipt describes the earlier PR #12 writer,
 including `application/json`. That receipt is not the current sidecar contract.
 Nothing here is a verified C2PA manifest.
+
+Local verification on this branch, Python 3.12 with the documented test
+dependencies plus pytest so `tests/e2e` can import:
+
+- `unittest discover -s tests -p 'test_*.py'`: 312 tests, OK. Without pytest the
+  same command reported 5 e2e import errors. Discovery does not execute the
+  pytest functions.
+- `tests/test-web-ui.sh` and `tests/smoke-test.sh` passed.
+- `node --check` passed for `fidelis/studio/editor.js`,
+  `fidelis/studio/inspection.js`, `scripts/browser-acceptance.mjs`,
+  `tests/native-inspection-ui.cjs`, and
+  `tests/test_browser_acceptance_report.mjs`.
+- `node --test` passed for `tests/test-studio-interactions.cjs` and
+  `tests/test_browser_acceptance_report.mjs`. The native inspection fixture is
+  executed by `tests/test_native_inspection.py`, which is inside the 312.
+- `git diff --check` is recorded with the commit. No GPU, visual, or device
+  acceptance is claimed. Remote CI is separate evidence.
