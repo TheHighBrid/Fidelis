@@ -175,6 +175,15 @@ def _safe_repo_path(repo_root: Path, relative_path: str) -> Path:
     return resolved
 
 
+def _master_filename(filename: Any) -> str:
+    """Require one portable filename, including during metadata-only validation."""
+    if not isinstance(filename, str) or not filename.strip():
+        raise ManifestValidationError("Off-repo master filename must be a non-empty string")
+    if filename in (".", "..") or any(char in filename for char in ("/", "\\", ":", "\x00")):
+        raise ManifestValidationError("Off-repo master filename must not contain path components")
+    return filename
+
+
 def _verify_image_file(path: Path, expected_sha256: str, expected_w: int, expected_h: int) -> None:
     if not path.is_file():
         raise ManifestValidationError(f"Referenced image file is missing on disk: {path}")
@@ -440,6 +449,7 @@ def validate_corpus_manifest(
             _validate_roi(roi, case_id=case_id, require_bbox=require_bbox)
 
         if is_available:
+            assert_restoration_ground_truth_allowed(entry, label=case_id)
             if not rights["cleared"]:
                 raise ManifestValidationError(f"{case_id}: available case must have rights.cleared=true")
             if not isinstance(rights.get("permission_basis"), str) or not rights["permission_basis"].strip():
@@ -469,24 +479,16 @@ def validate_corpus_manifest(
 
             if storage == "off_repo":
                 off_repo_available += 1
-                filename = source.get("filename")
-                if not isinstance(filename, str) or not filename.strip():
-                    raise ManifestValidationError(f"{case_id}: off_repo available case requires source.filename")
+                filename = _master_filename(source.get("filename"))
                 if source.get("relative_path") not in (None, ""):
                     raise ManifestValidationError(
                         f"{case_id}: off_repo masters must not set source.relative_path (binaries stay out of git)"
-                    )
-                if entry.get("synthetic") is True or entry.get("ground_truth_eligible") is False:
-                    # Available frozen slots used as production GT must remain eligible.
-                    raise ManifestValidationError(
-                        f"{case_id}: frozen available slots must remain ground-truth eligible "
-                        "(synthetic Melato assets belong only in the companion non-GT set)"
                     )
                 if verify_files:
                     if master_root is None:
                         files_skipped_no_master += 1
                     else:
-                        asset_path = Path(master_root) / filename
+                        asset_path = _safe_repo_path(master_root, filename)
                         if not asset_path.is_file():
                             raise ManifestValidationError(
                                 f"{case_id}: off_repo master missing under master_root: {asset_path}"
@@ -644,9 +646,7 @@ def validate_melato_corpus_manifest(
 
         if source.get("storage") != "off_repo":
             raise ManifestValidationError(f"{asset_id}: source.storage must be off_repo")
-        filename = source.get("filename") or entry.get("filename")
-        if not isinstance(filename, str) or not filename.strip():
-            raise ManifestValidationError(f"{asset_id}: filename required")
+        filename = _master_filename(source.get("filename") or entry.get("filename"))
         if source.get("relative_path") not in (None, ""):
             raise ManifestValidationError(f"{asset_id}: relative_path must be null for off-repo Melato masters")
 
@@ -674,7 +674,7 @@ def validate_melato_corpus_manifest(
             if master_root is None:
                 skipped += 1
             else:
-                asset_path = Path(master_root) / filename
+                asset_path = _safe_repo_path(master_root, filename)
                 if not asset_path.is_file():
                     raise ManifestValidationError(f"{asset_id}: master missing at {asset_path}")
                 _verify_image_file(asset_path, sha, w, h)

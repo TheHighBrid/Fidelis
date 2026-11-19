@@ -36,11 +36,15 @@ Promoting a slot to `availability: "available"` requires:
    - **Off-repo Melato:** `source.storage: "off_repo"`, `source.filename`, sha256, dims,
      `relative_path: null`. Masters are resolved locally via `--master-root` /
      `FIDELIS_MELATO_MASTER_ROOT` when verifying bytes; CI without masters still validates
-     schema/rights and skips byte checks.
+     schema/rights and skips byte checks. Filenames must be single portable names, not
+     paths, even in metadata-only mode; symlinks resolving outside the selected master
+     root are refused when checking files.
 3. No duplicate `sha256` across available cases or across `calibration` vs `held_out` splits.
 4. Non-empty `critical_rois`. Normalized `bbox_norm` is required for in-repo available
    cases; off-repo Melato fills may keep `bbox_norm: null` until annotated (prefer null
    over invented boxes). Document `known_text` where typography/logos exist.
+5. Neither in-repo nor off-repo available slots may be marked synthetic, non-GT,
+   or explicitly ineligible for restoration ground truth.
 
 ## Melato companion (97 assets)
 
