@@ -19,6 +19,11 @@ screens for localized spatial drift hidden beneath matching image dimensions.
   rejects size mismatches without resizing and searches block-grid and per-ROI patch
   displacements plus local gradient coherence. On composed `master` outputs, every
   expected-locked pixel must match `base` bit-for-bit (`LOCKED_EXACT` vs `LOCK_VIOLATION`).
+- **Screening settings fail closed.** Block size and search radius must be integers
+  (at least 8 and 1 respectively). Warning/failure shifts must be finite, nonnegative
+  and ordered; edge coherence must be finite in `[0, 1]`. The search visits only
+  feasible in-grid translations, even when the requested radius exceeds the image.
+  No valid-input drift threshold, mask, or receipt schema has changed.
 
 ## Usage
 

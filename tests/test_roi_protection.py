@@ -201,6 +201,26 @@ class RoiProtectionAndDriftTests(unittest.TestCase):
                 (64, 64),
             )
 
+    def test_drift_thresholds_fail_closed(self) -> None:
+        base = _textured_scene(32, 32)
+        for settings in (
+            {"shift_warn_px": float("nan")}, {"shift_fail_px": float("inf")},
+            {"min_edge_coherence": float("nan")}, {"shift_warn_px": -1},
+            {"shift_warn_px": 3, "shift_fail_px": 2}, {"min_edge_coherence": 1.1},
+            {"min_edge_coherence": -0.1}, {"block_size": 8.5},
+            {"search_radius": True}, {"search_radius": 1.5},
+        ):
+            with self.subTest(settings=settings), self.assertRaises(ValueError):
+                screen_internal_drift(base, base, **settings)
+
+    def test_search_radius_larger_than_grid_preserves_result(self) -> None:
+        base = _textured_scene(16, 16)
+        candidate = np.roll(base, 1, axis=1)
+        bounded = screen_internal_drift(base, candidate, block_size=8, search_radius=16)
+        oversized = screen_internal_drift(base, candidate, block_size=8, search_radius=10**9)
+        np.testing.assert_array_equal(bounded.pop("drift_guard_mask"), oversized.pop("drift_guard_mask"))
+        self.assertEqual(bounded, oversized)
+
     def test_cli_screen_roi_drift_end_to_end(self) -> None:
         base = _textured_scene(128, 128)
         candidate = base.copy()
