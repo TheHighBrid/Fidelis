@@ -263,7 +263,10 @@ class GenerationQueue:
             # establish that remote execution is not ongoing. New backend
             # statuses must fail closed instead of silently becoming "failed".
             safe_states = ('preparing', 'preparation_failed', 'rejected', 'failed', 'completed')
-            unresolved = record is not None and record['status'] not in safe_states
+            # A missing run row is not proof that submission never happened:
+            # the ledger may have been deleted after ComfyUI accepted a prompt.
+            # Only a persisted, recognized terminal state permits failure.
+            unresolved = record is None or record['status'] not in safe_states
             self._finish(task, 'needs_review' if unresolved else 'failed',
                          remote_may_continue=unresolved, error=type(error).__name__,
                          message=('Unrecognized or active backend run state; reconcile before resume'
