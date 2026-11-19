@@ -608,6 +608,23 @@ class GenerationTests(unittest.TestCase):
                 self.assertEqual(self.store.get(job['id'])['revision'], 1)
                 self.assertTrue(q.worker.is_alive())
 
+    def test_missing_backend_run_row_requires_reconciliation(self):
+        q = self.queue()
+        first = self.job()
+        with (patch.object(q.backend, 'run', side_effect=OSError('backend offline')),
+              patch.object(q.backend, '_get', return_value=None)):
+            task = q.enqueue(first['id'], 1)
+            result = self.wait(q, first, task, ('needs_review',))
+        self.assertTrue(result['remote_may_continue'])
+        self.assertIn('reconcile', result['message'])
+        self.assertEqual(result['error'], 'OSError')
+        self.assertEqual(self.store.get(first['id'])['revision'], 1)
+        self.assertTrue(q.worker.is_alive())
+        healthy = self.job()
+        next_task = q.enqueue(healthy['id'], 1)
+        self.wait(q, healthy, next_task, ('completed',))
+        self.assertEqual(self.store.get(healthy['id'])['revision'], 2)
+
     def test_known_pre_submission_backend_failure_is_not_remote_unknown(self):
         q = self.queue()
         job = self.job()
