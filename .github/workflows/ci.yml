@@ -94,6 +94,14 @@ jobs:
       - name: Web upload validation tests
         run: python -m unittest discover -s tests -p 'test_web_uploads.py'
 
+      - name: Main integrity gates for provenance, tiling, export, exposure and color
+        run: |
+          python -m unittest discover -s tests -p 'test_unsigned_provenance.py'
+          python -m unittest discover -s tests -p 'test_tiled_pipeline_entrypoint.py'
+          python -m unittest discover -s tests -p 'test_protected_export_integrity.py'
+          python -m unittest discover -s tests -p 'test_deployment_exposure.py'
+          python -m unittest discover -s tests -p 'test_color_stabilization_routing.py'
+
       - name: Studio interaction regression tests
         run: node --test tests/test-studio-interactions.cjs
 
