@@ -1,0 +1,60 @@
+#!/usr/bin/env python3
+"""Fail-closed history preflight for a Studio integration branch.
+
+Does not certify tests, conflict resolution, image quality or release readiness.
+"""
+import argparse
+import subprocess
+import sys
+
+
+def git(*args, cwd=None):
+    result = subprocess.run(['git', *args], cwd=cwd, text=True,
+                            capture_output=True, check=False)
+    if result.returncode:
+        raise RuntimeError(f"git {' '.join(args)} failed: {result.stderr.strip()}")
+    return result.stdout.strip()
+
+
+def inspect(base, head, cwd=None):
+    if not base or not head or base == head:
+        raise ValueError('Distinct nonempty base and head refs are required')
+    root = git('rev-parse', '--show-toplevel', cwd=cwd)
+    if git('status', '--porcelain', cwd=root):
+        raise RuntimeError('Working tree is not clean; refusing integration preflight')
+    for ref in (base, head):
+        git('rev-parse', '--verify', f'{ref}^{{commit}}', cwd=root)
+    merge_base = git('merge-base', base, head, cwd=root)
+    ahead = int(git('rev-list', '--count', f'{base}..{head}', cwd=root))
+    behind = int(git('rev-list', '--count', f'{head}..{base}', cwd=root))
+    files = git('diff', '--name-only', f'{base}...{head}', cwd=root).splitlines()
+    return {'base': base, 'head': head, 'merge_base': merge_base,
+            'ahead': ahead, 'behind': behind, 'files': files}
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--base', required=True)
+    parser.add_argument('--head', required=True)
+    parser.add_argument('--repo', default='.')
+    args = parser.parse_args(argv)
+    try:
+        result = inspect(args.base, args.head, args.repo)
+    except (ValueError, RuntimeError) as exc:
+        print(f'BLOCKED: {exc}', file=sys.stderr)
+        return 2
+    print(f"base={result['base']} head={result['head']} merge_base={result['merge_base']}")
+    print(f"ahead={result['ahead']} behind={result['behind']}")
+    print('changed_files=' + ','.join(result['files']))
+    if result['behind']:
+        print('BLOCKED: branch is missing base commits; reconcile and retest', file=sys.stderr)
+        return 1
+    if not result['ahead']:
+        print('BLOCKED: no feature commits to integrate', file=sys.stderr)
+        return 1
+    print('History preflight passed; tests, diff review and signoff remain separate.')
+    return 0
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())
