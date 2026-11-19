@@ -50,5 +50,33 @@ class ConfidenceRoutingBoundaryMatrixTests(unittest.TestCase):
             np.testing.assert_array_equal(routed[label], np.zeros((2, 3), dtype=np.float32))
 
 
+    def test_zero_margin_still_rejects_tied_winners(self):
+        probabilities = {
+            "skin": np.array([[0.9, 0.9]]),
+            "hair": np.array([[0.9, 0.1]]),
+            "fabric": np.zeros((1, 2)),
+        }
+        result = route_confidence_masks(
+            probabilities, protect=np.zeros((1, 2)), margin=0
+        )
+        self.assertEqual(result["skin"][0, 0], 0)
+        self.assertEqual(result["hair"][0, 0], 0)
+        self.assertGreater(result["skin"][0, 1], 0)
+
+    def test_confidence_attenuates_only_selected_unprotected_class(self):
+        probabilities = {
+            "skin": np.array([[0.9, 0.01, 0.01]]),
+            "hair": np.array([[0.01, 0.9, 0.01]]),
+            "fabric": np.array([[0.01, 0.01, 0.9]]),
+        }
+        result = route_confidence_masks(
+            probabilities,
+            protect=np.array([[0, 0.5, 1]]),
+            confidence=np.array([[0.25, 0.5, 1]]),
+        )
+        np.testing.assert_allclose(result["skin"], [[0.225, 0, 0]], rtol=0, atol=1e-7)
+        np.testing.assert_allclose(result["hair"], [[0, 0.225, 0]], rtol=0, atol=1e-7)
+        np.testing.assert_array_equal(result["fabric"], [[0, 0, 0]])
+
 if __name__ == "__main__":
     unittest.main()
