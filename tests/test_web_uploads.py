@@ -56,8 +56,16 @@ class UploadTests(unittest.TestCase):
         self.assertEqual(status, 413)
 
     def test_bad_length(self):
-        status, _ = self.post(b"{}", headers={"Content-Length": "invalid"})
-        self.assertEqual(status, 400)
+        # An invalid Content-Length is rejected before the request body is read.
+        # On macOS, closing that unread socket can reset the connection while
+        # http.client drains the response. The status is the HTTP contract.
+        conn = http.client.HTTPConnection(*self.server.server_address, timeout=5)
+        try:
+            conn.request("POST", "/api/upscale", b"{}", {"Content-Length": "invalid"})
+            response = conn.getresponse()
+            self.assertEqual(response.status, 400)
+        finally:
+            conn.close()
 
     def image_data(self, fmt):
         stream = io.BytesIO()
