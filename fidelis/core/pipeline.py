@@ -612,6 +612,10 @@ class UpscalePipeline:
             return "RealeSR-general-v3"
         return "RealeSR-general-v3"
 
+    def run_native_pass(self, input_path: Path, output_path: Path, model: str) -> None:
+        """Execute only the native base pass, without telemetry or restoration."""
+        self._run_direct_upscale(input_path, output_path, model)
+
     def _run_direct_upscale(self, input_path: Path, output_path: Path, model: str) -> None:
         cmd = [self.cli_path, "upscale", str(input_path), str(output_path), "--model", model]
         res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)

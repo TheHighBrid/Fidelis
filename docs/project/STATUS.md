@@ -195,3 +195,13 @@ interpolating executable expressions. Provenance, comparator execution, blind re
 held-out acceptance, and release readiness were decomposed into independently
 testable stages without relaxing their evidence requirements. No live-worker,
 physical-device, human visual, or release acceptance is implied by these changes.
+
+## F10 / PR #14 product upscale review remediation · 2026-11-17
+
+The opt-in product command now feathers inward from the union of permitted
+texture ROIs while preserving every unknown and locked base pixel. It creates
+missing output parent directories before staging, and rejects wrong-sized model
+outputs without replacing a prior export. The inherited browser runner now
+handles execution failures explicitly while retaining cleanup and a nonzero exit.
+These changes are fixture/protocol evidence on the PR #14 branch, not photographic
+acceptance or release. See [ROI protection](../ROI_DRIFT_SCREENING.md).
