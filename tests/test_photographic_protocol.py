@@ -16,6 +16,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from fidelis.eval.photographic_protocol import (
+    refuse_non_ground_truth_restoration_base,
     DefectCode,
     ProtocolVerdict,
     evaluate_restoration_pair,
@@ -136,6 +137,23 @@ class PhotographicProtocolTests(unittest.TestCase):
         self.assertEqual(bad.verdict, ProtocolVerdict.FAIL, msg=bad.to_dict())
         self.assertIn(DefectCode.LETTERING_MUTATION, {d.code for d in bad.defects})
         self.assertEqual(good.verdict, ProtocolVerdict.PASSED, msg=good.to_dict())
+
+
+    def test_refuses_non_ground_truth_melato_as_restoration_base(self) -> None:
+        with self.assertRaises(ValueError):
+            refuse_non_ground_truth_restoration_base(
+                synthetic=True, ground_truth_eligible=False, asset_set="non_ground_truth", case_id="mel_ai"
+            )
+        with self.assertRaises(ValueError):
+            evaluate_restoration_pair(
+                FIXTURES / "skin_base.png",
+                FIXTURES / "skin_good.png",
+                category="skin",
+                case_id="mel_ai",
+                synthetic=True,
+                ground_truth_eligible=False,
+                asset_set="non_ground_truth",
+            )
 
     def test_refuses_production_corpus_flag_on_synthetic_path(self) -> None:
         with self.assertRaises(ValueError):

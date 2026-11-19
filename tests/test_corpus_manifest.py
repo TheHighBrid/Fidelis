@@ -16,10 +16,13 @@ if str(REPO_ROOT) not in sys.path:
 
 from fidelis.eval.corpus_manifest import (
     ManifestValidationError,
+    assert_restoration_ground_truth_allowed,
     build_template_manifest,
     load_corpus_manifest,
+    load_melato_corpus_manifest,
     sha256_file,
     validate_corpus_manifest,
+    validate_melato_corpus_manifest,
 )
 
 
@@ -28,15 +31,17 @@ class CorpusManifestTests(unittest.TestCase):
 
     def test_committed_manifest_freezes_60_slots_and_separates_regression_assets(self) -> None:
         manifest_path = REPO_ROOT / "experiments" / "corpus_manifest.json"
+        # CI path: verify in-repo regression assets; skip Melato byte checks without --master-root.
         data, summary = load_corpus_manifest(
             manifest_path,
             repo_root=REPO_ROOT,
             verify_files=True,
+            master_root=None,
         )
         self.assertTrue(summary["split_frozen"])
         self.assertEqual(summary["total_slots"], 60)
-        self.assertEqual(summary["available_cases"], 0)
-        self.assertEqual(summary["missing_cases"], 60)
+        self.assertGreaterEqual(summary["available_cases"], 0)
+        self.assertEqual(summary["available_cases"] + summary["missing_cases"] + summary["excluded_cases"], 60)
         self.assertEqual(summary["by_split"]["calibration"]["total"], 30)
         self.assertEqual(summary["by_split"]["held_out"]["total"], 30)
         for cat_counts in summary["by_category"].values():
@@ -48,6 +53,12 @@ class CorpusManifestTests(unittest.TestCase):
         for reg in data["regression_assets"]:
             self.assertFalse(reg["counts_toward_60_case_corpus"])
             self.assertFalse(reg["rights_cleared"])
+        for case in data["cases"]:
+            if case["availability"] == "available":
+                self.assertEqual(case["source"].get("storage"), "off_repo")
+                self.assertIsNone(case["source"].get("relative_path"))
+                self.assertTrue(case["rights"]["cleared"])
+                self.assertNotEqual(case.get("synthetic"), True)
 
     def test_available_cleared_case_with_real_png_and_rois_passes(self) -> None:
         manifest = build_template_manifest()
@@ -213,11 +224,92 @@ class CorpusManifestTests(unittest.TestCase):
             REPO_ROOT / "experiments" / "corpus_manifest.json",
             repo_root=REPO_ROOT,
             verify_files=True,
+            master_root=None,
         )
         self.assertEqual(summary["total_slots"], 60)
-        self.assertEqual(summary["available_cases"], 0)
+        self.assertEqual(summary["available_cases"] + summary["missing_cases"], 60)
         self.assertEqual(summary["regression_assets_count"], 8)
         self.assertTrue(summary["regression_assets_verified"])
+        self.assertGreaterEqual(summary.get("off_repo_available_cases", 0), 0)
+
+    def test_melato_companion_manifest_inventories_97_off_repo_assets(self) -> None:
+        melato_path = REPO_ROOT / "experiments" / "melato_corpus_manifest.json"
+        self.assertTrue(melato_path.is_file())
+        data, summary = load_melato_corpus_manifest(melato_path, verify_files=False)
+        self.assertEqual(summary["total_assets"], 97)
+        self.assertEqual(summary["ground_truth_eligible"] + summary["non_ground_truth"], 97)
+        self.assertGreater(summary["non_ground_truth"], 0)
+        for asset in data["assets"]:
+            self.assertEqual(asset["storage"], "off_repo")
+            self.assertIsNone(asset["source"].get("relative_path"))
+            if asset["synthetic"]:
+                self.assertFalse(asset["ground_truth_eligible"])
+                self.assertEqual(asset["set"], "non_ground_truth")
+                with self.assertRaises(ManifestValidationError):
+                    assert_restoration_ground_truth_allowed(asset)
+
+    def test_off_repo_available_case_passes_without_in_repo_path_or_bbox(self) -> None:
+        manifest = build_template_manifest()
+        case = manifest["cases"][0]
+        case["availability"] = "available"
+        case["ground_truth_eligible"] = True
+        case["synthetic"] = False
+        case["rights"] = {
+            "cleared": True,
+            "permission_basis": "owner_melato_vouched_2026-11-19",
+            "license_id": "MELATO-OWNER-2026-11-19",
+            "model_release_required": True,
+            "model_release_verified": True,
+            "notes": "off-repo test",
+        }
+        case["source"] = {
+            "storage": "off_repo",
+            "filename": "portrait_sample.png",
+            "relative_path": None,
+            "sha256": "a" * 64,
+            "width": 64,
+            "height": 48,
+            "color_space": "sRGB",
+            "bit_depth": 8,
+            "has_alpha": False,
+            "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        }
+        # bbox remains null — allowed for off_repo
+        summary = validate_corpus_manifest(manifest, repo_root=REPO_ROOT, verify_files=True, master_root=None)
+        self.assertEqual(summary["available_cases"], 1)
+        self.assertEqual(summary["off_repo_available_cases"], 1)
+        self.assertEqual(summary["files_skipped_no_master"], 1)
+
+    def test_off_repo_verify_with_master_root(self) -> None:
+        manifest = build_template_manifest()
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            img_path = root / "portrait_sample.png"
+            Image.new("RGB", (64, 48), color=(180, 140, 120)).save(img_path)
+            case = manifest["cases"][0]
+            case["availability"] = "available"
+            case["ground_truth_eligible"] = True
+            case["synthetic"] = False
+            case["rights"] = {
+                "cleared": True,
+                "permission_basis": "owner_melato_vouched_2026-11-19",
+                "license_id": "MELATO-OWNER-2026-11-19",
+                "model_release_required": True,
+                "model_release_verified": True,
+                "notes": "off-repo test",
+            }
+            case["source"] = {
+                "storage": "off_repo",
+                "filename": "portrait_sample.png",
+                "relative_path": None,
+                "sha256": sha256_file(img_path),
+                "width": 64,
+                "height": 48,
+            }
+            summary = validate_corpus_manifest(
+                manifest, repo_root=REPO_ROOT, verify_files=True, master_root=root
+            )
+            self.assertEqual(summary["files_verified"], 1)
 
 
 

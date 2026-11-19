@@ -3,6 +3,11 @@
 Distinguishes cleared 60-case benchmark corpus slots (30 calibration / 30 held-out
 across five categories) from tracked regression fixtures/crops, failing closed on
 uncleared rights, missing assets, split leakage, path traversal, or checksum mismatch.
+
+Melato production masters may be inventoried off-repo (see experiments/melato_corpus_manifest.json):
+metadata (sha256, dims, rights, splits) is committed; image binaries are not. Available
+off-repo slots do not require an in-repo relative_path. Optional --master-root verification
+checks bytes only when masters are present locally; CI without masters still validates schema.
 """
 
 from __future__ import annotations
@@ -50,6 +55,8 @@ CORPUS_CATEGORIES: dict[str, dict[str, Any]] = {
 
 VALID_SPLITS = ("calibration", "held_out")
 VALID_AVAILABILITY = ("available", "missing", "excluded")
+VALID_STORAGE = ("in_repo", "off_repo")
+MELATO_OFF_REPO_ROOT_ENV = "FIDELIS_MELATO_MASTER_ROOT"
 VALID_ROI_TYPES = (
     "identity_landmark",
     "skin_zone",
@@ -313,11 +320,39 @@ def _validate_roi(roi: Any, *, case_id: str, require_bbox: bool) -> None:
         )
 
 
+def _source_storage(source: dict[str, Any]) -> str:
+    storage = source.get("storage")
+    if storage is None:
+        # Backward compatible default: in-repo masters use relative_path.
+        return "in_repo"
+    if storage not in VALID_STORAGE:
+        raise ManifestValidationError(f"Unsupported source.storage {storage!r}")
+    return storage
+
+
+def assert_restoration_ground_truth_allowed(entry: dict[str, Any], *, label: str | None = None) -> None:
+    """Refuse synthetic / non-ground-truth Melato assets as restoration GT bases."""
+    tag = label or entry.get("case_id") or entry.get("asset_id") or "asset"
+    if entry.get("synthetic") is True:
+        raise ManifestValidationError(
+            f"{tag}: synthetic assets must never be used as restoration ground truth"
+        )
+    if entry.get("ground_truth_eligible") is False:
+        raise ManifestValidationError(
+            f"{tag}: ground_truth_eligible=false; refuse restoration ground-truth use"
+        )
+    if entry.get("set") == "non_ground_truth":
+        raise ManifestValidationError(
+            f"{tag}: set=non_ground_truth; refuse restoration ground-truth use"
+        )
+
+
 def validate_corpus_manifest(
     data: Any,
     *,
     repo_root: Path | None = None,
     verify_files: bool = False,
+    master_root: Path | None = None,
 ) -> dict[str, Any]:
     """Validate corpus manifest schema, split invariants, rights gates, and optional file hashes."""
     if not isinstance(data, dict):
@@ -342,6 +377,9 @@ def validate_corpus_manifest(
         split: {"total": 0, "available": 0, "missing": 0, "excluded": 0}
         for split in VALID_SPLITS
     }
+    off_repo_available = 0
+    files_verified = 0
+    files_skipped_no_master = 0
 
     for entry in cases:
         if not isinstance(entry, dict):
@@ -383,9 +421,23 @@ def validate_corpus_manifest(
         if not isinstance(rois, list) or not rois:
             raise ManifestValidationError(f"{case_id}: critical_rois must be a non-empty list")
 
+        for flag in ("synthetic", "ground_truth_eligible"):
+            if flag in entry and not isinstance(entry.get(flag), bool):
+                raise ManifestValidationError(f"{case_id}: {flag} must be boolean when present")
+        if entry.get("synthetic") is True and entry.get("ground_truth_eligible", False) is not False:
+            # If synthetic is true, ground_truth_eligible must be explicitly false when present;
+            # if omitted, treat as ineligible via assert helper but still enforce when set.
+            if "ground_truth_eligible" in entry and entry["ground_truth_eligible"] is not False:
+                raise ManifestValidationError(
+                    f"{case_id}: synthetic=true requires ground_truth_eligible=false"
+                )
+
         is_available = availability == "available"
+        storage = _source_storage(source) if source.get("storage") is not None else "in_repo"
+        # Off-repo available cases may defer ROI boxes; in-repo available still require them.
+        require_bbox = is_available and storage == "in_repo"
         for roi in rois:
-            _validate_roi(roi, case_id=case_id, require_bbox=is_available)
+            _validate_roi(roi, case_id=case_id, require_bbox=require_bbox)
 
         if is_available:
             if not rights["cleared"]:
@@ -414,12 +466,42 @@ def validate_corpus_manifest(
             w, h = source.get("width"), source.get("height")
             if isinstance(w, bool) or isinstance(h, bool) or not isinstance(w, int) or not isinstance(h, int) or w <= 0 or h <= 0:
                 raise ManifestValidationError(f"{case_id}: available case requires positive integer source dimensions")
-            if repo_root is not None:
-                asset_path = _safe_repo_path(repo_root, source.get("relative_path"))
+
+            if storage == "off_repo":
+                off_repo_available += 1
+                filename = source.get("filename")
+                if not isinstance(filename, str) or not filename.strip():
+                    raise ManifestValidationError(f"{case_id}: off_repo available case requires source.filename")
+                if source.get("relative_path") not in (None, ""):
+                    raise ManifestValidationError(
+                        f"{case_id}: off_repo masters must not set source.relative_path (binaries stay out of git)"
+                    )
+                if entry.get("synthetic") is True or entry.get("ground_truth_eligible") is False:
+                    # Available frozen slots used as production GT must remain eligible.
+                    raise ManifestValidationError(
+                        f"{case_id}: frozen available slots must remain ground-truth eligible "
+                        "(synthetic Melato assets belong only in the companion non-GT set)"
+                    )
                 if verify_files:
-                    _verify_image_file(asset_path, sha, w, h)
-            elif not isinstance(source.get("relative_path"), str) or not source["relative_path"].strip():
-                raise ManifestValidationError(f"{case_id}: available case requires source.relative_path")
+                    if master_root is None:
+                        files_skipped_no_master += 1
+                    else:
+                        asset_path = Path(master_root) / filename
+                        if not asset_path.is_file():
+                            raise ManifestValidationError(
+                                f"{case_id}: off_repo master missing under master_root: {asset_path}"
+                            )
+                        _verify_image_file(asset_path, sha, w, h)
+                        files_verified += 1
+            else:
+                # in-repo path required
+                if repo_root is not None:
+                    asset_path = _safe_repo_path(repo_root, source.get("relative_path"))
+                    if verify_files:
+                        _verify_image_file(asset_path, sha, w, h)
+                        files_verified += 1
+                elif not isinstance(source.get("relative_path"), str) or not source["relative_path"].strip():
+                    raise ManifestValidationError(f"{case_id}: available case requires source.relative_path")
         elif availability == "missing":
             if rights["cleared"]:
                 raise ManifestValidationError(f"{case_id}: missing case cannot claim rights.cleared=true")
@@ -472,8 +554,142 @@ def validate_corpus_manifest(
         "excluded_cases": sum(c["excluded"] for c in by_split.values()),
         "by_split": by_split,
         "by_category": by_category,
+        "off_repo_available_cases": off_repo_available,
+        "files_verified": files_verified,
+        "files_skipped_no_master": files_skipped_no_master,
         "regression_assets_count": len(regression_assets),
         "regression_assets_verified": bool(verify_files and repo_root is not None),
+    }
+
+
+def validate_melato_corpus_manifest(
+    data: Any,
+    *,
+    master_root: Path | None = None,
+    verify_files: bool = False,
+) -> dict[str, Any]:
+    """Validate the Melato companion inventory (all off-repo masters; no git binaries)."""
+    if not isinstance(data, dict):
+        raise ManifestValidationError("Melato corpus manifest must be a JSON object")
+    if data.get("schema_version") != SCHEMA_VERSION:
+        raise ManifestValidationError(f"Unsupported Melato schema_version: {data.get('schema_version')!r}")
+    assets = data.get("assets")
+    if not isinstance(assets, list) or not assets:
+        raise ManifestValidationError("Melato manifest 'assets' must be a non-empty list")
+
+    seen_ids: set[str] = set()
+    seen_shas: set[str] = set()
+    by_category: dict[str, int] = {cat: 0 for cat in CORPUS_CATEGORIES}
+    by_set = {"ground_truth": 0, "non_ground_truth": 0}
+    by_split = {"calibration": 0, "held_out": 0}
+    verified = 0
+    skipped = 0
+
+    for entry in assets:
+        if not isinstance(entry, dict):
+            raise ManifestValidationError("Each Melato asset must be an object")
+        asset_id = entry.get("asset_id")
+        if not isinstance(asset_id, str) or not asset_id.strip():
+            raise ManifestValidationError("Melato asset missing asset_id")
+        if asset_id in seen_ids:
+            raise ManifestValidationError(f"Duplicate Melato asset_id: {asset_id}")
+        seen_ids.add(asset_id)
+
+        category = entry.get("category")
+        if category not in CORPUS_CATEGORIES:
+            raise ManifestValidationError(f"{asset_id}: invalid category {category!r}")
+        by_category[category] += 1
+
+        split = entry.get("split")
+        if split not in VALID_SPLITS:
+            raise ManifestValidationError(f"{asset_id}: invalid split {split!r}")
+        by_split[split] += 1
+
+        asset_set = entry.get("set")
+        if asset_set not in by_set:
+            raise ManifestValidationError(f"{asset_id}: set must be ground_truth or non_ground_truth")
+        by_set[asset_set] += 1
+
+        if not isinstance(entry.get("synthetic"), bool) or not isinstance(entry.get("ground_truth_eligible"), bool):
+            raise ManifestValidationError(f"{asset_id}: synthetic and ground_truth_eligible must be booleans")
+        if entry["synthetic"] and entry["ground_truth_eligible"]:
+            raise ManifestValidationError(f"{asset_id}: synthetic assets cannot be ground_truth_eligible")
+        if asset_set == "non_ground_truth" and entry["ground_truth_eligible"]:
+            raise ManifestValidationError(f"{asset_id}: non_ground_truth set cannot be ground_truth_eligible")
+        if asset_set == "ground_truth" and not entry["ground_truth_eligible"]:
+            raise ManifestValidationError(f"{asset_id}: ground_truth set requires ground_truth_eligible=true")
+
+        if entry.get("storage") != "off_repo":
+            raise ManifestValidationError(f"{asset_id}: Melato assets must declare storage=off_repo")
+        if entry.get("availability") != "available":
+            raise ManifestValidationError(f"{asset_id}: Melato inventoried assets must be availability=available")
+
+        rights = entry.get("rights")
+        source = entry.get("source")
+        if not isinstance(rights, dict) or not isinstance(source, dict):
+            raise ManifestValidationError(f"{asset_id}: rights and source must be objects")
+        if rights.get("cleared") is not True:
+            raise ManifestValidationError(f"{asset_id}: rights.cleared must be true")
+        if rights.get("permission_basis") != data.get("permission_basis") and not (
+            isinstance(rights.get("permission_basis"), str) and rights["permission_basis"].strip()
+        ):
+            raise ManifestValidationError(f"{asset_id}: rights.permission_basis required")
+        if not isinstance(rights.get("license_id"), str) or not rights["license_id"].strip():
+            raise ManifestValidationError(f"{asset_id}: rights.license_id required")
+        for bool_field in ("model_release_required", "model_release_verified"):
+            if not isinstance(rights.get(bool_field), bool):
+                raise ManifestValidationError(f"{asset_id}: rights.{bool_field} must be boolean")
+        if rights["model_release_required"] and not rights["model_release_verified"]:
+            raise ManifestValidationError(f"{asset_id}: model_release_verified required")
+
+        if source.get("storage") != "off_repo":
+            raise ManifestValidationError(f"{asset_id}: source.storage must be off_repo")
+        filename = source.get("filename") or entry.get("filename")
+        if not isinstance(filename, str) or not filename.strip():
+            raise ManifestValidationError(f"{asset_id}: filename required")
+        if source.get("relative_path") not in (None, ""):
+            raise ManifestValidationError(f"{asset_id}: relative_path must be null for off-repo Melato masters")
+
+        sha = source.get("sha256")
+        if not isinstance(sha, str) or not _SHA256_RE.fullmatch(sha):
+            raise ManifestValidationError(f"{asset_id}: valid sha256 required")
+        if sha in seen_shas:
+            raise ManifestValidationError(f"{asset_id}: duplicate sha256 {sha}")
+        seen_shas.add(sha)
+        w, h = source.get("width"), source.get("height")
+        if isinstance(w, bool) or isinstance(h, bool) or not isinstance(w, int) or not isinstance(h, int) or w <= 0 or h <= 0:
+            raise ManifestValidationError(f"{asset_id}: positive dimensions required")
+
+        rois = entry.get("critical_rois")
+        if not isinstance(rois, list) or not rois:
+            raise ManifestValidationError(f"{asset_id}: critical_rois must be non-empty")
+        for roi in rois:
+            _validate_roi(roi, case_id=asset_id, require_bbox=False)
+
+        known_text = entry.get("known_text")
+        if not isinstance(known_text, list) or any(not isinstance(t, str) for t in known_text):
+            raise ManifestValidationError(f"{asset_id}: known_text must be a list of strings")
+
+        if verify_files:
+            if master_root is None:
+                skipped += 1
+            else:
+                asset_path = Path(master_root) / filename
+                if not asset_path.is_file():
+                    raise ManifestValidationError(f"{asset_id}: master missing at {asset_path}")
+                _verify_image_file(asset_path, sha, w, h)
+                verified += 1
+
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "total_assets": len(assets),
+        "by_category": by_category,
+        "by_set": by_set,
+        "by_split": by_split,
+        "ground_truth_eligible": by_set["ground_truth"],
+        "non_ground_truth": by_set["non_ground_truth"],
+        "files_verified": verified,
+        "files_skipped_no_master": skipped,
     }
 
 
@@ -482,7 +698,23 @@ def load_corpus_manifest(
     *,
     repo_root: Path | None = None,
     verify_files: bool = False,
+    master_root: Path | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     data = json.loads(manifest_path.read_text(encoding="utf-8"))
-    summary = validate_corpus_manifest(data, repo_root=repo_root, verify_files=verify_files)
+    summary = validate_corpus_manifest(
+        data, repo_root=repo_root, verify_files=verify_files, master_root=master_root
+    )
+    return data, summary
+
+
+def load_melato_corpus_manifest(
+    manifest_path: Path,
+    *,
+    master_root: Path | None = None,
+    verify_files: bool = False,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    data = json.loads(manifest_path.read_text(encoding="utf-8"))
+    summary = validate_melato_corpus_manifest(
+        data, master_root=master_root, verify_files=verify_files
+    )
     return data, summary

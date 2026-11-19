@@ -4,6 +4,9 @@
 (`30` calibration / `30` held-out) required before calibration tuning (`F13`) and
 regression-free parity claims (`F16`).
 
+Companion Melato production inventory: `experiments/melato_corpus_manifest.json`
+(all **97** owner-vouched masters). Image binaries stay **off-repo** (no git, no LFS).
+
 ## Separation from regression fixtures
 
 Existing tracked crops (`experiments/eval_crops/*.png`) and synthetic test fixtures
@@ -23,30 +26,51 @@ licensed held-out benchmark images.
 | `packshot_edge` | 12 | 6 | 6 | `false` |
 | **Total** | **60** | **30** | **30** | — |
 
-At creation, all **60 benchmark slots** are marked `availability: "missing"` (`0/60`
-available). Promoting a slot to `availability: "available"` requires:
+Promoting a slot to `availability: "available"` requires:
 
 1. Explicit `rights.cleared: true`, non-empty `permission_basis`, and `license_id`
    (plus `model_release_verified: true` whenever `model_release_required: true`).
-2. A repository-relative `source.relative_path` (no absolute paths or `..` traversal),
-   64-character lowercase `source.sha256`, and positive integer pixel dimensions.
-3. No duplicate `sha256` across cases or across `calibration` vs `held_out` splits.
-4. Non-empty `critical_rois` with valid normalized `[x0, y0, x1, y1]` boxes inside
-   `[0, 1]` and documented `known_text` strings where typography/logos exist.
+2. Identity of the master:
+   - **In-repo:** repository-relative `source.relative_path` (no absolute paths or `..`),
+     64-character lowercase `source.sha256`, and positive integer pixel dimensions; **or**
+   - **Off-repo Melato:** `source.storage: "off_repo"`, `source.filename`, sha256, dims,
+     `relative_path: null`. Masters are resolved locally via `--master-root` /
+     `FIDELIS_MELATO_MASTER_ROOT` when verifying bytes; CI without masters still validates
+     schema/rights and skips byte checks.
+3. No duplicate `sha256` across available cases or across `calibration` vs `held_out` splits.
+4. Non-empty `critical_rois`. Normalized `bbox_norm` is required for in-repo available
+   cases; off-repo Melato fills may keep `bbox_norm: null` until annotated (prefer null
+   over invented boxes). Document `known_text` where typography/logos exist.
+
+## Melato companion (97 assets)
+
+- Masters live only on the Bot 05 box under `/workspace/melato-corpus/fidelis`
+  (documented path; not committed).
+- `permission_basis`: `owner_melato_vouched_2026-11-19`.
+- AI/synthetic name patterns (`*_2K*`, `file_0000*`) are forced into
+  `set: "non_ground_truth"` with `synthetic: true` and `ground_truth_eligible: false`.
+  Protocol/hooks refuse using them as restoration ground truth.
+- Trademark-heavy cases (Nike, Mazda, Adidas, etc.) record flags in `rights.notes`.
+- Portraits/apparel record `model_release_verified: true` as owner-vouched.
 
 ## Validate locally
 
 ```bash
+# CI / schema path (no Melato masters required)
 .venv/bin/python scripts/validate-corpus-manifest.py --verify-files
+
+# Local box with Melato masters present
+.venv/bin/python scripts/validate-corpus-manifest.py --verify-files \
+  --master-root /workspace/melato-corpus/fidelis
 ```
 
-Validation exits non-zero if rights are incomplete, image bytes/dimensions mismatch
-on disk, splits drift from `30/30`, or calibration images leak into `held_out`.
+Validation exits non-zero if rights are incomplete, in-repo image bytes/dimensions
+mismatch, splits drift from `30/30`, or calibration images leak into `held_out`.
 
 ## Bot 05 photographic protocol (2026-11-19)
 
 Companion evaluation lives in `docs/PHOTOGRAPHIC_QUALITY_PROTOCOL.md` and
 `fidelis/eval/photographic_protocol.py`. Synthetic CI fixtures under
 `tests/fixtures/photographic_protocol/` exercise defect detection only; they do
-**not** fill any of the 60 production slots. Real asset acquisition remains
-blocked on creative approval (`docs/CORPUS_ACQUISITION_PROPOSAL.md`).
+**not** fill any of the 60 production slots. Melato AI/synthetic assets are likewise
+never restoration ground truth.

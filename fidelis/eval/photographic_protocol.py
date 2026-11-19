@@ -417,6 +417,23 @@ def _collect_defects(category: RubricCategory, metrics: dict[str, float]) -> lis
     return defects
 
 
+def refuse_non_ground_truth_restoration_base(
+    *,
+    synthetic: bool | None = None,
+    ground_truth_eligible: bool | None = None,
+    asset_set: str | None = None,
+    case_id: str | None = None,
+) -> None:
+    """Protocol/hooks must never treat AI/synthetic Melato assets as restoration GT."""
+    label = case_id or "asset"
+    if synthetic is True or ground_truth_eligible is False or asset_set == "non_ground_truth":
+        raise ValueError(
+            f"Refusing restoration ground-truth use for {label}: "
+            "synthetic/non_ground_truth Melato assets are evaluation-only "
+            "(detection/splits allowed; never restoration GT)."
+        )
+
+
 def evaluate_restoration_pair(
     base_path: PathLike,
     candidate_path: PathLike,
@@ -424,13 +441,23 @@ def evaluate_restoration_pair(
     category: str | RubricCategory,
     case_id: str | None = None,
     is_production_corpus: bool = False,
+    synthetic: bool | None = None,
+    ground_truth_eligible: bool | None = None,
+    asset_set: str | None = None,
 ) -> ProtocolReport:
     """Compare base vs candidate and emit a protocol receipt with defect flags."""
     cat = RubricCategory(category) if isinstance(category, str) else category
+    refuse_non_ground_truth_restoration_base(
+        synthetic=synthetic,
+        ground_truth_eligible=ground_truth_eligible,
+        asset_set=asset_set,
+        case_id=case_id,
+    )
     if is_production_corpus:
         raise ValueError(
             "Refusing to mark synthetic/protocol runs as production corpus. "
-            "Populate experiments/corpus_manifest.json with cleared rights first."
+            "Populate experiments/corpus_manifest.json with cleared rights first, "
+            "and never pass synthetic Melato assets as restoration ground truth."
         )
 
     base = _load_rgb(base_path)
@@ -455,6 +482,7 @@ def evaluate_restoration_pair(
     notes = [
         "Sharpness/edge-energy gain is never sufficient for PASSED.",
         "Synthetic protocol fixtures are not the rights-cleared production corpus.",
+        "AI/synthetic Melato assets (non_ground_truth) must never be restoration GT.",
         f"Rubrics applied: {', '.join(applied)}",
     ]
     return ProtocolReport(

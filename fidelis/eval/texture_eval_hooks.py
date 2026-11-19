@@ -53,6 +53,9 @@ class TextureEvalRequest:
     candidate_sha256: str | None = None
     adapter_id: str | None = None
     notes: list[str] = field(default_factory=list)
+    synthetic: bool | None = None
+    ground_truth_eligible: bool | None = None
+    asset_set: str | None = None
 
 
 HOOK_CONTRACT: dict[str, Any] = {
@@ -79,7 +82,8 @@ HOOK_CONTRACT: dict[str, Any] = {
     "receipt_evidence_level": "E1",
     "production_corpus_gate": (
         "is_production_corpus remains false until corpus_manifest availability "
-        "and rights.cleared are true for the case_id"
+        "and rights.cleared are true for the case_id; "
+        "synthetic/non_ground_truth Melato assets are never restoration GT"
     ),
     "rubrics": list_rubrics(),
 }
@@ -93,6 +97,9 @@ def evaluate_texture_candidate(request: TextureEvalRequest) -> ProtocolReport:
         category=request.category,
         case_id=request.case_id,
         is_production_corpus=False,
+        synthetic=request.synthetic,
+        ground_truth_eligible=request.ground_truth_eligible,
+        asset_set=request.asset_set,
     )
     if request.adapter_id:
         report.notes.append(f"adapter_id={request.adapter_id}")

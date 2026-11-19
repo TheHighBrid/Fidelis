@@ -33,14 +33,17 @@ gradient coherence is `sharpness_without_restoration`.
 ## Corpus relationship
 
 - Frozen 60-slot inventory: `experiments/corpus_manifest.json` (see `docs/CORPUS_MANIFEST.md`).
-- All production slots remain `availability: "missing"` until rights-cleared assets are approved and populated.
+- Melato production inventory (97 off-repo masters): `experiments/melato_corpus_manifest.json`.
+- AI/synthetic Melato assets (`*_2K*`, `file_0000*`) are `non_ground_truth` and must never be used as restoration ground truth.
 - Tracked crops/fixtures stay `counts_toward_60_case_corpus: false`.
-- Real fashion/portrait/product acquisition requires creative approval via Huncho (see `docs/CORPUS_ACQUISITION_PROPOSAL.md`).
+- Owner GO (via Huncho, 2026-11-19) vouched Melato rights; masters stay off-repo (see `docs/CORPUS_ACQUISITION_PROPOSAL.md`).
 
 ## Commands
 
 ```bash
 .venv/bin/python scripts/validate-corpus-manifest.py --verify-files
+.venv/bin/python scripts/validate-corpus-manifest.py --verify-files \
+  --master-root /workspace/melato-corpus/fidelis
 .venv/bin/python scripts/run-photographic-protocol.py --list-rubrics
 .venv/bin/python scripts/run-photographic-protocol.py --show-hook-contract
 .venv/bin/python scripts/run-photographic-protocol.py \

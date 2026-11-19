@@ -1,13 +1,13 @@
-# Rights-cleared corpus acquisition proposal (BLOCKED on creative approval)
+# Rights-cleared corpus acquisition (Melato GO 2026-11-19)
 
-Status: **BLOCKED — route creative approval to Huncho** before committing any real
-fashion, portrait, or product photographs.
+Status: **OWNER GO via Huncho** — Mohamed vouched all **97** Melato images under
+`/workspace/melato-corpus/fidelis` as cleared/licensed
+(`permission_basis: owner_melato_vouched_2026-11-19`).
 
-Bot 05 (photographic quality) prepared the protocol, 60-slot manifest, and
-synthetic CI fixtures. Real corpus population is intentionally **not** started
-without owner/orchestrator creative approval.
+Bot 05 inventories those masters **off-repo** (metadata only in git). Image binaries
+and Git LFS are intentionally not committed.
 
-## Proposed production corpus (unchanged F12 target)
+## Production corpus targets (unchanged F12 structure)
 
 | Category | Slots | Calibration | Held-out | Model release |
 | --- | --- | --- | --- | --- |
@@ -17,43 +17,32 @@ without owner/orchestrator creative approval.
 | macros | 12 | 6 | 6 | not required |
 | packshot_edge | 12 | 6 | 6 | not required |
 
-Exact slot IDs live in `experiments/corpus_manifest.json`.
+Exact slot IDs live in `experiments/corpus_manifest.json`. Full Melato inventory:
+`experiments/melato_corpus_manifest.json`.
 
-## Acceptable license classes (proposal)
+## Storage decision (approved)
 
-Only images that are **clearly licensed for this use** may be promoted to
-`availability: "available"`:
+- **Masters:** private / off-repo on the Bot 05 box (`FIDELIS_MELATO_MASTER_ROOT`,
+  documented path `/workspace/melato-corpus/fidelis`).
+- **Git:** commit only manifest metadata (sha256, dimensions, category, split, ROIs,
+  known_text, notes). **No image binaries. No LFS.**
 
-1. Owner/Melato original photography with written consent / model release when people appear.
-2. Explicitly licensed stock with commercial + AI/derivative terms that cover restoration benchmarking and public evidence screenshots.
-3. Public-domain / CC0 works where attribution and source URL are recorded and no third-party trademarked product packaging creates unresolved rights risk.
+## Ground-truth policy
 
-Unacceptable without written clearance: random web scrapes, social screenshots,
-unclear “editorial only” stock, or any asset whose license forbids derivatives /
-benchmark publication.
+1. Tag AI-generated assets (`*_2K*`, `file_0000*`, plus any judged synthetic) with
+   `synthetic: true` / `ground_truth_eligible: false` / `set: "non_ground_truth"`.
+2. Protocol and Bot 04 hooks **refuse** those assets as restoration ground truth
+   (they may still have calibration/held_out splits for detection evaluation).
+3. Flag trademark-heavy cases (Nike box, Mazda interiors, Adidas apparel, etc.) in
+   `rights.notes`.
+4. Portraits/apparel: `model_release_verified: true` with notes that release is
+   owner-vouched.
+5. Do **not** fabricate quality/defect scores.
 
-## Required per-asset record
-
-For every promoted case:
-
-- `rights.cleared: true`
-- `permission_basis` and `license_id`
-- `model_release_verified` when `model_release_required`
-- repository-relative `source.relative_path`, SHA-256, dimensions
-- normalized `critical_rois` and `known_text` where logos/type exist
-- source URL + attribution string in `rights.notes` (or sidecar)
-
-Validate with:
+## Validate
 
 ```bash
 .venv/bin/python scripts/validate-corpus-manifest.py --verify-files
+.venv/bin/python scripts/validate-corpus-manifest.py --verify-files \
+  --master-root /workspace/melato-corpus/fidelis
 ```
-
-## Ask for Huncho / owner
-
-1. Approve the license classes above (or amend them).
-2. Approve whether Melato studio originals, licensed stock, CC0, or a mix will seed the first 60.
-3. Authorize storage location for full-resolution masters (repo LFS vs private object store).
-4. After approval, Bot 05 populates cleared slots and re-runs protocol + manifest validation — still without fabricating quality scores.
-
-Until then, only synthetic protocol fixtures and the empty 60-slot inventory ship.

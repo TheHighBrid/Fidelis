@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "manifest_purpose": "Frozen 60-case calibration/held-out Studio corpus inventory (F12-A / MEL-79).",
+  "manifest_purpose": "Frozen 60-case calibration/held-out Studio corpus inventory (F12-A / MEL-79). Melato production masters are inventoried in experiments/melato_corpus_manifest.json (off-repo).",
   "split_frozen": true,
   "split_policy": {
     "total_cases": 60,
@@ -15,24 +15,28 @@
       "case_id": "por_deep_skin_studio",
       "category": "portraits",
       "split": "calibration",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Studio portrait, deep skin tone, natural pores and catchlights",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
         "model_release_required": true,
-        "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched. ROI bbox_norm intentionally null pending annotation; off-repo Melato master."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "648676378_1791816552214174.jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "58e9638f46c07c611b7305d2684ff7bafe0b34fa1aafcd8a360715671604e573",
+        "width": 1536,
+        "height": 2752,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "melato_asset_id": "mel_032"
       },
       "target": {
         "scale": null,
@@ -48,30 +52,37 @@
           "must_lock_base": true,
           "bbox_norm": null
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false,
+      "melato_asset_id": "mel_032"
     },
     {
       "case_id": "por_medium_skin_daylight",
       "category": "portraits",
       "split": "calibration",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Daylight editorial portrait, medium skin tone and flyaway hair",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
         "model_release_required": true,
-        "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched. ROI bbox_norm intentionally null pending annotation; off-repo Melato master."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "melimtx-20261012-0750(1).jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "4c5bcc3278d6a4f9d34ce4649d0c778e3afadbc741a1ba6edb3c3ec79aec0746",
+        "width": 914,
+        "height": 1001,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "melato_asset_id": "mel_074"
       },
       "target": {
         "scale": null,
@@ -87,7 +98,10 @@
           "must_lock_base": false,
           "bbox_norm": null
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false,
+      "melato_asset_id": "mel_074"
     },
     {
       "case_id": "por_fair_freckles_closeup",
@@ -132,31 +146,37 @@
       "case_id": "por_olive_shallow_dof",
       "category": "portraits",
       "split": "calibration",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Editorial portrait with shallow depth-of-field bokeh behind head",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
         "model_release_required": true,
-        "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched. ROI bbox_norm intentionally null pending annotation; off-repo Melato master."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "893628077_1794486811280364(1).jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "8e98050e6be5b04e6e1a1b07ea2e68f75a6760ab40bb2efb6b235e773d07adac",
+        "width": 2636,
+        "height": 3768,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "melato_asset_id": "mel_037"
       },
       "target": {
         "scale": null,
         "expected_width": null,
         "expected_height": null
       },
-      "known_text": [],
+      "known_text": [
+        "LIKENEVER"
+      ],
       "critical_rois": [
         {
           "roi_id": "bokeh_bg",
@@ -165,7 +185,10 @@
           "must_lock_base": true,
           "bbox_norm": null
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false,
+      "melato_asset_id": "mel_037"
     },
     {
       "case_id": "por_elderly_character_lines",
@@ -210,24 +233,28 @@
       "case_id": "por_warm_mixed_tungsten",
       "category": "portraits",
       "split": "calibration",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Warm indoor tungsten portrait retaining subtle amber cast",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
         "model_release_required": true,
-        "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched. ROI bbox_norm intentionally null pending annotation; off-repo Melato master."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "Snapchat-651973517.jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "e8a1cd49b4cbf7de630ed0503136f61918b94b5ae647b07ae130d36880572332",
+        "width": 1440,
+        "height": 2560,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "melato_asset_id": "mel_091"
       },
       "target": {
         "scale": null,
@@ -243,30 +270,37 @@
           "must_lock_base": false,
           "bbox_norm": null
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false,
+      "melato_asset_id": "mel_091"
     },
     {
       "case_id": "por_held_rich_melanin_rim",
       "category": "portraits",
       "split": "held_out",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Rim-lit portrait with specular forehead highlights and braids",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
         "model_release_required": true,
-        "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched. ROI bbox_norm intentionally null pending annotation; off-repo Melato master."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "993081001_1791816536322502.jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "8dc9e48a3b05d20126509b5e4c25a6a7f62e7bdac2a2267ed212c68316fd47f5",
+        "width": 1536,
+        "height": 2752,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "melato_asset_id": "mel_043"
       },
       "target": {
         "scale": null,
@@ -282,30 +316,37 @@
           "must_lock_base": true,
           "bbox_norm": null
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false,
+      "melato_asset_id": "mel_043"
     },
     {
       "case_id": "por_held_east_asian_softbox",
       "category": "portraits",
       "split": "held_out",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Softbox studio beauty crop, natural eyelid crease and lip grain",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
         "model_release_required": true,
-        "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched. ROI bbox_norm intentionally null pending annotation; off-repo Melato master."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "877347371_1794487623278248(3).jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "22c924b9b09878d0490995ecbe076cca58444ba281c3055e1235939023856dab",
+        "width": 2020,
+        "height": 4500,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "melato_asset_id": "mel_035"
       },
       "target": {
         "scale": null,
@@ -321,37 +362,47 @@
           "must_lock_base": true,
           "bbox_norm": null
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false,
+      "melato_asset_id": "mel_035"
     },
     {
       "case_id": "por_held_south_asian_outdoor",
       "category": "portraits",
       "split": "held_out",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Outdoor shade portrait with jewelry earrings and veil edge",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
         "model_release_required": true,
-        "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "model_release_verified": true,
+        "notes": "Trademark-heavy: Powerade / ampm retail branding in background. Model release owner-vouched. ROI bbox_norm intentionally null pending annotation; off-repo Melato master."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "melimtx-20261012-0798(1).jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "e1d595701bb955da14dfefdab42542217ccde3946c8e2e6e489bf2896e5a57fa",
+        "width": 1085,
+        "height": 730,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "melato_asset_id": "mel_077"
       },
       "target": {
         "scale": null,
         "expected_width": null,
         "expected_height": null
       },
-      "known_text": [],
+      "known_text": [
+        "POWERADE",
+        "ampm"
+      ],
       "critical_rois": [
         {
           "roi_id": "earring_metal",
@@ -360,30 +411,37 @@
           "must_lock_base": true,
           "bbox_norm": null
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false,
+      "melato_asset_id": "mel_077"
     },
     {
       "case_id": "por_held_glasses_reflection",
       "category": "portraits",
       "split": "held_out",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Eyewear portrait testing bridge geometry and cornea reflections",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
         "model_release_required": true,
-        "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "model_release_verified": true,
+        "notes": "Trademark-heavy: Cartier-style eyewear hinge logo; mobile video/screenshot UI chrome at bottom. Model release owner-vouched. ROI bbox_norm intentionally null pending annotation; off-repo Melato master."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "IMG_0932.jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "6a466d2f233f91fa2d0d2bf3e18a2879ba00d1066869d743350aae66a09df79f",
+        "width": 1170,
+        "height": 2532,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "melato_asset_id": "mel_056"
       },
       "target": {
         "scale": null,
@@ -399,37 +457,48 @@
           "must_lock_base": true,
           "bbox_norm": null
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false,
+      "melato_asset_id": "mel_056"
     },
     {
       "case_id": "por_held_group_dual_focus",
       "category": "portraits",
       "split": "held_out",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Two-subject fashion frame with near/far focal plane drop-off",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
         "model_release_required": true,
-        "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "model_release_verified": true,
+        "notes": "Trademark-heavy: Nike Air Max 95 sketches and handwritten Nike inspiration notes; Peak beverage cans; possible Burberry-check scarf pattern. Model release owner-vouched. ROI bbox_norm intentionally null pending annotation; off-repo Melato master."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "4huncho___-20261026-0047.jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "06f684840caebd9b47e7c98b1d17a6619139a19f1d81bdcf2ce9992721a2b206",
+        "width": 1440,
+        "height": 1920,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "melato_asset_id": "mel_024"
       },
       "target": {
         "scale": null,
         "expected_width": null,
         "expected_height": null
       },
-      "known_text": [],
+      "known_text": [
+        "Nike Air Max 95",
+        "INSP",
+        "Peak"
+      ],
       "critical_rois": [
         {
           "roi_id": "background_subject",
@@ -438,30 +507,37 @@
           "must_lock_base": true,
           "bbox_norm": null
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false,
+      "melato_asset_id": "mel_024"
     },
     {
       "case_id": "por_held_high_iso_backstage",
       "category": "portraits",
       "split": "held_out",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Backstage higher-ISO candid portrait without waxy skin smoothing",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
         "model_release_required": true,
-        "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched. ROI bbox_norm intentionally null pending annotation; off-repo Melato master."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "4cf38666019303d6e0195054fc3b684e.jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "bd1249a6e7ea02a231d199035a578d1b391815f8e57389aec2de1c28ebacb91b",
+        "width": 331,
+        "height": 494,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "melato_asset_id": "mel_014"
       },
       "target": {
         "scale": null,
@@ -477,30 +553,37 @@
           "must_lock_base": false,
           "bbox_norm": null
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false,
+      "melato_asset_id": "mel_014"
     },
     {
       "case_id": "app_tailored_wool_blazer",
       "category": "apparel_model",
       "split": "calibration",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Editorial lookbook wool blazer with crisp lapel roll and cuff buttons",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
         "model_release_required": true,
-        "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched. ROI bbox_norm intentionally null pending annotation; off-repo Melato master."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "4huncho___-20261026-0035.jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "0f9cafb4115d0a7f2fe34549a8f331220e83efd503c29f62f54218695dc3e26b",
+        "width": 1440,
+        "height": 1920,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "melato_asset_id": "mel_021"
       },
       "target": {
         "scale": null,
@@ -516,30 +599,37 @@
           "must_lock_base": true,
           "bbox_norm": null
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false,
+      "melato_asset_id": "mel_021"
     },
     {
       "case_id": "app_silk_slip_drape",
       "category": "apparel_model",
       "split": "calibration",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Model wearing bias-cut silk dress on seamless studio cyc",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
         "model_release_required": true,
-        "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched. ROI bbox_norm intentionally null pending annotation; off-repo Melato master."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "melimtx-20261012-0742(1).jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "c5471a9ba73b4d018b0ce7abad9401f2d02d62c3bb119cdd7537c467adb74143",
+        "width": 675,
+        "height": 932,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "melato_asset_id": "mel_070"
       },
       "target": {
         "scale": null,
@@ -555,30 +645,37 @@
           "must_lock_base": true,
           "bbox_norm": null
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false,
+      "melato_asset_id": "mel_070"
     },
     {
       "case_id": "app_graphic_tee_screenprint",
       "category": "apparel_model",
       "split": "calibration",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "On-model heavyweight cotton tee with multi-line chest typography",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
         "model_release_required": true,
-        "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "model_release_verified": true,
+        "notes": "Trademark-heavy: Adidas Trefoil + three stripes on track jacket; Instagram-style screenshot overlay text. Model release owner-vouched. ROI bbox_norm intentionally null pending annotation; off-repo Melato master."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "Screenshot_20261114_035448_Instagram.jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "a9cebb58ba1cb551eae0f5482bab73c643ca0ecaca1a112b5a5b565fe025ebac",
+        "width": 1221,
+        "height": 1913,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "melato_asset_id": "mel_089"
       },
       "target": {
         "scale": null,
@@ -586,7 +683,8 @@
         "expected_height": null
       },
       "known_text": [
-        "MELATO MILANO"
+        "MELATO MILANO",
+        "Mon r\u00eave niche"
       ],
       "critical_rois": [
         {
@@ -596,30 +694,37 @@
           "must_lock_base": true,
           "bbox_norm": null
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false,
+      "melato_asset_id": "mel_089"
     },
     {
       "case_id": "app_biker_jacket_hardware",
       "category": "apparel_model",
       "split": "calibration",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Model in cropped leather jacket with diagonal zip and snap studs",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
         "model_release_required": true,
-        "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched. ROI bbox_norm intentionally null pending annotation; off-repo Melato master."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "4huncho___-20261026-0029.jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "b95639af202e35647587dc91a4fa0b241b79480fcce4714651426b66030a544c",
+        "width": 1440,
+        "height": 1920,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "melato_asset_id": "mel_017"
       },
       "target": {
         "scale": null,
@@ -635,30 +740,37 @@
           "must_lock_base": true,
           "bbox_norm": null
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false,
+      "melato_asset_id": "mel_017"
     },
     {
       "case_id": "app_knit_cardigan_collar",
       "category": "apparel_model",
       "split": "calibration",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Half-body knit cardigan frame testing buttonholes and collar rib",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
         "model_release_required": true,
-        "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched. ROI bbox_norm intentionally null pending annotation; off-repo Melato master."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "4huncho___-20261026-0030.jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "c8625a06fdb301c23c9d7ef96d3ab787e8a571350d71681512c0bf9e430a313c",
+        "width": 1440,
+        "height": 1920,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "melato_asset_id": "mel_018"
       },
       "target": {
         "scale": null,
@@ -674,7 +786,10 @@
           "must_lock_base": true,
           "bbox_norm": null
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false,
+      "melato_asset_id": "mel_018"
     },
     {
       "case_id": "app_sheer_organza_overlay",
@@ -760,24 +875,28 @@
       "case_id": "app_held_denim_selvedge",
       "category": "apparel_model",
       "split": "held_out",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Model denim jacket with contrast bar-tacks and shank buttons",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
         "model_release_required": true,
-        "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched. ROI bbox_norm intentionally null pending annotation; off-repo Melato master."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "942179865_1794487605742365(5).jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "4b5a7df43e848548bd745a00e1ea656b0504c45781f850b5f9125a8ce8d75ae0",
+        "width": 2888,
+        "height": 3512,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "melato_asset_id": "mel_042"
       },
       "target": {
         "scale": null,
@@ -793,30 +912,37 @@
           "must_lock_base": true,
           "bbox_norm": null
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false,
+      "melato_asset_id": "mel_042"
     },
     {
       "case_id": "app_held_pleated_skirt",
       "category": "apparel_model",
       "split": "held_out",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Fine accordion-pleated skirt testing silhouette and pleat geometry",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
         "model_release_required": true,
-        "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched. ROI bbox_norm intentionally null pending annotation; off-repo Melato master."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "melimtx-20261012-0746(1).jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "863e850e783ea860d277e4350b509bf3d21349ffee269d04a6cc809ca0311f91",
+        "width": 903,
+        "height": 870,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "melato_asset_id": "mel_073"
       },
       "target": {
         "scale": null,
@@ -832,30 +958,37 @@
           "must_lock_base": true,
           "bbox_norm": null
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false,
+      "melato_asset_id": "mel_073"
     },
     {
       "case_id": "app_held_athleisure_seam",
       "category": "apparel_model",
       "split": "held_out",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Flatlock technical knit seams and reflective chest mark on model",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
         "model_release_required": true,
-        "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "model_release_verified": true,
+        "notes": "Trademark-heavy: Adidas three-stripe track jacket; social screenshot with MAKEUP TUTORIAL overlay. Model release owner-vouched. ROI bbox_norm intentionally null pending annotation; off-repo Melato master."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "Screenshot_20261114_035123_Instagram.jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "b71419f08bd6add99872c3792a3e6071882fe79655c0ab37ddd2d7ed62ac6324",
+        "width": 1203,
+        "height": 1946,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "melato_asset_id": "mel_088"
       },
       "target": {
         "scale": null,
@@ -863,7 +996,8 @@
         "expected_height": null
       },
       "known_text": [
-        "ATELIER"
+        "ATELIER",
+        "MAKEUP TUTORIAL"
       ],
       "critical_rois": [
         {
@@ -873,7 +1007,10 @@
           "must_lock_base": true,
           "bbox_norm": null
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false,
+      "melato_asset_id": "mel_088"
     },
     {
       "case_id": "app_held_sequin_evening",
@@ -1074,24 +1211,28 @@
       "case_id": "tex_full_grain_leather",
       "category": "textiles",
       "split": "calibration",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Aniline black calfskin leather panel showing irregular natural grain",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
         "model_release_required": false,
         "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched. ROI bbox_norm intentionally null pending annotation; off-repo Melato master."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "4huncho___-20261026-0036.jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "7d494bbdf9ac77766bf507720fc829f526aa04045c821fc2efc26ac9edd03f35",
+        "width": 1320,
+        "height": 1759,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "melato_asset_id": "mel_022"
       },
       "target": {
         "scale": null,
@@ -1107,30 +1248,37 @@
           "must_lock_base": false,
           "bbox_norm": null
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false,
+      "melato_asset_id": "mel_022"
     },
     {
       "case_id": "tex_raw_indigo_denim",
       "category": "textiles",
       "split": "calibration",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "14oz raw indigo denim warp/weft slub texture",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
         "model_release_required": false,
         "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched. ROI bbox_norm intentionally null pending annotation; off-repo Melato master."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "942179865_1794487605742365(2).jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "b39386120a5a22cf9795c279506f35966a22bb7aab5b2f5466d8b7cfd4047e5c",
+        "width": 763,
+        "height": 1357,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "melato_asset_id": "mel_041"
       },
       "target": {
         "scale": null,
@@ -1146,7 +1294,10 @@
           "must_lock_base": false,
           "bbox_norm": null
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false,
+      "melato_asset_id": "mel_041"
     },
     {
       "case_id": "tex_boucle_tweed",
@@ -1747,24 +1898,28 @@
       "case_id": "mac_held_chain_strap_links",
       "category": "macros",
       "split": "held_out",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Interlinked curb metal strap with edge-painted leather weaving",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
         "model_release_required": false,
         "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched. ROI bbox_norm intentionally null pending annotation; off-repo Melato master."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "4huncho___-20261026-0074.jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "c33ba7303890cab25d0cf9bd63ba3e194ecd9464a2ed5dc5339ccc230b549377",
+        "width": 969,
+        "height": 1204,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "melato_asset_id": "mel_025"
       },
       "target": {
         "scale": null,
@@ -1780,7 +1935,10 @@
           "must_lock_base": true,
           "bbox_norm": null
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false,
+      "melato_asset_id": "mel_025"
     },
     {
       "case_id": "mac_held_chain_embroidery",
@@ -1827,24 +1985,28 @@
       "case_id": "mac_held_shoe_welt_stitch",
       "category": "macros",
       "split": "held_out",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Goodyear storm welt perimeter stitching on calfskin boot",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
         "model_release_required": false,
         "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "notes": "Trademark-heavy: Under Armour logo on tactical boot; camo sock branding. Model release owner-vouched. ROI bbox_norm intentionally null pending annotation; off-repo Melato master."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "snug_wrld-20261021-0039.jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "7e17c60c64a4fbf1e6c8dc2a3049071ad4802b26e19445164790beffe785683e",
+        "width": 1440,
+        "height": 1795,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "melato_asset_id": "mel_092"
       },
       "target": {
         "scale": null,
@@ -1860,7 +2022,10 @@
           "must_lock_base": true,
           "bbox_norm": null
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false,
+      "melato_asset_id": "mel_092"
     },
     {
       "case_id": "mac_held_watch_buckle_pin",
@@ -1907,24 +2072,28 @@
       "case_id": "pak_white_cyc_handbag",
       "category": "packshot_edge",
       "split": "calibration",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Ecommerce handbag packshot on pure white backdrop with contact shadow",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
         "model_release_required": false,
         "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "notes": "Trademark-heavy: Mazda CX-5 interior. ROI bbox_norm intentionally null pending annotation; off-repo Melato master."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "2025-mazda-cx-5-interior-v0-dxy3oxsoalhe1.jpeg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "bb3de74471a5158980aa9e3e794a8b4f3cd2cd29583368b215f55948ac356561",
+        "width": 1080,
+        "height": 810,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "melato_asset_id": "mel_008"
       },
       "target": {
         "scale": null,
@@ -1940,30 +2109,37 @@
           "must_lock_base": true,
           "bbox_norm": null
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false,
+      "melato_asset_id": "mel_008"
     },
     {
       "case_id": "pak_black_studio_watch",
       "category": "packshot_edge",
       "split": "calibration",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Watch product on intentional deep black backdrop (non-black-tile test)",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
         "model_release_required": false,
         "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "notes": "Trademark-heavy: Mazda CX-5 steering wheel / emblem. ROI bbox_norm intentionally null pending annotation; off-repo Melato master."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "2023_Mazda_CX-5_Steering_Wheel_1.jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "98d212c03b7d1c338c8c9fa22edde6b97546aa7287172c9cb0c930fd2d0bbbe8",
+        "width": 960,
+        "height": 720,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "melato_asset_id": "mel_007"
       },
       "target": {
         "scale": null,
@@ -1981,7 +2157,10 @@
           "must_lock_base": true,
           "bbox_norm": null
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false,
+      "melato_asset_id": "mel_007"
     },
     {
       "case_id": "pak_alpha_cutout_sneaker",
@@ -2026,31 +2205,38 @@
       "case_id": "pak_low_light_evening_bag",
       "category": "packshot_edge",
       "split": "calibration",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Low-light moody still life testing shadow noise vs banding",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
         "model_release_required": false,
         "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "notes": "Trademark-heavy: Mazda CX-5 interior / steering-wheel emblem and Mazda Connect UI. ROI bbox_norm intentionally null pending annotation; off-repo Melato master."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "2020-mazda-cx-5_100753199_m.jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "2696cd47b14a5690b97918dd1abaff78421f0005d72199004d955c9e7d903f22",
+        "width": 640,
+        "height": 415,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "melato_asset_id": "mel_005"
       },
       "target": {
         "scale": null,
         "expected_width": null,
         "expected_height": null
       },
-      "known_text": [],
+      "known_text": [
+        "Communication",
+        "AUTO"
+      ],
       "critical_rois": [
         {
           "roi_id": "shadow_rolloff",
@@ -2059,30 +2245,37 @@
           "must_lock_base": true,
           "bbox_norm": null
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false,
+      "melato_asset_id": "mel_005"
     },
     {
       "case_id": "pak_clear_perfume_flacon",
       "category": "packshot_edge",
       "split": "calibration",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Transparent glass bottle over graded backdrop with embossed label",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
         "model_release_required": false,
         "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "notes": "Trademark-heavy: Mazda steering-wheel emblem and Mazda Connect / CarPlay UI. ROI bbox_norm intentionally null pending annotation; off-repo Melato master."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "cgo14wkw24n41.jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "4fd7c4b30a8b6a85a9b038fb92a601fde7cdb95c7131240593b12ffb3a9da33d",
+        "width": 4032,
+        "height": 3024,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "melato_asset_id": "mel_045"
       },
       "target": {
         "scale": null,
@@ -2090,7 +2283,9 @@
         "expected_height": null
       },
       "known_text": [
-        "EXTRAIT"
+        "EXTRAIT",
+        "Communication",
+        "TRIP A"
       ],
       "critical_rois": [
         {
@@ -2100,30 +2295,37 @@
           "must_lock_base": true,
           "bbox_norm": null
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false,
+      "melato_asset_id": "mel_045"
     },
     {
       "case_id": "pak_matte_box_packaging",
       "category": "packshot_edge",
       "split": "calibration",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Luxury rigid paper box testing subtle spot-UV foil micro-type",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
         "model_release_required": false,
         "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "notes": "Trademark-heavy: Nike shoebox + Nike Air Max Plus sneakers (Swoosh / NIKE wordmark). ROI bbox_norm intentionally null pending annotation; off-repo Melato master."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "images (18).jpeg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "78b282a7fc8e51e911afb54b26f71dd8f5968baac903b5111c287b3dad5755bd",
+        "width": 495,
+        "height": 619,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "melato_asset_id": "mel_054"
       },
       "target": {
         "scale": null,
@@ -2131,7 +2333,9 @@
         "expected_height": null
       },
       "known_text": [
-        "ARCHIVE EDITION"
+        "ARCHIVE EDITION",
+        "NIKE",
+        "Tn"
       ],
       "critical_rois": [
         {
@@ -2141,7 +2345,10 @@
           "must_lock_base": true,
           "bbox_norm": null
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false,
+      "melato_asset_id": "mel_054"
     },
     {
       "case_id": "pak_held_white_shirt_shadow",
@@ -2186,24 +2393,28 @@
       "case_id": "pak_held_dark_velvet_packshot",
       "category": "packshot_edge",
       "split": "held_out",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Midnight velvet pump on charcoal sweep testing shadow separation",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
         "model_release_required": false,
         "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "notes": "Trademark-heavy: Mazda steering-wheel emblem; Spotify / Apple CarPlay UI on dash. ROI bbox_norm intentionally null pending annotation; off-repo Melato master."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "b7739eb33a8c52db35e8c8d5251444d9.jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "063a0a44ae3963ecb64d9ce137cbd650758683f0eb4bd3ba87bda7152d135f66",
+        "width": 236,
+        "height": 419,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "melato_asset_id": "mel_044"
       },
       "target": {
         "scale": null,
@@ -2219,7 +2430,10 @@
           "must_lock_base": true,
           "bbox_norm": null
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false,
+      "melato_asset_id": "mel_044"
     },
     {
       "case_id": "pak_held_tinted_sunglasses",
@@ -2266,24 +2480,28 @@
       "case_id": "pak_held_sunglass_case_grain",
       "category": "packshot_edge",
       "split": "held_out",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Matte pebbled case testing edge-paint bevel and blind stamp",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
         "model_release_required": false,
         "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "notes": "Trademark-heavy: Mazda steering-wheel emblem; music UI on dash. ROI bbox_norm intentionally null pending annotation; off-repo Melato master."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "images - 2026-10-12T170806.911.jpeg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "f3d3a92b0d057c1dea2d8bee5f5aded5d1abea11719dd63513a64a315177f47b",
+        "width": 259,
+        "height": 195,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "melato_asset_id": "mel_055"
       },
       "target": {
         "scale": null,
@@ -2301,7 +2519,10 @@
           "must_lock_base": true,
           "bbox_norm": null
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false,
+      "melato_asset_id": "mel_055"
     },
     {
       "case_id": "pak_held_high_key_jewelry",
@@ -2348,24 +2569,28 @@
       "case_id": "pak_held_archival_print_scan",
       "category": "packshot_edge",
       "split": "held_out",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Moderately noisy flat-lay editorial lookbook tear-sheet scan",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
         "model_release_required": false,
         "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "notes": "Trademark-heavy: Nike swoosh on USA kit; Puma on Jamaica kit; TDK / Daegu 2011 bibs. Model release owner-vouched. ROI bbox_norm intentionally null pending annotation; off-repo Melato master."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "F26YBPXB35KVNGOLHGYXUSXOIU.jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "2325f1f7f9a013bffd76dce23a1a9cedf4180c08152c4b81798fc1e5560b6100",
+        "width": 512,
+        "height": 374,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "melato_asset_id": "mel_046"
       },
       "target": {
         "scale": null,
@@ -2383,7 +2608,10 @@
           "must_lock_base": true,
           "bbox_norm": null
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false,
+      "melato_asset_id": "mel_046"
     }
   ],
   "regression_assets": [
@@ -2507,5 +2735,6 @@
       "format": "PNG",
       "bytes": 1103459
     }
-  ]
+  ],
+  "melato_companion_manifest": "experiments/melato_corpus_manifest.json"
 }

@@ -9,8 +9,11 @@ Branch: `grokbot05/photographic-quality-corpus` from `main` (`1c954cd`).
 - Photographic restoration protocol with explicit anti-sharpness-proxy rubrics for skin/hair/textiles/products/lettering.
 - Bot 04 evaluation hooks (`fidelis/eval/texture_eval_hooks.py`) and CLI.
 - Deterministic synthetic protocol fixtures + unit tests (not production corpus).
-- Acquisition proposal blocked on Huncho creative approval.
+- Melato 97-asset off-repo companion inventory (`experiments/melato_corpus_manifest.json`) after owner GO via Huncho.
+- Extended validator for `storage: off_repo` + optional `--master-root` byte checks; CI without masters still passes.
+- AI/synthetic Melato assets tagged non-ground-truth; protocol refuses them as restoration GT.
 
 ## Verification (local)
 
 See PR body for exact unittest counts. No live GPU quality score was fabricated.
+No Melato image binaries committed.
