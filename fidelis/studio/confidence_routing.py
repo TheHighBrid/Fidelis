@@ -56,7 +56,9 @@ def route_confidence_masks(
     runner_up = np.partition(stack, -2, axis=0)[-2]
     gap = top - runner_up
     allowed = (top >= threshold) & (gap > 0) & (gap >= margin) & (output_lock < 1)
-    weight = np.where(allowed, top * certainty * (1 - lock), 0).astype(np.float32)
+    # Attenuation must use the same quantized protection exposed to the compositor.
+    # Otherwise the exported protect mask and texture weights disagree at boundaries.
+    weight = np.where(allowed, top * certainty * (1 - output_lock.astype(np.float64)), 0).astype(np.float32)
     result = {label: np.where(winner == i, weight, 0).astype(np.float32) for i, label in enumerate(CLASSES)}
     result["protect"] = output_lock
     return result
