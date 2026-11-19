@@ -21,8 +21,8 @@ class ConfidenceRoutingBoundaryMatrixTests(unittest.TestCase):
     def test_margin_nextafter_below_is_not_accepted(self):
         below = np.nextafter(np.float64(0.15), np.float64(0))
         probabilities = {
-            "skin": np.array([[0.95, 0.95]]),
-            "hair": np.array([[0.95 - below, 0.80]]),
+            "skin": np.array([[1.0, 1.0]]),
+            "hair": np.array([[1.0 - below, 0.80]]),
             "fabric": np.zeros((1, 2)),
         }
         routed = route_confidence_masks(probabilities, protect=np.zeros((1, 2)), margin=0.15)
