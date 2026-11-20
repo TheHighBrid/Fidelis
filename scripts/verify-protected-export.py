@@ -18,6 +18,9 @@ def verify(base_path, export_path, mask_path):
             raise ValueError('base and export must be untagged 8-bit RGB')
         if base_image.info.get('icc_profile') or output_image.info.get('icc_profile'):
             raise ValueError('ICC-tagged inputs are outside this verifier contract')
+        if any(any(key in image.info for key in ('gamma', 'srgb', 'chromaticity'))
+               for image in (base_image, output_image)):
+            raise ValueError('PNG colour-transfer metadata is outside this verifier contract')
         if any('transparency' in image.info for image in (base_image, output_image)):
             raise ValueError('PNG transparency is outside this verifier contract')
         if any(image.getexif().get(274, 1) != 1 for image in (base_image, output_image)):
