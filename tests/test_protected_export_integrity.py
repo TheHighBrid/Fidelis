@@ -1,11 +1,12 @@
 """Regression tests for independent protected-export verification."""
 import importlib.util
+import struct
 import tempfile
 import unittest
 from pathlib import Path
 
 import numpy as np
-from PIL import Image
+from PIL import Image, PngImagePlugin
 
 SCRIPT = Path(__file__).resolve().parents[1] / 'scripts' / 'verify-protected-export.py'
 SPEC = importlib.util.spec_from_file_location('verify_protected_export', SCRIPT)
@@ -118,6 +119,22 @@ class ProtectedExportVerificationTests(unittest.TestCase):
         exif[274] = 1
         Image.fromarray(self.pixels).save(self.output, exif=exif)
         self.assertTrue(module.verify(self.base, self.output, self.mask)['pass'])
+
+    def test_png_colour_transfer_chunks_fail_closed_on_either_input(self):
+        chunks = (
+            (b'gAMA', struct.pack('>I', 45455)),
+            (b'sRGB', bytes([0])),
+            (b'cHRM', struct.pack('>8I', *([31270] * 8))),
+        )
+        for chunk, payload in chunks:
+            for path in (self.base, self.output):
+                with self.subTest(chunk=chunk, path=path.name):
+                    self.save()
+                    metadata = PngImagePlugin.PngInfo()
+                    metadata.add(chunk, payload)
+                    Image.fromarray(self.pixels).save(path, pnginfo=metadata)
+                    with self.assertRaisesRegex(ValueError, 'colour-transfer'):
+                        module.verify(self.base, self.output, self.mask)
 
     def test_non_rgb_export_fails_closed(self):
         Image.fromarray(self.pixels[..., 0]).save(self.output)
