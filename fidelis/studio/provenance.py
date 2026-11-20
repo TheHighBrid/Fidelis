@@ -7,7 +7,7 @@ import hashlib
 import json
 import os
 import re
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Any
 
 SCHEMA_VERSION = 1
@@ -35,6 +35,27 @@ class ProvenanceError(ValueError):
     """Raised when model provenance catalog contracts or checksum invariants fail."""
 
 
+def _validate_relative_path(value, *, field, single_name=False):
+    """Require canonical portable relative paths before inspecting local bytes."""
+    if not isinstance(value, str) or not value or "\\" in value or "\x00" in value:
+        raise ProvenanceError(f"Invalid relative path in {field}")
+    parts = value.split("/")
+    if (any(part in ("", ".", "..") for part in parts)
+            or PureWindowsPath(value).drive or any(":" in part for part in parts)
+            or (single_name and len(parts) != 1)):
+        raise ProvenanceError(f"Invalid relative path in {field}")
+
+
+def confined_local_path(home, relative):
+    candidate = home / relative
+    try:
+        resolved = candidate.resolve()
+        resolved.relative_to(home.resolve())
+    except (ValueError, OSError, RuntimeError) as error:
+        raise ProvenanceError("Local provenance path escapes the configured app home") from error
+    return resolved
+
+
 def sha256_file(path: Path) -> str:
     hasher = hashlib.sha256()
     with path.open("rb") as stream:
@@ -54,6 +75,9 @@ def load_tsv_candidates(tsv_path: Path) -> dict[str, dict[str, str]]:
             if len(row) < 7:
                 raise ProvenanceError(f"Malformed TSV row in {tsv_path.name}: {row!r}")
             name, role, revision, folder, param_sha, bin_sha, license_note = row[:7]
+            if not name.strip() or name in records:
+                raise ProvenanceError("Missing or duplicate TSV candidate name")
+            _validate_relative_path(folder, field="TSV candidate folder", single_name=True)
             records[name] = {
                 "role": role,
                 "revision": revision,
@@ -88,6 +112,10 @@ def _validate_runtime_fields(rid, rt):
         sha_val = rt.get(sha_field)
         if sha_val is not None and (not isinstance(sha_val, str) or not _SHA256_RE.fullmatch(sha_val)):
             raise ProvenanceError(f"{rid}: malformed {sha_field} {sha_val!r}")
+    if rt.get("local_relative_path") is not None:
+        _validate_relative_path(rt["local_relative_path"], field=f"{rid}: runtime path")
+    if rt["provenance_status"] == "pinned_sha256" and rt.get("archive_sha256") is None:
+        raise ProvenanceError(f"{rid}: pinned runtime requires an archive SHA-256")
 
 def _validate_model_identity(entry, seen_ids):
     if not isinstance(entry, dict):
@@ -129,6 +157,7 @@ def _validate_weight_hashes(mid, source, weights, prov_status):
         if not weights:
             raise ProvenanceError(f"{mid}: pinned_sha256 requires non-empty weights hash mapping")
     for fname, sha in weights.items():
+        _validate_relative_path(fname, field=f"{mid}: weight filename", single_name=True)
         if sha is None and not pinned:
             continue
         if not isinstance(sha, str) or not _SHA256_RE.fullmatch(sha):
@@ -153,6 +182,8 @@ def _validate_models(models, tsv_map):
     for entry in models:
         mid, prov_status = _validate_model_identity(entry, seen_ids)
         source, weights = entry["source"], entry["weights"]
+        if entry.get("local_relative_dir") is not None:
+            _validate_relative_path(entry["local_relative_dir"], field=f"{mid}: model directory")
         comm_status = _validate_model_terms(mid, entry, prov_status)
         _validate_weight_hashes(mid, source, weights, prov_status)
         by_provenance[prov_status] += 1
@@ -212,7 +243,7 @@ def _inspect_file(path, expected_sha):
 
 def _audit_runtime(rt, home):
     relative = rt.get("local_relative_path")
-    path = home / relative if isinstance(relative, str) and relative else None
+    path = confined_local_path(home, relative) if relative is not None else None
     checked = _inspect_file(path, rt.get("macos_binary_sha256"))
     return {
         "runtime_id": rt["runtime_id"],
@@ -247,8 +278,11 @@ def _audit_model(entry, home):
     installed = False
     integrity = "not_acquired" if entry["provenance_status"] == "not_acquired" else "missing"
     if rel_dir and weights:
-        target_dir = home / rel_dir
-        file_checks = {name: _inspect_file(target_dir / name, sha) for name, sha in weights.items()}
+        confined_local_path(home, rel_dir)
+        file_checks = {
+            name: _inspect_file(confined_local_path(home, f"{rel_dir}/{name}"), sha)
+            for name, sha in weights.items()
+        }
         installed, integrity = _weight_integrity(file_checks)
     return {
         "model_id": entry["model_id"],
