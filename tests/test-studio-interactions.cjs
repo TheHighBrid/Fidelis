@@ -14,12 +14,14 @@ function studio() {
       const classes = new Set();
       elements.set(id, {
         style: {}, dataset: {}, disabled: false, value: '0.7', checked: false,
-        listeners: {}, attributes: {}, options: [], textContent: '',
+        listeners: {}, attributes: {}, options: [], textContent: '', children: [],
         classList: { add: (...xs) => xs.forEach(x => { classes.add(x); }), remove: (...xs) => xs.forEach(x => { classes.delete(x); }),
           toggle: (x, on) => on ? classes.add(x) : classes.delete(x), contains: x => classes.has(x) },
         addEventListener(name, fn) { this.listeners[name] = fn; },
         setAttribute(name, value) { this.attributes[name] = value; },
-        appendChild() {}, click() { this.clicked = true; },
+        appendChild(child) { this.children.push(child); },
+        replaceChildren(...children) { this.children = children; },
+        click() { this.clicked = true; },
         setPointerCapture(id) { this.captured = id; },
         getBoundingClientRect: () => ({ left: 10, width: 200 })
       });
@@ -34,7 +36,7 @@ function studio() {
   const context = vm.createContext({
     document: { getElementById: element, createElement: () => element('new'),
       querySelectorAll: selector => selector === '[data-zoom]' ? zoom : controls },
-    window: { addEventListener() {} },
+    window: { addEventListener() {}, location: { origin: 'http://127.0.0.1:8765' } }, URL,
     fetch: (url, options) => {
       requests.push({url, options});
       if (url === '/api/models') return Promise.resolve({json: async () => []});
@@ -108,4 +110,34 @@ test('zoom has no dependency on implicit global event; upload keyboard works', (
   assert.ok(s.element('viewport').classList.contains('zoom-200'));
   s.element('dropzone').listeners.keydown({key: 'Enter', preventDefault() {}});
   assert.equal(s.element('file-input').clicked, true);
+});
+
+test('comparison label is literal text and never HTML', () => {
+  const s = studio();
+  const malicious = '<img src=x onerror=alert(1)>';
+  s.run(`setComparisonTitle('Split: ', ${JSON.stringify(malicious)})`);
+  const title = s.element('view-title');
+  assert.equal(title.textContent, 'Split: ');
+  assert.equal(title.children[0].textContent, malicious);
+  assert.equal(title.innerHTML, undefined);
+});
+
+test('server result URLs allow only local expected paths', () => {
+  const s = studio();
+  for (const value of ['javascript:alert(1)', '//evil.example/api/view', '/\\evil.example/api/view',
+    'https://evil.example/api/view', '/api/download?id=x', '/api/view?id=x#fragment', '/api/../api/view?id=x']) {
+    assert.equal(s.run(`localResultUrl(${JSON.stringify(value)}, '/api/view')`), null);
+  }
+  assert.equal(s.run("localResultUrl('/api/view?id=fidelis_1_a', '/api/view')"), '/api/view?id=fidelis_1_a');
+  assert.equal(s.run("localResultUrl('/api/download?id=fidelis_1_a&filename=My%20image.png', '/api/download')"),
+    '/api/download?id=fidelis_1_a&filename=My%20image.png');
+});
+
+test('result image payload is restricted to PNG data URLs', () => {
+  const s = studio();
+  for (const value of ['data:text/html;base64,AAAA', 'javascript:alert(1)', 'https://evil.example/x.png',
+    'data:image/png;base64,<script>']) {
+    assert.equal(s.run(`pngResultData(${JSON.stringify(value)})`), null);
+  }
+  assert.equal(s.run("pngResultData('data:image/png;base64,AAAA')"), 'data:image/png;base64,AAAA');
 });
