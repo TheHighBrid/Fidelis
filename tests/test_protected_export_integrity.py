@@ -99,6 +99,26 @@ class ProtectedExportVerificationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'EXIF orientation'):
             module.verify(self.base, self.output, self.mask)
 
+    def test_base_png_transparency_metadata_fails_closed(self):
+        image = Image.fromarray(self.pixels)
+        image.save(self.base, transparency=(50, 50, 50))
+        with self.assertRaisesRegex(ValueError, 'transparency'):
+            module.verify(self.base, self.output, self.mask)
+
+    def test_base_nonidentity_exif_orientation_fails_closed(self):
+        image = Image.fromarray(self.pixels)
+        exif = Image.Exif()
+        exif[274] = 8
+        image.save(self.base, exif=exif)
+        with self.assertRaisesRegex(ValueError, 'EXIF orientation'):
+            module.verify(self.base, self.output, self.mask)
+
+    def test_identity_exif_orientation_remains_valid(self):
+        exif = Image.Exif()
+        exif[274] = 1
+        Image.fromarray(self.pixels).save(self.output, exif=exif)
+        self.assertTrue(module.verify(self.base, self.output, self.mask)['pass'])
+
     def test_non_rgb_export_fails_closed(self):
         Image.fromarray(self.pixels[..., 0]).save(self.output)
         with self.assertRaisesRegex(ValueError, 'RGB'):
