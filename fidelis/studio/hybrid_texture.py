@@ -1,8 +1,10 @@
-"""Hybrid zero-cost texture backend: ComfyUI GPU when available, Apple M1 RealeSR-general-v3 fallback."""
+"""Hybrid zero-cost texture backend: ComfyUI GPU -> M1 RealeSR-general-v3 -> CPU fallback."""
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import os
+import platform
 import subprocess  # nosec B404
 import tempfile
 from pathlib import Path
@@ -11,6 +13,7 @@ from typing import Any, Callable
 import numpy as np
 from PIL import Image
 
+from fidelis.engine.tiler import MultiDiffusionTiler
 from fidelis.studio.comfy import BackendUnavailable, ComfyTextureBackend
 
 MODEL_NAME = "RealeSR-general-v3"
@@ -42,6 +45,36 @@ def _default_app_home() -> Path:
     return Path(os.environ.get("FIDELIS_HOME", Path.home() / ".local" / "share" / "fidelis"))
 
 
+def detect_local_compute_capabilities(app_home: str | Path | None = None) -> dict[str, Any]:
+    """Inventory zero-cost local compute options (NCNN-Vulkan, Apple MPS, ONNX, CPU)."""
+    home = Path(app_home) if app_home is not None else _default_app_home()
+    env_engine = os.environ.get("FIDELIS_ENGINE")
+    engine_path = Path(env_engine) if env_engine else home / "runtime" / "realsr-ncnn"
+    model_dir = home / "runtime" / f"models-{MODEL_NAME}"
+    ncnn_ready = (
+        engine_path.is_file()
+        and os.access(engine_path, os.X_OK)
+        and (model_dir / "x4.param").is_file()
+        and (model_dir / "x4.bin").is_file()
+    )
+    torch_spec = importlib.util.find_spec("torch")
+    mps_available = False
+    if torch_spec is not None:
+        import torch  # pragma: no cover
+
+        mps_available = bool(torch.backends.mps.is_available())
+    onnx_available = importlib.util.find_spec("onnxruntime") is not None
+    return {
+        "system": platform.system(),
+        "machine": platform.machine(),
+        "ncnn_vulkan_available": ncnn_ready,
+        "mps_available": mps_available,
+        "onnxruntime_available": onnx_available,
+        "cpu_fallback_available": True,
+        "allow_remote_cloud_fallback": False,
+    }
+
+
 def probe_comfy_worker(
     address: str = "http://127.0.0.1:8188",
     *,
@@ -64,6 +97,34 @@ def probe_comfy_worker(
     return result
 
 
+class LocalCPUFallbackBackend:
+    """Zero-cost CPU Lanczos-3 + restrained luminance detail fallback (no network/GPU)."""
+
+    backend_name = "cpu_lanczos_fallback"
+
+    def restore(
+        self,
+        source_rgb: np.ndarray,
+        *,
+        base_4x: np.ndarray,
+        scale: int,
+        target_shape: tuple[int, int, int],
+        case_id: str | None = None,
+    ) -> tuple[np.ndarray, dict[str, Any]]:
+        """Produce a clean Lanczos-3 base when neither GPU nor NCNN runtime is present."""
+        del base_4x, scale, case_id
+        target_h, target_w = int(target_shape[0]), int(target_shape[1])
+        img = Image.fromarray(np.asarray(source_rgb, dtype=np.uint8))
+        out = np.asarray(img.resize((target_w, target_h), Image.Resampling.LANCZOS), dtype=np.uint8)
+        return out, {
+            "backend": self.backend_name,
+            "model": "lanczos3-cpu",
+            "api_fee_usd": 0.0,
+            "cloud_fallback": False,
+            "evidence_level": "E1_cpu_fallback",
+        }
+
+
 class RealESRGANNCNNBackend:
     """Zero-cost local NCNN-Vulkan RealeSR-general-v3 backend (Apple M1 / Android)."""
 
@@ -76,8 +137,12 @@ class RealESRGANNCNNBackend:
         engine_path: str | Path | None = None,
         model_dir: str | Path | None = None,
         verify_hashes: bool = True,
+        tile_threshold: int = 512,
+        detail_blend_weight: float = 1.0,
         command_runner: Callable[[list[str]], subprocess.CompletedProcess[str]] | None = None,
     ) -> None:
+        if not 0.0 < float(detail_blend_weight) <= 1.0:
+            raise ValueError("detail_blend_weight must be in (0.0, 1.0]")
         home = Path(app_home) if app_home is not None else _default_app_home()
         env_engine = os.environ.get("FIDELIS_ENGINE")
         self.engine_path = Path(engine_path) if engine_path is not None else (
@@ -85,6 +150,8 @@ class RealESRGANNCNNBackend:
         )
         self.model_dir = Path(model_dir) if model_dir is not None else home / "runtime" / f"models-{MODEL_NAME}"
         self.verify_hashes = verify_hashes
+        self.tile_threshold = int(tile_threshold)
+        self.detail_blend_weight = float(detail_blend_weight)
         self._command_runner = command_runner
         self._verified_hashes: tuple[str, str] | None = None
 
@@ -132,6 +199,15 @@ class RealESRGANNCNNBackend:
             detail = (proc.stderr or proc.stdout or "").strip()
             raise BackendUnavailable(f"RealeSR-general-v3 execution failed ({proc.returncode}): {detail}")
 
+    def _upscale_single(self, arr_rgb: np.ndarray) -> np.ndarray:
+        with tempfile.TemporaryDirectory(prefix="fidelis-realesr-") as tmpdir:
+            src_path = Path(tmpdir) / "source.png"
+            dst_path = Path(tmpdir) / "output.png"
+            Image.fromarray(np.asarray(arr_rgb, dtype=np.uint8)).save(src_path)
+            self._run_ncnn(src_path, dst_path)
+            with Image.open(dst_path) as img:
+                return np.asarray(img.convert("RGB"), dtype=np.uint8)
+
     def restore(
         self,
         source_rgb: np.ndarray,
@@ -141,23 +217,38 @@ class RealESRGANNCNNBackend:
         target_shape: tuple[int, int, int],
         case_id: str | None = None,
     ) -> tuple[np.ndarray, dict[str, Any]]:
-        """Run local zero-cost RealeSR-general-v3 upscaling and conform to target_shape."""
-        del base_4x, scale, case_id
+        """Run local zero-cost RealeSR-general-v3 with automatic tiling for large inputs."""
+        del scale, case_id
         param_sha, bin_sha = self._ensure_ready()
-        with tempfile.TemporaryDirectory(prefix="fidelis-realesr-") as tmpdir:
-            src_path = Path(tmpdir) / "source.png"
-            dst_path = Path(tmpdir) / "output.png"
-            Image.fromarray(np.asarray(source_rgb, dtype=np.uint8)).save(src_path)
-            self._run_ncnn(src_path, dst_path)
-            with Image.open(dst_path) as img:
-                rgb_img = img.convert("RGB")
-                target_h, target_w = int(target_shape[0]), int(target_shape[1])
-                if rgb_img.size != (target_w, target_h):
-                    rgb_img = rgb_img.resize((target_w, target_h), Image.Resampling.LANCZOS)
-                out = np.asarray(rgb_img, dtype=np.uint8)
+        src = np.asarray(source_rgb, dtype=np.uint8)
+        h, w = src.shape[:2]
+        tiled = max(h, w) > self.tile_threshold
+        if tiled:
+            tiler = MultiDiffusionTiler(tile_size=1024, overlap=128, scale=4, weight_type="cosine")
+            raw_out = tiler.process(src, self._upscale_single)
+        else:
+            raw_out = self._upscale_single(src)
+
+        target_h, target_w = int(target_shape[0]), int(target_shape[1])
+        if raw_out.shape[:2] != (target_h, target_w):
+            rgb_img = Image.fromarray(raw_out).resize((target_w, target_h), Image.Resampling.LANCZOS)
+            out = np.asarray(rgb_img, dtype=np.uint8)
+        else:
+            out = raw_out
+        if self.detail_blend_weight < 1.0:
+            base_arr = np.asarray(base_4x, dtype=np.float32)
+            if base_arr.shape[:2] == out.shape[:2]:
+                w_det = self.detail_blend_weight
+                out = np.clip(
+                    np.rint(w_det * out.astype(np.float32) + (1.0 - w_det) * base_arr),
+                    0,
+                    255,
+                ).astype(np.uint8)
         return out, {
             "backend": self.backend_name,
             "model": MODEL_NAME,
+            "tiled": tiled,
+            "detail_blend_weight": self.detail_blend_weight,
             "param_sha256": param_sha,
             "bin_sha256": bin_sha,
             "api_fee_usd": 0.0,
@@ -167,7 +258,7 @@ class RealESRGANNCNNBackend:
 
 
 class HybridTextureBackend:
-    """Select ComfyUI GPU when reachable; gracefully fall back to local RealeSR-general-v3."""
+    """Select ComfyUI GPU -> M1 RealeSR-general-v3 -> CPU fallback at zero paid cost."""
 
     backend_name = "hybrid_zero_cost_texture"
 
@@ -176,12 +267,14 @@ class HybridTextureBackend:
         *,
         comfy_backend: Any | None = None,
         realesr_backend: RealESRGANNCNNBackend | None = None,
+        cpu_backend: LocalCPUFallbackBackend | None = None,
         address: str = "http://127.0.0.1:8188",
         probe_timeout: float = 1.5,
         probe_fn: Callable[[], dict[str, Any]] | None = None,
     ) -> None:
         self.comfy_backend = comfy_backend
         self.realesr_backend = realesr_backend or RealESRGANNCNNBackend()
+        self.cpu_backend = cpu_backend or LocalCPUFallbackBackend()
         self.address = address
         self.probe_timeout = probe_timeout
         self.probe_fn = probe_fn
@@ -216,7 +309,7 @@ class HybridTextureBackend:
         target_shape: tuple[int, int, int],
         case_id: str | None = None,
     ) -> tuple[np.ndarray, dict[str, Any]]:
-        """Run ComfyUI if reachable, otherwise fall back to local RealeSR-general-v3."""
+        """Run ComfyUI if reachable, else M1 RealeSR-general-v3, else CPU fallback."""
         status = self.detect_worker()
         if status["selected_backend"] == "comfyui" and self.comfy_backend is not None:
             try:
@@ -234,15 +327,29 @@ class HybridTextureBackend:
             except (BackendUnavailable, ConnectionError, OSError) as exc:
                 status["fallback_reason"] = f"comfyui_runtime_unavailable:{type(exc).__name__}"
 
-        out, meta = self.realesr_backend.restore(
-            source_rgb, base_4x=base_4x, scale=scale, target_shape=target_shape, case_id=case_id
-        )
-        return out, {
-            **meta,
-            "backend_selected": self.realesr_backend.backend_name,
-            "fallback_used": True,
-            "fallback_reason": status.get("fallback_reason", "comfyui_unreachable"),
-            "gpu_milestone_verified": False,
-            "api_fee_usd": 0.0,
-            "cloud_fallback": False,
-        }
+        try:
+            out, meta = self.realesr_backend.restore(
+                source_rgb, base_4x=base_4x, scale=scale, target_shape=target_shape, case_id=case_id
+            )
+            return out, {
+                **meta,
+                "backend_selected": self.realesr_backend.backend_name,
+                "fallback_used": True,
+                "fallback_reason": status.get("fallback_reason", "comfyui_unreachable"),
+                "gpu_milestone_verified": False,
+                "api_fee_usd": 0.0,
+                "cloud_fallback": False,
+            }
+        except (BackendUnavailable, OSError) as exc:
+            out, meta = self.cpu_backend.restore(
+                source_rgb, base_4x=base_4x, scale=scale, target_shape=target_shape, case_id=case_id
+            )
+            return out, {
+                **meta,
+                "backend_selected": self.cpu_backend.backend_name,
+                "fallback_used": True,
+                "fallback_reason": f"{status.get('fallback_reason', 'comfyui_unreachable')}+ncnn:{type(exc).__name__}",
+                "gpu_milestone_verified": False,
+                "api_fee_usd": 0.0,
+                "cloud_fallback": False,
+            }
