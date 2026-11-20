@@ -645,7 +645,7 @@ class UpscalePipeline:
         if res.returncode != 0:
             err = res.stderr.strip() or res.stdout.strip()
             raise RuntimeError(f"Tiled upscale failed ({res.returncode}): {err}")
-        if not output_path.is_file() or output_path.stat().st_size == 0:
+        if output_path.is_symlink() or not output_path.is_file() or output_path.stat().st_size == 0:
             raise RuntimeError("Tiled upscale reported success without a nonempty output file")
 
     def _verify_zero_black_tiles(self, arr: np.ndarray, tile_size: int = 128) -> bool:
