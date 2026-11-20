@@ -260,3 +260,21 @@ def verify(record, root):
     report=audit(record['manifest'],record['protocol'],record['slots'],root)
     if not report['production_ready']:raise ValueError('Locked corpus no longer matches its assets/permissions')
     return report
+
+from fidelis.eval.melato_corpus_manifest import (  # noqa: E402,F401
+    CORPUS_CATEGORIES,
+    MELATO_OFF_REPO_ROOT_ENV,
+    VALID_AVAILABILITY,
+    VALID_ROI_TYPES,
+    VALID_SPLITS,
+    VALID_STORAGE,
+    ManifestValidationError,
+    assert_restoration_ground_truth_allowed,
+    build_template_manifest,
+    load_corpus_manifest,
+    load_melato_corpus_manifest,
+    measure_regression_assets,
+    sha256_file,
+    validate_corpus_manifest,
+    validate_melato_corpus_manifest,
+)
