@@ -9,6 +9,7 @@ import sys
 import tempfile
 import threading
 import unittest
+from unittest.mock import patch
 
 from fidelis.studio.worker_preflight import (
     WORKER_PREFLIGHT_SCHEMA,
@@ -16,6 +17,7 @@ from fidelis.studio.worker_preflight import (
     inspect_workflow_bundle,
     load_worker_preflight_policy,
     run_worker_preflight,
+    validate_endpoint_policy,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -177,6 +179,75 @@ def _mock_comfy_worker(stats_payload: dict, object_info_payload: dict):
 
 
 class WorkerPreflightTest(unittest.TestCase):
+    def test_custom_policy_cannot_expand_local_access_or_budget(self):
+        mutations = (
+            ("allowed_hosts", ["127.0.0.1", "192.0.2.55"]),
+            ("allowed_schemes", ["https"]),
+            ("allowed_hosts", "localhost"),
+        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "policy.json"
+            for key, value in mutations:
+                with self.subTest(key=key, value=value):
+                    policy = load_worker_preflight_policy()
+                    policy[key] = value
+                    path.write_text(json.dumps(policy))
+                    with patch("fidelis.studio.worker_preflight._probe_worker") as probe:
+                        with self.assertRaises(ValueError):
+                            run_worker_preflight(REPO_ROOT, policy_path=path)
+                    probe.assert_not_called()
+            for value in ([0, 60], [1, 120], [10, 1], [1, float("inf")], [True, 3]):
+                with self.subTest(value=value):
+                    policy = load_worker_preflight_policy()
+                    policy["budget_policy"]["timeout_seconds_range"] = value
+                    path.write_text(json.dumps(policy))
+                    with self.assertRaises(ValueError):
+                        load_worker_preflight_policy(path)
+            for value in (0, 501, True, "500"):
+                with self.subTest(max_nodes=value):
+                    policy = load_worker_preflight_policy()
+                    policy["budget_policy"]["max_workflow_nodes"] = value
+                    path.write_text(json.dumps(policy))
+                    with self.assertRaises(ValueError):
+                        load_worker_preflight_policy(path)
+            policy = load_worker_preflight_policy()
+            policy["allowed_hosts"] = ["127.0.0.1"]
+            policy["budget_policy"]["timeout_seconds_range"] = [1, 5]
+            path.write_text(json.dumps(policy))
+            narrowed = load_worker_preflight_policy(path)
+            self.assertTrue(validate_endpoint_policy("http://127.0.0.1:8188", narrowed)["policy_compliant"])
+            self.assertFalse(validate_endpoint_policy("http://localhost:8188", narrowed)["policy_compliant"])
+
+    def test_custom_secret_list_cannot_remove_builtin_protections(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "policy.json"
+            policy = load_worker_preflight_policy()
+            policy["forbidden_secret_keys"] = []
+            path.write_text(json.dumps(policy))
+            bundle = _sample_workflow_bundle()
+            bundle["password"] = "ordinary-placeholder"
+            workflow = Path(tmpdir) / "workflow.json"
+            workflow.write_text(json.dumps(bundle))
+            with patch("fidelis.studio.worker_preflight._probe_worker") as probe:
+                receipt = run_worker_preflight(REPO_ROOT, policy_path=path, workflow_path=workflow)
+            probe.assert_not_called()
+            self.assertEqual(receipt["preflight_status"], "policy_violation")
+            self.assertNotIn("ordinary-placeholder", json.dumps(receipt))
+
+    def test_invalid_endpoints_never_probe_or_echo_address(self):
+        examples = ("http://127.0.0.1:abc", "http://127.0.0.1:65536", "http://127.0.0.1:0",
+                    "http://127.0.0.1:", "http://[::1", "http://[::1]extra", "http://@127.0.0.1",
+                    "http://127.0.0.1?", "http://127.0.0.1#", "http://127.0.0.1\n",
+                    "http://127.0.0.1\\", "http://nonlocal.example:8188")
+        with tempfile.TemporaryDirectory() as home:
+            for address in examples:
+                with self.subTest(address=address), patch("fidelis.studio.worker_preflight._probe_worker") as probe:
+                    receipt = run_worker_preflight(REPO_ROOT, address=address, app_home=home)
+                    self.assertEqual(receipt["preflight_status"], "policy_violation")
+                    self.assertIsNone(receipt["policy"]["endpoint"])
+                    self.assertNotIn(address, json.dumps(receipt))
+                    probe.assert_not_called()
+
     def test_malformed_endpoint_node_is_incompatible(self):
         bundle = _sample_workflow_bundle()
         bundle["workflow"]["1"] = None
