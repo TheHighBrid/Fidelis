@@ -145,3 +145,12 @@ acceptance. See [the receipt](checkpoints/2026-11-19-studio-ui-krea-polish.md).
 The same branch now places the canvas and mask legend before the import form at
 widths through 780px. The repeated headless Chrome check passed at 390, 900 and
 1440px with no horizontal overflow. Do not treat that as F08-B or F15 device signoff.
+
+## Unified Studio & PR stack reconciliation · 2026-11-19
+
+Branch `work/unified-studio-20261119` (stacked on `PR #64` @ `b031001`) unifies
+PRs `#48`, `#61`/`#75`, `#65`, `#66`, `#67`, `#69`–`#73`, `#76`–`#81`, passing
+**498 Python unit tests**, **140 E2E pytest tests**, Chrome CDP (`0` defects),
+deterministic `v3.1.0` packaging, and Apple M1 `E2` zero-cost `RealeSR-general-v3`
+qualification. See
+[2026-11-19 unified integration checkpoint](checkpoints/2026-11-19-unified-studio-integration.md).

@@ -87,11 +87,16 @@ def load_worker_preflight_policy(policy_path: Path | str | None = None) -> dict[
     if not isinstance(budget, dict):
         raise ValueError("Missing budget_policy in worker preflight policy")
     spend = budget.get("max_paid_spend_usd")
-    if budget.get("allow_paid_remote_execution") is not False or type(spend) not in (int, float) or spend != 0:
+    if (
+        budget.get("allow_paid_remote_execution") is not False
+        or isinstance(spend, bool)
+        or not isinstance(spend, (int, float))
+        or spend != 0
+    ):
         raise ValueError("Local Studio worker preflight policy requires zero paid remote spend")
     _bounded_timeout_range(budget)
     max_nodes = budget.get("max_workflow_nodes", 500)
-    if type(max_nodes) is not int or not 1 <= max_nodes <= 500:
+    if isinstance(max_nodes, bool) or not isinstance(max_nodes, int) or not 1 <= max_nodes <= 500:
         raise ValueError("Worker workflow node budget must stay within 1..500")
     keys = data.get("forbidden_secret_keys", [])
     if not isinstance(keys, list) or any(not isinstance(key, str) or not key for key in keys):

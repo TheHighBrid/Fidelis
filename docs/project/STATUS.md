@@ -303,3 +303,19 @@ order (canvas, then legend, then import) and kept 900px and 1440px as a left
 rail plus canvas, with no horizontal overflow at those three widths. That is
 not physical-device or human visual acceptance. See
 [the receipt](checkpoints/2026-11-19-studio-ui-krea-polish.md).
+
+## Unified Studio & PR stack reconciliation · 2026-11-19
+
+On `work/unified-studio-20261119`, stacked cleanly onto `PR #64` (`b031001`), all
+open M1–M4 engineering PRs (`#48`, `#61`/`#75`, `#65`, `#66`, `#67`, `#69`–`#73`,
+`#76`, `#77`, `#78`, `#79`, `#80`, `#81`) are reconciled additively with
+updated `REQUIRED_ARCHIVE_PATHS` and CI coverage. Local verification passes
+**498 Python unit tests**, **140 E2E pytest scenarios**, `tests/smoke-test.sh`,
+`tests/test-web-ui.sh`, `tests/test-release-pipeline.sh`,
+`tests/test-browser-acceptance.sh` (Chrome 157.0.8103.79 CDP, `0` defects),
+Node UI/interaction tests, `scripts/audit-model-provenance.py`, and zero-cost
+`E2` `RealeSR-general-v3` M1 execution (`scripts/qualify-realesr-general-v3.py --record-live`).
+See the [2026-11-19 unified integration checkpoint](checkpoints/2026-11-19-unified-studio-integration.md).
+Remaining external gates: live GPU ComfyUI worker, off-repo 60-case licensed
+corpus completion & dual-reviewer human signoff, physical touch-device QA, `main`
+merge, and owner release signoff.

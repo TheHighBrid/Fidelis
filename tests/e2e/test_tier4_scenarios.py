@@ -374,10 +374,11 @@ def test_t4_managed_export_16bit_and_held_out_acceptance_scenario(
                 "case_id": f"{cat}-{i:02d}",
                 "split": "held_out",
                 "category": cat,
-                "comparator": "bicubic",
+                "comparator": comp,
                 "outcome": "fidelis_win",
                 "critical_defects": [],
             }
+            for comp in ("pinned_clarity", "dated_krea")
             for cat in ("portrait", "model_apparel", "textile", "macro", "packshot_edge")
             for i in range(1, 7)
         ],

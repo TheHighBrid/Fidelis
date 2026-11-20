@@ -58,10 +58,18 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_corpus_alignment.py'
 
       - name: Corpus rights and ROI manifest validation
-        run: python -m unittest discover -s tests -p 'test_corpus_manifest.py'
+        run: |
+          python -m unittest discover -s tests -p 'test_corpus_manifest.py'
+          python -m unittest discover -s tests -p 'test_melato_corpus_manifest.py'
 
       - name: Photographic restoration protocol regressions
         run: python -m unittest discover -s tests -p 'test_photographic_protocol.py'
+
+      - name: Zero-cost F06 RealeSR-general-v3 workflow qualification tests
+        run: python -m unittest discover -s tests -p 'test_f06_realesr_qualification.py'
+
+      - name: Legacy metric redaction contract tests
+        run: python -m unittest discover -s tests -p 'test_metric_contract.py'
 
       - name: Geometric and drift detector tests
         run: bash tests/test-detect-drift.sh
@@ -85,7 +93,10 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_comfy*.py'
 
       - name: Source-bound mask suggestion staging and protection tests
-        run: python -m unittest discover -s tests -p 'test_mask_suggestions.py'
+        run: |
+          python -m unittest discover -s tests -p 'test_mask_suggestions.py'
+          python -m unittest discover -s tests -p 'test_confidence*.py'
+          python -m unittest discover -s tests -p 'test_f09_confidence_boundary_contract.py'
 
       - name: Explicit benchmark inventory and freeze contracts
         run: python -m unittest discover -s tests -p 'test_corpus_manifest.py'
@@ -94,7 +105,9 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_native_inspection.py'
 
       - name: Durable background generation and cancellation tests
-        run: python -m unittest discover -s tests -p 'test_generation_queue.py'
+        run: |
+          python -m unittest discover -s tests -p 'test_generation_queue.py'
+          python -m unittest discover -s tests -p 'test_cancellation_registry.py'
 
       - name: CLI tiled upscaling integration tests
         run: python -m unittest discover -s tests -p 'test_tiled_upscale_cli.py'
@@ -117,7 +130,11 @@ jobs:
           python -m unittest discover -s tests -p 'test_color_stabilization_routing.py'
 
       - name: Studio interaction regression tests
-        run: node --test tests/test-studio-interactions.cjs
+        run: |
+          node --test tests/test-studio-interactions.cjs
+          node --test tests/review-ui.cjs
+          node --test tests/test_browser_acceptance_report.mjs
+          python -m unittest discover -s tests -p 'test_browser_evidence.py'
 
       - name: Instrumented pipeline integrity and metric reference tests
         run: python -m unittest discover -s tests -p 'test_pipeline_integrity.py'

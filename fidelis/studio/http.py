@@ -260,7 +260,7 @@ def dispatch(handler, workspace_root):
             elif (len(parts) == 5 and parts[:3] == ["api", "regions", "jobs"]
                   and parts[4] in ("inspect-structure", "lock-structure")):
                 revision = data.get("expected_revision")
-                if type(revision) is not int:
+                if isinstance(revision, bool) or not isinstance(revision, int):
                     raise ValueError("Expected an integer revision")
                 regions = data.get("regions")
                 if not isinstance(regions, list) or any(not isinstance(box, list) for box in regions):

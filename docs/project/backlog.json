@@ -118,14 +118,14 @@
       "title": "Qualify one live compatible texture workflow",
       "milestone": "M1",
       "state": "In Progress",
-      "implementation": "partial",
+      "implementation": "partial_zero_cost_realesr_e2_verified_comfy_gpu_pending",
       "depends_on": [
         "F05"
       ],
       "role": "Inference / model research",
       "scope": "Promote one SDXL/Clarity-style texture workflow through the local adapter.",
       "acceptance": "Live worker run with actual compatible weights/nodes/seed, exact dimensions and documented registration, output evidence and quality review; mocked HTTP is insufficient.",
-      "evidence": "fidelis/studio/comfy.py; scripts/generate-texture.py; tests/test_comfy_backend.py",
+      "evidence": "scripts/qualify-realesr-general-v3.py; docs/F06_ZERO_COST_TEXTURE.md; tests/test_f06_realesr_qualification.py; fidelis/studio/comfy.py; scripts/generate-texture.py; tests/test_comfy_backend.py; zero-cost BSD-3-Clause RealeSR-general-v3 E2 live inference verified on Apple M1 (8GB); live GPU ComfyUI SDXL workflow remains pending external worker",
       "priority": 2,
       "linear": {
         "id": "MEL-60",
@@ -182,7 +182,7 @@
       "title": "Qualify confidence-gated automatic segmentation",
       "milestone": "M2",
       "state": "In Progress",
-      "implementation": "partial_apple_m1_and_linux_cpu_smoke_verified",
+      "implementation": "partial_apple_m1_and_confidence_routing_verified",
       "depends_on": [
         "F05",
         "F08"
@@ -190,7 +190,7 @@
       "role": "Vision / masks",
       "scope": "Suggest editable semantic masks using cleared actual model candidates.",
       "acceptance": "Actual labels and terms verified; annotated collars/cuffs/hair and product cases evaluated; unknown regions stay protected; full-resolution refinement fits measured resources.",
-      "evidence": "docs/SEGFORMER_B0_AUDITION.md; pinned model SHA and matching 18 labels; real photo proposal/accept smoke on Linux x86-64 and Apple M1 8GB (onnxruntime 1.32.0, 0.44-0.83s total wall time, 292.1-378.9 MB peak RSS up to 2048x2048); patch and zipper spill; commercial rights and broader annotated ROI accuracy pending",
+      "evidence": "docs/SEGFORMER_B0_AUDITION.md; docs/project/checkpoints/2026-11-19-f09-confidence-routing.md; fidelis/studio/confidence_routing.py; pinned model SHA and matching 18 labels; real photo proposal/accept smoke on Linux x86-64 and Apple M1 8GB (onnxruntime 1.32.0, 0.44-0.83s total wall time, 292.1-378.9 MB peak RSS up to 2048x2048); patch and zipper spill; commercial rights and broader annotated ROI accuracy pending",
       "priority": 3,
       "linear": {
         "id": "MEL-62",
@@ -522,7 +522,7 @@
       "role": "Evaluation",
       "scope": "Define and populate corpus metadata for consent/rights, categories, source hashes, known text and critical ROIs.",
       "acceptance": "Inventory distinguishes available cases from missing ones; proposed 60-case coverage and calibration/held-out split are frozen before tuning.",
-      "evidence": "config/benchmark/; fidelis/eval/corpus_manifest.py; scripts/benchmark-corpus.py; tests/test_corpus_manifest.py; 8 regression assets, 0 production eligible, 60 missing slots; docs/project/checkpoints/2026-11-10-corpus-inventory.md",
+      "evidence": "config/benchmark/; experiments/corpus_manifest.json; experiments/melato_corpus_manifest.json; fidelis/eval/corpus_manifest.py; fidelis/eval/melato_corpus_manifest.py; scripts/benchmark-corpus.py; scripts/validate-corpus-manifest.py; tests/test_corpus_manifest.py; tests/test_melato_corpus_manifest.py; 8 regression assets verified, 30/60 off-repo Melato slots inventoried (pending --master-root byte verification and 30 remaining slots); docs/project/checkpoints/2026-11-19-unified-studio-integration.md",
       "priority": 3,
       "linear": {
         "id": "MEL-79",
@@ -675,6 +675,6 @@
       "linear_id": "fb26feb5-8122-40cb-a6e1-01a83b4f542c"
     }
   ],
-  "latest_checkpoint": "docs/project/checkpoints/2026-11-13-apple-m1-base-audition.md",
-  "checkpoint_base_commit": "d85578135d4998742b5ce9e207df4b51dfc39241"
+  "latest_checkpoint": "docs/project/checkpoints/2026-11-19-unified-studio-integration.md",
+  "checkpoint_base_commit": "b03100192544024f56646c91ee560b8857de7e1c"
 }
