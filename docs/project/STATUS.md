@@ -177,6 +177,38 @@ The Studio branch now includes five independently regression-tested corrections 
 
 See [review remediation checkpoint](checkpoints/2026-11-15-pr12-review-remediation.md) for precise PR links, evidence scope and residual issues. The Docker Compose bridge-to-loopback transport defect remains open pending a security-preserving deployment test. No production promotion, paid comparator, live Comfy GPU acceptance or physical Android/iOS touch acceptance is claimed by these corrections.
 
+## MEL-77 queue reliability handoff · 2026-11-19
+
+Owner approved this run. Base is `f120f222f3b62890d17d760eb21a32294440fc0d` on `work/mel-77-registration-recovery-20261118` (draft PR #57). Delivery branch: `work/mel-77-ci-queue-bot03-20261119`. The commit that adds this note is the branch head. This is fixture/protocol evidence, not live GPU verification, merge, or release.
+
+Claimed files:
+
+- `fidelis/studio/generation.py`
+- `tests/test_generation_queue.py`
+- `fidelis/studio/packaging.py` (required archive path for `fidelis/studio/cancellation.py` only)
+- `docs/ASYNC_GENERATION.md`
+- `docs/project/STATUS.md`
+
+`CancellationHandle` stays frozen. CI failure `test_retired_token_uses_durable_cancellation_before_result_apply` was reproduced locally on Python 3.12.3 as `dataclasses.FrozenInstanceError: cannot assign to field 'is_requested'` and then `cannot delete field 'is_requested'` from `patch.object(handle, 'is_requested', ...)`. The test now injects `PermissionError` through `CancellationSignals` and still requires a durable cancel to block an applicable receipt. A retired token with no durable flag does not cancel or block apply.
+
+Queue hardening in the same module: SQLite writes use `BEGIN IMMEDIATE` and `synchronous=FULL`; a raised transaction does not publish the partial row; an empty, truncated, or non-SQLite `queue.sqlite3` raises `QueueStorageError` and is not rewritten; a readable database with a damaged task row is quarantined as `needs_review` (`quarantined`, `CorruptRecord`, SHA-256 of the rejected bytes) and is not executed or resumed until an explicit cancel; process restart marks valid `running`/`applying` rows `interrupted` and still runs untouched `queued` work; one in-flight claim and one worker thread are enforced; an unexpected worker exception marks the in-flight row `interrupted` and later tasks still run. No new ADR: the task table and single-owner boundary are unchanged.
+
+Deliberately left out: `scripts/install-macos-runtime.sh` still downloads the native NCNN runtime and is not called by `scripts/package-offline-bundle.sh`; no WAL migration; no cross-database exactly-once apply reconciliation; no generated-cache quota; no edits to the region-aware studio UI or the codex product edge; no live Comfy worker run.
+
+Local checks on this workspace, final tree:
+
+- `unittest discover -s tests -p 'test_*.py'` without pytest: 314 results, 5 errors, all `tests/e2e/test_tier{1,2,3,4,5}_*.py` failing to import pytest. Those modules are pre-existing and are not in the CI per-file unittest steps. The other tests passed.
+- Same discover after pytest was installed so those modules can import: **309 tests, OK, 71.646s**. Unittest does not execute the pytest functions.
+- `tests/test-web-ui.sh`: `Web UI server tests passed.`
+- `tests/smoke-test.sh`: `Static smoke tests passed.`
+- `git diff --check`: clean.
+
+GitHub Actions run [44510346371](https://github.com/TheHighBrid/Fidelis/actions/runs/44510346371) on `650e87442e764214c796195fb12366f1c6f636b7` completed with conclusion `success`. Both `shell-and-sweep-tests` jobs succeeded, and **Durable background generation and cancellation tests** succeeded on Ubuntu (10:57:54Z–10:58:21Z) and macOS (11:00:31Z–11:01:39Z). Codacy Static Code Analysis on that same SHA completed `action_required` (“3 new issues”). Live cancellation against a real ComfyUI worker remains a separate gate.
+
+This branch then merges Bot01 tip `b03100192544024f56646c91ee560b8857de7e1c` (`origin/cursor/integrate-pr12-pr14-7a85`) with merge commit `15423b9f3ea9ba2b3ae28104dca64f6ce231ac51`. PR #12/#14 integration notes below stay. Queue behavior stays the MEL-77 record above.
+
+Codacy on `650e874` reported three new medium issues in `fidelis/studio/generation.py`: two `type()` integer checks (lines 212 and 240) and one `try/except/pass` (line 557). The revision check now uses `isinstance` and still rejects booleans. A failed abandon write is recorded and retried instead of discarded. Local checks after that edit and the merge: `unittest discover` **371 tests, OK, 75.676s**; `tests/test-web-ui.sh` and `tests/smoke-test.sh` passed; `git diff --check` was clean. Remote CI and a cleared Codacy check for the new tip are separate evidence.
+
 ## F08-B browser gate integrity follow-up · 2026-11-16
 
 The bounded MEL-80 follow-up makes acceptance reports and exit codes agree, verifies
