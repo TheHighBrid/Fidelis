@@ -51,10 +51,14 @@ class TiledPipelineEntrypointTests(unittest.TestCase):
     def test_success_with_empty_output_is_rejected(self):
         pipeline = UpscalePipeline(cli_path="/unused/fidelis")
         with TemporaryDirectory() as directory, patch("fidelis.core.pipeline.subprocess.run") as run:
-            run.return_value.returncode = 0
             source = Path(directory) / "source.png"
             output = Path(directory) / "empty.png"
-            output.touch()
+
+            def create_empty_output(*_args, **_kwargs):
+                output.touch()
+                return type("Result", (), {"returncode": 0, "stderr": "", "stdout": ""})()
+
+            run.side_effect = create_empty_output
             with self.assertRaisesRegex(RuntimeError, "without a nonempty output file"):
                 pipeline._run_tiled_upscale(source, output, "RealeSR-general-v3", 128, 16, 4)
 
@@ -102,11 +106,17 @@ class TiledPipelineEntrypointTests(unittest.TestCase):
     def test_success_with_nonempty_output_is_accepted(self):
         pipeline = UpscalePipeline(cli_path="/unused/fidelis")
         with TemporaryDirectory() as directory, patch("fidelis.core.pipeline.subprocess.run") as run:
-            run.return_value.returncode = 0
             source = Path(directory) / "source.png"
             output = Path(directory) / "result.png"
-            output.write_bytes(b"placeholder artifact")
+
+            def create_output(*_args, **_kwargs):
+                output.write_bytes(b"placeholder artifact")
+                return type("Result", (), {"returncode": 0, "stderr": "", "stdout": ""})()
+
+            run.side_effect = create_output
             pipeline._run_tiled_upscale(source, output, "RealeSR-general-v3", 128, 16, 4)
+            run.assert_called_once()
+            self.assertEqual(output.read_bytes(), b"placeholder artifact")
 
 
 if __name__ == "__main__":
