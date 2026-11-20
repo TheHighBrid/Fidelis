@@ -28,6 +28,11 @@ jobs:
       - name: Install test dependencies
         run: python -m pip install --disable-pip-version-check pillow numpy scipy scikit-image opencv-python-headless pyyaml
 
+      - name: F09 confidence routing and protection contracts
+        run: |
+          python -m unittest discover -s tests -p 'test_confidence*.py' -v
+          python -m unittest discover -s tests -p 'test_f09_confidence_boundary_contract.py' -v
+
       - name: Static smoke tests
         run: bash tests/smoke-test.sh
 
