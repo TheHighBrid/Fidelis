@@ -26,11 +26,13 @@ def verify(base_path, export_path, mask_path):
         if 'protect' not in data.files:
             raise ValueError('NPZ requires a protect mask')
         mask = data['protect']
-    if mask.shape != base.shape[:2] or not np.issubdtype(mask.dtype, np.number):
+    if mask.shape != base.shape[:2] or mask.dtype.kind not in 'fiu':
         raise ValueError('protect mask must be a numeric HxW array')
     if not np.all(np.isfinite(mask)) or np.any((mask < 0) | (mask > 1)):
         raise ValueError('protect mask values must be finite within [0,1]')
     locked = mask == 1
+    if not np.any(locked):
+        raise ValueError('protect mask has no fully locked pixels; no protected-pixel assertion is possible')
     changed = np.any(base != output, axis=2) & locked
     count = int(np.count_nonzero(changed))
     return {'pass': count == 0, 'protected_pixels': int(np.count_nonzero(locked)),
