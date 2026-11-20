@@ -64,6 +64,9 @@ jobs:
       - name: CLI tiled upscaling integration tests
         run: python -m unittest discover -s tests -p 'test_tiled_upscale_cli.py'
 
+      - name: Tiled pipeline output receipt regression tests
+        run: python -m unittest discover -s tests -p 'test_tiled_pipeline_entrypoint.py'
+
       - name: Optional face detector fallback tests
         run: python -m unittest discover -s tests -p 'test_face_fallback.py'
 
