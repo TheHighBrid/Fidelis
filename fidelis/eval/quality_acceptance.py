@@ -32,7 +32,7 @@ from fidelis.eval.quality_statistics import (
 from fidelis.eval.quality_statistics import (
     bootstrap_95_ci as bootstrap_95_ci,
 )
-from fidelis.eval.quality_statistics import (
+from fidelis.eval.quality_statistics import (  # noqa: F401
     cohen_kappa as cohen_kappa,
 )
 from fidelis.eval.quality_statistics import (

@@ -126,7 +126,7 @@ class EvaluationCorpus:
         self.items = discovered
 
     def ensure_minimum_corpus(self, items_per_bucket: int = 1) -> list[CorpusItem]:
-        """Add an aligned 4× synthetic pair to each bucket below the threshold.
+        """Add an aligned 4x synthetic pair to each bucket below the threshold.
 
         Small inputs remain available as unpaired samples.
         """

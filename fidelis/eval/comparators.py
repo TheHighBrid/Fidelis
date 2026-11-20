@@ -20,10 +20,10 @@ import cv2
 import numpy as np
 from PIL import Image
 
-from fidelis.eval.blind_review import (  # Public compatibility exports
+from fidelis.eval.blind_review import (  # noqa: F401  # Public compatibility exports
     build_blind_pairwise_manifest as build_blind_pairwise_manifest,
 )
-from fidelis.eval.blind_review import (
+from fidelis.eval.blind_review import (  # noqa: F401
     summarize_blind_reviews as summarize_blind_reviews,
 )
 from fidelis.eval.corpus_manifest import (

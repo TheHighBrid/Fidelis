@@ -79,6 +79,7 @@ REQUIRED_ARCHIVE_PATHS: tuple[str, ...] = (
     "fidelis/studio/inspection.js",
     "fidelis/studio/review-ui.js",
     "fidelis/studio/comfy.py",
+    "fidelis/studio/hybrid_texture.py",
     "fidelis/studio/generation.py",
     "fidelis/studio/cancellation.py",
     "fidelis/studio/capabilities.py",

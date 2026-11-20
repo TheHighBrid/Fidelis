@@ -12,6 +12,7 @@ from pathlib import Path
 
 import numpy as np
 
+from fidelis.studio.cancellation import CancellationRegistry
 from fidelis.studio.comfy import (
     DEFAULT_CACHE_BUDGET,
     CacheBudgetExceeded,
@@ -20,7 +21,6 @@ from fidelis.studio.comfy import (
     SubmissionUnknown,
 )
 from fidelis.studio.store import BudgetExceeded, RevisionConflict
-from fidelis.studio.cancellation import CancellationRegistry
 
 
 class QueueFull(BudgetExceeded):

@@ -14,9 +14,9 @@ from fidelis.eval.texture_metrics import (
 )
 
 __all__ = [
+    "measure_fabric_hardware_faithfulness",
     "measure_interior_texture_retention",
     "measure_oversharpening_restraint",
-    "measure_fabric_hardware_faithfulness",
     "measure_scale_matched_metrics",
 ]
 

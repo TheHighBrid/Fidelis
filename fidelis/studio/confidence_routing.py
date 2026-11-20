@@ -6,6 +6,7 @@ wins. All supplied probability maps must already be on the precision-base grid.
 from __future__ import annotations
 
 from collections.abc import Mapping
+
 import numpy as np
 
 CLASSES = ("skin", "hair", "fabric")
