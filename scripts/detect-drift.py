@@ -13,12 +13,13 @@ Calculates:
 
 import argparse
 import json
-import math
-from pathlib import Path
 import sys
-from PIL import Image
+from pathlib import Path
+
 import numpy as np
+from PIL import Image
 from scipy import ndimage
+
 
 def compute_drift(src_img: Image.Image, upscaled_img: Image.Image) -> dict:
     w_out, h_out = upscaled_img.size
@@ -107,10 +108,10 @@ def analyze_directory(audition_dir: Path, strict: bool = False):
         sys.exit(1)
 
     src_img = Image.open(src_path)
-    print(f"\n===========================================================================")
-    print(f" Fidelis Geometric & Identity Drift Analysis")
+    print("\n===========================================================================")
+    print(" Fidelis Geometric & Identity Drift Analysis")
     print(f" Source: {Path(src_path).name} ({src_img.width}x{src_img.height})")
-    print(f"===========================================================================")
+    print("===========================================================================")
     print(f"{'Model':<22} {'Mean Shift':<12} {'Max Shift':<12} {'Coherence':<12} {'Status':<16}")
     print("-" * 75)
 

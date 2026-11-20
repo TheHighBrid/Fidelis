@@ -9,19 +9,16 @@ Fidelis Flagship Image Upscaling Architecture:
 - Repeated Degradation: Cascaded 1st-order and 2nd-order stages
 """
 
-import io
-import math
 import random
-from typing import Optional, Tuple
+
 import cv2
 import numpy as np
-from PIL import Image
 
 
 class DegradationGenerator:
     """Generates realistic paired low-resolution/degraded samples from high-resolution inputs."""
 
-    def __init__(self, scale: int = 4, seed: Optional[int] = None):
+    def __init__(self, scale: int = 4, seed: int | None = None):
         self.scale = scale
         if seed is not None:
             random.seed(seed)
@@ -181,7 +178,7 @@ class DegradationGenerator:
 
         return stage2
 
-    def generate_pair(self, hr_img: np.ndarray, second_order: bool = True) -> Tuple[np.ndarray, np.ndarray]:
+    def generate_pair(self, hr_img: np.ndarray, second_order: bool = True) -> tuple[np.ndarray, np.ndarray]:
         """Generates a synchronized (degraded_lr, high_res_ground_truth) pair."""
         if second_order:
             lr = self.apply_second_order(hr_img)

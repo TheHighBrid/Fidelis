@@ -33,6 +33,7 @@ def generate_c2pa_provenance(
     claim = {
         "claim_generator": "Fidelis-Precision-Engine/2.0",
         "format": "application/vnd.fidelis.provenance+json",
+        "record_type": "unsigned_execution_record",
         "title": "Fidelis Super-Resolution & Photographic Enhancement",
         "assertions": [
             {
@@ -62,6 +63,7 @@ def generate_c2pa_provenance(
         ],
         "signature_info": {
             "status": "unsigned",
+            "signed": False,
             "issuer": None,
             "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         },

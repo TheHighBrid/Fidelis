@@ -4,13 +4,12 @@ Eliminates color shifts, luminance drift, and hue alteration caused by
 Variational Autoencoders (VAEs) and iterative diffusion models.
 """
 
-from typing import Optional, Tuple
 import numpy as np
-from PIL import Image
 import scipy.ndimage
+from PIL import Image
 
 
-def extract_icc_profile(image_path_or_pil) -> Optional[bytes]:
+def extract_icc_profile(image_path_or_pil) -> bytes | None:
     """Extract and cache the raw ICC color profile from an image."""
     try:
         if isinstance(image_path_or_pil, (str, bytes)):

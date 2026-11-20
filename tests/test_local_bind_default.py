@@ -15,16 +15,14 @@ class LoopbackBindingTests(unittest.TestCase):
         functions = [node for node in self.tree.body
                      if isinstance(node, ast.FunctionDef) and node.name == "run_server"]
         self.assertEqual(len(functions), 1)
-        defaults = functions[0].args.defaults
-        self.assertEqual(ast.literal_eval(defaults[-1]), "127.0.0.1")
+        args = functions[0].args
+        defaults = dict(zip([arg.arg for arg in args.args[-len(args.defaults):]], args.defaults))
+        self.assertEqual(ast.literal_eval(defaults["host"]), "127.0.0.1")
 
     def test_cli_defaults_to_loopback_without_host_environment_override(self):
-        main = next(node for node in self.tree.body
-                    if isinstance(node, ast.If)
-                    and isinstance(node.test, ast.Compare)
-                    and isinstance(node.test.left, ast.Name)
-                    and node.test.left.id == "__name__")
-        bind_calls = [node for node in ast.walk(main)
+        parser = next(node for node in self.tree.body
+                      if isinstance(node, ast.FunctionDef) and node.name == "build_argument_parser")
+        bind_calls = [node for node in ast.walk(parser)
                       if isinstance(node, ast.Call)
                       and isinstance(node.func, ast.Attribute)
                       and node.func.attr == "add_argument"
@@ -37,7 +35,7 @@ class LoopbackBindingTests(unittest.TestCase):
     def test_explicit_bind_option_is_retained(self):
         source = SOURCE.read_text(encoding="utf-8")
         self.assertIn('"-b", "--bind", "--host"', source)
-        self.assertIn('run_server(port=args.port, host=args.bind)', source)
+        self.assertIn('run_server(port=args.port, host=args.bind,', source)
 
 
 if __name__ == "__main__":

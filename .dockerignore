@@ -1,0 +1,23 @@
+# Exclude development environments, user workspaces, caches, and release outputs
+.git
+.venv
+__pycache__
+*.py[cod]
+*.old.*
+.DS_Store
+.cache
+.fidelis
+dist
+runtime
+models
+experiments/eval_crops/audition_*
+experiments/eval_crops/web_audition
+experiments/self_improvement/outputs
+experiments/eval_corpus
+fidelis-tile_*
+*.apk
+*.zip
+*.tar.gz
+*.sha256
+.env
+.env.*

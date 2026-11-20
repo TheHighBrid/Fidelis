@@ -1,0 +1,548 @@
+"""Reproducible, secret-safe live-worker and workflow schema preflight (F05-A / MEL-76).
+
+Audits local runtime capabilities, resource owner/access and zero-paid-fallback budget
+policy, ComfyUI worker `/system_stats` and `/object_info` endpoints, and exported
+workflow graph compatibility (node classes, required inputs, model choices, and DAG
+links) without placing credentials or secrets in the repository.
+
+A passing preflight receipt (`qualified_preflight`) proves endpoint reachability and
+static schema/choice compatibility (`E1`); it does not certify live GPU image output
+(`E2`) or human visual acceptance (`E3`).
+"""
+from __future__ import annotations
+
+import json
+import re
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+from urllib.parse import urlparse
+
+import httpx
+
+from fidelis.studio.capabilities import inventory
+from fidelis.studio.comfy import canonical_hash, validate_workflow
+from fidelis.studio.store import sha256
+
+WORKER_PREFLIGHT_SCHEMA = "fidelis.worker_preflight.v1"
+WORKER_PREFLIGHT_POLICY_SCHEMA = "fidelis.worker_preflight_policy.v1"
+DEFAULT_POLICY_PATH = Path(__file__).resolve().parents[2] / "config" / "worker-preflight-policy-v1.json"
+_LOCAL_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
+_LOCAL_SCHEMES = frozenset({"http"})
+_FORBIDDEN_SECRET_KEYS = frozenset({
+    "access_key", "api_key", "apikey", "auth_token", "authorization", "bearer",
+    "client_secret", "password", "private_key", "secret", "secret_key", "token",
+})
+
+
+def _local_policy_choices(policy, key, permitted):
+    values = policy.get(key, sorted(permitted))
+    if (not isinstance(values, list) or not values
+            or any(not isinstance(value, str) or value not in permitted for value in values)):
+        raise ValueError(f"{key} may only narrow the built-in local worker policy")
+    return set(values)
+
+
+def _bounded_timeout_range(budget):
+    values = budget.get("timeout_seconds_range", [0.5, 60.0])
+    if (not isinstance(values, list) or len(values) != 2
+            or any(type(value) not in (int, float) for value in values)
+            or not 0.5 <= values[0] <= values[1] <= 60.0):
+        raise ValueError("Worker timeout range must stay within 0.5..60 seconds")
+    return values
+
+_SECRET_VALUE_PATTERNS = (
+    re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._\-+/=]{8,}"),
+    re.compile(r"\b(?:sk|rk|pk)-[A-Za-z0-9_\-]{12,}\b"),
+    re.compile(r"\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{16,}\b"),
+    re.compile(r"\b(?:hf|r8)_[A-Za-z0-9]{12,}\b"),
+    re.compile(r"\b(?:lin_api|ntn)_[A-Za-z0-9]{12,}\b"),
+    re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
+)
+
+_MODEL_CHOICE_INPUT_NAMES = frozenset({
+    "ckpt_name",
+    "unet_name",
+    "vae_name",
+    "lora_name",
+    "clip_name",
+    "clip_name1",
+    "clip_name2",
+    "control_net_name",
+    "upscale_model",
+    "model_name",
+})
+
+
+def load_worker_preflight_policy(policy_path: Path | str | None = None) -> dict[str, Any]:
+    path = Path(policy_path) if policy_path is not None else DEFAULT_POLICY_PATH
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict) or data.get("schema") != WORKER_PREFLIGHT_POLICY_SCHEMA:
+        raise ValueError(f"Expected {WORKER_PREFLIGHT_POLICY_SCHEMA} policy document")
+    if data.get("allow_remote_cloud_fallback") is not False:
+        raise ValueError("Worker preflight policy must forbid automatic remote cloud fallback")
+    _local_policy_choices(data, "allowed_hosts", _LOCAL_HOSTS)
+    _local_policy_choices(data, "allowed_schemes", _LOCAL_SCHEMES)
+    budget = data.get("budget_policy")
+    if not isinstance(budget, dict):
+        raise ValueError("Missing budget_policy in worker preflight policy")
+    spend = budget.get("max_paid_spend_usd")
+    if (
+        budget.get("allow_paid_remote_execution") is not False
+        or isinstance(spend, bool)
+        or not isinstance(spend, (int, float))
+        or spend != 0
+    ):
+        raise ValueError("Local Studio worker preflight policy requires zero paid remote spend")
+    _bounded_timeout_range(budget)
+    max_nodes = budget.get("max_workflow_nodes", 500)
+    if isinstance(max_nodes, bool) or not isinstance(max_nodes, int) or not 1 <= max_nodes <= 500:
+        raise ValueError("Worker workflow node budget must stay within 1..500")
+    keys = data.get("forbidden_secret_keys", [])
+    if not isinstance(keys, list) or any(not isinstance(key, str) or not key for key in keys):
+        raise ValueError("Invalid forbidden_secret_keys policy")
+    access = data.get("resource_access_policy")
+    if not isinstance(access, dict) or access.get("secret_storage_policy") != "forbid_repo_secrets":
+        raise ValueError("Missing or invalid resource_access_policy in worker preflight policy")
+    return data
+
+
+def find_secret_violations(
+    value: Any,
+    *,
+    forbidden_keys: set[str] | None = None,
+    path: str = "root",
+) -> list[str]:
+    forbidden_keys = _FORBIDDEN_SECRET_KEYS | (forbidden_keys or set())
+    violations: list[str] = []
+    if isinstance(value, dict):
+        for key, item in value.items():
+            key_str = str(key)
+            normalized = re.sub(r"[^a-z0-9]+", "_", key_str.lower()).strip("_")
+            if normalized in forbidden_keys:
+                violations.append(f"{path}.{key_str}: forbidden secret key '{key_str}'")
+            violations.extend(
+                find_secret_violations(item, forbidden_keys=forbidden_keys, path=f"{path}.{key_str}")
+            )
+    elif isinstance(value, list):
+        for idx, item in enumerate(value):
+            violations.extend(
+                find_secret_violations(item, forbidden_keys=forbidden_keys, path=f"{path}[{idx}]")
+            )
+    elif isinstance(value, str):
+        for pattern in _SECRET_VALUE_PATTERNS:
+            if pattern.search(value):
+                violations.append(f"{path}: string matches forbidden credential/token pattern")
+                break
+    return violations
+
+
+def validate_endpoint_policy(address: str, policy: dict[str, Any]) -> dict[str, Any]:
+    violations: list[str] = []
+    allowed_schemes = _local_policy_choices(policy, "allowed_schemes", _LOCAL_SCHEMES)
+    allowed_hosts = _local_policy_choices(policy, "allowed_hosts", _LOCAL_HOSTS)
+    try:
+        if not isinstance(address, str) or any(c.isspace() or ord(c) < 32 or c == "\\" for c in address):
+            raise ValueError("Malformed endpoint")
+        parsed = urlparse(address)
+        port = parsed.port
+        host = parsed.hostname
+    except ValueError:
+        return {"endpoint": None, "hostname": None, "port": None, "scheme": None,
+                "policy_compliant": False, "violations": ["Malformed worker endpoint or port"]}
+
+    if parsed.scheme not in allowed_schemes:
+        violations.append("Endpoint scheme not in allowed_schemes")
+    if host not in allowed_hosts:
+        violations.append("Endpoint host not in allowed_hosts")
+    if parsed.path not in ("", "/"):
+        violations.append("Endpoint URL must not include a subpath")
+    if parsed.username is not None or parsed.password is not None:
+        violations.append("Endpoint URL must not embed username/password credentials")
+    if "?" in address or "#" in address:
+        violations.append("Endpoint URL must not include query parameters or fragments")
+    if parsed.netloc.endswith(":") or (port is not None and not 1 <= port <= 65535):
+        violations.append("Endpoint port must be in 1..65535")
+
+    host_str = (
+        f"[{host}]" if host and ":" in host else host
+    )
+    sanitized_endpoint = f"{parsed.scheme}://{host_str}"
+    if port is not None:
+        sanitized_endpoint = f"{sanitized_endpoint}:{port}"
+    if not violations and parsed.netloc.lower() != sanitized_endpoint.split("://", 1)[1]:
+        violations.append("Endpoint authority must be canonical")
+
+    return {
+        "endpoint": sanitized_endpoint if not violations else None,
+        "hostname": host if not violations else None,
+        "port": (port or 80) if not violations else None,
+        "scheme": parsed.scheme if not violations else None,
+        "policy_compliant": len(violations) == 0,
+        "violations": violations,
+    }
+
+
+def _node_has_class(graph, node_id, expected):
+    node = graph.get(node_id) if isinstance(node_id, str) else None
+    return isinstance(node, dict) and node.get("class_type") == expected
+
+
+def _inspect_structure(bundle, max_nodes):
+    structural_errors: list[str] = []
+    if not isinstance(bundle, dict) or bundle.get("schema_version") != 1:
+        structural_errors.append("Expected workflow bundle schema_version 1")
+    family = bundle.get("family") if isinstance(bundle, dict) else None
+    if family not in ("sdxl", "flux", "other"):
+        structural_errors.append("Declare the workflow model family ('sdxl', 'flux', or 'other')")
+
+    graph = bundle.get("workflow") if isinstance(bundle, dict) else None
+    if not isinstance(graph, dict) or not graph or len(graph) > max_nodes:
+        structural_errors.append(f"Supply an exported ComfyUI API graph (1..{max_nodes} nodes)")
+        graph = {} if not isinstance(graph, dict) else graph
+
+    input_node = bundle.get("input_node") if isinstance(bundle, dict) else None
+    output_node = bundle.get("output_node") if isinstance(bundle, dict) else None
+    if not _node_has_class(graph, input_node, "LoadImage"):
+        structural_errors.append("input_node must identify a LoadImage node")
+    if not _node_has_class(graph, output_node, "SaveImage"):
+        structural_errors.append("output_node must identify a SaveImage node")
+
+    return graph, family, input_node, output_node, structural_errors
+
+
+def _workflow_inventory(graph, structural_errors):
+    required_classes = set()
+    referenced_models = []
+    for node_id in sorted(graph):
+        node = graph[node_id]
+        if not isinstance(node, dict):
+            structural_errors.append(f"Invalid workflow node {node_id}")
+            continue
+        class_type = node.get("class_type")
+        if isinstance(class_type, str) and class_type:
+            required_classes.add(class_type)
+        inputs = node.get("inputs")
+        if isinstance(inputs, dict):
+            for input_name in sorted(inputs):
+                val = inputs[input_name]
+                if input_name in _MODEL_CHOICE_INPUT_NAMES and isinstance(val, str):
+                    referenced_models.append({
+                        "node_id": str(node_id),
+                        "class_type": str(class_type or ""),
+                        "input_name": input_name,
+                        "model_identifier": val,
+                    })
+
+    return required_classes, referenced_models
+
+
+def inspect_workflow_bundle(
+    bundle: dict[str, Any],
+    object_info: dict[str, Any] | None = None,
+    *,
+    max_nodes: int = 500,
+) -> dict[str, Any]:
+    """Inspect an exported ComfyUI workflow bundle offline and optionally against live `/object_info`."""
+    graph, family, input_node, output_node, structural_errors = _inspect_structure(bundle, max_nodes)
+    required_classes, referenced_models = _workflow_inventory(graph, structural_errors)
+    report: dict[str, Any] = {
+        "workflow_sha256": canonical_hash(bundle) if isinstance(bundle, dict) else None,
+        "family": family,
+        "node_count": len(graph),
+        "input_node": input_node,
+        "output_node": output_node,
+        "required_node_classes": sorted(required_classes),
+        "referenced_models": referenced_models,
+        "structural_valid": len(structural_errors) == 0,
+        "structural_errors": structural_errors,
+        "schema_evaluated": object_info is not None,
+        "schema_compatible": False,
+        "missing_node_classes": [],
+        "missing_required_inputs": [],
+        "model_choice_checks": [],
+        "validation_error": None,
+    }
+
+    if object_info is not None:
+        _inspect_live_schema(report, bundle, graph, object_info)
+    return report
+
+
+def _node_choice_checks(node_id, class_type, inputs, specs, input_node):
+    required_spec, optional_spec = specs
+    checks = []
+    for name in sorted(inputs):
+        value = inputs[name]
+        if isinstance(value, list) and len(value) == 2 and isinstance(value[0], str) and isinstance(value[1], int):
+            continue
+        if node_id == input_node and name == "image":
+            continue
+        field = required_spec.get(name, optional_spec.get(name))
+        if isinstance(field, list) and field and isinstance(field[0], list):
+            allowed_choices = field[0]
+            checks.append({
+                "node_id": str(node_id),
+                "class_type": class_type,
+                "input_name": name,
+                "requested_value": value,
+                "available": value in allowed_choices,
+                "installed_choice_count": len(allowed_choices),
+            })
+    return checks
+
+
+def _inspect_live_schema(report, bundle, graph, object_info):
+    missing_classes = sorted(cls for cls in report["required_node_classes"] if cls not in object_info)
+    missing_inputs: list[dict[str, Any]] = []
+    choice_checks: list[dict[str, Any]] = []
+
+    for node_id in sorted(graph):
+        node = graph[node_id]
+        if not isinstance(node, dict):
+            continue
+        class_type = node.get("class_type")
+        inputs = node.get("inputs")
+        if not isinstance(class_type, str) or class_type not in object_info or not isinstance(inputs, dict):
+            continue
+        spec = object_info[class_type].get("input", {}) if isinstance(object_info[class_type], dict) else {}
+        if not isinstance(spec, dict):
+            continue
+        required_spec = spec.get("required", {}) if isinstance(spec.get("required"), dict) else {}
+        optional_spec = spec.get("optional", {}) if isinstance(spec.get("optional"), dict) else {}
+
+        missing_for_node = sorted(set(required_spec) - set(inputs))
+        if missing_for_node:
+            missing_inputs.append({
+                "node_id": str(node_id),
+                "class_type": class_type,
+                "missing_inputs": missing_for_node,
+            })
+
+        choice_checks.extend(_node_choice_checks(
+            node_id, class_type, inputs, (required_spec, optional_spec), report["input_node"],
+        ))
+
+    report["missing_node_classes"] = missing_classes
+    report["missing_required_inputs"] = missing_inputs
+    report["model_choice_checks"] = choice_checks
+
+    try:
+        validate_workflow(bundle, object_info)
+        report["schema_compatible"] = True
+    except (ValueError, TypeError, AttributeError, KeyError, IndexError) as exc:
+        report["schema_compatible"] = False
+        report["validation_error"] = str(exc)
+
+
+
+def _sanitize_system_stats(stats: dict[str, Any]) -> dict[str, Any]:
+    system = stats.get("system") if isinstance(stats.get("system"), dict) else {}
+    raw_devices = stats.get("devices") if isinstance(stats.get("devices"), list) else []
+    devices: list[dict[str, Any]] = []
+    for dev in raw_devices:
+        if not isinstance(dev, dict):
+            continue
+        devices.append({
+            "name": str(dev.get("name", "unknown")),
+            "type": str(dev.get("type", "unknown")),
+            "index": dev.get("index"),
+            "vram_total": dev.get("vram_total"),
+            "vram_free": dev.get("vram_free"),
+            "torch_vram_total": dev.get("torch_vram_total"),
+            "torch_vram_free": dev.get("torch_vram_free"),
+        })
+    return {
+        "comfyui_version": system.get("comfyui_version"),
+        "python_version": system.get("python_version"),
+        "pytorch_version": system.get("pytorch_version"),
+        "os": system.get("os"),
+        "embedded_python": bool(system.get("embedded_python", False)),
+        "ram_total": system.get("ram_total"),
+        "ram_free": system.get("ram_free"),
+        "devices": devices,
+    }
+
+
+def _probe_worker(address: str, *, timeout: float) -> tuple[dict[str, Any], dict[str, Any] | None]:
+    client = httpx.Client(timeout=timeout, trust_env=False, follow_redirects=False)
+    try:
+        stats_resp = client.get(f"{address}/system_stats")
+        stats_resp.raise_for_status()
+        stats = stats_resp.json()
+
+        schema_resp = client.get(f"{address}/object_info")
+        schema_resp.raise_for_status()
+        schema = schema_resp.json()
+
+        if not isinstance(stats, dict) or not isinstance(schema, dict):
+            raise ValueError("Invalid ComfyUI capability response")
+
+        sanitized = _sanitize_system_stats(stats)
+        worker_summary = {
+            "reachable": True,
+            "reason": None,
+            "system": {
+                "comfyui_version": sanitized["comfyui_version"],
+                "python_version": sanitized["python_version"],
+                "pytorch_version": sanitized["pytorch_version"],
+                "os": sanitized["os"],
+                "embedded_python": sanitized["embedded_python"],
+                "ram_total": sanitized["ram_total"],
+                "ram_free": sanitized["ram_free"],
+            },
+            "devices": sanitized["devices"],
+            "installed_node_count": len(schema),
+            "node_classes": sorted(schema),
+            "object_info_sha256": canonical_hash(schema),
+            "live_inference_verified": False,
+        }
+        return worker_summary, schema
+    except (httpx.HTTPError, ValueError) as exc:
+        return {
+            "reachable": False,
+            "reason": type(exc).__name__,
+            "detail": str(exc)[:240],
+            "system": None,
+            "devices": [],
+            "installed_node_count": 0,
+            "node_classes": [],
+            "object_info_sha256": None,
+            "live_inference_verified": False,
+        }, None
+    finally:
+        client.close()
+
+
+def _request_policy_check(policy, address, timeout, owner, access_method):
+    forbidden_keys = set(policy.get("forbidden_secret_keys", []))
+
+    policy_violations: list[str] = []
+    endpoint_check = validate_endpoint_policy(address, policy)
+    policy_violations.extend(endpoint_check["violations"])
+
+    timeout_range = _bounded_timeout_range(policy["budget_policy"])
+    if type(timeout) not in (int, float) or not timeout_range[0] <= timeout <= timeout_range[1]:
+        policy_violations.append(
+            f"Timeout {timeout}s outside allowed range [{timeout_range[0]}, {timeout_range[1]}]"
+        )
+
+    owner_clean = str(owner or "").strip()
+    if not owner_clean:
+        policy_violations.append("Resource owner identifier must be non-empty")
+    if access_method not in ("loopback", "ssh_tunnel"):
+        policy_violations.append("access_method must be 'loopback' or 'ssh_tunnel'")
+
+    policy_violations.extend(
+        find_secret_violations(
+            {"address": address, "owner": owner_clean, "access_method": access_method},
+            forbidden_keys=forbidden_keys,
+            path="request",
+        )
+    )
+
+    return endpoint_check, owner_clean, policy_violations
+
+
+def _load_workflow(repo_root, workflow_path, forbidden_keys, policy_violations):
+    if workflow_path is None:
+        return None, None
+    wf_path = Path(workflow_path).resolve()
+    bundle = json.loads(wf_path.read_text(encoding="utf-8"))
+    try:
+        rel_wf = str(wf_path.relative_to(repo_root))
+    except ValueError:
+        rel_wf = wf_path.name
+    policy_violations.extend(find_secret_violations(bundle, forbidden_keys=forbidden_keys, path="workflow"))
+    return bundle, {"path": rel_wf, "file_sha256": sha256(wf_path)}
+
+
+def _probe_if_allowed(endpoint_check, policy_violations, timeout):
+    if endpoint_check["policy_compliant"] and not policy_violations:
+        return _probe_worker(endpoint_check["endpoint"], timeout=float(timeout))
+    return {
+        "reachable": False,
+        "reason": "PolicyViolation",
+        "detail": "Skipped network probe due to policy or secret violation",
+        "system": None,
+        "devices": [],
+        "installed_node_count": 0,
+        "node_classes": [],
+        "object_info_sha256": None,
+        "live_inference_verified": False,
+    }, None
+
+
+def _preflight_status(policy_violations, workflow_report, worker_summary):
+    if policy_violations:
+        return "policy_violation"
+    if workflow_report is not None and not workflow_report["structural_valid"]:
+        return "workflow_incompatible"
+    if not worker_summary["reachable"]:
+        return "worker_unreachable"
+    if workflow_report is None:
+        return "reachable_no_workflow"
+    if not workflow_report["schema_compatible"]:
+        return "workflow_incompatible"
+    return "qualified_preflight"
+
+
+def _policy_receipt(policy, policy_path, owner, access_method, endpoint_check, violations):
+    return {
+        "policy_schema": policy["schema"],
+        "policy_version": policy.get("version", "1.0.0"),
+        "policy_sha256": sha256(policy_path),
+        "owner": owner,
+        "access_method": access_method,
+        "endpoint": endpoint_check["endpoint"],
+        "allow_remote_cloud_fallback": False,
+        "max_paid_spend_usd": 0.0,
+        "secret_storage_policy": policy["resource_access_policy"]["secret_storage_policy"],
+        "policy_compliant": not violations,
+        "policy_violations": violations,
+    }
+
+
+def run_worker_preflight(
+    repo_root: Path | str,
+    *,
+    address: str = "http://127.0.0.1:8188",
+    workflow_path: Path | str | None = None,
+    policy_path: Path | str | None = None,
+    app_home: Path | str | None = None,
+    timeout: float = 2.0,
+    owner: str = "local-operator",
+    access_method: str = "loopback",
+) -> dict[str, Any]:
+    """Run a reproducible, secret-safe preflight of the local runtime, worker endpoint, and workflow."""
+    repo_root = Path(repo_root).resolve()
+    resolved_policy_path = Path(policy_path).resolve() if policy_path is not None else DEFAULT_POLICY_PATH
+    policy = load_worker_preflight_policy(resolved_policy_path)
+    forbidden_keys = set(policy.get("forbidden_secret_keys", []))
+    endpoint_check, owner_clean, policy_violations = _request_policy_check(policy, address, timeout, owner, access_method)
+    workflow_bundle, workflow_file_meta = _load_workflow(repo_root, workflow_path, forbidden_keys, policy_violations)
+    local_inventory = inventory(repo_root, app_home)
+    worker_summary, object_info = _probe_if_allowed(endpoint_check, policy_violations, timeout)
+    workflow_report = None
+    if workflow_bundle is not None:
+        workflow_report = inspect_workflow_bundle(workflow_bundle, object_info, max_nodes=int(policy["budget_policy"].get("max_workflow_nodes", 500)))
+        workflow_report["source_file"] = workflow_file_meta
+
+    receipt = {
+        "schema": WORKER_PREFLIGHT_SCHEMA,
+        "generated_at_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "preflight_status": _preflight_status(policy_violations, workflow_report, worker_summary),
+        "evidence_level": "E1_preflight_protocol_only",
+        "live_inference_verified": False,
+        "visual_quality_certified": False,
+        "policy": _policy_receipt(policy, resolved_policy_path, owner_clean, access_method, endpoint_check, policy_violations),
+        "local_runtime": local_inventory,
+        "worker": worker_summary,
+        "workflow": workflow_report,
+    }
+
+    receipt_secret_check = find_secret_violations(receipt, forbidden_keys=forbidden_keys, path="receipt")
+    if receipt_secret_check:
+        raise ValueError(f"Refusing to emit preflight receipt containing secret material: {receipt_secret_check}")
+
+    return receipt

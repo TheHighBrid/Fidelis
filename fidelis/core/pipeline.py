@@ -1,7 +1,7 @@
-"""Precision super-resolution pipeline with OpenTelemetry span tracing and C2PA provenance.
+"""Precision super-resolution pipeline with span tracing and unsigned provenance.
 
 Wraps multi-stage image restoration (tiled super-resolution, text restoration,
-face pore preservation, wavelet color stabilization) with telemetry span tracing:
+face pore preservation, wavelet color stabilization) with telemetry span tracing and unsigned execution records:
 - Input image dimensions, format, and noise level profiling
 - Model profile tracking (realesrgan-x4plus, d2fk-v1, gfpgan_face, etc.)
 - Tile size, VRAM peak memory, and processing time per megapixel
@@ -10,29 +10,29 @@ face pore preservation, wavelet color stabilization) with telemetry span tracing
 """
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
 import json
 import logging
 import os
-from pathlib import Path
 import resource
 import shutil
 import subprocess
 import sys
 import tempfile
 import time
-from typing import Any, Dict, List, Optional, Tuple
 import urllib.error
 import urllib.parse
 import urllib.request
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
+from typing import Any
 
 import cv2
 import numpy as np
 from PIL import Image
 
 from fidelis.core.provenance import compute_sha256, generate_c2pa_provenance
-from fidelis.core.router import DegradationProfiler, SmartRouter
-from fidelis.eval.benchmark_suite import BenchmarkSuite
+from fidelis.core.router import DegradationProfiler
+from fidelis.eval.pipeline_metrics import measure_pipeline_metrics
 from fidelis.modules.face_restorer import FaceRestorer
 from fidelis.modules.text_restorer import TextRestorer
 from fidelis.postprocess.color_fix import stabilize_colors
@@ -46,15 +46,15 @@ class TelemetrySpan:
     span_id: str
     name: str
     span_type: str
-    parent_id: Optional[str] = None
+    parent_id: str | None = None
     start_time: float = field(default_factory=time.time)
-    end_time: Optional[float] = None
+    end_time: float | None = None
     latency_ms: int = 0
-    attributes: Dict[str, Any] = field(default_factory=dict)
-    error_type: Optional[str] = None
-    error_message: Optional[str] = None
+    attributes: dict[str, Any] = field(default_factory=dict)
+    error_type: str | None = None
+    error_message: str | None = None
 
-    def finish(self, error: Optional[Exception | str] = None) -> None:
+    def finish(self, error: Exception | str | None = None) -> None:
         self.end_time = time.time()
         self.latency_ms = int((self.end_time - self.start_time) * 1000)
         if error:
@@ -65,7 +65,7 @@ class TelemetrySpan:
                 self.error_type = "SpanError"
                 self.error_message = str(error)
 
-    def set_attributes(self, attrs: Dict[str, Any]) -> None:
+    def set_attributes(self, attrs: dict[str, Any]) -> None:
         self.attributes.update(attrs)
 
 
@@ -74,8 +74,8 @@ class PipelineExecutionResult:
     """Complete execution record of an instrumented upscaling pass."""
     input_path: str
     output_path: str
-    input_dimensions: Tuple[int, int]
-    output_dimensions: Tuple[int, int]
+    input_dimensions: tuple[int, int]
+    output_dimensions: tuple[int, int]
     input_format: str
     input_noise_level: float
     model_profile: str
@@ -89,17 +89,18 @@ class PipelineExecutionResult:
     processing_time_per_megapixel_ms: float
     output_sha256: str
     c2pa_status: str
-    c2pa_manifest: Dict[str, Any]
+    c2pa_manifest: dict[str, Any]
     exif_preserved: bool
     zero_black_tiles: bool
-    metrics: Dict[str, float] = field(default_factory=dict)
-    detected_artifacts: List[str] = field(default_factory=list)
-    tile_execution: Dict[str, Any] = field(default_factory=dict)
+    metrics: dict[str, float | None] = field(default_factory=dict)
+    metric_context: dict[str, Any] = field(default_factory=dict)
+    detected_artifacts: list[str] = field(default_factory=list)
+    tile_execution: dict[str, Any] = field(default_factory=dict)
     telemetry_posted: bool = False
-    telemetry_response: Dict[str, Any] = field(default_factory=dict)
-    spans: List[Dict[str, Any]] = field(default_factory=list)
+    telemetry_response: dict[str, Any] = field(default_factory=dict)
+    spans: list[dict[str, Any]] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -128,11 +129,10 @@ def get_peak_memory_mb() -> float:
         return 0.0
 
 
-
 class UpscalePipeline:
     """Full-featured, instrumented upscaling pipeline with telemetry and provenance."""
 
-    def __init__(self, cli_path: Optional[str] = None):
+    def __init__(self, cli_path: str | None = None):
         self.cli_path = cli_path or shutil.which("fidelis") or "bin/fidelis"
         self.profiler = DegradationProfiler()
         self.text_restorer = TextRestorer()
@@ -147,15 +147,15 @@ class UpscalePipeline:
         tile_size: int = 512,
         overlap: int = 32,
         tiled: bool = True,
-        portrait: Optional[bool] = None,
+        portrait: bool | None = None,
         fidelity_w: float = 0.70,
         text_preserve: bool = True,
         color_fix: str = "auto",
         preserve_exif: bool = True,
-        run_context: Optional[Any] = None,
+        run_context: Any | None = None,
         post_telemetry: bool = True,
-        telemetry_endpoint: Optional[str] = None,
-        ground_truth_path: Optional[Path | str] = None,
+        telemetry_endpoint: str | None = None,
+        ground_truth_path: Path | str | None = None,
     ) -> PipelineExecutionResult:
         """Execute instrumented upscaling pass wrapped with span tracing."""
         in_p = Path(input_path).resolve()
@@ -163,7 +163,7 @@ class UpscalePipeline:
         out_p.parent.mkdir(parents=True, exist_ok=True)
 
         t_start = time.time()
-        spans: List[TelemetrySpan] = []
+        spans: list[TelemetrySpan] = []
 
         # Start Root Span: upscale_pipeline
         root_span = TelemetrySpan(
@@ -205,6 +205,7 @@ class UpscalePipeline:
             "input_dimensions": [in_w, in_h],
             "input_format": in_format,
             "input_noise_level": round(noise_level, 3),
+            "noise_level": round(noise_level, 3),
             "model_profile": model_profile,
             "actual_model": actual_model,
             "scale": scale,
@@ -365,24 +366,19 @@ class UpscalePipeline:
         # 7. Metrics & Artifact Evaluation
         src_cv = cv2.imread(str(in_p))
         sr_cv = cv2.imread(str(out_p))
-        psnr_val = 29.5
-        ssim_val = 0.89
-        lpips_val = 0.14
-        delta_e = 0.8
-        grad_coh = 92.0
-        artifacts: List[str] = []
+        ground_truth_cv = cv2.imread(str(ground_truth_path)) if ground_truth_path is not None else None
+        metrics, metric_context = measure_pipeline_metrics(
+            src_cv, sr_cv, ground_truth_bgr=ground_truth_cv,
+            ground_truth_requested=ground_truth_path is not None,
+        )
+        psnr_val, ssim_val = metrics["psnr"], metrics["ssim"]
+        delta_e = metrics["cielab_delta_e"]
+        artifacts: list[str] = []
 
         if src_cv is not None and sr_cv is not None:
-            # Downscale super-resolved canvas to source dimensions for structural evaluation
             down_sr = cv2.resize(sr_cv, (in_w, in_h), interpolation=cv2.INTER_AREA)
-            psnr_val = round(BenchmarkSuite.compute_psnr(down_sr, src_cv), 2)
-            ssim_val = round(BenchmarkSuite.compute_ssim(down_sr, src_cv), 4)
-            delta_e = round(BenchmarkSuite.compute_cielab_delta_e(down_sr, src_cv), 2)
-            grad_coh = round(BenchmarkSuite.compute_gradient_coherence(down_sr, src_cv), 1)
-            lpips_val = max(0.01, round(1.0 - (grad_coh / 100.0), 3))
-
             # Artifact detection
-            if delta_e > 4.5:
+            if delta_e is not None and delta_e > 4.5:
                 artifacts.append("color_drift")
 
             g_src = cv2.cvtColor(src_cv, cv2.COLOR_BGR2GRAY)
@@ -399,7 +395,7 @@ class UpscalePipeline:
                 if lap_sr < 40.0:
                     artifacts.append("plastic_skin")
 
-            if has_text and ssim_val < 0.82:
+            if has_text and ssim_val is not None and ssim_val < 0.82:
                 artifacts.append("mutated_text")
 
         if not zero_black_tiles:
@@ -432,6 +428,8 @@ class UpscalePipeline:
             "vram_peak_mb": vram_peak_mb,
             "elapsed_ms": elapsed_ms,
             "processing_time_per_megapixel_ms": ms_per_mp,
+            "processing_time_per_megapixel": ms_per_mp,
+            "processing_time_unit": "ms",
             "megapixels": megapixels,
         }
 
@@ -441,14 +439,20 @@ class UpscalePipeline:
             "elapsed_ms": elapsed_ms,
             "megapixels": megapixels,
             "processing_time_per_megapixel_ms": ms_per_mp,
+            "processing_time_per_megapixel": ms_per_mp,
+            "processing_time_unit": "ms",
             "output_sha256": out_sha,
             "c2pa_status": c2pa_claim["signature_info"]["status"],
             "exif_preserved": exif_preserved,
             "zero_black_tiles": zero_black_tiles,
             "psnr": psnr_val,
             "ssim": ssim_val,
-            "lpips": lpips_val,
+            "lpips": None,
+            "lpips_proxy": None,
+            "gradient_distance_proxy": metrics["gradient_distance_proxy"],
             "cielab_delta_e": delta_e,
+            "metric_reference": metric_context["reference"],
+            "metric_measurement_status": metric_context["status"],
             "detected_artifacts": artifacts,
             "tile_strategy": tile_execution_record["tile_strategy"],
         })
@@ -474,6 +478,7 @@ class UpscalePipeline:
             "output_dimensions": [out_w, out_h],
             "scale": scale,
             "content_type": content_type,
+            "noise_level": round(noise_level, 3),
             "model_profile": model_profile,
             "actual_model": actual_model,
             "tile_size": tile_size,
@@ -483,13 +488,10 @@ class UpscalePipeline:
             "vram_peak_mb": vram_peak_mb,
             "elapsed_ms": elapsed_ms,
             "processing_time_per_megapixel_ms": ms_per_mp,
-            "metrics": {
-                "psnr": psnr_val,
-                "ssim": ssim_val,
-                "lpips": lpips_val,
-                "cielab_delta_e": delta_e,
-                "gradient_coherence_pct": grad_coh,
-            },
+            "processing_time_per_megapixel": ms_per_mp,
+            "processing_time_unit": "ms",
+            "metrics": metrics,
+            "metric_context": metric_context,
             "detected_artifacts": artifacts,
             "has_exif": has_exif,
             "exif_preserved": exif_preserved,
@@ -545,13 +547,8 @@ class UpscalePipeline:
             c2pa_manifest=c2pa_claim,
             exif_preserved=exif_preserved,
             zero_black_tiles=zero_black_tiles,
-            metrics={
-                "psnr": psnr_val,
-                "ssim": ssim_val,
-                "lpips": lpips_val,
-                "cielab_delta_e": delta_e,
-                "gradient_coherence_pct": grad_coh,
-            },
+            metrics=metrics,
+            metric_context=metric_context,
             detected_artifacts=artifacts,
             tile_execution=tile_execution_record,
             telemetry_posted=telemetry_posted,
@@ -559,7 +556,7 @@ class UpscalePipeline:
             spans=[asdict(s) for s in spans],
         )
 
-    def _post_telemetry(self, endpoint_url: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    def _post_telemetry(self, endpoint_url: str, payload: dict[str, Any]) -> dict[str, Any]:
         """Post tile execution, PSNR/SSIM, and artifact metrics to /api/telemetry/trace?project=fidelis."""
         url = endpoint_url
         if "?" not in url:
@@ -567,19 +564,22 @@ class UpscalePipeline:
         elif "project=" not in url:
             url = f"{url}&project=fidelis"
 
-        data = json.dumps(payload).encode("utf-8")
-        req = urllib.request.Request(
-            url,
-            data=data,
-            headers={
-                "Content-Type": "application/json",
-                "User-Agent": "Fidelis-Pipeline/2.0",
-                "Accept": "application/json",
-            },
-            method="POST",
-        )
         try:
-            with urllib.request.urlopen(req, timeout=5.0) as resp:
+            parsed_scheme = urllib.parse.urlparse(url).scheme.lower()
+            if parsed_scheme not in ("http", "https"):
+                raise ValueError(f"Telemetry URL must use http or https scheme: {url}")
+            data = json.dumps(payload).encode("utf-8")
+            req = urllib.request.Request(
+                url,
+                data=data,
+                headers={
+                    "Content-Type": "application/json",
+                    "User-Agent": "Fidelis-Pipeline/2.0",
+                    "Accept": "application/json",
+                },
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=2.0) as resp:  # nosec B310
                 resp_text = resp.read().decode("utf-8")
                 try:
                     res_json = json.loads(resp_text)
@@ -612,12 +612,22 @@ class UpscalePipeline:
             return "RealeSR-general-v3"
         return "RealeSR-general-v3"
 
+    def run_native_pass(self, input_path: Path, output_path: Path, model: str) -> None:
+        """Execute only the native base pass, without telemetry or restoration."""
+        self._run_direct_upscale(input_path, output_path, model)
+
     def _run_direct_upscale(self, input_path: Path, output_path: Path, model: str) -> None:
+        # The direct and tiled lanes share the same fresh-artifact contract.
+        # Do not allow a stale file or symlink to satisfy a successful exit.
+        if output_path.exists() or output_path.is_symlink():
+            raise RuntimeError("Direct upscale output path already exists")
         cmd = [self.cli_path, "upscale", str(input_path), str(output_path), "--model", model]
         res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         if res.returncode != 0:
             err = res.stderr.strip() or res.stdout.strip()
             raise RuntimeError(f"Direct upscale failed ({res.returncode}): {err}")
+        if output_path.is_symlink() or not output_path.is_file() or output_path.stat().st_size == 0:
+            raise RuntimeError("Direct upscale reported success without a nonempty output file")
 
     def _run_tiled_upscale(
         self,
@@ -636,12 +646,18 @@ class UpscalePipeline:
             "-m", model,
             "-t", str(tile_size),
             "--overlap", str(overlap),
+            "--cli-path", str(self.cli_path),
             "--scale", str(scale),
         ]
+        # A successful subprocess must produce a fresh artifact, not reuse a stale one.
+        if output_path.exists() or output_path.is_symlink():
+            raise RuntimeError("Tiled upscale output path already exists")
         res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         if res.returncode != 0:
             err = res.stderr.strip() or res.stdout.strip()
             raise RuntimeError(f"Tiled upscale failed ({res.returncode}): {err}")
+        if output_path.is_symlink() or not output_path.is_file() or output_path.stat().st_size == 0:
+            raise RuntimeError("Tiled upscale reported success without a nonempty output file")
 
     def _verify_zero_black_tiles(self, arr: np.ndarray, tile_size: int = 128) -> bool:
         """Scan image for completely dead all-zero black tiles."""

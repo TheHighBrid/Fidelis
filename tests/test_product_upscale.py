@@ -1,0 +1,176 @@
+import runpy
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+
+import numpy as np
+from PIL import Image
+from scipy import ndimage
+
+product = runpy.run_path(
+    str(Path(__file__).resolve().parents[1] / "scripts/product-upscale.py")
+)
+compose_product = product["compose_product"]
+
+
+class ProductUpscaleTests(unittest.TestCase):
+    def test_candidate_reuses_fixed_native_pipeline_without_telemetry(self):
+        source, candidate = Path('source.png'), Path('candidate.png')
+        with patch('fidelis.core.pipeline.UpscalePipeline') as pipeline:
+            product['_run_native_candidate'](source, candidate, 'models-RealeSR-general-v3')
+        pipeline.assert_called_once_with(cli_path=str(Path(__file__).resolve().parents[1] / 'bin/fidelis'))
+        pipeline.return_value.run_native_pass.assert_called_once_with(
+            source, candidate, 'RealeSR-general-v3')
+        pipeline.return_value.run.assert_not_called()
+
+    def test_model_selector_rejects_paths_shell_and_option_injection(self):
+        validate = product['validate_model_selector']
+        self.assertEqual(validate('models-RealeSR-general-v3'), 'RealeSR-general-v3')
+        self.assertEqual(validate('realesrgan-x4plus'), 'realesrgan-x4plus')
+        for value in ('../model', '/tmp/model', '--help', 'models-', 'a;ls', 'a$(id)', 'a b'):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                validate(value)
+
+    def test_unclassified_regions_remain_on_bicubic_base(self):
+        base = np.full((64, 64, 3), 40, dtype=np.uint8)
+        candidate = np.full((64, 64, 3), 220, dtype=np.uint8)
+        result, _ = compose_product(base, candidate, [])
+        np.testing.assert_array_equal(result, base)
+
+        rois = [
+            {"id": "fabric_patch", "kind": "fabric", "policy": "texture_allowed",
+             "override": None, "rect": [16, 16, 32, 32]}
+        ]
+        result_roi, _ = compose_product(base, candidate, rois)
+        np.testing.assert_array_equal(result_roi[24:40, 24:40], candidate[24:40, 24:40])
+        np.testing.assert_array_equal(result_roi[:16, :], base[:16, :])
+        np.testing.assert_array_equal(result_roi[48:, :], base[48:, :])
+        np.testing.assert_array_equal(result_roi[:, :16], base[:, :16])
+        np.testing.assert_array_equal(result_roi[:, 48:], base[:, 48:])
+
+    def test_texture_roi_feathers_inward_without_touching_unknown_pixels(self):
+        base = np.full((64, 64, 3), 40, dtype=np.uint8)
+        candidate = np.full_like(base, 220)
+        roi = {"id": "patch", "kind": "fabric", "policy": "texture_allowed",
+               "rect": [16, 16, 32, 32]}
+        result, _ = compose_product(base, candidate, [roi])
+        row = result[32, :, 0]
+        self.assertEqual(row[16], 40)
+        self.assertGreater(row[20], 40)
+        self.assertLess(row[20], 220)
+        self.assertEqual(row[24], 220)
+        self.assertTrue(np.all(np.diff(row[16:25].astype(int)) > 0))
+        np.testing.assert_array_equal(row[16:48], row[16:48][::-1])
+        np.testing.assert_array_equal(result[:16], base[:16])
+        np.testing.assert_array_equal(result[:, :16], base[:, :16])
+
+    def test_cli_creates_nested_output_parent_and_publishes_png(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "source.png"
+            output = root / "results" / "nested" / "output.png"
+            Image.new("RGB", (8, 8), (40, 50, 60)).save(source)
+
+            def fixture_candidate(_source, destination, _model):
+                Image.new("RGB", (32, 32), (220, 220, 220)).save(destination)
+
+            main = product["main"]
+            with patch.dict(main.__globals__, {"_run_native_candidate": fixture_candidate}), patch(
+                "sys.argv", ["product-upscale", str(source), str(output)]
+            ):
+                main()
+            with Image.open(output) as result:
+                self.assertEqual(result.size, (32, 32))
+                np.testing.assert_array_equal(np.asarray(result), np.broadcast_to([40, 50, 60], (32, 32, 3)))
+            self.assertEqual(list(output.parent.iterdir()), [output])
+
+    def test_adjacent_texture_rois_do_not_create_internal_seam(self):
+        base = np.full((64, 64, 3), 40, dtype=np.uint8)
+        candidate = np.full_like(base, 220)
+        rois = [
+            {"id": name, "kind": "fabric", "policy": "texture_allowed",
+             "rect": [x, 16, 16, 32]}
+            for name, x in (("left", 16), ("right", 32))
+        ]
+        result, _ = compose_product(base, candidate, rois)
+        np.testing.assert_array_equal(result[24:40, 24:40], candidate[24:40, 24:40])
+
+    def test_invalid_native_grid_does_not_replace_existing_output(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "source.png"
+            output = root / "output.png"
+            Image.new("RGB", (8, 8), (40, 50, 60)).save(source)
+            output.write_bytes(b"previous output")
+
+            def invalid_candidate(_source, destination, _model):
+                Image.new("RGB", (31, 32)).save(destination)
+
+            main = product["main"]
+            with patch.dict(main.__globals__, {"_run_native_candidate": invalid_candidate}), patch(
+                "sys.argv", ["product-upscale", str(source), str(output)]
+            ), self.assertRaises(SystemExit) as failure:
+                main()
+            self.assertEqual(failure.exception.code, 1)
+            self.assertEqual(output.read_bytes(), b"previous output")
+            self.assertEqual(set(root.iterdir()), {source, output})
+
+    def test_flattened_faint_texture_is_preserved(self):
+        rng = np.random.default_rng(7)
+        base = np.full((96, 96, 3), 160, dtype=np.uint8)
+        noise = rng.integers(-3, 4, size=(96, 64, 1))
+        base[:, :64] = 160 + noise
+        candidate = np.full_like(base, 160)
+        candidate[:, 80:] = 180
+        rois = [
+            {"id": "surface", "kind": "texture", "policy": "texture_allowed",
+             "override": None, "rect": [0, 0, 96, 96]}
+        ]
+        result, _ = compose_product(base, candidate, rois)
+        np.testing.assert_array_equal(result[16:80, 16:48], base[16:80, 16:48])
+        np.testing.assert_array_equal(result[16:80, 84:], candidate[16:80, 84:])
+
+    def test_guard_allows_texture_that_matches_source(self):
+        rng = np.random.default_rng(9)
+        noise = ndimage.gaussian_filter(rng.normal(size=(64, 64)), 1)
+        base = np.repeat(np.rint(100 + noise * 12).astype(np.uint8)[..., None], 3, axis=2)
+        candidate = base + 10
+        weight = product["texture_confidence"](base[:, :, 0].astype(np.float32), candidate)
+        np.testing.assert_allclose(weight, 1, atol=1e-3)
+
+    def test_edge_stays_exact_with_feather_and_candidate_detail(self):
+        base = np.full((64, 64, 3), 20, dtype=np.uint8)
+        base[:, 32:] = 150
+        candidate = np.minimum(base.astype(np.uint16) + 40, 255).astype(np.uint8)
+        rois = [
+            {"id": "body", "kind": "fabric", "policy": "texture_allowed",
+             "override": None, "rect": [0, 0, 64, 64]}
+        ]
+        result, locked = compose_product(base, candidate, rois)
+        self.assertTrue(locked[32, 32])
+        np.testing.assert_array_equal(result[locked], base[locked])
+        np.testing.assert_array_equal(result[:, :8], candidate[:, :8])
+        self.assertGreater(result[32, 24, 0], base[32, 24, 0])
+        self.assertLess(result[32, 24, 0], candidate[32, 24, 0])
+
+    def test_explicit_lock_wins_over_unlock(self):
+        base = np.zeros((64, 64, 3), dtype=np.uint8)
+        base[:, 32:] = 120
+        candidate = np.full_like(base, 200)
+        rois = [
+            {"id": "allow", "kind": "fabric", "policy": "texture_allowed",
+             "override": "unlock", "rect": [20, 0, 24, 64]},
+            {"id": "zipper", "kind": "hardware", "policy": "preserve",
+             "override": "lock", "rect": [30, 28, 4, 8]},
+        ]
+        result, locked = compose_product(base, candidate, rois)
+        self.assertFalse(locked[5, 32])
+        self.assertTrue(locked[32, 32])
+        np.testing.assert_array_equal(result[32, 32], base[32, 32])
+        np.testing.assert_array_equal(result[5, 32], candidate[5, 32])
+        np.testing.assert_array_equal(result[5, 5], base[5, 5])
+
+
+if __name__ == "__main__":
+    unittest.main()

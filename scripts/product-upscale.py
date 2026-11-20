@@ -1,0 +1,148 @@
+"""Opt-in local product upscale with source-derived edge and exact ROI locks."""
+
+import argparse
+import json
+import re
+import sys
+import tempfile
+from pathlib import Path
+
+import numpy as np
+from PIL import Image
+from scipy import ndimage
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from fidelis.postprocess.regions import RegionBlend, compose_regions
+from fidelis.postprocess.roi_protection import build_roi_protection_masks, validate_rois
+from fidelis.studio.png import read_rgb8_png
+
+MAX_OUTPUT_PIXELS = 8_000_000
+SCALE = 4
+FEATHER_PIXELS = 8
+
+
+def texture_confidence(base_gray, candidate):
+    """Reduce the model contribution where it erases source-aligned texture."""
+    candidate_gray = np.asarray(Image.fromarray(candidate).convert("L"), dtype=np.float32)
+    base_detail = base_gray - ndimage.gaussian_filter(base_gray, 2)
+    candidate_detail = candidate_gray - ndimage.gaussian_filter(candidate_gray, 2)
+    source_energy = ndimage.uniform_filter(base_detail * base_detail, size=17)
+    retained = ndimage.uniform_filter(base_detail * candidate_detail, size=17)
+    ratio = retained / np.maximum(source_energy, 0.25)
+    # Flat areas carry too little evidence for a meaningful comparison.
+    confidence = np.where(source_energy >= 0.25, np.clip((ratio - 0.85) / 0.15, 0, 1), 1)
+    return ndimage.gaussian_filter(confidence, 3)
+
+
+def _product_masks(base, candidate, rois):
+    masks, _ = build_roi_protection_masks(base, rois)
+    gray = np.asarray(Image.fromarray(base).convert("L"), dtype=np.float32)
+    edges = np.hypot(ndimage.sobel(gray, axis=0), ndimage.sobel(gray, axis=1))
+    locked = ndimage.binary_dilation(edges > max(np.percentile(edges, 85), 15), iterations=6)
+    texture_weight = texture_confidence(gray, candidate)
+    fabric_mask = np.array(
+        masks.get("interior_texture", np.zeros(base.shape[:2], dtype=np.float32)),
+        dtype=np.float32,
+        copy=True,
+    )
+    for roi in rois:
+        if roi.get("override") == "unlock":
+            x, y, w, h = roi["rect"]
+            locked[y:y + h, x:x + w] = False
+            texture_weight[y:y + h, x:x + w] = 1
+            fabric_mask[y:y + h, x:x + w] = 1.0
+    locked |= masks["protected"] == 1
+    fabric_mask *= (1.0 - (masks["protected"] == 1.0)).astype(np.float32)
+    return fabric_mask, locked, texture_weight
+
+
+def _inward_feather(permitted):
+    """Taper within permitted pixels, never across an unclassified boundary."""
+    if permitted.all():
+        # No internal semantic boundary when the entire image is permitted.
+        return np.ones(permitted.shape, dtype=np.float32)
+    distance = ndimage.distance_transform_edt(permitted)
+    return np.clip((distance - 1) / FEATHER_PIXELS, 0, 1).astype(np.float32)
+
+
+def compose_product(base, candidate, rois):
+    if base.shape != candidate.shape:
+        raise ValueError("Product passes must have identical dimensions")
+    fabric_mask, locked, texture_weight = _product_masks(base, candidate, rois)
+    confidence = _inward_feather(fabric_mask > 0)
+    if locked.any():
+        edge_feather = np.clip(ndimage.distance_transform_edt(~locked) / FEATHER_PIXELS, 0, 1)
+        np.minimum(confidence, edge_feather, out=confidence)
+    confidence *= texture_weight
+    result = np.empty_like(base)
+    for start in range(0, base.shape[0], 128):
+        rows = slice(start, start + 128)
+        result[rows], _ = compose_regions(
+            base[rows], candidate[rows],
+            fabric=fabric_mask[rows], confidence=confidence[rows],
+            blend=RegionBlend(fabric=1),
+        )
+    return result, locked
+
+
+def validate_model_selector(value):
+    """Accept only a local model identifier, never a path or shell expression."""
+    name = value.removeprefix('models-')
+    if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]*', name):
+        raise ValueError('Model must be a local model identifier')
+    return name
+
+
+def _read_product_source(args):
+    with args.source.open("rb") as stream:
+        source = read_rgb8_png(stream, max_pixels=MAX_OUTPUT_PIXELS // SCALE**2)
+    rois = validate_rois(json.loads(args.rois_json.read_text()) if args.rois_json else [], source.shape[:2])
+    for roi in rois:
+        roi["rect"] = [value * SCALE for value in roi["rect"]]
+    return source, rois
+
+
+def _run_native_candidate(source_path, candidate_path, model):
+    from fidelis.core.pipeline import UpscalePipeline
+
+    pipeline = UpscalePipeline(cli_path=str(ROOT / "bin/fidelis"))
+    pipeline.run_native_pass(source_path, candidate_path, validate_model_selector(model))
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("source", type=Path)
+    parser.add_argument("output", type=Path)
+    parser.add_argument("--model", default="RealeSR-general-v3")
+    parser.add_argument("--rois-json", type=Path, help="ROI list in input-image pixels")
+    args = parser.parse_args()
+    try:
+        validate_model_selector(args.model)
+        if args.output.suffix.lower() != ".png" or args.output.resolve() == args.source.resolve():
+            raise ValueError("Output must be a separate PNG")
+        source, rois = _read_product_source(args)
+        size = (source.shape[1] * SCALE, source.shape[0] * SCALE)
+        base = np.asarray(Image.fromarray(source).resize(size, Image.Resampling.BICUBIC))
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(prefix="fidelis-product-", dir=args.output.parent) as tmp:
+            staged = Path(tmp)
+            source_path = staged / "source.png"
+            candidate_path = staged / "candidate.png"
+            Image.fromarray(source).save(source_path)
+            _run_native_candidate(source_path, candidate_path, args.model)
+            with candidate_path.open("rb") as stream:
+                candidate = read_rgb8_png(stream, max_pixels=MAX_OUTPUT_PIXELS, expected_size=size)
+            result, locked = compose_product(base, candidate, rois)
+            final = staged / "protected.png"
+            Image.fromarray(result).save(final)
+            final.replace(args.output)
+        print(json.dumps({"output": str(args.output), "model": args.model,
+                          "locked_pixels": int(locked.sum()), "dimensions": size}))
+    except (OSError, ValueError, RuntimeError) as error:
+        parser.exit(1, f"Product upscale failed: {error}\n")
+
+
+if __name__ == "__main__":
+    main()

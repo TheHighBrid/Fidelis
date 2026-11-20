@@ -5,8 +5,8 @@ overlapping tiles with 2D Gaussian feathering and tiled VAE reconstruction,
 enabling seamless upscaling up to 32,000x32,000 px without boundary seams.
 """
 
-import math
-from typing import Callable, Generator, List, Tuple
+from collections.abc import Callable
+
 import numpy as np
 
 
@@ -90,7 +90,7 @@ class MultiDiffusionTiler:
         self.scale = scale
         self.weight_type = weight_type
 
-    def compute_tile_grid(self, height: int, width: int) -> List[Tuple[int, int, int, int]]:
+    def compute_tile_grid(self, height: int, width: int) -> list[tuple[int, int, int, int]]:
         """Compute tile bounding boxes (y1, y2, x1, x2) covering canvas with overlap."""
         stride = self.tile_size - self.overlap
         tiles = []
@@ -219,7 +219,7 @@ class MultiDiffusionTiler:
         return output
 
     @staticmethod
-    def compute_tile_grid_custom(h: int, w: int, size: int, overlap: int) -> List[Tuple[int, int, int, int]]:
+    def compute_tile_grid_custom(h: int, w: int, size: int, overlap: int) -> list[tuple[int, int, int, int]]:
         if h < 1 or w < 1 or size < 1 or not 0 <= overlap < size:
             raise ValueError("Invalid canvas dimensions, tile size, or overlap")
         stride = size - overlap

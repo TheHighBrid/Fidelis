@@ -2,6 +2,10 @@
 set -Eeuo pipefail
 
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
+python_bin="$repo_root/.venv/bin/python"
+if [ ! -x "$python_bin" ]; then
+  python_bin="$(command -v python3 || command -v python)"
+fi
 
 bash -n "$repo_root/install.sh"
 bash -n "$repo_root/bin/fidelis"
@@ -23,17 +27,31 @@ bash -n "$repo_root/tests/test-detect-drift.sh"
 bash -n "$repo_root/tests/test-web-ui.sh"
 bash -n "$repo_root/tests/test-vosr-sweep.sh"
 bash -n "$repo_root/tests/test-release-pipeline.sh"
+bash -n "$repo_root/tests/test-browser-acceptance.sh"
 
-python3 -m py_compile "$repo_root/scripts/generate-delta-heatmap.py"
-python3 -m py_compile "$repo_root/scripts/detect-drift.py"
-python3 -m py_compile "$repo_root/scripts/tiled-upscale.py"
-python3 -m py_compile "$repo_root/scripts/evaluate-fidelity-metrics.py"
-python3 -m py_compile "$repo_root/scripts/generate-audition-report.py"
-python3 -m py_compile "$repo_root/scripts/generate-master-dashboard.py"
-python3 -m py_compile "$repo_root/scripts/web-ui.py"
-python3 -m py_compile "$repo_root/scripts/fetch-eval-crops.py"
+"$python_bin" -m py_compile "$repo_root/scripts/generate-delta-heatmap.py"
+"$python_bin" -m py_compile "$repo_root/scripts/detect-drift.py"
+"$python_bin" -m py_compile "$repo_root/scripts/tiled-upscale.py"
+"$python_bin" -m py_compile "$repo_root/scripts/evaluate-fidelity-metrics.py"
+"$python_bin" -m py_compile "$repo_root/scripts/generate-audition-report.py"
+"$python_bin" -m py_compile "$repo_root/scripts/generate-master-dashboard.py"
+"$python_bin" -m py_compile "$repo_root/scripts/web-ui.py"
+"$python_bin" -m py_compile "$repo_root/scripts/fetch-eval-crops.py"
+"$python_bin" -m py_compile "$repo_root/scripts/reblend-regions.py"
+"$python_bin" -m py_compile "$repo_root/scripts/export-studio-batch.py"
+"$python_bin" -m py_compile "$repo_root/scripts/generate-texture.py"
+"$python_bin" -m py_compile "$repo_root/scripts/structural-roi.py"
+"$python_bin" -m py_compile "$repo_root/scripts/audit-model-provenance.py"
+"$python_bin" -m py_compile "$repo_root/scripts/worker-preflight.py"
+"$python_bin" -m py_compile "$repo_root/scripts/screen-roi-drift.py"
+"$python_bin" -m py_compile "$repo_root/scripts/export-master.py"
+"$python_bin" -m py_compile "$repo_root/scripts/run-comparators.py"
+"$python_bin" -m py_compile "$repo_root/scripts/evaluate-quality-acceptance.py"
+"$python_bin" -m py_compile "$repo_root/scripts/batch-run.py"
+"$python_bin" -m py_compile "$repo_root/scripts/verify-upgrade-rollback.py"
+"$python_bin" -m py_compile "$repo_root/scripts/audit-release-readiness.py"
 
-python3 -m json.tool "$repo_root/notebooks/Fidelis_VOSR_MultiStep_Sweep_Colab.ipynb" >/dev/null
+"$python_bin" -m json.tool "$repo_root/notebooks/Fidelis_VOSR_MultiStep_Sweep_Colab.ipynb" >/dev/null
 
 # Installer invariants for the current ARM64 lane.
 grep -q 'GUI-armv8a' "$repo_root/install.sh"

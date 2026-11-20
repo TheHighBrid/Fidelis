@@ -1,0 +1,75 @@
+---
+# Codacy Static Code Analysis Configuration
+# Documentation: https://docs.codacy.com/repositories-configure/codacy-configuration-file/
+
+exclude_paths:
+  - "tests/**"
+  - "docs/**"
+  - "dist/**"
+  - "experiments/**"
+  - "config/**"
+  - "notebooks/**"
+  - "android/**"
+  - "deploy/**"
+  - "v2/**"
+  - "bin/**"
+
+engines:
+  bandit:
+    exclude_paths:
+      - "tests/**"
+      - "scripts/**"
+      - "deploy/**"
+  semgrep:
+    exclude_paths:
+      - "tests/**"
+      - "scripts/**"
+      - "deploy/**"
+  ruff:
+    exclude_paths:
+      - "tests/**"
+      - "docs/**"
+      - "deploy/**"
+  eslint:
+    exclude_paths:
+      - "tests/**"
+      - "scripts/**"
+      - "fidelis/studio/**"
+  duplication:
+    exclude_paths:
+      - "fidelis/**"
+      - "scripts/**"
+      - "tests/**"
+      - "docs/**"
+      - "**.py"
+      - "**.js"
+      - "**.mjs"
+  metric:
+    exclude_paths:
+      - "fidelis/**"
+      - "scripts/**"
+      - "tests/**"
+      - "docs/**"
+      - "**.py"
+      - "**.js"
+      - "**.mjs"
+
+duplication:
+  exclude_paths:
+    - "fidelis/**"
+    - "scripts/**"
+    - "tests/**"
+    - "docs/**"
+    - "**.py"
+    - "**.js"
+    - "**.mjs"
+
+metric:
+  exclude_paths:
+    - "fidelis/**"
+    - "scripts/**"
+    - "tests/**"
+    - "docs/**"
+    - "**.py"
+    - "**.js"
+    - "**.mjs"

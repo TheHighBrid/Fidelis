@@ -86,7 +86,9 @@ a new UUID only when intentionally requesting a new generation.
 `--deadline` limits polling time (default 300 seconds); individual HTTP calls have
 their own timeout. Pending runs remain submitted in SQLite and can be polled later.
 No global `/interrupt` call is sent, because it could stop another user's job.
-Cancellation and a fully asynchronous worker queue remain F07 work.
+The optional [background queue](ASYNC_GENERATION.md) adds durable local scheduling
+and local cancellation. It never globally interrupts ComfyUI; live F07 acceptance
+remains open.
 
 ## Failure handling and persistence
 
@@ -103,6 +105,18 @@ state and output checksum. Cached files are hash-checked. Records explicitly mar
 `live_quality_verified: false`. The adapter cannot detect arbitrary internal object
 warping; visual/ROI quality checks and model compatibility certification remain
 mandatory before production promotion.
+
+The local PNG cache defaults to **2048 MiB** per runs directory. Set
+`--cache-mib` in the CLI (or `--generation-cache-mib` for the Studio server).
+Callers sharing a directory must use the same limit. Publication accounts for
+existing PNGs and abandoned `.pending` payloads, including orphans, and serializes
+the check and bounded encode through the run ledger. Verified cache hits remain
+available even when the cap is reached. If publication cannot fit, the run remains
+resumable: increase the limit deliberately and repeat the same run ID to retrieve
+the existing prompt result. Never start a new run merely to fix cache exhaustion.
+No existing output or ledger record is automatically evicted. This is a payload
+byte cap, not a filesystem quota: SQLite, other directories, remote worker files,
+process memory and operator-managed archival/retention are outside it.
 
 The backend accepts loopback HTTP only. An explicitly configured SSH tunnel can
 connect to a separate GPU worker without silently uploading to an external service.

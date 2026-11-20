@@ -14,11 +14,10 @@ Features:
 import argparse
 import base64
 import binascii
-import html
 import http.server
 import io
 import json
-import os
+import re
 import shutil
 import socketserver
 import subprocess
@@ -28,7 +27,7 @@ import time
 import traceback
 import uuid
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, urlencode, urlparse
 
 from PIL import Image, UnidentifiedImageError
 
@@ -60,16 +59,14 @@ except Exception:
 try:
     import cv2
     import numpy as np
-    import fidelis
+
     from fidelis.core.router import SmartRouter, UpscaleMode
-    from fidelis.engine.diffusion_sr import DiffusionPresetsEngine
-    from fidelis.modules.face_restorer import FaceRestorer
+    from fidelis.eval.benchmark_suite import BenchmarkSuite
     from fidelis.modules.text_restorer import TextRestorer
     from fidelis.postprocess.color_fix import stabilize_colors
-    from fidelis.eval.benchmark_suite import BenchmarkSuite
     from fidelis.tune.optimizer import SelfImprovementEngine
     HAS_FIDELIS = True
-except Exception as e:
+except Exception:
     HAS_FIDELIS = False
 
 # Bound memory use before JSON parsing, image decoding, or model execution.
@@ -399,8 +396,8 @@ HTML_PAGE = r"""<!DOCTYPE html>
       
       <div style="margin-top: 12px; font-size: 12px; color: var(--text-muted);">Or load standard evaluation crop:</div>
       <div class="sample-btns">
-        <button class="btn" onclick="loadSample('user_test_blonde.png')">Blonde Portrait (1022x1024)</button>
-        <button class="btn" onclick="loadSample('user_test_darkhair.png')">Dark Hair Portrait (1024x1024)</button>
+        <button class="btn" onclick="loadSample('portrait_skin.png')">Synthetic Portrait</button>
+        <button class="btn" onclick="loadSample('fabric_weave.png')">Synthetic Fabric</button>
         <button class="btn" onclick="loadSample('portrait_skin_real.png')">Portrait Skin Crop (150x150)</button>
         <button class="btn" onclick="loadSample('fashion_fabric_real.png')">Fashion Fabric Weave (200x200)</button>
         <button class="btn" onclick="loadSample('product_edges_real.png')">Product Metal Hardware (250x250)</button>
@@ -525,7 +522,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
       <div id="self-improve-box" style="margin-top: 8px; font-size: 11px; padding: 8px; background: rgba(31,111,235,0.1); border: 1px solid #1f6feb; border-radius: 6px; display: none;">
         <div>Calibration Gate: <strong id="si-status">Calibrated</strong></div>
         <div style="margin-top: 4px;">Optimal Face w: <strong id="si-opt-w">0.70</strong> | Text: <strong id="si-opt-txt">0.65</strong></div>
-        <div style="margin-top: 4px;"><a id="si-report-link" href="/results/experiments/self_improvement/self_improvement_report.html" target="_blank" style="color: #58a6ff; text-decoration: underline;">Open HTML Quality Report</a></div>
+        <div style="margin-top: 4px;"><a id="si-report-link" href="/results/experiments/self_improvement/self_improvement_report.html" target="_blank" rel="noopener noreferrer" style="color: #58a6ff; text-decoration: underline;">Open HTML Quality Report</a></div>
       </div>
     </div>
   </div>
@@ -542,7 +539,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
         <button class="tool-btn" data-zoom="100" onclick="setZoom('100')">100%</button>
         <button class="tool-btn" data-zoom="200" onclick="setZoom('200')">200% Grid</button>
         <button id="btn-download" class="tool-btn" style="display:none; background:#238636; color:#ffffff; font-weight:600; cursor:pointer;" onclick="downloadResultImage()">Download PNG</button>
-        <a id="btn-open-tab" class="tool-btn" style="display:none; text-decoration: none; color: inherit;" target="_blank">View Full Image</a>
+        <a id="btn-open-tab" class="tool-btn" style="display:none; text-decoration: none; color: inherit;" target="_blank" rel="noopener noreferrer">View Full Image</a>
       </div>
     </div>
 
@@ -625,7 +622,7 @@ fetch('/api/models').then(r => r.json()).then(models => {
   ['model-select', 'model-a-select', 'model-b-select'].forEach(id => {
     const sel = document.getElementById(id);
     if (!sel) return;
-    sel.innerHTML = '';
+    sel.replaceChildren();
     models.forEach(m => {
       const opt = document.createElement('option');
       opt.value = m;
@@ -784,6 +781,36 @@ let currentDownloadUrl = null;
 let currentOutputBase64 = null;
 let currentViewUrl = null;
 
+function setComparisonTitle(prefix, label) {
+  const title = document.getElementById('view-title');
+  const strong = document.createElement('strong');
+  strong.textContent = label;
+  title.textContent = prefix;
+  title.appendChild(strong);
+}
+
+function localResultUrl(value, expectedPath) {
+  if (typeof value !== 'string' || value.split('?')[0] !== expectedPath || value.includes('#')) return null;
+  try {
+    const url = new URL(value, window.location.origin);
+    return url.origin === window.location.origin && url.pathname === expectedPath ? url.pathname + url.search : null;
+  } catch {
+    return null;
+  }
+}
+
+function pngResultData(value) {
+  return typeof value === 'string' && /^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/.test(value) ? value : null;
+}
+
+function setResultLinks(downloadUrl, viewUrl) {
+  currentDownloadUrl = localResultUrl(downloadUrl, '/api/download');
+  currentViewUrl = localResultUrl(viewUrl, '/api/view');
+  const openBtn = document.getElementById('btn-open-tab');
+  openBtn.href = currentViewUrl || '';
+  openBtn.style.display = currentViewUrl ? 'inline-block' : 'none';
+}
+
 function downloadResultImage() {
   if (!currentOutputBase64 && !currentDownloadUrl) {
     return alert('No upscaled image available to download.');
@@ -833,8 +860,7 @@ function downloadResultImage() {
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
   } catch (err) {
-    // 4. Fallback: open in new window
-    window.open(currentOutputBase64, '_blank');
+    alert('Unable to download the image.');
   }
 }
 
@@ -878,21 +904,17 @@ function runUpscale() {
     if (!r.ok || data.error) return alert('Upscale failed: ' + (data.error || 'Unknown error'));
 
     const titlePrefix = portrait ? `Portrait Pore Engine (${preset})` : `${preset} - ${model}`;
-    document.getElementById('view-title').innerHTML = `Split Comparison: <strong>Source vs ${titlePrefix}</strong>`;
+    const output = pngResultData(data.output_image);
+    if (!output) return alert('Upscale did not return a valid PNG payload.');
+    setComparisonTitle('Split Comparison: ', `Source vs ${titlePrefix}`);
     document.getElementById('badge-left').style.display = 'none';
     document.getElementById('badge-right').style.display = 'none';
 
-    currentOutputBase64 = data.output_image;
-    currentDownloadUrl = data.download_url;
-    currentViewUrl = data.view_url;
+    currentOutputBase64 = output;
+    setResultLinks(data.download_url, data.view_url);
 
-    document.getElementById('img-after').src = data.output_image;
+    document.getElementById('img-after').src = output;
     document.getElementById('btn-download').style.display = 'inline-block';
-    if (data.view_url) {
-      const openBtn = document.getElementById('btn-open-tab');
-      openBtn.href = data.view_url;
-      openBtn.style.display = 'inline-block';
-    }
     setSplitPosition(50);
 
     // Update 5-dimension metrics HUD
@@ -975,20 +997,17 @@ function runCompare() {
     finishProcessing();
     if (!r.ok || data.error) return alert('Comparison failed: ' + (data.error || 'Unknown error'));
 
-    document.getElementById('img-before').src = data.output_a;
-    document.getElementById('img-after').src = data.output_b;
-    currentOutputBase64 = data.output_b;
-    currentDownloadUrl = data.download_url_b;
-    currentViewUrl = data.view_url_b;
+    const outputA = pngResultData(data.output_a);
+    const outputB = pngResultData(data.output_b);
+    if (!outputA || !outputB) return alert('Comparison did not return valid PNG payloads.');
+    document.getElementById('img-before').src = outputA;
+    document.getElementById('img-after').src = outputB;
+    currentOutputBase64 = outputB;
+    setResultLinks(data.download_url_b, data.view_url_b);
     document.getElementById('btn-download').style.display = 'inline-block';
-    if (data.view_url_b) {
-      const openBtn = document.getElementById('btn-open-tab');
-      openBtn.href = data.view_url_b;
-      openBtn.style.display = 'inline-block';
-    }
     setSplitPosition(50);
 
-    document.getElementById('view-title').innerHTML = `Split: <strong>${data.model_a} (Left) vs ${data.model_b} (Right)</strong>`;
+    setComparisonTitle('Split: ', `${data.model_a} (Left) vs ${data.model_b} (Right)`);
     document.getElementById('badge-left').textContent = `Left: ${data.model_a}`;
     document.getElementById('badge-right').textContent = `Right: ${data.model_b}`;
     document.getElementById('badge-left').style.display = 'inline-block';
@@ -1051,9 +1070,9 @@ function runAudition() {
     finishProcessing();
     if (!r.ok || data.error) return alert('Audition failed: ' + (data.error || 'Unknown error'));
 
-    if (data.report_url) {
+    if (data.report_url === '/results/experiments/eval_crops/web_audition/report.html') {
       if (confirm('Audition complete! Open full comparison report?')) {
-        window.location.href = data.report_url;
+        window.location.assign('/results/experiments/eval_crops/web_audition/report.html');
       }
     } else {
       alert('Audition complete.');
@@ -1077,7 +1096,7 @@ function runSelfImprovement() {
 
     loadSelfImprovementStatus();
     if (confirm(`Self-improvement cycle complete!\n\nQuality Status: ${data.quality_status}\nImprovements Landed: ${data.improvements_found}\nTrials: ${data.total_trials}\n\nOpen full HTML quality & calibration report?`)) {
-      window.open(data.report_url || '/results/experiments/self_improvement/self_improvement_report.html', '_blank');
+      window.open('/results/experiments/self_improvement/self_improvement_report.html', '_blank', 'noopener,noreferrer');
     }
   }).catch(err => {
     finishProcessing();
@@ -1274,17 +1293,123 @@ def execute_restoration(cli, in_p, out_p, model, tiled=False, tile_size=256, por
     return int((time.time() - t0) * 1000)
 
 
+def cached_output_path(file_id):
+    """Resolve an opaque result ID to a regular PNG directly in the cache."""
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", file_id):
+        return None
+    root = CACHE_DIR.resolve()
+    target = root / f"{file_id}.png"
+    if target.is_symlink() or not target.is_file() or target.resolve().parent != root:
+        return None
+    return target
+
+
+def download_filename(value):
+    """Allow only a bounded ASCII filename safe for a quoted HTTP header."""
+    if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._ -]{0,119}", value) and value.lower().endswith(".png"):
+        return value
+    return "fidelis_upscaled.png"
+
+
 class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
+    timeout = 15
+
+    def allow_local_request(self):
+        from fidelis.studio.local_request import require_local_request
+
+        try:
+            require_local_request(self)
+        except (PermissionError, ValueError):
+            self.send_error(403, "Studio accepts same-origin loopback requests only")
+            return False
+        return True
+
     def log_message(self, format, *args):
         pass  # Quiet logs
 
+    def send_cached_output(self, query, *, attachment):
+        ids = query.get("id", [])
+        target = cached_output_path(ids[0]) if len(ids) == 1 else None
+        if target is None:
+            self.send_response(404)
+            self.end_headers()
+            return
+        data = target.read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", "image/png")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        if attachment:
+            name = download_filename(query.get("filename", [""])[0])
+            self.send_header("Content-Disposition", f'attachment; filename="{name}"')
+        else:
+            self.send_header("Content-Disposition", "inline")
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-cache")
+        self.end_headers()
+        self.wfile.write(data)
+
+    def _send_upload_error(self, error):
+        """Return a complete JSON error and close without reading a rejected body."""
+        payload = json.dumps({"error": str(error)}).encode("utf-8")
+        self.close_connection = True
+        try:
+            self.connection.settimeout(None)
+        except OSError:
+            pass
+        self.send_response(error.status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(payload)))
+        self.send_header("Connection", "close")
+        self.end_headers()
+        self.wfile.write(payload)
+        self.wfile.flush()
+        self._discard_pending_request_bytes()
+
+    def _discard_pending_request_bytes(self, limit=65536):
+        """Drop bytes already buffered so macOS can close without a TCP reset.
+
+        The cap stays far below the upload limit. An oversized Content-Length is
+        never read into the request handler.
+        """
+        discarded = 0
+        try:
+            self.connection.settimeout(0)
+            while discarded < limit:
+                try:
+                    chunk = self.rfile.read1(min(8192, limit - discarded))
+                except (TimeoutError, BlockingIOError, OSError):
+                    break
+                if not chunk:
+                    break
+                discarded += len(chunk)
+        except OSError:
+            return
+
+    def dispatch_regions(self):
+        path = urlparse(self.path).path
+        if path != "/regions" and not path.startswith("/api/regions/"):
+            return False
+        try:
+            from fidelis.studio.http import dispatch
+        except ImportError:
+            self.send_error(503, "Regional workspace dependencies unavailable")
+            return True
+        return dispatch(self, CACHE_DIR / "region_jobs")
+
     def do_GET(self):
+        if not self.allow_local_request():
+            return
+        if self.dispatch_regions():
+            return
         url = urlparse(self.path)
         if url.path in ["/", "/index.html"]:
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.end_headers()
-            self.wfile.write(HTML_PAGE.encode("utf-8"))
+            self.wfile.write(HTML_PAGE.replace("<body>", '<body><nav style="padding:12px 20px"><a href="/regions" style="color:#d2dabb">Open saved regional review ↗</a></nav>', 1).encode("utf-8"))
+        elif url.path == "/favicon.ico":
+            self.send_response(204)
+            self.end_headers()
         elif url.path == "/api/models":
             models = get_installed_models()
             self.send_response(200)
@@ -1305,52 +1430,27 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
                 self.send_response(404)
                 self.end_headers()
         elif url.path.startswith("/results/"):
-            # Serve local HTML reports
-            rel_path = url.path.replace("/results/", "")
+            rel_path = url.path.removeprefix("/results/")
+            if rel_path not in (
+                "experiments/eval_crops/web_audition/report.html",
+                "experiments/self_improvement/self_improvement_report.html",
+            ):
+                self.send_error(404)
+                return
             target = (REPO_ROOT / rel_path).resolve()
-            if target.is_file() and str(target).startswith(str(REPO_ROOT)):
+            if target == REPO_ROOT / rel_path and target.is_file():
                 self.send_response(200)
                 self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Security-Policy", "sandbox; default-src 'none'; img-src data:; style-src 'unsafe-inline'")
                 self.end_headers()
                 self.wfile.write(target.read_bytes())
             else:
                 self.send_response(404)
                 self.end_headers()
         elif url.path == "/api/download":
-            query = parse_qs(url.query)
-            file_id = query.get("id", [""])[0]
-            filename = query.get("filename", ["fidelis_upscaled.png"])[0]
-            safe_id = os.path.basename(file_id)
-            safe_name = os.path.basename(filename) or "fidelis_upscaled.png"
-            target = (CACHE_DIR / f"{safe_id}.png").resolve()
-            if safe_id and target.is_file() and str(target).startswith(str(CACHE_DIR.resolve())):
-                data = target.read_bytes()
-                self.send_response(200)
-                self.send_header("Content-Type", "image/png")
-                self.send_header("Content-Disposition", f'attachment; filename="{safe_name}"')
-                self.send_header("Content-Length", str(len(data)))
-                self.send_header("Cache-Control", "no-cache")
-                self.end_headers()
-                self.wfile.write(data)
-            else:
-                self.send_response(404)
-                self.end_headers()
+            self.send_cached_output(parse_qs(url.query), attachment=True)
         elif url.path == "/api/view":
-            query = parse_qs(url.query)
-            file_id = query.get("id", [""])[0]
-            safe_id = os.path.basename(file_id)
-            target = (CACHE_DIR / f"{safe_id}.png").resolve()
-            if safe_id and target.is_file() and str(target).startswith(str(CACHE_DIR.resolve())):
-                data = target.read_bytes()
-                self.send_response(200)
-                self.send_header("Content-Type", "image/png")
-                self.send_header("Content-Disposition", "inline")
-                self.send_header("Content-Length", str(len(data)))
-                self.end_headers()
-                self.wfile.write(data)
-            else:
-                self.send_response(404)
-                self.end_headers()
+            self.send_cached_output(parse_qs(url.query), attachment=False)
         elif url.path == "/api/self-improve/status":
             manifest_p = REPO_ROOT / "experiments" / "self_improvement" / "manifest.json"
             summary = {}
@@ -1368,6 +1468,10 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
 
     def do_POST(self):
+        if not self.allow_local_request():
+            return
+        if self.dispatch_regions():
+            return
         url = urlparse(self.path)
         try:
             try:
@@ -1378,6 +1482,11 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
                 raise UploadError("A JSON request body is required.")
             if content_len > MAX_REQUEST_BYTES:
                 raise UploadError("The upload exceeds the 32 MiB request limit.", 413)
+            content_type = self.headers.get("Content-Type")
+            if content_type is not None:
+                media_type = content_type.split(";", 1)[0].strip().lower()
+                if media_type != "application/json":
+                    raise UploadError("Expected application/json.", 415)
             body = self.rfile.read(content_len)
             try:
                 data = json.loads(body.decode("utf-8")) if body else {}
@@ -1462,7 +1571,7 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
                     token = f"fidelis_{int(time.time())}_{uuid.uuid4().hex[:6]}"
                     (CACHE_DIR / f"{token}.png").write_bytes(raw_out_bytes)
                     model_slug = "portrait" if portrait else model.replace(" ", "_")
-                    download_url = f"/api/download?id={token}&filename=fidelis_{model_slug}.png"
+                    download_url = "/api/download?" + urlencode({"id": token, "filename": f"fidelis_{model_slug}.png"})
                     view_url = f"/api/view?id={token}"
 
                     resp = {
@@ -1550,8 +1659,8 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
                     resp = {
                         "output_a": "data:image/png;base64," + base64.b64encode(bytes_a).decode("ascii"),
                         "output_b": "data:image/png;base64," + base64.b64encode(bytes_b).decode("ascii"),
-                        "download_url_a": f"/api/download?id={token_a}&filename=fidelis_{model_a}.png",
-                        "download_url_b": f"/api/download?id={token_b}&filename=fidelis_{model_b}.png",
+                        "download_url_a": "/api/download?" + urlencode({"id": token_a, "filename": f"fidelis_{model_a}.png"}),
+                        "download_url_b": "/api/download?" + urlencode({"id": token_b, "filename": f"fidelis_{model_b}.png"}),
                         "view_url_a": f"/api/view?id={token_a}",
                         "view_url_b": f"/api/view?id={token_b}",
                         "model_a": model_a,
@@ -1569,7 +1678,6 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
                     self.wfile.write(json.dumps(resp).encode("utf-8"))
 
             elif url.path == "/api/audition":
-
                 aud_dir = REPO_ROOT / "experiments/eval_crops/web_audition"
                 shutil.rmtree(aud_dir, ignore_errors=True)
                 aud_dir.mkdir(parents=True, exist_ok=True)
@@ -1610,11 +1718,7 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
                 self.send_response(404)
                 self.end_headers()
         except UploadError as e:
-            self.close_connection = True
-            self.send_response(e.status)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
+            self._send_upload_error(e)
         except Exception as e:
             traceback.print_exc()
             self.send_response(500)
@@ -1622,7 +1726,8 @@ class FidelisRequestHandler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
 
-def run_server(port: int = 8765, host: str = "127.0.0.1"):
+def run_server(port: int = 8765, host: str = "127.0.0.1", region_workspace=None, region_store_options=None, texture_workflow=None,
+               generation_root=None, comfy_address="http://127.0.0.1:8188", generation_cache_mib=2048):
     handler = FidelisRequestHandler
     # Allow port reuse
     socketserver.TCPServer.allow_reuse_address = True
@@ -1643,20 +1748,58 @@ def run_server(port: int = 8765, host: str = "127.0.0.1"):
     if not httpd:
         raise OSError(f"Could not find an open port starting from {port}")
 
+    httpd.region_workspace_root = region_workspace or CACHE_DIR / "region_jobs"
+    httpd.region_store_options = region_store_options or {}
+    httpd.generation_queue = None
+    if texture_workflow is not None:
+        from fidelis.studio.generation import GenerationQueue
+        from fidelis.studio.store import JobStore
+        try:
+            bundle = json.loads(Path(texture_workflow).read_text(encoding="utf-8"))
+            httpd.region_store = JobStore(httpd.region_workspace_root, **httpd.region_store_options)
+            httpd.generation_queue = GenerationQueue(
+                generation_root or CACHE_DIR / "async_generation", httpd.region_store, bundle,
+                address=comfy_address, cache_budget=generation_cache_mib * 1024**2)
+        except BaseException:
+            httpd.server_close()
+            raise
     with httpd:
-        display_host = "127.0.0.1" if host in ("0.0.0.0", "") else host
-        print(f"\n=======================================================")
-        print(f" Fidelis Studio Web UI is running at:")
-        print(f" http://{display_host}:{current_port} (bound to: {host})")
-        print(f"=======================================================\n")
+        display_host = "127.0.0.1" if host in ("0.0.0.0", "") else host  # nosec B104  # Display string check only; bind strictly controlled by CLI args
+        print("\n=======================================================")
+        print(" Fidelis Studio Web UI is running at:")
+        print(f" http://{display_host}:{current_port} (bind address: {host})")
+        print("=======================================================\n")
         try:
             httpd.serve_forever()
         except KeyboardInterrupt:
             print("\nShutting down server.")
+        finally:
+            if httpd.generation_queue is not None:
+                httpd.generation_queue.close()
 
-if __name__ == "__main__":
+def build_argument_parser():
     parser = argparse.ArgumentParser(description="Run Fidelis Web UI.")
     parser.add_argument("-b", "--bind", "--host", default="127.0.0.1", help="Host interface to bind (default: 127.0.0.1; explicit --bind required for non-loopback)")
     parser.add_argument("-p", "--port", type=int, default=8765, help="Port to bind (default: 8765)")
+    parser.add_argument("--region-workspace", type=Path, help="Persistent regional job directory")
+    parser.add_argument("--region-disk-mib", type=int, default=2048, help="Regional artifact storage cap in MiB")
+    parser.add_argument("--region-workspace-mib", type=int, default=32, help="Composition stripe workspace allowance in MiB")
+    parser.add_argument("--region-max-pixels", type=int, default=40_000_000, help="Regional image pixel limit")
+    parser.add_argument("--texture-workflow", type=Path, help="Trusted local ComfyUI workflow bundle; opt in to background generation")
+    parser.add_argument("--generation-root", type=Path, help="Durable generation queue directory")
+    parser.add_argument("--generation-cache-mib", type=int, default=2048, help="Aggregate generation PNG cache cap in MiB")
+    parser.add_argument("--comfy-address", default="http://127.0.0.1:8188", help="Explicit loopback ComfyUI address")
+    return parser
+
+
+if __name__ == "__main__":
+    parser = build_argument_parser()
     args = parser.parse_args()
-    run_server(port=args.port, host=args.bind)
+    if min(args.region_disk_mib, args.region_workspace_mib, args.region_max_pixels, args.generation_cache_mib) <= 0:
+        parser.error("Storage, workspace and pixel limits must be positive")
+    run_server(port=args.port, host=args.bind, region_workspace=args.region_workspace,
+               region_store_options={"disk_budget": args.region_disk_mib * 1024**2,
+                                     "workspace_budget": args.region_workspace_mib * 1024**2,
+                                     "max_pixels": args.region_max_pixels},
+               texture_workflow=args.texture_workflow, generation_root=args.generation_root,
+               comfy_address=args.comfy_address, generation_cache_mib=args.generation_cache_mib)

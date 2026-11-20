@@ -1,0 +1,1102 @@
+"""Durable async queue tests using controlled HTTP responses, not GPU inference."""
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import dataclasses
+import hashlib
+import json
+from pathlib import Path
+import sqlite3
+import socket
+import subprocess
+import sys
+import signal
+import threading
+import time
+import unittest
+import uuid
+from unittest.mock import patch
+from urllib.error import HTTPError
+from urllib.request import Request, urlopen
+
+import numpy as np
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import test_comfy_backend as comfy_fixture
+BUNDLE = comfy_fixture.BUNDLE
+from fidelis.postprocess.regions import RegionBlend
+from fidelis.studio.comfy import ComfyTextureBackend, GenerationCancelled
+from fidelis.studio.cancellation import CancellationHandle
+from fidelis.studio.generation import (
+    ABANDON_MESSAGE,
+    QUARANTINE_MESSAGE,
+    RESTART_MESSAGE,
+    GenerationQueue,
+    QueueFull,
+    QueueStorageError,
+)
+from fidelis.studio.packaging import REQUIRED_ARCHIVE_PATHS
+from fidelis.studio.http import dispatch
+from fidelis.studio.store import JobStore, RevisionConflict
+
+
+class GenerationTests(unittest.TestCase):
+    def setUp(self):
+        self.fixture = comfy_fixture.ComfyTests('test_success_cache_and_recipe_no_duplicate_submission')
+        self.fixture.setUp()
+        self.addCleanup(self.fixture.doCleanups)
+        self.root = Path(self.fixture.temp.name) / 'async'
+        self.store = JobStore(Path(self.fixture.temp.name) / 'jobs')
+        self.queues = []
+        self.addCleanup(self.close_queues)
+        self.routes = []
+        handler = self.fixture.server.RequestHandlerClass
+        for method in ('do_POST', 'do_GET'):
+            original = getattr(handler, method)
+            routes = self.routes
+            def tracked(request, original=original):
+                routes.append((request.command, request.path))
+                return original(request)
+            setattr(handler, method, tracked)
+
+    def close_queues(self):
+        for queue in self.queues:
+            queue.close()
+        self.queues.clear()
+
+    def queue(self, **kwargs):
+        backend = ComfyTextureBackend(self.root/'runs', self.fixture.backend.address,
+                                     timeout=.5, poll_interval=.01)
+        queue = GenerationQueue(self.root, self.store, BUNDLE, backend=backend, **kwargs)
+        self.queues.append(queue)
+        return queue
+
+    def job(self, profile='luxury_apparel'):
+        ones = np.ones((8,12), np.float32)
+        protected = np.zeros((8,12), np.float32); protected[:,:3] = 1
+        return self.store.create(self.fixture.source, self.fixture.source,
+                    masks={'skin':ones, 'confidence':ones, 'protected':protected},
+                    blend=RegionBlend(skin=1), profile=profile)
+
+    def wait(self, queue, job, task, status):
+        deadline = time.monotonic()+4
+        while time.monotonic()<deadline:
+            item = queue.get(job['id'], task['id'])
+            if item['status'] in status:
+                return item
+            time.sleep(.01)
+        self.fail('Timed out: '+repr(item))
+
+    def submitted(self):
+        deadline = time.monotonic()+3
+        while self.fixture.state['submits'] < 1 and time.monotonic()<deadline:
+            time.sleep(.01)
+        self.assertEqual(self.fixture.state['submits'], 1)
+
+    def test_success_applies_once_and_preserves_protected_pixels(self):
+        q=self.queue(); job=self.job(); task=q.enqueue(job['id'],1)
+        result=self.wait(q,job,task,('completed',))
+        self.assertEqual(result['result_revision'],2)
+        self.assertEqual(self.fixture.state['submits'],1)
+        with self.store.open_array(job['id'],'master') as master:
+            np.testing.assert_array_equal(master[:,:3],self.fixture.source[:,:3])
+            np.testing.assert_array_equal(master[:,3:],self.fixture.output[:,3:])
+        self.assertNotIn('bundle',q.list(job['id'])[0])
+        self.assertNotIn('backend_address',result)
+        self.assertFalse(result['live_quality_verified'])
+
+    def test_cache_budget_exhaustion_resumes_same_run_without_new_submission(self):
+        q=self.queue(); q.backend.cache_budget=1
+        job=self.job(); task=q.enqueue(job['id'],1)
+        blocked=self.wait(q,job,task,('needs_review',))
+        self.assertEqual(blocked['error'],'CacheBudgetExceeded')
+        self.assertTrue(blocked['remote_may_continue'])
+        self.assertEqual(self.store.get(job['id'])['revision'],1)
+        self.close_queues()
+        q=self.queue()
+        q.resume(job['id'],task['id'])
+        result=self.wait(q,job,task,('completed',))
+        self.assertEqual(result['run_id'],task['run_id'])
+        self.assertEqual(result['result_revision'],2)
+        self.assertEqual(self.fixture.state['submits'],1)
+
+    def test_queued_cancel_bounds_and_no_unrelated_remote_interrupt(self):
+        self.fixture.state['mode']='pending'
+        q=self.queue(capacity=2); first=self.job(); second=self.job(); third=self.job()
+        a=q.enqueue(first['id'],1); self.submitted()
+        b=q.enqueue(second['id'],1)
+        with self.assertRaises(QueueFull):q.enqueue(third['id'],1)
+        with self.assertRaises(RevisionConflict):q.enqueue(first['id'],1)
+        cancelled=q.cancel(second['id'],b['id'])
+        self.assertFalse(cancelled['remote_may_continue'])
+        q.cancel(first['id'],a['id'])
+        self.wait(q,first,a,('cancelled',))
+        # An unrelated fixture prompt must not be deleted/interrupted.
+        self.assertIn('prompt-1',self.fixture.state['history'])
+        self.assertFalse(any(route in ('/interrupt','/queue') and method=='POST' for method,route in self.routes))
+        self.assertEqual(self.fixture.state['submits'],1)
+        self.assertEqual(self.store.get(first['id'])['revision'],1)
+
+    def test_retired_token_uses_durable_cancellation_before_result_apply(self):
+        q = self.queue()
+        job = self.job()
+        entered = threading.Event()
+        release = threading.Event()
+        self.addCleanup(release.set)
+
+        class RetiredToken:
+            def requested(self, handle):
+                raise PermissionError('stale registration')
+
+            def request(self, handle):
+                raise PermissionError('stale registration')
+
+        def controlled(*args, **kwargs):
+            entered.set()
+            if not release.wait(2):
+                raise TimeoutError('test backend did not release')
+            # A receipt that would otherwise be applied. Cancellation has to
+            # win because the durable record says so, not because the receipt
+            # is invalid.
+            return self.fixture.output, {
+                'id': kwargs['run_id'],
+                'prompt_id': 'fixture-prompt',
+                'status': 'completed',
+            }
+
+        with patch.object(q.backend, 'run', side_effect=controlled):
+            task = q.enqueue(job['id'], 1)
+            self.assertTrue(entered.wait(2))
+            handle = q._active_handles[task['id']]
+            self.assertIsInstance(handle, CancellationHandle)
+            self.assertTrue(dataclasses.is_dataclass(handle))
+            self.assertTrue(handle.__dataclass_params__.frozen)
+            # The frozen handle stays untouched. A retired token is injected
+            # through the queue's signal collaborator.
+            q.signals = RetiredToken()
+            cancelled = q.cancel(job['id'], task['id'])
+            self.assertEqual(cancelled['status'], 'cancelled')
+            self.assertTrue(cancelled['cancel_requested'])
+            self.assertTrue(q._cancelled(task))
+            finished = q._settled.count
+            release.set()
+            self.assertTrue(q._settled.wait_until(finished + 1, 2))
+        result = q.get(job['id'], task['id'])
+        self.assertEqual(result['status'], 'cancelled')
+        self.assertTrue(result['cancel_requested'])
+        self.assertNotIn(task['id'], q._active_handles)
+        self.assertEqual(self.store.get(job['id'])['revision'], 1)
+        self.assertTrue(q.worker.is_alive())
+
+    def test_retired_token_without_durable_cancel_still_applies_result(self):
+        class RetiredToken:
+            def requested(self, handle):
+                raise PermissionError('stale registration')
+
+            def request(self, handle):
+                raise PermissionError('stale registration')
+
+        q = self.queue()
+        q.signals = RetiredToken()
+        job = self.job()
+        finished = q._settled.count
+        task = q.enqueue(job['id'], 1)
+        self.assertTrue(q._settled.wait_until(finished + 1, 2))
+        result = q.get(job['id'], task['id'])
+        self.assertEqual(result['status'], 'completed')
+        self.assertFalse(result['cancel_requested'])
+        self.assertEqual(result['result_revision'], 2)
+        self.assertEqual(self.store.get(job['id'])['revision'], 2)
+        self.assertTrue(q.worker.is_alive())
+
+    def test_shutdown_request_before_claim_leaves_queued_task_durable(self):
+        q = self.queue()
+        job = self.job()
+        # Hold the queue lock across enqueue and shutdown so the worker
+        # cannot claim the task until stopping has already been requested.
+        with q.lock:
+            task = q.enqueue(job['id'], 1)
+            q.stopping.set()
+            q.wake.set()
+        q.worker.join(timeout=2)
+        self.assertFalse(q.worker.is_alive())
+        self.assertEqual(q.get(job['id'], task['id'])['status'], 'queued')
+        self.assertEqual(self.fixture.state['submits'], 0)
+        self.assertEqual(self.store.get(job['id'])['revision'], 1)
+        self.assertNotIn(task['id'], q._active_handles)
+
+    def test_registration_failure_is_durable_and_does_not_kill_worker(self):
+        q = self.queue()
+        first = self.job()
+        original = q.cancellations.register
+        calls = [0]
+
+        def fail_once(*args, **kwargs):
+            calls[0] += 1
+            if calls[0] == 1:
+                raise RuntimeError('registration unavailable')
+            return original(*args, **kwargs)
+
+        with patch.object(q.cancellations, 'register', side_effect=fail_once):
+            task = q.enqueue(first['id'], 1)
+            result = self.wait(q, first, task, ('needs_review',))
+            self.assertFalse(result['remote_may_continue'])
+            self.assertEqual(result['run_id'], task['run_id'])
+            self.assertEqual(self.store.get(first['id'])['revision'], 1)
+            self.assertEqual(self.fixture.state['submits'], 0)
+            self.assertNotIn(task['id'], q._active_handles)
+            self.assertTrue(q.worker.is_alive())
+            second = self.job()
+            following = q.enqueue(second['id'], 1)
+            self.wait(q, second, following, ('completed',))
+        self.assertEqual(self.store.get(second['id'])['revision'], 2)
+        self.assertEqual(self.fixture.state['submits'], 1)
+
+    def test_partial_registration_failure_retires_stale_token(self):
+        q = self.queue()
+        original_registry = q.cancellations
+        first = self.job()
+        original_register = original_registry.register
+
+        def register_then_fail(*args, **kwargs):
+            original_register(*args, **kwargs)
+            raise RuntimeError('registration failed after allocation')
+
+        with patch.object(original_registry, 'register', side_effect=register_then_fail):
+            task = q.enqueue(first['id'], 1)
+            result = self.wait(q, first, task, ('needs_review',))
+        self.assertFalse(result['remote_may_continue'])
+        self.assertEqual(result['run_id'], task['run_id'])
+        self.assertEqual(self.store.get(first['id'])['revision'], 1)
+        self.assertEqual(self.fixture.state['submits'], 0)
+        self.assertIsNot(q.cancellations, original_registry)
+        self.assertTrue(original_registry._closed)
+        self.assertEqual(original_registry._owners, {})
+        self.assertEqual(original_registry._events, {})
+        self.assertNotIn(task['id'], q._active_handles)
+        self.assertTrue(q.worker.is_alive())
+        second = self.job()
+        following = q.enqueue(second['id'], 1)
+        self.wait(q, second, following, ('completed',))
+        self.assertEqual(self.store.get(second['id'])['revision'], 2)
+
+    def test_unregister_failure_does_not_terminate_queue_worker(self):
+        q = self.queue()
+        old_registry = q.cancellations
+        first = self.job()
+        entered = threading.Event()
+        release = threading.Event()
+        self.addCleanup(release.set)
+
+        def controlled(*args, **kwargs):
+            entered.set()
+            self.assertTrue(release.wait(2))
+            return self.fixture.output, {'prompt_id': 'fixture'}
+
+        with patch.object(q.backend, 'run', side_effect=controlled):
+            task = q.enqueue(first['id'], 1)
+            self.assertTrue(entered.wait(2))
+            with patch.object(q.cancellations, 'unregister', side_effect=RuntimeError('cleanup unavailable')):
+                release.set()
+                self.wait(q, first, task, ('completed',))
+                deadline = time.monotonic() + 2
+                while task['id'] in q._active_handles and time.monotonic() < deadline:
+                    time.sleep(.01)
+                self.assertNotIn(task['id'], q._active_handles)
+        deadline = time.monotonic() + 2
+        while q.cancellations is old_registry and time.monotonic() < deadline:
+            time.sleep(.01)
+        self.assertIsNot(q.cancellations, old_registry)
+        self.assertTrue(old_registry._closed)
+        self.assertEqual(old_registry._owners, {})
+        self.assertTrue(q.worker.is_alive())
+        # A failed unregister must not strand a registration. Its old token
+        # must be invalidated even if the registry's unregister is broken.
+        self.assertEqual(q.cancellations._owners, {})
+        self.assertEqual(q.cancellations._events, {})
+        self.assertEqual(q.cancellations._cancelled, set())
+        second = self.job()
+        following = q.enqueue(second['id'], 1)
+        self.wait(q, second, following, ('completed',))
+        self.assertEqual(self.store.get(second['id'])['revision'], 2)
+        deadline = time.monotonic() + 2
+        while q.cancellations._owners and time.monotonic() < deadline:
+            time.sleep(.01)
+        self.assertEqual(q.cancellations._owners, {})
+
+    def test_cancel_survives_stale_registration_and_preserves_durable_flag(self):
+        q = self.queue()
+        job = self.job()
+        entered = threading.Event()
+        release = threading.Event()
+        self.addCleanup(release.set)
+
+        def controlled(*args, **kwargs):
+            entered.set()
+            self.assertTrue(release.wait(2))
+            # Cancellation is persisted even when token signalling fails.
+            self.assertTrue(kwargs['cancelled']())
+            raise GenerationCancelled()
+
+        with patch.object(q.backend, 'run', side_effect=controlled):
+            task = q.enqueue(job['id'], 1)
+            self.assertTrue(entered.wait(2))
+            with q.lock:
+                handle = q._active_handles[task['id']]
+            with patch.object(handle.registry, 'request', side_effect=PermissionError('stale token')):
+                cancelled = q.cancel(job['id'], task['id'])
+            self.assertEqual(cancelled['status'], 'cancelled')
+            self.assertTrue(cancelled['cancel_requested'])
+            release.set()
+            self.wait(q, job, task, ('cancelled',))
+            self.assertEqual(self.store.get(job['id'])['revision'], 1)
+            self.assertEqual(self.fixture.state['submits'], 0)
+
+    def test_running_cancel_signals_matching_registration_and_preserves_ledger(self):
+        q = self.queue()
+        job = self.job()
+        entered = threading.Event()
+        release = threading.Event()
+        self.addCleanup(release.set)
+        observed = []
+
+        def controlled(*args, **kwargs):
+            callback = kwargs['cancelled']
+            entered.set()
+            self.assertTrue(release.wait(2))
+            observed.append(callback())
+            raise GenerationCancelled()
+
+        with patch.object(q.backend, 'run', side_effect=controlled):
+            task = q.enqueue(job['id'], 1)
+            self.assertTrue(entered.wait(2))
+            with q.lock:
+                handle = q._active_handles[task['id']]
+                self.assertEqual(handle.owner_id, job['id'])
+                self.assertFalse(handle.is_requested())
+            cancelled = q.cancel(job['id'], task['id'])
+            self.assertEqual(cancelled['status'], 'cancelled')
+            self.assertTrue(handle.is_requested())
+            release.set()
+            self.wait(q, job, task, ('cancelled',))
+            deadline = time.monotonic() + 2
+            while task['id'] in q._active_handles and time.monotonic() < deadline:
+                time.sleep(.01)
+            self.assertNotIn(task['id'], q._active_handles)
+            self.assertEqual(observed, [True])
+            self.assertEqual(self.store.get(job['id'])['revision'], 1)
+
+    def test_queued_cancel_does_not_register_or_interrupt_unrelated_worker(self):
+        q = self.queue(capacity=2)
+        first = self.job()
+        second = self.job()
+        entered = threading.Event()
+        release = threading.Event()
+        self.addCleanup(release.set)
+
+        def controlled(*args, **kwargs):
+            entered.set()
+            self.assertTrue(release.wait(2))
+            return self.fixture.output, {'prompt_id': 'fixture'}
+
+        with patch.object(q.backend, 'run', side_effect=controlled):
+            active = q.enqueue(first['id'], 1)
+            self.assertTrue(entered.wait(2))
+            queued = q.enqueue(second['id'], 1)
+            q.cancel(second['id'], queued['id'])
+            with q.lock:
+                self.assertIn(active['id'], q._active_handles)
+                self.assertNotIn(queued['id'], q._active_handles)
+                self.assertFalse(q._active_handles[active['id']].is_requested())
+            release.set()
+            self.wait(q, first, active, ('completed',))
+            self.assertEqual(q.get(second['id'], queued['id'])['status'], 'cancelled')
+
+    def test_cancel_during_source_load_never_enters_inference(self):
+        q = self.queue()
+        job = self.job()
+        entered = threading.Event()
+        release = threading.Event()
+        self.addCleanup(release.set)
+        original = self.store.open_array
+
+        from contextlib import contextmanager
+
+        @contextmanager
+        def slow_source(*args, **kwargs):
+            with original(*args, **kwargs) as pixels:
+                entered.set()
+                self.assertTrue(release.wait(2))
+                yield pixels
+
+        with patch.object(self.store, 'open_array', side_effect=slow_source), \
+             patch.object(q.backend, 'run') as inference:
+            task = q.enqueue(job['id'], 1)
+            self.assertTrue(entered.wait(2))
+            self.assertEqual(q.cancel(job['id'], task['id'])['status'], 'cancelled')
+            release.set()
+            deadline = time.monotonic() + 2
+            while task['id'] in q._active_handles and time.monotonic() < deadline:
+                time.sleep(.01)
+            self.assertNotIn(task['id'], q._active_handles)
+            inference.assert_not_called()
+            self.assertEqual(q.get(job['id'], task['id'])['status'], 'cancelled')
+            self.assertEqual(self.store.get(job['id'])['revision'], 1)
+
+    def test_invalid_success_receipt_never_applies_texture_and_worker_survives(self):
+        q = self.queue()
+        for receipt in (None, [], {}, {'prompt_id': None},
+                        {'prompt_id': 123}, {'prompt_id': ''},
+                        {'prompt_id': '   '}, {'prompt_id': '\t\n'}):
+            with self.subTest(receipt=receipt):
+                job = self.job()
+                with patch.object(q.backend, 'run', return_value=(self.fixture.output, receipt)):
+                    task = q.enqueue(job['id'], 1)
+                    result = self.wait(q, job, task, ('needs_review',))
+                self.assertTrue(result['remote_may_continue'])
+                self.assertIn('reconcile', result['message'])
+                self.assertEqual(result['run_id'], task['run_id'])
+                self.assertEqual(self.store.get(job['id'])['revision'], 1)
+                self.assertTrue(q.worker.is_alive())
+        healthy = self.job()
+        task = q.enqueue(healthy['id'], 1)
+        self.wait(q, healthy, task, ('completed',))
+        self.assertEqual(self.store.get(healthy['id'])['revision'], 2)
+
+    def test_foreign_run_receipt_cannot_commit_texture(self):
+        q = self.queue()
+        job = self.job()
+        with patch.object(q.backend, 'run', return_value=(
+                self.fixture.output, {'id': 'foreign-run', 'prompt_id': 'prompt-foreign'})):
+            task = q.enqueue(job['id'], 1)
+            result = self.wait(q, job, task, ('needs_review',))
+        self.assertEqual(result['run_id'], task['run_id'])
+        self.assertTrue(result['remote_may_continue'])
+        self.assertEqual(self.store.get(job['id'])['revision'], 1)
+        self.assertTrue(q.worker.is_alive())
+        next_job = self.job()
+        next_task = q.enqueue(next_job['id'], 1)
+        self.wait(q, next_job, next_task, ('completed',))
+        self.assertEqual(self.store.get(next_job['id'])['revision'], 2)
+
+    def test_nonterminal_success_receipt_cannot_apply_texture(self):
+        q = self.queue()
+        for status in ('preparing', 'submitting', 'submitted',
+                       'submission_unknown', 'failed', None, 42):
+            with self.subTest(status=status):
+                job = self.job()
+                receipt = {'prompt_id': 'prompt-present', 'status': status}
+                with patch.object(q.backend, 'run',
+                                  return_value=(self.fixture.output, receipt)):
+                    task = q.enqueue(job['id'], 1)
+                    result = self.wait(q, job, task, ('needs_review',))
+                self.assertEqual(result['run_id'], task['run_id'])
+                self.assertTrue(result['remote_may_continue'])
+                self.assertEqual(self.store.get(job['id'])['revision'], 1)
+                self.assertTrue(q.worker.is_alive())
+        healthy = self.job()
+        task = q.enqueue(healthy['id'], 1)
+        self.wait(q, healthy, task, ('completed',))
+        self.assertEqual(self.store.get(healthy['id'])['revision'], 2)
+
+    def test_cancelled_task_stays_cancelled_after_invalid_receipt(self):
+        q = self.queue()
+        job = self.job()
+        entered = threading.Event()
+        release = threading.Event()
+        self.addCleanup(release.set)
+
+        def late_invalid_receipt(*args, **kwargs):
+            entered.set()
+            self.assertTrue(release.wait(2))
+            return self.fixture.output, {'prompt_id': ' ', 'status': 'submitted'}
+
+        with patch.object(q.backend, 'run', side_effect=late_invalid_receipt):
+            task = q.enqueue(job['id'], 1)
+            self.assertTrue(entered.wait(2))
+            cancelled = q.cancel(job['id'], task['id'])
+            self.assertEqual(cancelled['status'], 'cancelled')
+            release.set()
+            # Wait for the worker to finish its exception/receipt path before
+            # asserting that a late result did not resurrect the cancelled task.
+            deadline = time.monotonic() + 2
+            while task['id'] in q._active_handles and time.monotonic() < deadline:
+                time.sleep(.01)
+            self.assertNotIn(task['id'], q._active_handles)
+        result = q.get(job['id'], task['id'])
+        self.assertEqual(result['status'], 'cancelled')
+        self.assertTrue(result['remote_may_continue'])
+        self.assertEqual(result['run_id'], task['run_id'])
+        self.assertEqual(self.store.get(job['id'])['revision'], 1)
+        self.assertTrue(q.worker.is_alive())
+
+    def test_running_cancel_cannot_apply_late_result(self):
+        q=self.queue(); job=self.job(); ready=threading.Event(); release=threading.Event()
+        self.addCleanup(release.set)
+        def late(*args,**kwargs):
+            ready.set();release.wait(2)
+            return self.fixture.output,{'prompt_id':'owned','live_quality_verified':False}
+        with patch.object(q.backend,'run',side_effect=late):
+            task=q.enqueue(job['id'],1);self.assertTrue(ready.wait(2))
+            self.assertTrue(q.cancel(job['id'],task['id'])['remote_may_continue'])
+            release.set()
+            next_job=self.job();next_task=q.enqueue(next_job['id'],1)
+            self.wait(q,next_job,next_task,('completed',))
+            self.assertEqual(self.store.get(job['id'])['revision'],1)
+        self.assertEqual(self.store.get(job['id'])['revision'],1)
+
+    def test_cancel_is_job_scoped_and_strict_and_revision_fail_closed(self):
+        self.fixture.state['mode']='pending';q=self.queue();job=self.job();other=self.job()
+        task=q.enqueue(job['id'],1);self.submitted()
+        with self.assertRaises(KeyError):q.cancel(other['id'],task['id'])
+        with self.assertRaises(ValueError):q.enqueue(other['id'],True)
+        with self.assertRaises(RevisionConflict):q.enqueue(other['id'],2)
+        with self.assertRaises(ValueError):q.enqueue(self.job('packshot_strict')['id'],1)
+        self.store.reblend(job['id'],expected_revision=1,blend=RegionBlend(skin=.5))
+        self.fixture.state['mode']='success'
+        self.assertEqual(self.wait(q,job,task,('failed',))['error'],'RevisionConflict')
+        self.assertEqual(self.store.get(job['id'])['revision'],2)
+
+    def test_restart_requires_explicit_reconcile_and_does_not_resubmit(self):
+        self.fixture.state['mode']='pending';q=self.queue();job=self.job()
+        task=q.enqueue(job['id'],1);self.submitted()
+        q.close();self.queues.remove(q)
+        q=self.queue()
+        self.assertEqual(q.get(job['id'],task['id'])['status'],'interrupted')
+        self.fixture.state['mode']='success'
+        q.resume(job['id'],task['id'])
+        self.wait(q,job,task,('completed',))
+        self.assertEqual(self.fixture.state['submits'],1)
+
+    def test_queued_task_survives_restart_without_restarting_active_task(self):
+        self.fixture.state['mode']='pending';q=self.queue();first=self.job();second=self.job()
+        active=q.enqueue(first['id'],1);self.submitted();queued=q.enqueue(second['id'],1)
+        q.close();self.queues.remove(q)
+        self.fixture.state['mode']='success';q=self.queue()
+        self.wait(q,second,queued,('completed',))
+        self.assertEqual(q.get(first['id'],active['id'])['status'],'interrupted')
+        self.assertEqual(self.fixture.state['submits'],2)
+
+    def test_resume_rejected_during_shutdown_preserves_durable_waiting_run(self):
+        self.fixture.state['mode'] = 'pending'
+        q = self.queue(deadline_seconds=.05)
+        job = self.job()
+        task = q.enqueue(job['id'], 1)
+        waiting = self.wait(q, job, task, ('waiting',))
+        submits = self.fixture.state['submits']
+        self.assertEqual(submits, 1)
+        with q.lock:
+            q.stopping.set()
+            q.wake.set()
+            with self.assertRaisesRegex(RuntimeError, 'stopping'):
+                q.resume(job['id'], task['id'])
+            current = q.get(job['id'], task['id'])
+        self.assertEqual(current['status'], 'waiting')
+        self.assertEqual(current['run_id'], waiting['run_id'])
+        self.assertEqual(current['updated_at_unix'], waiting['updated_at_unix'])
+        self.assertEqual(self.fixture.state['submits'], submits)
+        self.assertEqual(self.store.get(job['id'])['revision'], 1)
+
+    def test_cancel_after_queued_resume_retains_remote_warning(self):
+        self.fixture.state['mode']='pending';q=self.queue(deadline_seconds=.05);job=self.job()
+        task=q.enqueue(job['id'],1);self.wait(q,job,task,('waiting',))
+        with q.lock:
+            q.resume(job['id'],task['id'])
+            result=q.cancel(job['id'],task['id'])
+        self.assertTrue(result['remote_may_continue'])
+        self.assertEqual(result['status'],'cancelled')
+        self.assertEqual(self.fixture.state['submits'],1)
+
+    def test_ambiguous_submit_and_timeout_preserve_run_identity(self):
+        self.fixture.state['mode']='ambiguous';q=self.queue(deadline_seconds=.1);job=self.job()
+        task=q.enqueue(job['id'],1)
+        self.wait(q,job,task,('needs_review',))
+        self.fixture.state['mode']='success';q.resume(job['id'],task['id'])
+        self.wait(q,job,task,('completed',))
+        self.assertEqual(self.fixture.state['submits'],1)
+        self.fixture.state['mode']='pending';second=self.job();pending=q.enqueue(second['id'],1)
+        result=self.wait(q,second,pending,('waiting',))
+        self.assertTrue(result['remote_may_continue'])
+        self.fixture.state['mode']='success';q.resume(second['id'],pending['id'])
+        self.wait(q,second,pending,('completed',))
+        self.assertEqual(self.fixture.state['submits'],2)
+
+    def test_applying_is_a_commit_boundary_and_status_remains_responsive(self):
+        q=self.queue();job=self.job();ready=threading.Event();release=threading.Event()
+        original=self.store.replace_texture
+        def applying(*args,**kwargs):
+            ready.set();release.wait(2);return original(*args,**kwargs)
+        self.addCleanup(release.set)
+        with patch.object(self.store,'replace_texture',side_effect=applying):
+            task=q.enqueue(job['id'],1);self.assertTrue(ready.wait(2))
+            start=time.monotonic()
+            self.assertEqual(q.get(job['id'],task['id'])['status'],'applying')
+            self.assertLess(time.monotonic()-start,.3)
+            with self.assertRaises(RevisionConflict):q.cancel(job['id'],task['id'])
+            release.set();self.wait(q,job,task,('completed',))
+
+    def test_single_worker_ownership_and_record_limit(self):
+        q=self.queue(capacity=1,max_records=1)
+        other_backend=ComfyTextureBackend(self.root/'runs',self.fixture.backend.address)
+        self.addCleanup(other_backend.close)
+        with self.assertRaisesRegex(RuntimeError,'already owns'):
+            GenerationQueue(self.root,self.store,BUNDLE,backend=other_backend)
+        job=self.job();task=q.enqueue(job['id'],1);self.wait(q,job,task,('completed',))
+        with self.assertRaises(QueueFull):q.enqueue(self.job()['id'],1)
+
+    def test_hard_restart_marks_running_and_applying_interrupted(self):
+        q=self.queue();job=self.job();task=q.enqueue(job['id'],1)
+        self.wait(q,job,task,('completed',));q.close();self.queues.remove(q)
+        with sqlite3.connect(self.root/'queue.sqlite3') as db:
+            item=json.loads(db.execute('SELECT record FROM tasks').fetchone()[0])
+            item['status']='applying'
+            db.execute('UPDATE tasks SET record=?',(json.dumps(item),))
+        q=self.queue()
+        self.assertEqual(q.get(job['id'],task['id'])['status'],'interrupted')
+        # A crashed apply may already have committed. Stale revision fails closed.
+        q.resume(job['id'],task['id']);self.wait(q,job,task,('failed',))
+        self.assertEqual(self.store.get(job['id'])['revision'],2)
+        self.assertEqual(self.fixture.state['submits'],1)
+
+    def test_unreadable_backend_ledger_does_not_kill_queue_worker(self):
+        q = self.queue()
+        first = self.job()
+        with patch.object(q.backend, 'run', side_effect=OSError('backend offline')), \
+             patch.object(q.backend, '_get', side_effect=OSError('ledger offline')):
+            task = q.enqueue(first['id'], 1)
+            result = self.wait(q, first, task, ('needs_review',))
+        self.assertTrue(result['remote_may_continue'])
+        self.assertEqual(result['error'], 'OSError')
+        self.assertNotIn('ledger offline', result['message'])
+        self.assertEqual(self.store.get(first['id'])['revision'], 1)
+        self.assertTrue(q.worker.is_alive())
+        second = self.job()
+        next_task = q.enqueue(second['id'], 1)
+        self.wait(q, second, next_task, ('completed',))
+        self.assertEqual(self.store.get(second['id'])['revision'], 2)
+        self.assertEqual(q.get(first['id'], task['id'])['status'], 'needs_review')
+
+    def test_malformed_backend_ledger_requires_review_and_worker_survives(self):
+        q = self.queue()
+        for malformed in ('invalid', [], {}, {'status': None}, {'status': 123}):
+            with self.subTest(record=malformed):
+                job = self.job()
+                with (patch.object(q.backend, 'run', side_effect=OSError('backend offline')),
+                      patch.object(q.backend, '_get', return_value=malformed)):
+                    task = q.enqueue(job['id'], 1)
+                    result = self.wait(q, job, task, ('needs_review',))
+                self.assertTrue(result['remote_may_continue'])
+                self.assertEqual(result['error'], 'OSError')
+                self.assertIn('reconcile', result['message'])
+                self.assertEqual(self.store.get(job['id'])['revision'], 1)
+                self.assertTrue(q.worker.is_alive())
+        healthy = self.job()
+        task = q.enqueue(healthy['id'], 1)
+        self.wait(q, healthy, task, ('completed',))
+        self.assertEqual(self.store.get(healthy['id'])['revision'], 2)
+
+    def test_unknown_and_active_backend_statuses_fail_closed(self):
+        q = self.queue()
+        for status in ('submitting', 'submission_unknown', 'submitted', 'future_remote_state'):
+            with self.subTest(status=status):
+                job = self.job()
+                with (patch.object(q.backend, 'run', side_effect=OSError('backend offline')),
+                      patch.object(q.backend, '_get', return_value={'status': status})):
+                    task = q.enqueue(job['id'], 1)
+                    result = self.wait(q, job, task, ('needs_review',))
+                self.assertTrue(result['remote_may_continue'])
+                self.assertIn('reconcile', result['message'])
+                self.assertEqual(self.store.get(job['id'])['revision'], 1)
+                self.assertTrue(q.worker.is_alive())
+
+    def test_missing_backend_run_row_requires_reconciliation(self):
+        q = self.queue()
+        first = self.job()
+        with (patch.object(q.backend, 'run', side_effect=OSError('backend offline')),
+              patch.object(q.backend, '_get', return_value=None)):
+            task = q.enqueue(first['id'], 1)
+            result = self.wait(q, first, task, ('needs_review',))
+        self.assertTrue(result['remote_may_continue'])
+        self.assertIn('reconcile', result['message'])
+        self.assertEqual(result['error'], 'OSError')
+        self.assertEqual(self.store.get(first['id'])['revision'], 1)
+        self.assertTrue(q.worker.is_alive())
+        healthy = self.job()
+        next_task = q.enqueue(healthy['id'], 1)
+        self.wait(q, healthy, next_task, ('completed',))
+        self.assertEqual(self.store.get(healthy['id'])['revision'], 2)
+
+    def test_known_pre_submission_backend_failure_is_not_remote_unknown(self):
+        q = self.queue()
+        job = self.job()
+        with (patch.object(q.backend, 'run', side_effect=OSError('backend offline')),
+              patch.object(q.backend, '_get', return_value={'status': 'preparation_failed'})):
+            task = q.enqueue(job['id'], 1)
+            result = self.wait(q, job, task, ('failed',))
+        self.assertFalse(result['remote_may_continue'])
+        self.assertEqual(self.store.get(job['id'])['revision'], 1)
+
+    def test_persisted_failed_backend_run_is_terminal_and_worker_continues(self):
+        q = self.queue()
+        job = self.job()
+        with (patch.object(q.backend, 'run', side_effect=OSError('ComfyUI execution failed')),
+              patch.object(q.backend, '_get',
+                           return_value={'status': 'failed', 'prompt_id': 'fixture-prompt'})):
+            task = q.enqueue(job['id'], 1)
+            result = self.wait(q, job, task, ('failed',))
+        self.assertEqual(result['error'], 'OSError')
+        self.assertFalse(result['remote_may_continue'])
+        self.assertEqual(result['status'], 'failed')
+        self.assertEqual(self.store.get(job['id'])['revision'], 1)
+        self.assertTrue(q.worker.is_alive())
+        next_job = self.job()
+        next_task = q.enqueue(next_job['id'], 1)
+        self.wait(q, next_job, next_task, ('completed',))
+        self.assertEqual(self.store.get(next_job['id'])['revision'], 2)
+
+    def test_poll_transport_error_preserves_unresolved_run(self):
+        self.fixture.state['mode']='pending';q=self.queue();job=self.job()
+        original=q.backend._json
+        def offline(method,route,**kwargs):
+            if route.startswith('/history/'):
+                raise OSError('Fixture polling connection lost')
+            return original(method,route,**kwargs)
+        with patch.object(q.backend,'_json',side_effect=offline):
+            task=q.enqueue(job['id'],1)
+            result=self.wait(q,job,task,('needs_review',))
+        self.assertTrue(result['remote_may_continue'])
+        self.fixture.state['mode']='success';q.resume(job['id'],task['id'])
+        self.wait(q,job,task,('completed',))
+        self.assertEqual(self.fixture.state['submits'],1)
+
+    def test_backend_cancellation_before_submission_and_during_poll(self):
+        with self.assertRaises(GenerationCancelled):
+            self.fixture.backend.run(self.fixture.source,BUNDLE,cancelled=lambda:True)
+        self.assertEqual(self.fixture.state['submits'],0)
+        self.fixture.state['mode']='pending'
+        with self.assertRaises(GenerationCancelled):
+            self.fixture.backend.run(self.fixture.source,BUNDLE,
+                              cancelled=lambda:self.fixture.state['submits']>0)
+        self.assertEqual(self.fixture.state['submits'],1)
+        self.assertNotIn(('POST','/interrupt'),self.routes)
+
+    def test_real_server_startup_configures_optional_worker(self):
+        self.fixture.state['mode']='pending'
+        workflow=Path(self.fixture.temp.name)/'workflow.json'
+        workflow.write_text(json.dumps(BUNDLE))
+        job=self.job()
+        with socket.socket() as probe:
+            probe.bind(('127.0.0.1',0));port=probe.getsockname()[1]
+        process=subprocess.Popen([sys.executable,str(Path(__file__).resolve().parents[1]/'scripts/web-ui.py'),
+                  '--port',str(port),'--region-workspace',str(self.store.root),
+                  '--texture-workflow',str(workflow),'--generation-root',str(self.root),
+                  '--comfy-address',self.fixture.backend.address],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+        def stop():
+            if process.poll() is None:
+                process.send_signal(signal.SIGINT)
+                try:process.wait(timeout=5)
+                except subprocess.TimeoutExpired:process.kill();process.wait()
+        self.addCleanup(stop)
+        address=f'http://127.0.0.1:{port}'
+        deadline=time.monotonic()+5
+        while True:
+            try:
+                with urlopen(address+'/api/regions/jobs',timeout=.5) as response:
+                    self.assertTrue(json.load(response)['generation_enabled'])
+                break
+            except OSError:
+                if time.monotonic()>deadline:self.fail('Server did not become ready')
+                time.sleep(.03)
+        path=f"/api/regions/jobs/{job['id']}/generations"
+        req=Request(address+path,data=json.dumps({'expected_revision':1}).encode(),headers={'Content-Type':'application/json'})
+        with urlopen(req,timeout=1) as response:
+            self.assertEqual(response.status,202);task=json.load(response)
+        self.submitted()
+        with urlopen(address+'/regions',timeout=1) as response:
+            html=response.read();self.assertIn(b'Cancel local task',html)
+        req=Request(address+path+'/'+task['id']+'/cancel',data=b'{}',headers={'Content-Type':'application/json'})
+        with urlopen(req,timeout=1) as response:self.assertEqual(json.load(response)['status'],'cancelled')
+        stop()
+        self.assertEqual(process.returncode,0)
+        self.assertEqual(self.store.get(job['id'])['revision'],1)
+
+    def test_http_202_status_cancel_and_origin_ownership_checks(self):
+        self.fixture.state['mode']='pending';q=self.queue();root=self.store.root
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self):dispatch(self,root)
+            def do_POST(self):dispatch(self,root)
+            def log_message(self,*args):pass
+        server=ThreadingHTTPServer(('127.0.0.1',0),Handler)
+        server.region_store=self.store;server.generation_queue=q
+        thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
+        def stop():server.shutdown();server.server_close();thread.join()
+        self.addCleanup(stop)
+        def request(path,data=None,headers=None):
+            req=Request(f'http://127.0.0.1:{server.server_port}'+path,
+                 data=None if data is None else json.dumps(data).encode(),
+                 headers={'Content-Type':'application/json',**(headers or {})})
+            with urlopen(req,timeout=1) as response:return response.status,json.load(response)
+        job=self.job();other=self.job();path=f"/api/regions/jobs/{job['id']}/generations"
+        status,task=request(path,{'expected_revision':1});self.assertEqual(status,202);self.submitted()
+        self.assertTrue(request('/api/regions/jobs')[1]['generation_enabled'])
+        self.assertEqual(request(path+'/'+task['id'])[1]['status'],'running')
+        with self.assertRaises(HTTPError) as caught:
+            request(f"/api/regions/jobs/{other['id']}/generations/{task['id']}/cancel",{})
+        self.assertEqual(caught.exception.code,404)
+        with self.assertRaises(HTTPError) as caught:request(path,{}, {'Origin':'http://elsewhere'})
+        self.assertEqual(caught.exception.code,403)
+        self.assertEqual(request(path+'/'+task['id']+'/cancel',{})[1]['status'],'cancelled')
+        self.assertEqual(request('/api/regions/jobs')[0],200)
+        server.generation_queue=None
+        with self.assertRaises(HTTPError) as caught:request(path,{'expected_revision':1})
+        self.assertEqual(caught.exception.code,503)
+
+    def _stop_worker(self, queue):
+        queue.stopping.set()
+        queue.wake.set()
+        queue.worker.join(timeout=2)
+        self.assertFalse(queue.worker.is_alive())
+
+    def _insert_task(self, **fields):
+        task_id = fields.pop('id')
+        record = {
+            'id': task_id,
+            'run_id': fields.pop('run_id'),
+            'job_id': fields.pop('job_id'),
+            'expected_revision': fields.pop('expected_revision', 1),
+            'status': fields.pop('status'),
+            'bundle': fields.pop('bundle'),
+            'backend_address': fields.pop('backend_address'),
+            'cancel_requested': False,
+            'remote_may_continue': False,
+            'live_quality_verified': False,
+        }
+        record.update(fields)
+        with sqlite3.connect(self.root / 'queue.sqlite3') as db:
+            db.execute('INSERT INTO tasks VALUES (?,?)', (task_id, json.dumps(record)))
+        return record
+
+    def test_failed_write_rolls_back_without_publishing_partial_record(self):
+        q = self.queue()
+        self._stop_worker(q)
+        with self.assertRaisesRegex(RuntimeError, 'forced rollback'):
+            with q._db() as db:
+                db.execute(
+                    'INSERT INTO tasks VALUES (?,?)',
+                    ('partial-row', '{"status":"queued"}'),
+                )
+                raise RuntimeError('forced rollback')
+        with q._db() as db:
+            row = db.execute(
+                "SELECT id FROM tasks WHERE id='partial-row'"
+            ).fetchone()
+        self.assertIsNone(row)
+
+    def test_partial_queue_database_is_refused_without_rewrite(self):
+        q = self.queue()
+        q.close()
+        self.queues.remove(q)
+        path = self.root / 'queue.sqlite3'
+        original = path.read_bytes()
+        cases = {
+            'empty': b'',
+            'bad-header': b'not-a-sqlite-db!!',
+            'truncated': original[:16] + b'\x00' * 48,
+        }
+        for name, payload in cases.items():
+            with self.subTest(name=name):
+                path.write_bytes(payload)
+                before = path.read_bytes()
+                with self.assertRaises(QueueStorageError):
+                    self.queue()
+                self.assertEqual(path.read_bytes(), before)
+                self.assertEqual(list(self.root.glob('queue.sqlite3-*')), [])
+
+    def test_corrupt_task_record_is_quarantined_and_not_executed(self):
+        q = self.queue()
+        q.close()
+        self.queues.remove(q)
+        raw = '{"id":'
+        with sqlite3.connect(self.root / 'queue.sqlite3') as db:
+            db.execute('INSERT INTO tasks VALUES (?,?)', ('task-corrupt', raw))
+        q = self.queue()
+        with sqlite3.connect(self.root / 'queue.sqlite3') as db:
+            stored = db.execute(
+                "SELECT record FROM tasks WHERE id='task-corrupt'"
+            ).fetchone()[0]
+        record = json.loads(stored)
+        self.assertEqual(record['status'], 'needs_review')
+        self.assertTrue(record['quarantined'])
+        self.assertEqual(record['error'], 'CorruptRecord')
+        self.assertEqual(record['message'], QUARANTINE_MESSAGE)
+        self.assertEqual(record['invalid_record_sha256'], hashlib.sha256(raw.encode()).hexdigest())
+        self.assertEqual(self.fixture.state['submits'], 0)
+        with self.assertRaises(RevisionConflict):
+            q.resume('unknown', 'task-corrupt')
+        self.assertTrue(q.worker.is_alive())
+        job = self.job()
+        finished = q._settled.count
+        task = q.enqueue(job['id'], 1)
+        self.assertTrue(q._settled.wait_until(finished + 1, 2))
+        self.assertEqual(q.get(job['id'], task['id'])['status'], 'completed')
+        self.assertEqual(self.fixture.state['submits'], 1)
+
+    def test_partial_task_record_blocks_job_until_explicit_cancel(self):
+        q = self.queue()
+        job = self.job()
+        q.close()
+        self.queues.remove(q)
+        task_id = str(uuid.uuid4())
+        partial = {'id': task_id, 'job_id': job['id'], 'status': 'queued', 'run_id': 'run-partial'}
+        with sqlite3.connect(self.root / 'queue.sqlite3') as db:
+            db.execute('INSERT INTO tasks VALUES (?,?)', (task_id, json.dumps(partial)))
+        q = self.queue()
+        visible = q.get(job['id'], task_id)
+        self.assertEqual(visible['status'], 'needs_review')
+        self.assertTrue(visible['quarantined'])
+        self.assertEqual(visible['error'], 'CorruptRecord')
+        self.assertEqual(self.fixture.state['submits'], 0)
+        with self.assertRaisesRegex(RevisionConflict, 'cannot be resumed'):
+            q.resume(job['id'], task_id)
+        with self.assertRaisesRegex(RevisionConflict, 'unresolved task'):
+            q.enqueue(job['id'], 1)
+        cancelled = q.cancel(job['id'], task_id)
+        self.assertEqual(cancelled['status'], 'cancelled')
+        self.assertTrue(cancelled['remote_may_continue'])
+        self.assertEqual(self.store.get(job['id'])['revision'], 1)
+        finished = q._settled.count
+        following = q.enqueue(job['id'], 1)
+        self.assertTrue(q._settled.wait_until(finished + 1, 2))
+        self.assertEqual(q.get(job['id'], following['id'])['status'], 'completed')
+        self.assertEqual(self.store.get(job['id'])['revision'], 2)
+        self.assertEqual(self.fixture.state['submits'], 1)
+
+    def test_crash_recovery_marks_inflight_and_keeps_queued_work(self):
+        q = self.queue()
+        bundle, address = q.bundle, q.backend.address
+        q.close()
+        self.queues.remove(q)
+        running_job, applying_job, queued_job = self.job(), self.job(), self.job()
+        running_id, applying_id, queued_id = (str(uuid.uuid4()) for _ in range(3))
+        self._insert_task(id=running_id, run_id=str(uuid.uuid4()), job_id=running_job['id'],
+                          status='running', bundle=bundle, backend_address=address)
+        self._insert_task(id=applying_id, run_id=str(uuid.uuid4()), job_id=applying_job['id'],
+                          status='applying', bundle=bundle, backend_address=address)
+        self._insert_task(id=queued_id, run_id=str(uuid.uuid4()), job_id=queued_job['id'],
+                          status='queued', bundle=bundle, backend_address=address)
+        q = self.queue()
+        self.assertEqual(q.get(running_job['id'], running_id)['status'], 'interrupted')
+        self.assertEqual(q.get(running_job['id'], running_id)['message'], RESTART_MESSAGE)
+        self.assertEqual(q.get(applying_job['id'], applying_id)['status'], 'interrupted')
+        self.assertTrue(q._settled.wait_until(1, 2))
+        self.assertEqual(q.get(queued_job['id'], queued_id)['status'], 'completed')
+        self.assertEqual(q.get(running_job['id'], running_id)['status'], 'interrupted')
+        self.assertEqual(q.get(applying_job['id'], applying_id)['status'], 'interrupted')
+        self.assertEqual(self.fixture.state['submits'], 1)
+        self.assertEqual(self.store.get(running_job['id'])['revision'], 1)
+        self.assertEqual(self.store.get(applying_job['id'])['revision'], 1)
+        self.assertEqual(self.store.get(queued_job['id'])['revision'], 2)
+
+    def test_second_claim_is_refused_while_one_task_is_inflight(self):
+        q = self.queue()
+        bundle, address = q.bundle, q.backend.address
+        self._stop_worker(q)
+        q.stopping.clear()
+        first, second = self.job(), self.job()
+        first_id, second_id = str(uuid.uuid4()), str(uuid.uuid4())
+        self._insert_task(id=first_id, run_id=str(uuid.uuid4()), job_id=first['id'],
+                          status='queued', bundle=bundle, backend_address=address)
+        self._insert_task(id=second_id, run_id=str(uuid.uuid4()), job_id=second['id'],
+                          status='queued', bundle=bundle, backend_address=address)
+        with q.lock, q._db() as db:
+            claimed = q._claim_next(db)
+            again = q._claim_next(db)
+        self.assertEqual(claimed['id'], first_id)
+        self.assertEqual(claimed['status'], 'running')
+        self.assertIsNone(again)
+        self.assertEqual(q._inflight, first_id)
+        self.assertEqual(set(q._active_handles), {first_id})
+        self.assertEqual(q.get(second['id'], second_id)['status'], 'queued')
+        self.assertEqual(self.fixture.state['submits'], 0)
+
+    def test_second_worker_thread_is_refused(self):
+        q = self.queue()
+        with self.assertRaisesRegex(RuntimeError, 'already running'):
+            q._start_worker()
+        alive = [thread for thread in threading.enumerate()
+                 if thread.name == 'fidelis-generation' and thread.is_alive()]
+        self.assertEqual(alive, [q.worker])
+
+    def test_worker_fault_marks_inflight_interrupted_and_continues(self):
+        q = self.queue()
+        job = self.job()
+
+        def explode(task):
+            raise RuntimeError('worker fault')
+
+        with patch.object(q, '_execute', side_effect=explode):
+            finished = q._settled.count
+            task = q.enqueue(job['id'], 1)
+            self.assertTrue(q._settled.wait_until(finished + 1, 2))
+        result = q.get(job['id'], task['id'])
+        self.assertEqual(result['status'], 'interrupted')
+        self.assertEqual(result['error'], 'RuntimeError')
+        self.assertEqual(result['message'], ABANDON_MESSAGE)
+        self.assertTrue(result['remote_may_continue'])
+        self.assertEqual(self.store.get(job['id'])['revision'], 1)
+        self.assertEqual(self.fixture.state['submits'], 0)
+        self.assertTrue(q.worker.is_alive())
+        healthy = self.job()
+        finished = q._settled.count
+        following = q.enqueue(healthy['id'], 1)
+        self.assertTrue(q._settled.wait_until(finished + 1, 2))
+        self.assertEqual(q.get(healthy['id'], following['id'])['status'], 'completed')
+        self.assertEqual(self.store.get(healthy['id'])['revision'], 2)
+
+    def test_abandon_failure_is_recorded_and_worker_continues(self):
+        q = self.queue()
+        job = self.job()
+
+        def explode(task):
+            raise RuntimeError('worker fault')
+
+        def abandon_fails(task, error):
+            raise OSError('ledger full')
+
+        with patch.object(q, '_execute', side_effect=explode), \
+                patch.object(q, '_abandon', side_effect=abandon_fails):
+            finished = q._settled.count
+            task = q.enqueue(job['id'], 1)
+            self.assertTrue(q._settled.wait_until(finished + 1, 2))
+        self.assertEqual(q._last_worker_fault[0], task['id'])
+        self.assertEqual(q._last_worker_fault[1], 'OSError')
+        self.assertEqual(q.get(job['id'], task['id'])['status'], 'interrupted')
+        self.assertEqual(q.get(job['id'], task['id'])['error'], 'OSError')
+        self.assertEqual(self.store.get(job['id'])['revision'], 1)
+        self.assertTrue(q.worker.is_alive())
+        healthy = self.job()
+        finished = q._settled.count
+        following = q.enqueue(healthy['id'], 1)
+        self.assertTrue(q._settled.wait_until(finished + 1, 2))
+        self.assertEqual(q.get(healthy['id'], following['id'])['status'], 'completed')
+
+
+class QueuePackagingTests(unittest.TestCase):
+    def test_queue_dependencies_are_packaged_without_network_installer(self):
+        root = Path(__file__).resolve().parents[1]
+        required = set(REQUIRED_ARCHIVE_PATHS)
+        for rel in ('fidelis/studio/generation.py', 'fidelis/studio/cancellation.py',
+                    'fidelis/studio/comfy.py', 'fidelis/studio/store.py'):
+            self.assertIn(rel, required)
+            self.assertTrue((root / rel).is_file())
+        offline = (root / 'scripts/package-offline-bundle.sh').read_text(encoding='utf-8')
+        installer = (root / 'scripts/install-macos-runtime.sh').read_text(encoding='utf-8')
+        self.assertNotIn('install-macos-runtime.sh', offline)
+        self.assertNotIn('curl ', offline)
+        # The native runtime installer is network-backed and is not on the
+        # queue's startup or offline-bundle path.
+        self.assertIn('curl ', installer)
+        source = (root / 'fidelis/studio/generation.py').read_text(encoding='utf-8')
+        for needle in ('install-macos-runtime', 'urlopen', 'urllib', 'requests.'):
+            self.assertNotIn(needle, source)
+
+
+if __name__=='__main__':unittest.main()

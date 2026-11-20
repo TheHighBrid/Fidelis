@@ -1,0 +1,4436 @@
+{
+  "schema_version": 1,
+  "manifest_purpose": "Melato production photographic inventory (97 off-repo masters). Companion to experiments/corpus_manifest.json; image binaries are NOT committed.",
+  "permission_basis": "owner_melato_vouched_2026-11-19",
+  "license_id": "MELATO-OWNER-2026-11-19",
+  "storage_policy": {
+    "masters": "off_repo",
+    "commit_binaries": false,
+    "commit_lfs": false,
+    "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+    "documented_box_path_note": "On the Bot 05 shared box, masters currently live under /workspace/melato-corpus/fidelis (documented here only; not required in CI)."
+  },
+  "ground_truth_policy": {
+    "synthetic_or_ai_never_gt": true,
+    "name_patterns_forced_non_gt": [
+      "*_2K*",
+      "file_0000*"
+    ],
+    "protocol_must_refuse_non_gt_as_restoration_base": true
+  },
+  "assets": [
+    {
+      "asset_id": "mel_000",
+      "filename": "1023504421_1792925423741287(4).jpg",
+      "category": "packshot_edge",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Owner-vouched Melato corpus asset."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "1023504421_1792925423741287(4).jpg",
+        "sha256": "1c9d053889bb953f3a721dca4775c8cdc44b07d6855edaa1cc3975047af1d538",
+        "width": 1536,
+        "height": 687,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 83093,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "product_edge",
+          "label": "Product / interior edge and materials",
+          "roi_type": "background_edge",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_001",
+      "filename": "1038541058_1794809055036566.jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "1038541058_1794809055036566.jpg",
+        "sha256": "1ed0cc3158df82eeb5cb6b7ca493ae0fff59d7329a6f7a0a3518f83031028704",
+        "width": 768,
+        "height": 1376,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 341755,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_002",
+      "filename": "107246082_1794487640609598(2).jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "107246082_1794487640609598(2).jpg",
+        "sha256": "e139da9e141a0197dda11be1211ae322a60fc083de4a154b64ca17ffb1ca954a",
+        "width": 764,
+        "height": 1372,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 252455,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_003",
+      "filename": "107246082_1794487640609598(3).jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "107246082_1794487640609598(3).jpg",
+        "sha256": "7d623ed53f6ba85a299f4324beb2755aa4ffc4593783bb87153408796a8d8e5d",
+        "width": 764,
+        "height": 1374,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 258076,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_004",
+      "filename": "122208913_1794809199129525.jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "122208913_1794809199129525.jpg",
+        "sha256": "4885bb4eaaf5ae898d3737a71029152b08bfda134e5b5926396b01d813c472b0",
+        "width": 1536,
+        "height": 2752,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 287192,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_005",
+      "filename": "2020-mazda-cx-5_100753199_m.jpg",
+      "category": "packshot_edge",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Trademark-heavy: Mazda CX-5 interior / steering-wheel emblem and Mazda Connect UI."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "2020-mazda-cx-5_100753199_m.jpg",
+        "sha256": "2696cd47b14a5690b97918dd1abaff78421f0005d72199004d955c9e7d903f22",
+        "width": 640,
+        "height": 415,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 70267,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [
+        "Communication",
+        "AUTO"
+      ],
+      "critical_rois": [
+        {
+          "roi_id": "product_edge",
+          "label": "Product / interior edge and materials",
+          "roi_type": "background_edge",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Trademark-heavy: Mazda CX-5 interior / steering-wheel emblem and Mazda Connect UI."
+    },
+    {
+      "asset_id": "mel_006",
+      "filename": "2022_mazda_cx-5_review_interior (1).webp",
+      "category": "packshot_edge",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Trademark-heavy: Mazda CX-5 review interior imagery."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "2022_mazda_cx-5_review_interior (1).webp",
+        "sha256": "8ba63215b33ea8225d74cfb2c2cf6cdb7e3bd8d54750d5ac9a0d3eb4e9ee464e",
+        "width": 700,
+        "height": 394,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "WEBP",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 35328,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "product_edge",
+          "label": "Product / interior edge and materials",
+          "roi_type": "background_edge",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Trademark-heavy: Mazda CX-5 review interior imagery."
+    },
+    {
+      "asset_id": "mel_007",
+      "filename": "2023_Mazda_CX-5_Steering_Wheel_1.jpg",
+      "category": "packshot_edge",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Trademark-heavy: Mazda CX-5 steering wheel / emblem."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "2023_Mazda_CX-5_Steering_Wheel_1.jpg",
+        "sha256": "98d212c03b7d1c338c8c9fa22edde6b97546aa7287172c9cb0c930fd2d0bbbe8",
+        "width": 960,
+        "height": 720,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "WEBP",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 73846,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "product_edge",
+          "label": "Product / interior edge and materials",
+          "roi_type": "background_edge",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Trademark-heavy: Mazda CX-5 steering wheel / emblem."
+    },
+    {
+      "asset_id": "mel_008",
+      "filename": "2025-mazda-cx-5-interior-v0-dxy3oxsoalhe1.jpeg",
+      "category": "packshot_edge",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Trademark-heavy: Mazda CX-5 interior."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "2025-mazda-cx-5-interior-v0-dxy3oxsoalhe1.jpeg",
+        "sha256": "bb3de74471a5158980aa9e3e794a8b4f3cd2cd29583368b215f55948ac356561",
+        "width": 1080,
+        "height": 810,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 126709,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "product_edge",
+          "label": "Product / interior edge and materials",
+          "roi_type": "background_edge",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Trademark-heavy: Mazda CX-5 interior."
+    },
+    {
+      "asset_id": "mel_009",
+      "filename": "231947950_1791839776475968.jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "231947950_1791839776475968.jpg",
+        "sha256": "ae01167d9844988343b359033b1b19f1effb5d85203027cd5c8d8b0ab1fd73d4",
+        "width": 1536,
+        "height": 2752,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 541777,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_010",
+      "filename": "261826328_1792080442797035.jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "261826328_1792080442797035.jpg",
+        "sha256": "750c3f2e12d1cfaddc0a7350fbaab473c723317435c86a9158b45414d45f7209",
+        "width": 1536,
+        "height": 2752,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 1257613,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_011",
+      "filename": "303658589_1794809568634055(1).jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "303658589_1794809568634055(1).jpg",
+        "sha256": "789fbb2db364b1ee4e2c439edbeed83bce7be121b5e3082571c8fe84f32272b4",
+        "width": 1536,
+        "height": 2752,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 532240,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_012",
+      "filename": "346737661_1793307368553706(3).jpg",
+      "category": "packshot_edge",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Owner-vouched Melato corpus asset."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "346737661_1793307368553706(3).jpg",
+        "sha256": "fac3781aaca410ac9d89b5884fc7d02c1e37a0c308b1f22ab1e6b22468f2185b",
+        "width": 2304,
+        "height": 1353,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 506744,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "product_edge",
+          "label": "Product / interior edge and materials",
+          "roi_type": "background_edge",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_013",
+      "filename": "445832715_1791839754046125.jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "445832715_1791839754046125.jpg",
+        "sha256": "69f430e50f559b9bf225797b7fdeef6d1e29605d4ca55544b8fdf61bacc2b94d",
+        "width": 1536,
+        "height": 2752,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 413759,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_014",
+      "filename": "4cf38666019303d6e0195054fc3b684e.jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "4cf38666019303d6e0195054fc3b684e.jpg",
+        "sha256": "bd1249a6e7ea02a231d199035a578d1b391815f8e57389aec2de1c28ebacb91b",
+        "width": 331,
+        "height": 494,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 75008,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Low-light social capture with digital butterfly stickers overlaid."
+    },
+    {
+      "asset_id": "mel_015",
+      "filename": "4GCRVTZ5Y5LYLOIKJWAEQIKIWU.jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "4GCRVTZ5Y5LYLOIKJWAEQIKIWU.jpg",
+        "sha256": "26da3f992ac94755f740464426c047a7e749ff5270845a12e01d897cc6c6568c",
+        "width": 1920,
+        "height": 2400,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 563881,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Documentary/news-style portrait with political/military insignia and Arabic text; owner-vouched for corpus inventory only."
+    },
+    {
+      "asset_id": "mel_016",
+      "filename": "4huncho___-20261026-0009.jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "4huncho___-20261026-0009.jpg",
+        "sha256": "758a790fe77f2bd50cdeb8efa21f7a29bedc9a7006c02b26a5784f8588c08bc7",
+        "width": 1080,
+        "height": 1440,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 78466,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_017",
+      "filename": "4huncho___-20261026-0029.jpg",
+      "category": "apparel_model",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "4huncho___-20261026-0029.jpg",
+        "sha256": "b95639af202e35647587dc91a4fa0b241b79480fcce4714651426b66030a544c",
+        "width": 1440,
+        "height": 1920,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 320921,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "garment",
+          "label": "Primary garment silhouette / seams",
+          "roi_type": "garment_fit",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_018",
+      "filename": "4huncho___-20261026-0030.jpg",
+      "category": "apparel_model",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "4huncho___-20261026-0030.jpg",
+        "sha256": "c8625a06fdb301c23c9d7ef96d3ab787e8a571350d71681512c0bf9e430a313c",
+        "width": 1440,
+        "height": 1920,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 353775,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "garment",
+          "label": "Primary garment silhouette / seams",
+          "roi_type": "garment_fit",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_019",
+      "filename": "4huncho___-20261026-0031.jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "4huncho___-20261026-0031.jpg",
+        "sha256": "6226ffefcbf1d8bd1aacd255da9f42b58f938258900b6f87088349f763c86aa1",
+        "width": 1440,
+        "height": 1920,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 115270,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_020",
+      "filename": "4huncho___-20261026-0032.jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "4huncho___-20261026-0032.jpg",
+        "sha256": "e57a4cd6b409a79de1aae7d65fe2a92ac685e32257cc53c52fd4142296835349",
+        "width": 1070,
+        "height": 1426,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 96992,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_021",
+      "filename": "4huncho___-20261026-0035.jpg",
+      "category": "apparel_model",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "4huncho___-20261026-0035.jpg",
+        "sha256": "0f9cafb4115d0a7f2fe34549a8f331220e83efd503c29f62f54218695dc3e26b",
+        "width": 1440,
+        "height": 1920,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 336851,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "garment",
+          "label": "Primary garment silhouette / seams",
+          "roi_type": "garment_fit",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_022",
+      "filename": "4huncho___-20261026-0036.jpg",
+      "category": "textiles",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "4huncho___-20261026-0036.jpg",
+        "sha256": "7d494bbdf9ac77766bf507720fc829f526aa04045c821fc2efc26ac9edd03f35",
+        "width": 1320,
+        "height": 1759,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 113522,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_023",
+      "filename": "4huncho___-20261026-0046.jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "4huncho___-20261026-0046.jpg",
+        "sha256": "6d9e99e032d343d73a9ec9911c6d42d2c91578a7d60a555436053f0bd4a5de47",
+        "width": 1440,
+        "height": 1920,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 519857,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_024",
+      "filename": "4huncho___-20261026-0047.jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Trademark-heavy: Nike Air Max 95 sketches and handwritten Nike inspiration notes; Peak beverage cans; possible Burberry-check scarf pattern. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "4huncho___-20261026-0047.jpg",
+        "sha256": "06f684840caebd9b47e7c98b1d17a6619139a19f1d81bdcf2ce9992721a2b206",
+        "width": 1440,
+        "height": 1920,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 595763,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [
+        "Nike Air Max 95",
+        "INSP",
+        "Peak"
+      ],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Trademark-heavy: Nike Air Max 95 sketches and handwritten Nike inspiration notes; Peak beverage cans; possible Burberry-check scarf pattern."
+    },
+    {
+      "asset_id": "mel_025",
+      "filename": "4huncho___-20261026-0074.jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "4huncho___-20261026-0074.jpg",
+        "sha256": "c33ba7303890cab25d0cf9bd63ba3e194ecd9464a2ed5dc5339ccc230b549377",
+        "width": 969,
+        "height": 1204,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 130906,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_026",
+      "filename": "4huncho___-20261026-0075.jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "4huncho___-20261026-0075.jpg",
+        "sha256": "1353f82f86f7a285cd00a7dc7333b1922f4112148d440d280a88102451584e47",
+        "width": 956,
+        "height": 1188,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 128787,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_027",
+      "filename": "4huncho___-20261026-0084.jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "4huncho___-20261026-0084.jpg",
+        "sha256": "c47241b63bcb93f9d9298c354a5020dae34b732824dd0dc3421b32cc605fb386",
+        "width": 1440,
+        "height": 1800,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 196639,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_028",
+      "filename": "509182202_1792638061047024.jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "509182202_1792638061047024.jpg",
+        "sha256": "0364bfe24b312294991caebaf57c877a37a89d9c9dd654630f5f4c1af5068b4f",
+        "width": 941,
+        "height": 1672,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 287884,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_029",
+      "filename": "544437731_1793162413182642.jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "544437731_1793162413182642.jpg",
+        "sha256": "47e1cf9baeeb8e7a8910eb74bd39cb3f617b97c8d531923e099d5add8beaa5a9",
+        "width": 1536,
+        "height": 2752,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 458469,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_030",
+      "filename": "587918816_1791839927487970.jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "587918816_1791839927487970.jpg",
+        "sha256": "e06ff999fc02350a87fcb917477d781ce9464ae822e7e58ddb41a2f172996b36",
+        "width": 1536,
+        "height": 2752,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 510918,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_031",
+      "filename": "5f8cf8d3-e165-4286-90f6-4f96d45c0741.jpg",
+      "category": "apparel_model",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Trademark-heavy: OMEGA scoreboard, Olympic rings, Puma Jamaica kits (London 2012 WR celebration). Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "5f8cf8d3-e165-4286-90f6-4f96d45c0741.jpg",
+        "sha256": "051c0bbdd93feff7267b685ebca7a38f4d9cf94e548484649f8562a7100109c9",
+        "width": 600,
+        "height": 400,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 50628,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [
+        "OMEGA",
+        "NEW WR",
+        "36.84"
+      ],
+      "critical_rois": [
+        {
+          "roi_id": "garment",
+          "label": "Primary garment silhouette / seams",
+          "roi_type": "garment_fit",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Trademark-heavy: OMEGA scoreboard, Olympic rings, Puma Jamaica kits (London 2012 WR celebration)."
+    },
+    {
+      "asset_id": "mel_032",
+      "filename": "648676378_1791816552214174.jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "648676378_1791816552214174.jpg",
+        "sha256": "58e9638f46c07c611b7305d2684ff7bafe0b34fa1aafcd8a360715671604e573",
+        "width": 1536,
+        "height": 2752,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 635172,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_033",
+      "filename": "678073252_1791839947892033.jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "678073252_1791839947892033.jpg",
+        "sha256": "7b7df1154ee9b674d39aff16e41d9f791139bd2f126f0fed2043f3f6f2df6ed0",
+        "width": 1536,
+        "height": 2752,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 478838,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_034",
+      "filename": "823687118_1794488061898501.jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "823687118_1794488061898501.jpg",
+        "sha256": "b0105d752ea5de84ec057ad46c84700aefeb9e55c0c3de9b31fbc114cae86afd",
+        "width": 1536,
+        "height": 2752,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 268428,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_035",
+      "filename": "877347371_1794487623278248(3).jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "877347371_1794487623278248(3).jpg",
+        "sha256": "22c924b9b09878d0490995ecbe076cca58444ba281c3055e1235939023856dab",
+        "width": 2020,
+        "height": 4500,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 1498624,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_036",
+      "filename": "877766617_1791839779213239.jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "877766617_1791839779213239.jpg",
+        "sha256": "9cefce29ac9f0fdf1960dc9e2f3c847953c19234342859bfd3184d8f8b90f2e5",
+        "width": 1536,
+        "height": 2752,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 384972,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_037",
+      "filename": "893628077_1794486811280364(1).jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "893628077_1794486811280364(1).jpg",
+        "sha256": "8e98050e6be5b04e6e1a1b07ea2e68f75a6760ab40bb2efb6b235e773d07adac",
+        "width": 2636,
+        "height": 3768,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 1608436,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [
+        "LIKENEVER"
+      ],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_038",
+      "filename": "904071578_1793084258240850.jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "904071578_1793084258240850.jpg",
+        "sha256": "9fe210a04d690a2cbcb3549682e1571773dec4af02936d4259a7317117f5844d",
+        "width": 768,
+        "height": 1376,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 119507,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_039",
+      "filename": "913588518_1794809081839392.jpg",
+      "category": "packshot_edge",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Owner-vouched Melato corpus asset."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "913588518_1794809081839392.jpg",
+        "sha256": "5418adea75eb093abd99466a9815cf780053b9211f0d2f674690e2f463168e81",
+        "width": 2752,
+        "height": 1536,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 675388,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "product_edge",
+          "label": "Product / interior edge and materials",
+          "roi_type": "background_edge",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_040",
+      "filename": "919967811_1793306857792793.jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "919967811_1793306857792793.jpg",
+        "sha256": "a8231e1d1dd9702e4cda3af18f006fb1d2d0cfe35b5439c6fa0587609b2829a4",
+        "width": 2304,
+        "height": 4128,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 1564410,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_041",
+      "filename": "942179865_1794487605742365(2).jpg",
+      "category": "textiles",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "942179865_1794487605742365(2).jpg",
+        "sha256": "b39386120a5a22cf9795c279506f35966a22bb7aab5b2f5466d8b7cfd4047e5c",
+        "width": 763,
+        "height": 1357,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 213440,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_042",
+      "filename": "942179865_1794487605742365(5).jpg",
+      "category": "apparel_model",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "942179865_1794487605742365(5).jpg",
+        "sha256": "4b5a7df43e848548bd745a00e1ea656b0504c45781f850b5f9125a8ce8d75ae0",
+        "width": 2888,
+        "height": 3512,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 2270937,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "garment",
+          "label": "Primary garment silhouette / seams",
+          "roi_type": "garment_fit",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_043",
+      "filename": "993081001_1791816536322502.jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "993081001_1791816536322502.jpg",
+        "sha256": "8dc9e48a3b05d20126509b5e4c25a6a7f62e7bdac2a2267ed212c68316fd47f5",
+        "width": 1536,
+        "height": 2752,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 669183,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_044",
+      "filename": "b7739eb33a8c52db35e8c8d5251444d9.jpg",
+      "category": "packshot_edge",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Trademark-heavy: Mazda steering-wheel emblem; Spotify / Apple CarPlay UI on dash."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "b7739eb33a8c52db35e8c8d5251444d9.jpg",
+        "sha256": "063a0a44ae3963ecb64d9ce137cbd650758683f0eb4bd3ba87bda7152d135f66",
+        "width": 236,
+        "height": 419,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 22322,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "product_edge",
+          "label": "Product / interior edge and materials",
+          "roi_type": "background_edge",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Trademark-heavy: Mazda steering-wheel emblem; Spotify / Apple CarPlay UI on dash."
+    },
+    {
+      "asset_id": "mel_045",
+      "filename": "cgo14wkw24n41.jpg",
+      "category": "packshot_edge",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Trademark-heavy: Mazda steering-wheel emblem and Mazda Connect / CarPlay UI."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "cgo14wkw24n41.jpg",
+        "sha256": "4fd7c4b30a8b6a85a9b038fb92a601fde7cdb95c7131240593b12ffb3a9da33d",
+        "width": 4032,
+        "height": 3024,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 1206015,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [
+        "Communication",
+        "TRIP A"
+      ],
+      "critical_rois": [
+        {
+          "roi_id": "product_edge",
+          "label": "Product / interior edge and materials",
+          "roi_type": "background_edge",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Trademark-heavy: Mazda steering-wheel emblem and Mazda Connect / CarPlay UI."
+    },
+    {
+      "asset_id": "mel_046",
+      "filename": "F26YBPXB35KVNGOLHGYXUSXOIU.jpg",
+      "category": "apparel_model",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Trademark-heavy: Nike swoosh on USA kit; Puma on Jamaica kit; TDK / Daegu 2011 bibs. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "F26YBPXB35KVNGOLHGYXUSXOIU.jpg",
+        "sha256": "2325f1f7f9a013bffd76dce23a1a9cedf4180c08152c4b81798fc1e5560b6100",
+        "width": 512,
+        "height": 374,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 54290,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "garment",
+          "label": "Primary garment silhouette / seams",
+          "roi_type": "garment_fit",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Trademark-heavy: Nike swoosh on USA kit; Puma on Jamaica kit; TDK / Daegu 2011 bibs."
+    },
+    {
+      "asset_id": "mel_047",
+      "filename": "file_0000000010b081f58e041ce6396ccdce.png",
+      "category": "apparel_model",
+      "set": "non_ground_truth",
+      "synthetic": true,
+      "ground_truth_eligible": false,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "file_0000000010b081f58e041ce6396ccdce.png",
+        "sha256": "7ac78c6dec904c6c5e55e80a4a8eec9cb6be40b8f7f7b3bc8956551a5df568fa",
+        "width": 937,
+        "height": 1679,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "PNG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 1633200,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "garment",
+          "label": "Primary garment silhouette / seams",
+          "roi_type": "garment_fit",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Tagged synthetic/AI by filename pattern (*_2K* / file_0000*); set=non_ground_truth; never restoration GT."
+    },
+    {
+      "asset_id": "mel_048",
+      "filename": "file_000000002c48722fa9770522c30306db.jpg",
+      "category": "macros",
+      "set": "non_ground_truth",
+      "synthetic": true,
+      "ground_truth_eligible": false,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "file_000000002c48722fa9770522c30306db.jpg",
+        "sha256": "2954b468ca8336689012493d2e3c44bd5d0af319bae9b8e7e21c9979ed8bda1f",
+        "width": 596,
+        "height": 496,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 82007,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "macro_detail",
+          "label": "Macro hardware / stitch / jewelry detail",
+          "roi_type": "hardware",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Tagged synthetic/AI by filename pattern (*_2K* / file_0000*); set=non_ground_truth; never restoration GT."
+    },
+    {
+      "asset_id": "mel_049",
+      "filename": "file_000000004f7c81fbabebb10224259b2d.png",
+      "category": "apparel_model",
+      "set": "non_ground_truth",
+      "synthetic": true,
+      "ground_truth_eligible": false,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "file_000000004f7c81fbabebb10224259b2d.png",
+        "sha256": "d709d6f81224590093851070ce0237f2f078f2a389ee9f55b300e120978c22d0",
+        "width": 1122,
+        "height": 1402,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "PNG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 1878975,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "garment",
+          "label": "Primary garment silhouette / seams",
+          "roi_type": "garment_fit",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Tagged synthetic/AI by filename pattern (*_2K* / file_0000*); set=non_ground_truth; never restoration GT."
+    },
+    {
+      "asset_id": "mel_050",
+      "filename": "file_00000000d30c81f5b572812ec3fbd40e.png",
+      "category": "apparel_model",
+      "set": "non_ground_truth",
+      "synthetic": true,
+      "ground_truth_eligible": false,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "file_00000000d30c81f5b572812ec3fbd40e.png",
+        "sha256": "2bbeb821e296b20e52e4f385faabc8c631afe9de709817b3d424c35cd54eb601",
+        "width": 937,
+        "height": 1679,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "PNG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 2132020,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "garment",
+          "label": "Primary garment silhouette / seams",
+          "roi_type": "garment_fit",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Tagged synthetic/AI by filename pattern (*_2K* / file_0000*); set=non_ground_truth; never restoration GT."
+    },
+    {
+      "asset_id": "mel_051",
+      "filename": "file_00000000d57481f5ac35f5983178b65a.png",
+      "category": "apparel_model",
+      "set": "non_ground_truth",
+      "synthetic": true,
+      "ground_truth_eligible": false,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "file_00000000d57481f5ac35f5983178b65a.png",
+        "sha256": "098932830bb7d7ecfb30b4684bfa770eed64cfa8d011c0ebfcd07b6a620ad449",
+        "width": 1126,
+        "height": 1397,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "PNG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 1842916,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "garment",
+          "label": "Primary garment silhouette / seams",
+          "roi_type": "garment_fit",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Tagged synthetic/AI by filename pattern (*_2K* / file_0000*); set=non_ground_truth; never restoration GT."
+    },
+    {
+      "asset_id": "mel_052",
+      "filename": "file_00000000dae081f580d3563aa1e9ddb8.png",
+      "category": "apparel_model",
+      "set": "non_ground_truth",
+      "synthetic": true,
+      "ground_truth_eligible": false,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "file_00000000dae081f580d3563aa1e9ddb8.png",
+        "sha256": "65f7590a23c521ad4f35051231b5605b2915a9dd3bf4e2c6b2828862e29234fd",
+        "width": 937,
+        "height": 1678,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "PNG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 1873826,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "garment",
+          "label": "Primary garment silhouette / seams",
+          "roi_type": "garment_fit",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Tagged synthetic/AI by filename pattern (*_2K* / file_0000*); set=non_ground_truth; never restoration GT."
+    },
+    {
+      "asset_id": "mel_053",
+      "filename": "file_00000000fcfc822f9e1864a772c3cd96.png",
+      "category": "portraits",
+      "set": "non_ground_truth",
+      "synthetic": true,
+      "ground_truth_eligible": false,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "file_00000000fcfc822f9e1864a772c3cd96.png",
+        "sha256": "9cc463fd42e3c0e384b099d00079e0bb4d1e50bc41749f42cbd00519e4ed864b",
+        "width": 1229,
+        "height": 1536,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 227429,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Tagged synthetic/AI by filename pattern (*_2K* / file_0000*); set=non_ground_truth; never restoration GT."
+    },
+    {
+      "asset_id": "mel_054",
+      "filename": "images (18).jpeg",
+      "category": "packshot_edge",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Trademark-heavy: Nike shoebox + Nike Air Max Plus sneakers (Swoosh / NIKE wordmark)."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "images (18).jpeg",
+        "sha256": "78b282a7fc8e51e911afb54b26f71dd8f5968baac903b5111c287b3dad5755bd",
+        "width": 495,
+        "height": 619,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 40193,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [
+        "NIKE",
+        "Tn"
+      ],
+      "critical_rois": [
+        {
+          "roi_id": "product_edge",
+          "label": "Product / interior edge and materials",
+          "roi_type": "background_edge",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Trademark-heavy: Nike shoebox + Nike Air Max Plus sneakers (Swoosh / NIKE wordmark)."
+    },
+    {
+      "asset_id": "mel_055",
+      "filename": "images - 2026-10-12T170806.911.jpeg",
+      "category": "packshot_edge",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Trademark-heavy: Mazda steering-wheel emblem; music UI on dash."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "images - 2026-10-12T170806.911.jpeg",
+        "sha256": "f3d3a92b0d057c1dea2d8bee5f5aded5d1abea11719dd63513a64a315177f47b",
+        "width": 259,
+        "height": 195,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 11354,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "product_edge",
+          "label": "Product / interior edge and materials",
+          "roi_type": "background_edge",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Trademark-heavy: Mazda steering-wheel emblem; music UI on dash."
+    },
+    {
+      "asset_id": "mel_056",
+      "filename": "IMG_0932.jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Trademark-heavy: Cartier-style eyewear hinge logo; mobile video/screenshot UI chrome at bottom. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "IMG_0932.jpg",
+        "sha256": "6a466d2f233f91fa2d0d2bf3e18a2879ba00d1066869d743350aae66a09df79f",
+        "width": 1170,
+        "height": 2532,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 768031,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Mobile video frame / screenshot with UI home-indicator chrome. Trademark-heavy: Cartier-style eyewear hinge logo; mobile video/screenshot UI chrome at bottom."
+    },
+    {
+      "asset_id": "mel_057",
+      "filename": "IMG_20251204_235417_231_1.jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "IMG_20251204_235417_231_1.jpg",
+        "sha256": "7eec783e2b0d9a1299b92580e2003c4d957d5cbbdaca614541005b960a740698",
+        "width": 577,
+        "height": 1024,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 117958,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Mobile capture naming; real photography."
+    },
+    {
+      "asset_id": "mel_058",
+      "filename": "Khaoula_97354560_2K.jpg",
+      "category": "portraits",
+      "set": "non_ground_truth",
+      "synthetic": true,
+      "ground_truth_eligible": false,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "Khaoula_97354560_2K.jpg",
+        "sha256": "12e80668072cc5a3ec31126dd3ccb2a42ecb4725fea96d9eb4b76602f9cfaa38",
+        "width": 1844,
+        "height": 2304,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 2201539,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Tagged synthetic/AI by filename pattern (*_2K* / file_0000*); set=non_ground_truth; never restoration GT."
+    },
+    {
+      "asset_id": "mel_059",
+      "filename": "Macro_photography_of_image_detail_b0d0e35d_2K.jpg",
+      "category": "macros",
+      "set": "non_ground_truth",
+      "synthetic": true,
+      "ground_truth_eligible": false,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Owner-vouched Melato corpus asset."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "Macro_photography_of_image_detail_b0d0e35d_2K.jpg",
+        "sha256": "018b4724edcf7621ee89c2de56283c677277fd415c6dbb6ad1de252202255b67",
+        "width": 2752,
+        "height": 1536,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 2168148,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "macro_detail",
+          "label": "Macro hardware / stitch / jewelry detail",
+          "roi_type": "hardware",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Tagged synthetic/AI by filename pattern (*_2K* / file_0000*); set=non_ground_truth; never restoration GT."
+    },
+    {
+      "asset_id": "mel_060",
+      "filename": "Man_posing_amidst_pink_flowers_155b4284_2K.jpg",
+      "category": "portraits",
+      "set": "non_ground_truth",
+      "synthetic": true,
+      "ground_truth_eligible": false,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "Man_posing_amidst_pink_flowers_155b4284_2K.jpg",
+        "sha256": "fd98cc04eb7b1824c894727b8bd287fe07e1b193f278248ce11e6239c3491bbf",
+        "width": 1792,
+        "height": 2400,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 2770176,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Tagged synthetic/AI by filename pattern (*_2K* / file_0000*); set=non_ground_truth; never restoration GT."
+    },
+    {
+      "asset_id": "mel_061",
+      "filename": "Man_smoking_with_woman_posing_7231d634_2K.jpg",
+      "category": "portraits",
+      "set": "non_ground_truth",
+      "synthetic": true,
+      "ground_truth_eligible": false,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "Man_smoking_with_woman_posing_7231d634_2K.jpg",
+        "sha256": "e27b75bd9ab7f9ba449f8c613c20bd53b813e6ba68e00116fb527a1a7714ca7c",
+        "width": 1536,
+        "height": 2752,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 2845811,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Tagged synthetic/AI by filename pattern (*_2K* / file_0000*); set=non_ground_truth; never restoration GT."
+    },
+    {
+      "asset_id": "mel_062",
+      "filename": "Man_standing_by_luxury_car_6f61c124_2K.jpg",
+      "category": "portraits",
+      "set": "non_ground_truth",
+      "synthetic": true,
+      "ground_truth_eligible": false,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "Man_standing_by_luxury_car_6f61c124_2K.jpg",
+        "sha256": "61c457218f1276ee3f733e555b6de8aaae761eb7f308ad74c8e85f601eddbf3f",
+        "width": 1536,
+        "height": 2752,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 2638515,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Tagged synthetic/AI by filename pattern (*_2K* / file_0000*); set=non_ground_truth; never restoration GT."
+    },
+    {
+      "asset_id": "mel_063",
+      "filename": "Man_taking_mirror_selfie_sitting_2cb6d876_2K.jpg",
+      "category": "portraits",
+      "set": "non_ground_truth",
+      "synthetic": true,
+      "ground_truth_eligible": false,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "Man_taking_mirror_selfie_sitting_2cb6d876_2K.jpg",
+        "sha256": "2b9ce5dc98ee61aaf463df56e8246ba1178ae9f09206942daf7eeaaadf378a56",
+        "width": 1536,
+        "height": 2752,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 2659477,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Tagged synthetic/AI by filename pattern (*_2K* / file_0000*); set=non_ground_truth; never restoration GT."
+    },
+    {
+      "asset_id": "mel_064",
+      "filename": "Man_wearing_shiny_trench_coat_3fb73731_2K.jpg",
+      "category": "apparel_model",
+      "set": "non_ground_truth",
+      "synthetic": true,
+      "ground_truth_eligible": false,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "Man_wearing_shiny_trench_coat_3fb73731_2K.jpg",
+        "sha256": "2c6cdb84db623a15adad4ff955da9d629890dc6f2f35a64ed09b5daec5f629cc",
+        "width": 1536,
+        "height": 2752,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 2438561,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "garment",
+          "label": "Primary garment silhouette / seams",
+          "roi_type": "garment_fit",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Tagged synthetic/AI by filename pattern (*_2K* / file_0000*); set=non_ground_truth; never restoration GT."
+    },
+    {
+      "asset_id": "mel_065",
+      "filename": "Man_wearing_white_polo_shirt_a7cc329d_2K.jpg",
+      "category": "apparel_model",
+      "set": "non_ground_truth",
+      "synthetic": true,
+      "ground_truth_eligible": false,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "calibration",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Melato brand embroidery on polo (synthetic/AI set). Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "Man_wearing_white_polo_shirt_a7cc329d_2K.jpg",
+        "sha256": "088cf2e01ec390eda6762a94a256965cfcba5c7ae4d27bd1d8f32d54b4781a6f",
+        "width": 1844,
+        "height": 2304,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 1646650,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [
+        "MELATO"
+      ],
+      "critical_rois": [
+        {
+          "roi_id": "garment",
+          "label": "Primary garment silhouette / seams",
+          "roi_type": "garment_fit",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Tagged synthetic/AI by filename pattern (*_2K* / file_0000*); set=non_ground_truth; never restoration GT. Melato brand embroidery on polo (synthetic/AI set)."
+    },
+    {
+      "asset_id": "mel_066",
+      "filename": "melimtx-20261012-0671(1).jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "melimtx-20261012-0671(1).jpg",
+        "sha256": "7cd34fc0959b302005c6f53e4c355acab8ccae410218c1c71ee19a50897ac219",
+        "width": 649,
+        "height": 648,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 148127,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_067",
+      "filename": "melimtx-20261012-0686(1).jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "melimtx-20261012-0686(1).jpg",
+        "sha256": "2216c244d583199b16a8622dcdf3c3657714acb1a01fbac5210cbad80e8f55d3",
+        "width": 694,
+        "height": 685,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 139113,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_068",
+      "filename": "melimtx-20261012-0724(1).jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "melimtx-20261012-0724(1).jpg",
+        "sha256": "b22090bdfb4b2ee2491572a0945cf4754d8fe7117cd4876bd7e7dfee123f5c85",
+        "width": 714,
+        "height": 787,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 149311,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_069",
+      "filename": "melimtx-20261012-0733(1).jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "melimtx-20261012-0733(1).jpg",
+        "sha256": "7d8c7214947804da03fd39d346efeef4e211f882c920a667028e179f247fa7b7",
+        "width": 864,
+        "height": 806,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 158976,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_070",
+      "filename": "melimtx-20261012-0742(1).jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "melimtx-20261012-0742(1).jpg",
+        "sha256": "c5471a9ba73b4d018b0ce7abad9401f2d02d62c3bb119cdd7537c467adb74143",
+        "width": 675,
+        "height": 932,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 141927,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_071",
+      "filename": "melimtx-20261012-0743(1).jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "melimtx-20261012-0743(1).jpg",
+        "sha256": "4342ff54c00f87198f79af1af4db90edad2ddd708067576865036bb28f3f800b",
+        "width": 774,
+        "height": 987,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 196396,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_072",
+      "filename": "melimtx-20261012-0745(1).jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "melimtx-20261012-0745(1).jpg",
+        "sha256": "94774ed64d58ccc37966edb6bd8a62c6559e35722937c0e16ac2601a82389219",
+        "width": 619,
+        "height": 850,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 133659,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_073",
+      "filename": "melimtx-20261012-0746(1).jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "melimtx-20261012-0746(1).jpg",
+        "sha256": "863e850e783ea860d277e4350b509bf3d21349ffee269d04a6cc809ca0311f91",
+        "width": 903,
+        "height": 870,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 204871,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_074",
+      "filename": "melimtx-20261012-0750(1).jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "melimtx-20261012-0750(1).jpg",
+        "sha256": "4c5bcc3278d6a4f9d34ce4649d0c778e3afadbc741a1ba6edb3c3ec79aec0746",
+        "width": 914,
+        "height": 1001,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 267815,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_075",
+      "filename": "melimtx-20261012-0768(1).jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "melimtx-20261012-0768(1).jpg",
+        "sha256": "a4952fbccd320d61495187d1d522e6a8037e0ec21cfaf61f791d9ca34990a5ed",
+        "width": 1215,
+        "height": 1082,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 291145,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_076",
+      "filename": "melimtx-20261012-0784(1).jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "melimtx-20261012-0784(1).jpg",
+        "sha256": "970c2c695a36b0e0001b5c190ed9c65f8dd561e45d6b992810a70b86e2309479",
+        "width": 709,
+        "height": 1008,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 111226,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_077",
+      "filename": "melimtx-20261012-0798(1).jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Trademark-heavy: Powerade / ampm retail branding in background. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "melimtx-20261012-0798(1).jpg",
+        "sha256": "e1d595701bb955da14dfefdab42542217ccde3946c8e2e6e489bf2896e5a57fa",
+        "width": 1085,
+        "height": 730,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 217458,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [
+        "POWERADE",
+        "ampm"
+      ],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Trademark-heavy: Powerade / ampm retail branding in background."
+    },
+    {
+      "asset_id": "mel_078",
+      "filename": "melimtx-20261012-0802(1).jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "melimtx-20261012-0802(1).jpg",
+        "sha256": "bfb592c68f719eb33ae614c76bb27d9990e9206bbf94dc2eafffce56237ba2ac",
+        "width": 646,
+        "height": 1048,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 195423,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_079",
+      "filename": "melimtx-20261012-0804(1).jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "melimtx-20261012-0804(1).jpg",
+        "sha256": "231e004e0e5d299e95c3d1fa2d4b33655a0799f96c026a24132bf3ca98d8fe41",
+        "width": 851,
+        "height": 693,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 158955,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+    },
+    {
+      "asset_id": "mel_080",
+      "filename": "People_exiting_taxi_in_city_8d07b6f5_2K.jpg",
+      "category": "apparel_model",
+      "set": "non_ground_truth",
+      "synthetic": true,
+      "ground_truth_eligible": false,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "People_exiting_taxi_in_city_8d07b6f5_2K.jpg",
+        "sha256": "c731e8ae516f3fdd6f6291a9363408eeda7ec1400bdaffd92172a645c82a305e",
+        "width": 2752,
+        "height": 1536,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 2229643,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "garment",
+          "label": "Primary garment silhouette / seams",
+          "roi_type": "garment_fit",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Tagged synthetic/AI by filename pattern (*_2K* / file_0000*); set=non_ground_truth; never restoration GT."
+    },
+    {
+      "asset_id": "mel_081",
+      "filename": "Person_sitting_on_wooden_crate_d40c6f71_2K.jpg",
+      "category": "apparel_model",
+      "set": "non_ground_truth",
+      "synthetic": true,
+      "ground_truth_eligible": false,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "Person_sitting_on_wooden_crate_d40c6f71_2K.jpg",
+        "sha256": "ee8810c0b418376fb49f733a39e5a21a1772df5097720fdeac32ad3d17cbb75d",
+        "width": 1536,
+        "height": 2752,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 1875021,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "garment",
+          "label": "Primary garment silhouette / seams",
+          "roi_type": "garment_fit",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Tagged synthetic/AI by filename pattern (*_2K* / file_0000*); set=non_ground_truth; never restoration GT."
+    },
+    {
+      "asset_id": "mel_082",
+      "filename": "Person_sitting_on_wooden_crate_f8e549cc_2K.jpg",
+      "category": "apparel_model",
+      "set": "non_ground_truth",
+      "synthetic": true,
+      "ground_truth_eligible": false,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "Person_sitting_on_wooden_crate_f8e549cc_2K.jpg",
+        "sha256": "e4b3b221f54118390acb67390b4e9fbc11cb93a30162834d81c1548c4d33fcb0",
+        "width": 1536,
+        "height": 2752,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 1935113,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "garment",
+          "label": "Primary garment silhouette / seams",
+          "roi_type": "garment_fit",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Tagged synthetic/AI by filename pattern (*_2K* / file_0000*); set=non_ground_truth; never restoration GT."
+    },
+    {
+      "asset_id": "mel_083",
+      "filename": "Requesting_photoshoot_in_tracksuit_58676b17_2K_upscaled.jpeg",
+      "category": "apparel_model",
+      "set": "non_ground_truth",
+      "synthetic": true,
+      "ground_truth_eligible": false,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "Requesting_photoshoot_in_tracksuit_58676b17_2K_upscaled.jpeg",
+        "sha256": "916916a5998f6e5e7b857856862eae1a0ac4199a4467caf53f23ea9d6b6c642a",
+        "width": 4464,
+        "height": 8000,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 1673314,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "garment",
+          "label": "Primary garment silhouette / seams",
+          "roi_type": "garment_fit",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Tagged synthetic/AI by filename pattern (*_2K* / file_0000*); set=non_ground_truth; never restoration GT. Filename indicates 2K/upscaled AI/synthetic set; never use as restoration ground truth."
+    },
+    {
+      "asset_id": "mel_084",
+      "filename": "Screenshot_20250523_092746_Telegram.jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "Screenshot_20250523_092746_Telegram.jpg",
+        "sha256": "a8f1242ea768d87cbeef4e827230c169514e7710b8e5bfa9604810a6c94f04cf",
+        "width": 1848,
+        "height": 2848,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 1537135,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Phone screenshot of a real photo (Telegram UI capture); treat as secondary capture of real photography."
+    },
+    {
+      "asset_id": "mel_085",
+      "filename": "Screenshot_20250711_092330_Photos.jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "Screenshot_20250711_092330_Photos.jpg",
+        "sha256": "d36f824e4c1f8c3a5c34b1a963416fcd2c2869762383ee654210922189ddb715",
+        "width": 1440,
+        "height": 3120,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 486907,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Phone screenshot from Photos app of a real photo; secondary capture."
+    },
+    {
+      "asset_id": "mel_086",
+      "filename": "Screenshot_20250807_034524_YouCut - Video Editor.jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "Screenshot_20250807_034524_YouCut - Video Editor.jpg",
+        "sha256": "882dde6c70fcb3c5c0ffe3683d8daaa470d3c8e7b993930df976657a5c141ab4",
+        "width": 1440,
+        "height": 3120,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 562403,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Screenshot from video editor of real footage; secondary capture."
+    },
+    {
+      "asset_id": "mel_087",
+      "filename": "Screenshot_20261015_024038_Photos.jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "Screenshot_20261015_024038_Photos.jpg",
+        "sha256": "685e0170d84b79c7d95be038747d2f55bfa7285eae4c886a5701820d747c880f",
+        "width": 4317,
+        "height": 2871,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 2372750,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Phone screenshot from Photos app of a real photo; secondary capture."
+    },
+    {
+      "asset_id": "mel_088",
+      "filename": "Screenshot_20261114_035123_Instagram.jpg",
+      "category": "apparel_model",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Trademark-heavy: Adidas three-stripe track jacket; social screenshot with MAKEUP TUTORIAL overlay. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "Screenshot_20261114_035123_Instagram.jpg",
+        "sha256": "b71419f08bd6add99872c3792a3e6071882fe79655c0ab37ddd2d7ed62ac6324",
+        "width": 1203,
+        "height": 1946,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 331931,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [
+        "MAKEUP TUTORIAL"
+      ],
+      "critical_rois": [
+        {
+          "roi_id": "garment",
+          "label": "Primary garment silhouette / seams",
+          "roi_type": "garment_fit",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Instagram/social screenshot of real person; beauty filter / compression likely. Trademark-heavy: Adidas three-stripe track jacket; social screenshot with MAKEUP TUTORIAL overlay."
+    },
+    {
+      "asset_id": "mel_089",
+      "filename": "Screenshot_20261114_035448_Instagram.jpg",
+      "category": "apparel_model",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Trademark-heavy: Adidas Trefoil + three stripes on track jacket; Instagram-style screenshot overlay text. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "Screenshot_20261114_035448_Instagram.jpg",
+        "sha256": "a9cebb58ba1cb551eae0f5482bab73c643ca0ecaca1a112b5a5b565fe025ebac",
+        "width": 1221,
+        "height": 1913,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 296105,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [
+        "Mon r\u00eave niche"
+      ],
+      "critical_rois": [
+        {
+          "roi_id": "garment",
+          "label": "Primary garment silhouette / seams",
+          "roi_type": "garment_fit",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Instagram/social screenshot of real person; overlay text present. Trademark-heavy: Adidas Trefoil + three stripes on track jacket; Instagram-style screenshot overlay text."
+    },
+    {
+      "asset_id": "mel_090",
+      "filename": "Shirtless_man_taking_mirror_selfie_5c0f4fda_2K.jpg",
+      "category": "portraits",
+      "set": "non_ground_truth",
+      "synthetic": true,
+      "ground_truth_eligible": false,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "Shirtless_man_taking_mirror_selfie_5c0f4fda_2K.jpg",
+        "sha256": "387152573fe1304cc403bfd06efd073223f39ea332dcc1c4fba0198deed88d01",
+        "width": 1472,
+        "height": 2862,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 1956610,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Tagged synthetic/AI by filename pattern (*_2K* / file_0000*); set=non_ground_truth; never restoration GT."
+    },
+    {
+      "asset_id": "mel_091",
+      "filename": "Snapchat-651973517.jpg",
+      "category": "portraits",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "Snapchat-651973517.jpg",
+        "sha256": "e8a1cd49b4cbf7de630ed0503136f61918b94b5ae647b07ae130d36880572332",
+        "width": 1440,
+        "height": 2560,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 809860,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "face",
+          "label": "Primary face / identity landmarks",
+          "roi_type": "identity_landmark",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Snapchat-origin real photography."
+    },
+    {
+      "asset_id": "mel_092",
+      "filename": "snug_wrld-20261021-0039.jpg",
+      "category": "macros",
+      "set": "ground_truth",
+      "synthetic": false,
+      "ground_truth_eligible": true,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Trademark-heavy: Under Armour logo on tactical boot; camo sock branding. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "snug_wrld-20261021-0039.jpg",
+        "sha256": "7e17c60c64a4fbf1e6c8dc2a3049071ad4802b26e19445164790beffe785683e",
+        "width": 1440,
+        "height": 1795,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 617432,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "macro_detail",
+          "label": "Macro hardware / stitch / jewelry detail",
+          "roi_type": "hardware",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Trademark-heavy: Under Armour logo on tactical boot; camo sock branding."
+    },
+    {
+      "asset_id": "mel_093",
+      "filename": "Two_people_wearing_matching_shirts_4adb2398_2K.jpg",
+      "category": "apparel_model",
+      "set": "non_ground_truth",
+      "synthetic": true,
+      "ground_truth_eligible": false,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "Two_people_wearing_matching_shirts_4adb2398_2K.jpg",
+        "sha256": "dcf974e51e253d46375795208984b9f114ed364cb17d1bab17227a47bc1ece4f",
+        "width": 2752,
+        "height": 1536,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 2514808,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "garment",
+          "label": "Primary garment silhouette / seams",
+          "roi_type": "garment_fit",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Tagged synthetic/AI by filename pattern (*_2K* / file_0000*); set=non_ground_truth; never restoration GT."
+    },
+    {
+      "asset_id": "mel_094",
+      "filename": "Two_people_wearing_matching_shirts_8dfa66b3_2K.jpg",
+      "category": "apparel_model",
+      "set": "non_ground_truth",
+      "synthetic": true,
+      "ground_truth_eligible": false,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "Two_people_wearing_matching_shirts_8dfa66b3_2K.jpg",
+        "sha256": "f9bdc5eab0b2a10a1cba887dedd1ca86f12373ef847f5b82eb9a4f1c24bb1e0b",
+        "width": 2752,
+        "height": 1536,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 2543362,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "garment",
+          "label": "Primary garment silhouette / seams",
+          "roi_type": "garment_fit",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Tagged synthetic/AI by filename pattern (*_2K* / file_0000*); set=non_ground_truth; never restoration GT."
+    },
+    {
+      "asset_id": "mel_095",
+      "filename": "Ultra_close-up_macro_photography\u2026_571bf175_2K.jpg",
+      "category": "macros",
+      "set": "non_ground_truth",
+      "synthetic": true,
+      "ground_truth_eligible": false,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": false,
+        "model_release_verified": false,
+        "notes": "Owner-vouched Melato corpus asset."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "Ultra_close-up_macro_photography\u2026_571bf175_2K.jpg",
+        "sha256": "5d623d81a070ed4d4dc83a8286d85b200cd8f22831c05c8bffa4780f211954e8",
+        "width": 2752,
+        "height": 1536,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 2884053,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [],
+      "critical_rois": [
+        {
+          "roi_id": "macro_detail",
+          "label": "Macro hardware / stitch / jewelry detail",
+          "roi_type": "hardware",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Tagged synthetic/AI by filename pattern (*_2K* / file_0000*); set=non_ground_truth; never restoration GT."
+    },
+    {
+      "asset_id": "mel_096",
+      "filename": "Woman_wearing_green_sunglasses_4c782fac_2K (1).jpg",
+      "category": "apparel_model",
+      "set": "non_ground_truth",
+      "synthetic": true,
+      "ground_truth_eligible": false,
+      "availability": "available",
+      "storage": "off_repo",
+      "split": "held_out",
+      "rights": {
+        "cleared": true,
+        "permission_basis": "owner_melato_vouched_2026-11-19",
+        "license_id": "MELATO-OWNER-2026-11-19",
+        "model_release_required": true,
+        "model_release_verified": true,
+        "notes": "Melato brand embroidery on jacket (synthetic/AI set). Model release owner-vouched."
+      },
+      "source": {
+        "storage": "off_repo",
+        "filename": "Woman_wearing_green_sunglasses_4c782fac_2K (1).jpg",
+        "sha256": "24db36517ae4580a782da8d6f60c7414426814e7c9d4689b141f9ed4fd2f748c",
+        "width": 1536,
+        "height": 2752,
+        "color_space": "sRGB",
+        "mode": "RGB",
+        "format": "JPEG",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "bytes": 2266578,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT",
+        "relative_path": null
+      },
+      "known_text": [
+        "Melato"
+      ],
+      "critical_rois": [
+        {
+          "roi_id": "garment",
+          "label": "Primary garment silhouette / seams",
+          "roi_type": "garment_fit",
+          "must_lock_base": true,
+          "bbox_norm": null
+        }
+      ],
+      "notes": "Tagged synthetic/AI by filename pattern (*_2K* / file_0000*); set=non_ground_truth; never restoration GT. Melato brand embroidery on jacket (synthetic/AI set)."
+    }
+  ],
+  "summary": {
+    "total_assets": 97,
+    "by_category": {
+      "apparel_model": 22,
+      "macros": 4,
+      "packshot_edge": 11,
+      "portraits": 58,
+      "textiles": 2
+    },
+    "by_set": {
+      "ground_truth": 73,
+      "non_ground_truth": 24
+    },
+    "ground_truth_eligible": 73,
+    "non_ground_truth": 24,
+    "trademark_flagged": 16,
+    "synthetic_flagged": 24
+  }
+}

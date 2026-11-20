@@ -7,7 +7,7 @@ cosine feathered mask blending to eliminate plastic skin sheen and identity drif
 
 import os
 from pathlib import Path
-from typing import List, Optional, Tuple
+
 import cv2
 import numpy as np
 
@@ -25,8 +25,8 @@ class FaceRestorer:
 
     def __init__(
         self,
-        codeformer_path: Optional[Path] = None,
-        yunet_path: Optional[Path] = None,
+        codeformer_path: Path | None = None,
+        yunet_path: Path | None = None,
         device: str = "auto"
     ):
         self.codeformer_path = codeformer_path or (MODEL_DIR / "codeformer.onnx")
@@ -63,7 +63,7 @@ class FaceRestorer:
 
             self.session = ort.InferenceSession(str(self.codeformer_path), providers=providers)
 
-    def detect_faces(self, bgr_img: np.ndarray) -> List[dict]:
+    def detect_faces(self, bgr_img: np.ndarray) -> list[dict]:
         """Detect human faces and extract bounding boxes and 5-point landmarks."""
         h, w = bgr_img.shape[:2]
         self._init_detector(w, h)
@@ -109,7 +109,7 @@ class FaceRestorer:
         self,
         image_rgb: np.ndarray,
         fidelity_w: float = 0.70
-    ) -> Tuple[np.ndarray, int]:
+    ) -> tuple[np.ndarray, int]:
         """Restore all detected faces with controllable fidelity weighting w in [0, 1].
 
         Args:
@@ -131,7 +131,7 @@ class FaceRestorer:
 
         for face in faces:
             bbox = face["bbox"]
-            landmarks = face["landmarks"]
+            _landmarks = face["landmarks"]
             bx, by, bw, bh = bbox
 
             # Crop margin (expanded bounding box for alignment)
