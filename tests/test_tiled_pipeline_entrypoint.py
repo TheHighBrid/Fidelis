@@ -82,6 +82,23 @@ class TiledPipelineEntrypointTests(unittest.TestCase):
             run.assert_not_called()
             self.assertEqual(target.read_bytes(), b"protected artifact")
 
+    def test_subprocess_symlink_output_is_not_accepted_as_fresh_artifact(self):
+        pipeline = UpscalePipeline(cli_path="/unused/fidelis")
+        with TemporaryDirectory() as directory, patch("fidelis.core.pipeline.subprocess.run") as run:
+            source = Path(directory) / "source.png"
+            target = Path(directory) / "external.png"
+            target.write_bytes(b"existing artifact")
+            output = Path(directory) / "output.png"
+
+            def create_link(*_args, **_kwargs):
+                output.symlink_to(target)
+                return type("Result", (), {"returncode": 0, "stderr": "", "stdout": ""})()
+
+            run.side_effect = create_link
+            with self.assertRaisesRegex(RuntimeError, "without a nonempty output file"):
+                pipeline._run_tiled_upscale(source, output, "RealeSR-general-v3", 128, 16, 4)
+            self.assertEqual(target.read_bytes(), b"existing artifact")
+
     def test_success_with_nonempty_output_is_accepted(self):
         pipeline = UpscalePipeline(cli_path="/unused/fidelis")
         with TemporaryDirectory() as directory, patch("fidelis.core.pipeline.subprocess.run") as run:
