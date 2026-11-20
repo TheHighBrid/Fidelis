@@ -6,17 +6,17 @@
   "packages": [
     {
       "path": "dist/fidelis-v3.1.0.tar.gz",
-      "sha256": "2a55ac3d16cabf3a87b99bcdb4b482109791648ef333ccb87752b403e90d9848",
+      "sha256": "dc721155e174f5c92d7af94b89c9e525227b69a01afa14f6d5aa6e901db3c6ee",
       "require_file_present": false
     },
     {
       "path": "dist/fidelis-v3.1.0.zip",
-      "sha256": "0d31cf9bd5bade490608240903d67d26366d66b4a7f6ee9bb2ed56e543b039d6",
+      "sha256": "8f7db34388ff53f1a6b6b8a6bea47026099814afac5f424e6b7a5d68148a6815",
       "require_file_present": false
     },
     {
       "path": "dist/fidelis-offline-bundle-v3.1.0.tar.gz",
-      "sha256": "85b1facaedd4e3316da6eb49b8e11cc9d81debe3b33dbd08c361ce7349ef9269",
+      "sha256": "40088fb82393c40d0dc6537108ab4905860eadb97c5059c85d06173afffeb84f",
       "require_file_present": false
     }
   ],

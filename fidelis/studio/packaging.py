@@ -52,6 +52,7 @@ REQUIRED_ARCHIVE_PATHS: tuple[str, ...] = (
     "scripts/batch-run.py",
     "scripts/verify-upgrade-rollback.py",
     "scripts/audit-release-readiness.py",
+    "scripts/check-studio-integration.py",
     "scripts/qualify-realesr-general-v3.py",
     "scripts/qualify_realesr_lib.py",
     "scripts/qualify_realesr_pixels.py",

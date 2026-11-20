@@ -33,6 +33,9 @@ jobs:
           python -m unittest discover -s tests -p 'test_confidence*.py' -v
           python -m unittest discover -s tests -p 'test_f09_confidence_boundary_contract.py' -v
 
+      - name: Studio integration history and conflict preflight regressions
+        run: python -m unittest discover -s tests -p 'test_studio_integration_gate.py' -v
+
       - name: Static smoke tests
         run: bash tests/smoke-test.sh
 
