@@ -64,6 +64,27 @@ class ProtectedExportVerificationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'protect'):
             module.verify(self.base, self.output, self.mask)
 
+    def test_empty_fully_locked_region_fails_closed(self):
+        self.save(protect=np.zeros((3, 4), dtype=np.float32))
+        with self.assertRaisesRegex(ValueError, 'no fully locked pixels'):
+            module.verify(self.base, self.output, self.mask)
+
+    def test_partially_locked_only_region_fails_closed(self):
+        self.save(protect=np.full((3, 4), .5, dtype=np.float32))
+        with self.assertRaisesRegex(ValueError, 'no fully locked pixels'):
+            module.verify(self.base, self.output, self.mask)
+
+    def test_boolean_and_complex_masks_fail_closed(self):
+        for invalid in (self.protect.astype(bool), self.protect.astype(np.complex64)):
+            with self.subTest(dtype=str(invalid.dtype)):
+                self.save(protect=invalid)
+                with self.assertRaisesRegex(ValueError, 'numeric HxW'):
+                    module.verify(self.base, self.output, self.mask)
+
+    def test_integer_binary_mask_supported(self):
+        self.save(protect=self.protect.astype(np.uint8))
+        self.assertEqual(module.verify(self.base, self.output, self.mask)['protected_pixels'], 1)
+
     def test_non_rgb_export_fails_closed(self):
         Image.fromarray(self.pixels[..., 0]).save(self.output)
         with self.assertRaisesRegex(ValueError, 'RGB'):
