@@ -20,6 +20,10 @@ def _png_encoding(stream):
 
 
 def _check_geometry(image, max_pixels, expected_size=None):
+    # APNG decoders expose frame zero as a normal RGB image. A single-pass
+    # contract must not silently discard later frames or timing metadata.
+    if getattr(image, "n_frames", 1) != 1 or getattr(image, "is_animated", False):
+        raise ValueError("Animated or multi-frame PNG passes are not supported")
     if image.width * image.height > max_pixels:
         raise PngPixelLimit("Image exceeds configured pixel limit")
     if expected_size is not None and image.size != expected_size:

@@ -129,6 +129,9 @@ jobs:
           python -m unittest discover -s tests -p 'test_unsigned_provenance.py'
           python -m unittest discover -s tests -p 'test_tiled_pipeline_entrypoint.py'
           python -m unittest discover -s tests -p 'test_protected_export_integrity.py'
+          python -m unittest discover -s tests -p 'test_studio_png_single_frame.py'
+          python -m unittest discover -s tests -p 'test_structure_screen_contract.py'
+          python -m unittest discover -s tests -p 'test_current_main_handoff.py'
           python -m unittest discover -s tests -p 'test_deployment_exposure.py'
           python -m unittest discover -s tests -p 'test_color_stabilization_routing.py'
 

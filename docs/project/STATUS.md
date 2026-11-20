@@ -1,5 +1,7 @@
 # Current progress and evidence checkpoint
 
+> **Current integration checkpoint (2026-11-20):** Unified Studio PR #82 merged into `main` at `7310aa6`. This is an engineering integration, **not a release**, deployment, or visual/model-quality acceptance. Start new work from the latest `main`; open PRs remain independent review work. Historical snapshots and branch-specific evidence below are retained for provenance and must not be interpreted as current branch instructions.
+
 Snapshot date: 2026-11-10. Latest delivery base: `e0a8602`; native-inspection delivery is the commit containing its receipt below. Original Studio snapshot: `5f32fba`.
 This is a committed checkpoint, not a live status feed.
 

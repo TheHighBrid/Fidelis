@@ -23,13 +23,13 @@ The complete reading map is in [docs/README.md](docs/README.md).
 
 ## Branch and release reality
 
-The audited baseline on `main` is `0f10ca6`. The Studio implementation is on
-`feat/region-aware-studio`, code snapshot `5f32fba`, in [PR #12](https://github.com/TheHighBrid/Fidelis/pull/12).
-Documentation may be published on `main` before that code merges. Checkout the
-Studio branch to use its editor/backend modules. A package version string or a
-historical changelog entry is not proof of production readiness.
+The audited baseline `0f10ca6` and Studio snapshot `5f32fba` are historical.
+Unified Studio [PR #82](https://github.com/TheHighBrid/Fidelis/pull/82) merged into
+`main` at `7310aa6` on 2026-11-20. Checkout the latest `main` for current Studio
+code. This merge is not deployment, production readiness, GPU quality acceptance,
+or final creative signoff.
 
-| Implemented in the Studio branch | Still needs acceptance or implementation |
+| Implemented in the integrated Studio | Still needs acceptance or implementation |
 | --- | --- |
 | Linear-light composition with exact protected base pixels | Live model/workflow quality validation |
 | Persistent jobs, checksums, revisions and storage limits | Live/device acceptance of queue and cancellation |
@@ -47,7 +47,7 @@ The [status ledger](docs/project/STATUS.md) records limits, provenance and next 
 ```bash
 git clone https://github.com/TheHighBrid/Fidelis.git
 cd Fidelis
-git switch feat/region-aware-studio
+git switch main
 ```
 
 Create a project `.venv` and install the development dependencies as documented in
