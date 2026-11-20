@@ -85,6 +85,20 @@ class ProtectedExportVerificationTests(unittest.TestCase):
         self.save(protect=self.protect.astype(np.uint8))
         self.assertEqual(module.verify(self.base, self.output, self.mask)['protected_pixels'], 1)
 
+    def test_png_transparency_metadata_fails_closed(self):
+        image = Image.fromarray(self.pixels)
+        image.save(self.output, transparency=(50, 50, 50))
+        with self.assertRaisesRegex(ValueError, 'transparency'):
+            module.verify(self.base, self.output, self.mask)
+
+    def test_nonidentity_exif_orientation_fails_closed(self):
+        image = Image.fromarray(self.pixels)
+        exif = Image.Exif()
+        exif[274] = 6
+        image.save(self.output, exif=exif)
+        with self.assertRaisesRegex(ValueError, 'EXIF orientation'):
+            module.verify(self.base, self.output, self.mask)
+
     def test_non_rgb_export_fails_closed(self):
         Image.fromarray(self.pixels[..., 0]).save(self.output)
         with self.assertRaisesRegex(ValueError, 'RGB'):
