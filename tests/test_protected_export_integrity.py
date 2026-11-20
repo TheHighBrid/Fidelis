@@ -136,6 +136,19 @@ class ProtectedExportVerificationTests(unittest.TestCase):
                     with self.assertRaisesRegex(ValueError, 'colour-transfer'):
                         module.verify(self.base, self.output, self.mask)
 
+    def test_animated_png_fails_closed_on_either_input(self):
+        for path in (self.base, self.output):
+            with self.subTest(path=path.name):
+                self.save()
+                first = Image.fromarray(self.pixels)
+                second = Image.fromarray(np.zeros_like(self.pixels))
+                first.save(path, save_all=True, append_images=[second],
+                           duration=100, loop=0)
+                with Image.open(path) as image:
+                    self.assertEqual(image.n_frames, 2)
+                with self.assertRaisesRegex(ValueError, 'multi-frame PNG'):
+                    module.verify(self.base, self.output, self.mask)
+
     def test_non_rgb_export_fails_closed(self):
         Image.fromarray(self.pixels[..., 0]).save(self.output)
         with self.assertRaisesRegex(ValueError, 'RGB'):
