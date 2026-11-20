@@ -1,0 +1,36 @@
+# Progress and handoff checkpoint
+
+- Task / F-ID / defect ID: F06 / MEL-60. Qualify one zero-cost texture workflow for pinned `RealeSR-general-v3` (`mobile-general`, BSD-3-Clause).
+- Scope and intended user behaviour: Install or validate the catalogued NCNN pair, run the local 4× engine, keep fully locked pixels equal to the precision base, reject an output whose size is not the expected scale, and write one PNG plus an evidence receipt. M1 8GB and Android Termux are the target sessions. This cloud VM recorded a separate Linux x86_64 run.
+- Owner and reviewer (only if actually assigned): Session owner Fidelis Bot 04. No human reviewer is assigned.
+- Base SHA, branch and resulting SHA: Base `1c954cd5d3b949c124b467228669213a50d47355`. Branch `work/bot04-f06-zero-cost-texture-20261119`. The resulting SHA is the head commit that adds this receipt; the pull request records that SHA. The Linux receipt's `code_sha` is the base SHA because the process read `HEAD` before this commit existed.
+- Files/interfaces/schema versions touched:
+  - `scripts/qualify-realesr-general-v3.py` (new, receipt schema version 1)
+  - `tests/test_f06_realesr_qualification.py` (new, fixture-only)
+  - `docs/F06_ZERO_COST_TEXTURE.md` (new)
+  - `docs/project/checkpoints/2026-11-19-f06-realesr-general-v3.md` (this file)
+  - Unchanged on purpose: `docs/project/STATUS.md`, `docs/project/backlog.json`, `.github/workflows/ci.yml`, Studio UI, region-aware Studio, MEL-77 queue files, and Bot 05 corpus files. Those paths are already in other open PRs.
+- Implemented behaviour: The qualifier checks the `realsr-ncnn` engine, installs missing weights through `scripts/install-photo-candidate.sh`, and refuses a SHA-256 mismatch before inference. It composites `protect == 1` from an integer-replicated source or a correctly sized `--base`, runs `scripts/verify-protected-export.py`, and publishes one PNG. Receipt evidence is `E1` or, with `--record-live` and the committed pin, `E2`. `E3` and `E4` cannot be selected.
+- Verification commands and exact results:
+  - `.venv/bin/python -m unittest discover -s tests -p 'test_*.py' -v` — 77 tests, OK. The new module contributed 13 of those tests.
+  - `.venv/bin/python -m unittest tests.test_f06_realesr_qualification -v` — 13 tests, OK.
+  - `PATH="$PWD/.venv/bin:$PATH" bash tests/smoke-test.sh` — pass.
+  - `PATH="$PWD/.venv/bin:$PATH" bash tests/test-web-ui.sh` — pass.
+  - `node --test tests/test-studio-interactions.cjs` — 5 tests, pass.
+  - Shell scripts that passed: `test-cli-model-selection.sh`, `test-photo-candidate-installer.sh`, `test-photo-candidate-benchmark.sh`, `test-audition-report.sh`, `test-batch-audition.sh`, `test-fidelity-metrics.sh`, `test-detect-drift.sh`, `test-release-pipeline.sh`, `test-vosr-sweep.sh`, `test-self-improvement.sh`.
+  - `tests/test-pipeline-instrumentation.sh` failed on the existing assertion `c2pa == "verified"` while the manifest reports `unsigned`. That assertion predates this branch; MEL-73 on main already reports unsigned provenance. This change does not touch that path.
+  - `tests/test-portrait-engine.sh` failed because `onnxruntime` is not installed in this environment. This change does not touch the portrait engine.
+  - `git diff --check` — clean for the F06 files at commit time.
+- Evidence level (E0/E1/E2/E3/E4) and artifact links:
+  - E0: qualifier and tests implemented on this branch.
+  - E1: fixture tests above. They use stand-in weights and a stand-in CLI. They do not download the pin.
+  - E2, Linux x86_64 only: pinned weights ran through `realesrgan-ncnn-vulkan` 20220424 on llvmpipe (Mesa software Vulkan, LLVM 20.1.2). Synthetic input 8×8, output 32×32, protection pass with 0 changed locked pixels, wall time 455 ms. Binary SHA-256 `22c2296a39b40cc43ac92615c827ab6d4b60b7142e8cee59f718e3f8e2cdbda9`. Output SHA-256 `ac676ab719627cea795b5438daeb1175729ba6f90e9c01e6fe22935aa63870a3`. Receipt details are in `docs/F06_ZERO_COST_TEXTURE.md`. The PNG is not in git and is not a visual sample.
+  - E3: not run.
+  - E4: not run. Draft pull request, not merged.
+- Model/runtime/graph/weight provenance, if relevant: Catalog revision `0fe68041370150c7695816e229dc982bfc06ed58`. Param SHA-256 `ce766e261369b911c3f3f607266380e6e6133e82699fed5e3b3afa07482c34c1`. Bin SHA-256 `01450f4a79b81c0f1f3eeefc31121167886125c25e41a6d4773e8ec8062528a1`. Both hashes were recomputed on the downloaded bytes before inference. License note: BSD-3-Clause upstream Real-ESRGAN checkpoint. The Linux dispatcher copied those bytes to the `realesr-animevideov3-x4` loader names; the hashes were unchanged. `realsr-ncnn-vulkan` 20220728 rejected the directory name `models-RealeSR-general-v3`.
+- Actual resource/cost measurement, if performed: API fee 0. No paid service and no cloud inference fallback. Wall time 455 ms for the 8×8 synthetic Linux run on llvmpipe. Peak memory was not measured. This timing is not an M1 or Android budget.
+- Failed cases and unresolved defects: The 20220728 Linux RealSR binary cannot open this candidate's folder name. Device sessions are still required. The pre-existing C2PA shell assertion and the missing `onnxruntime` portrait test failed in this environment and are outside F06.
+- Remaining acceptance / precise blocker: An Apple M1 with `machdep.cpu.brand_string` equal to `Apple M1` and `hw.memsize` equal to `8589934592`, and a native aarch64 Termux device, must each run the commands in `docs/F06_ZERO_COST_TEXTURE.md` on real photographs. A person then reviews those outputs before any E3 claim. This VM cannot boot those devices.
+- Merge/release state: Draft pull request against `main`. Not merged and not released.
+- Next concrete action and dependency: Run the M1 8GB command block, then the Termux command block, and keep each receipt. Do not mark E3 from the Linux llvmpipe hash.
+- Docs/Linear snapshot updates made: Added this receipt and `docs/F06_ZERO_COST_TEXTURE.md`. `docs/project/STATUS.md` and `docs/project/backlog.json` were not edited because the open Studio and CI pulls already change them. Linear was not written from this session.
