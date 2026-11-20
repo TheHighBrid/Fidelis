@@ -24,9 +24,10 @@ def measure_region(base, candidate, region, stripe_rows):
             or base.shape[2] != 3 or base.dtype != np.uint8
             or candidate.dtype != np.uint8):
         raise ValueError("Structural comparison requires aligned RGB8 arrays")
+    if len(region) != 4 or any(type(value) is not int for value in region):
+        raise ValueError("Structural rectangle requires integer x, y, width and height")
     x, y, width, height = region
-    if (len(region) != 4 or any(type(value) is not int for value in region)
-            or x < 0 or y < 0 or width <= 0 or height <= 0
+    if (x < 0 or y < 0 or width <= 0 or height <= 0
             or x + width > base.shape[1] or y + height > base.shape[0]):
         raise ValueError("Structural rectangle must fit the source grid")
     changed_pixels = 0
