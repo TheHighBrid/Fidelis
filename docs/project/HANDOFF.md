@@ -11,8 +11,8 @@ Krea-style editable region workflow. Competitive parity is not established.
 ## Locate the actual work
 
 - Repository: https://github.com/TheHighBrid/Fidelis
-- Current Studio code: `feat/region-aware-studio`, open PR #12; latest delivery receipts below.
-- Audited main baseline: `0f10ca6`; newer documentation does not imply Studio merged.
+- Current Studio code: integrated into `main` through [PR #82](https://github.com/TheHighBrid/Fidelis/pull/82), merge `7310aa6` (2026-11-20). Check newer commits before working.
+- Audited baseline `0f10ca6` and PR #12 are historical references, not the current checkout. No release or quality acceptance is implied.
 - Execution board: https://linear.app/melato/project/fidelis-studio-a057f366fa71
 - Umbrella: GitHub #11 / Linear MEL-53. Stable plan IDs: F01-F17.
 
@@ -131,7 +131,7 @@ Do **not** re-implement `F05-A`, `F05-B`, `F08-B`, `F10`, `F11`, `F12`, `F13`, `
 1. Live ComfyUI GPU worker preflight & texture workflow qualification (`F05-A`/`F06`/`F07`).
 2. Rights-cleared 60-case photographic corpus population (`F12-A`) and live comparator runs (`F12`).
 3. Dual-reviewer blind held-out quality signoff (`F13`) and physical Android/iOS touch review (`F08-B`/`F15`).
-4. PR #12 merge and owner release signoff (`F16`).
+4. Owner release signoff (`F16`); PR #82 integration is merged, not released.
 
 ## Studio review UI polish · 2026-11-19
 

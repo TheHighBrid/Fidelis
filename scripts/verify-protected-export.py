@@ -11,13 +11,29 @@ from PIL import Image
 
 
 def verify(base_path, export_path, mask_path):
+    # Pillow exposes 16-bit RGB PNGs as 8-bit RGB, discarding low sample bits.
+    for path in (base_path, export_path):
+        with open(path, 'rb') as stream:
+            header = stream.read(26)
+        if (len(header) != 26 or header[:16] != b'\x89PNG\r\n\x1a\n\x00\x00\x00\x0dIHDR'
+                or header[24:] != b'\x08\x02'):
+            raise ValueError('base and export must be untagged 8-bit RGB PNGs')
     with Image.open(base_path) as base_image, Image.open(export_path) as output_image:
         if base_image.format != 'PNG' or output_image.format != 'PNG':
             raise ValueError('base and export must be PNG files')
+        if any(getattr(image, 'n_frames', 1) != 1 for image in (base_image, output_image)):
+            raise ValueError('animated or multi-frame PNG is outside this verifier contract')
         if base_image.mode != 'RGB' or output_image.mode != 'RGB':
             raise ValueError('base and export must be untagged 8-bit RGB')
         if base_image.info.get('icc_profile') or output_image.info.get('icc_profile'):
             raise ValueError('ICC-tagged inputs are outside this verifier contract')
+        if any(any(key in image.info for key in ('gamma', 'srgb', 'chromaticity'))
+               for image in (base_image, output_image)):
+            raise ValueError('PNG colour-transfer metadata is outside this verifier contract')
+        if any('transparency' in image.info for image in (base_image, output_image)):
+            raise ValueError('PNG transparency is outside this verifier contract')
+        if any(image.getexif().get(274, 1) != 1 for image in (base_image, output_image)):
+            raise ValueError('EXIF orientation changes are outside this verifier contract')
         if base_image.size != output_image.size:
             raise ValueError('export dimensions differ from base')
         base = np.asarray(base_image)

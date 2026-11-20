@@ -3,8 +3,9 @@
 ## First 20 minutes
 
 1. Read `README.md`, `AGENTS.md`, `docs/project/STATUS.md` and `docs/project/RISKS.md`.
-2. Confirm your branch and base SHA. Studio work currently lives in PR #12 on
-   `feat/region-aware-studio`; `main` documentation does not imply that code merged.
+2. Confirm your branch and base SHA. Unified Studio PR #82 merged into `main`
+   at `7310aa6` on 2026-11-20. Check the latest `main` and open PRs before
+   choosing scope; historical PR #12 instructions are no longer the checkout path.
 3. Open the [Linear project](https://linear.app/melato/project/fidelis-studio-a057f366fa71),
    inspect dependencies, and claim one bounded issue. Read its acceptance criteria.
 4. Read the relevant architecture/contract and existing tests before changing it.
@@ -19,13 +20,15 @@ Do not ask the owner to restate decisions already captured in these documents.
 git clone https://github.com/TheHighBrid/Fidelis.git
 cd Fidelis
 git fetch origin
-git switch feat/region-aware-studio
+git switch main
+git pull --ff-only origin main
 git switch -c work/Fxx-short-scope
 ```
 
 Use a separate checkout/worktree for each simultaneous contributor. Do not run a
 reset/clean on a shared working directory. Confirm `git status` before editing.
-When PR #12 merges, branch from the accepted `main` instead and update this guide.
+The integrated Studio is on `main`; branch from current `main` and do not
+merge another contributor's PR without authorization.
 
 ## Python environment
 

@@ -10,9 +10,10 @@ instructions and the existing rules under `.agents/rules/`.
 3. `PLAN_BLUEPRINT.md` and the relevant architecture/quality sections.
 4. Any more specific instructions inside the files/area you will change.
 
-Determine the branch before assuming a module exists. Studio code is in PR #12
-on `feat/region-aware-studio` until merged. `main` documentation can describe that
-unmerged implementation; it must not imply deployment or release.
+Determine the branch before assuming a module exists. Studio integration PR #82
+merged into `main` at `7310aa6` on 2026-11-20. Earlier PR #12/feature-branch
+instructions are historical; start new independent work from the latest `main`.
+A merge is not deployment, release, device acceptance, or model-quality proof.
 
 ## Objective and invariant order
 
