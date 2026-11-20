@@ -14,6 +14,8 @@ def verify(base_path, export_path, mask_path):
     with Image.open(base_path) as base_image, Image.open(export_path) as output_image:
         if base_image.format != 'PNG' or output_image.format != 'PNG':
             raise ValueError('base and export must be PNG files')
+        if any(getattr(image, 'n_frames', 1) != 1 for image in (base_image, output_image)):
+            raise ValueError('animated or multi-frame PNG is outside this verifier contract')
         if base_image.mode != 'RGB' or output_image.mode != 'RGB':
             raise ValueError('base and export must be untagged 8-bit RGB')
         if base_image.info.get('icc_profile') or output_image.info.get('icc_profile'):
