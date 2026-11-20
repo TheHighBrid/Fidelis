@@ -251,3 +251,23 @@ bytes already buffered, so the socket can close. It still does not read the
 declared oversized body. Local discovery after that change remained 312 tests,
 OK. Ubuntu CI and the browser-report job had passed on the previous head.
 Codacy on this draft is a separate finding and is not cleared here.
+
+## Studio review UI polish · 2026-11-19
+
+On `work/bot06-studio-ui-krea-polish-20261119`, based on `26d80750`, the regional
+page now has display-only per-channel mask visibility, overlay strength, a
+protection hatch, a docked or pinned native inspector, arrow-key crop nudging,
+and a browser-decoded crop RGB readout. Preview zoom stays labelled as the
+reduced overview. Blend saving and protection semantics are unchanged.
+
+Local discovery passed **263 tests in 59.962s** after the executor's missing
+`pytest` import was installed. The same command had first reported 268 tests and
+5 E2E import errors. Web UI integration, static smoke, `git diff --check` and
+the touched JavaScript syntax checks passed. Headless Chrome 157.0.8103.50 on
+this Linux host exercised a synthetic 64×48 pair at 1440, 900 and 390px. A
+follow-up on the same branch places the canvas and mask legend before the import
+form at widths through 780px. The repeated headless check kept 390px in stack
+order (canvas, then legend, then import) and kept 900px and 1440px as a left
+rail plus canvas, with no horizontal overflow at those three widths. That is
+not physical-device or human visual acceptance. See
+[the receipt](checkpoints/2026-11-19-studio-ui-krea-polish.md).

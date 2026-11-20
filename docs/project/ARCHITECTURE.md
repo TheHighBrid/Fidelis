@@ -34,7 +34,7 @@ The native CLI remains a separate, preserved lane rather than a hidden replaceme
 | Composition | `fidelis/postprocess/regions.py` | Linear-light sRGB blend, confidence and exact locks | uint8 RGB input, explicit masks |
 | Masks | `fidelis/studio/brush.py`, `editor.js` | Native stripe raster and browser parity | Manual masks; not automatic semantics |
 | Persistence | `fidelis/studio/store.py` | SQLite manifests, immutable NPYs, revisions, budgets | Synchronous, single-user; not total-RSS certification |
-| HTTP/UI | `scripts/web-ui.py`, `fidelis/studio/http.py`, `studio.html` | Local review/edit/save/export | Visual/device acceptance pending |
+| HTTP/UI | `scripts/web-ui.py`, `fidelis/studio/http.py`, `studio.html`, `review-ui.js` | Local review/edit/save/export; display-only mask overlay, inspector dock and keyboard review | Visual/device acceptance pending |
 | Background generation | `fidelis/studio/generation.py`, optional server workflow | Durable bounded worker, scoped local cancel and same-run resume | Protocol-tested; no global GPU cancel; aggregate cache quota pending |
 | Texture bridge | `fidelis/studio/comfy.py`, `scripts/generate-texture.py` | Graph schema preflight, run ledger and polling | Fixture/protocol tested; no certified model graph |
 | Capabilities | `capabilities.py`, `scripts/backend-doctor.py` | Installed/checksummed versus declared | Availability is not quality certification |
