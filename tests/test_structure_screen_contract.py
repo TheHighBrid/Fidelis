@@ -51,5 +51,42 @@ class StructuralScreenContractTests(unittest.TestCase):
                 measure_region(base, base, region, 2)
 
 
+    def test_changes_outside_roi_are_not_counted(self):
+        base = np.zeros((8, 9, 3), dtype=np.uint8)
+        candidate = base.copy()
+        candidate[:, :3] = 255
+        candidate[6:, :] = 255
+        for rows in (1, 2, 5, 100):
+            with self.subTest(rows=rows):
+                result = measure_region(base, candidate, [3, 0, 6, 6], rows)
+                self.assertEqual(result["pixels"], 36)
+                self.assertEqual(result["changed_pixels"], 0)
+                self.assertEqual(result["strong_edge_disagreements"], 0)
+
+    def test_stripes_match_independent_full_roi_oracle(self):
+        rng = np.random.default_rng(20261120)
+        for height, width in ((1, 1), (2, 7), (7, 2), (11, 13)):
+            base = rng.integers(0, 256, (height + 2, width + 2, 3), dtype=np.uint8)
+            candidate = rng.integers(0, 256, base.shape, dtype=np.uint8)
+            region = [1, 1, width, height]
+            a = base[1:1 + height, 1:1 + width].astype(np.int32)
+            b = candidate[1:1 + height, 1:1 + width].astype(np.int32)
+            expected_pixels = int(np.count_nonzero(np.any(a != b, axis=2)))
+            def luma(rgb):
+                return (77 * rgb[..., 0] + 150 * rgb[..., 1] + 29 * rgb[..., 2]) >> 8
+            la, lb = luma(a), luma(b)
+            expected_edges = 0
+            for axis in (0, 1):
+                da, db = np.diff(la, axis=axis), np.diff(lb, axis=axis)
+                ea = np.sign(da) * (np.abs(da) >= 24)
+                eb = np.sign(db) * (np.abs(db) >= 24)
+                expected_edges += int(np.count_nonzero(ea != eb))
+            for rows in (1, 2, 3, height, height + 10):
+                with self.subTest(grid=(height, width), rows=rows):
+                    result = measure_region(base, candidate, region, rows)
+                    self.assertEqual(result["changed_pixels"], expected_pixels)
+                    self.assertEqual(result["strong_edge_disagreements"], expected_edges)
+
+
 if __name__ == "__main__":
     unittest.main()
