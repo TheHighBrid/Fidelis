@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
@@ -25,6 +26,78 @@ from fidelis.studio.provenance import (  # noqa: E402
 
 class ModelProvenanceTests(unittest.TestCase):
     """Verify real revisions/hashes vs unpinned/missing weights and separate license terms."""
+
+    def test_catalog_rejects_unsafe_local_paths(self):
+        base = json.loads((REPO_ROOT / "config/model-provenance-v1.json").read_text())
+        for path in ("/tmp/model", "../model", "runtime/../model", "C:/model", "runtime\\model", "runtime//model", "runtime/./model", "runtime/model/", "bad\x00name"):
+            for section, field in (("models", "local_relative_dir"), ("runtimes", "local_relative_path")):
+                with self.subTest(path=path, field=field):
+                    catalog = copy.deepcopy(base)
+                    catalog[section][0][field] = path
+                    with self.assertRaises(ProvenanceError):
+                        validate_provenance_catalog(catalog)
+        for name in ("../x4.bin", "nested/x4.bin", "C:x4.bin", "x4\\bin", "", "."):
+            with self.subTest(name=name):
+                catalog = copy.deepcopy(base)
+                catalog["models"][0]["weights"][name] = "a" * 64
+                with self.assertRaises(ProvenanceError):
+                    validate_provenance_catalog(catalog)
+
+    def test_audit_refuses_external_symlinks(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            home = root / "home"
+            runtime = home / "runtime"
+            runtime.mkdir(parents=True)
+            outside = root / "outside"
+            outside.mkdir()
+            (outside / "x4.param").write_bytes(b"external")
+            for relative in ("realsr-binary", "models-RealeSR-general-v3"):
+                target = runtime / relative
+                target.symlink_to(outside if relative.startswith("models") else outside / "x4.param")
+                with self.subTest(relative=relative), self.assertRaises(ProvenanceError):
+                    audit_model_provenance(REPO_ROOT, home)
+                target.unlink()
+            model = runtime / "models-RealeSR-general-v3"
+            model.mkdir()
+            (model / "x4.param").symlink_to(outside / "x4.param")
+            with self.assertRaises(ProvenanceError):
+                audit_model_provenance(REPO_ROOT, home)
+
+    def test_inventory_does_not_read_external_registered_model(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            home = root / "home"
+            model = home / "runtime/models-custom"
+            model.mkdir(parents=True)
+            outside = root / "external.json"
+            outside.write_text('{"name":"external"}')
+            metadata = model / "fidelis-model.json"
+            metadata.symlink_to(outside)
+            result = inventory(REPO_ROOT, home)
+            self.assertEqual(result["registered_models"][0]["integrity"], "invalid_metadata")
+            metadata.unlink()
+            metadata.write_text('{"name":"custom","sha256":{}}')
+            (model / "x4.param").symlink_to(outside)
+            (model / "x4.bin").write_bytes(b"local")
+            with patch("fidelis.studio.capabilities.sha256") as digest:
+                result = inventory(REPO_ROOT, home)
+            digest.assert_not_called()
+            self.assertEqual(result["registered_models"][0]["integrity"], "invalid_metadata")
+
+    def test_duplicate_tsv_and_unhashed_pinned_runtime_rejected(self):
+        base = json.loads((REPO_ROOT / "config/model-provenance-v1.json").read_text())
+        catalog = copy.deepcopy(base)
+        catalog["runtimes"][0]["provenance_status"] = "pinned_sha256"
+        with self.assertRaises(ProvenanceError):
+            validate_provenance_catalog(catalog)
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "candidates.tsv"
+            original = (REPO_ROOT / "config/photo-candidates.tsv").read_text()
+            row = next(line for line in original.splitlines() if line and not line.startswith("#"))
+            path.write_text(original.rstrip() + "\n" + row + "\n")
+            with self.assertRaisesRegex(ProvenanceError, "duplicate TSV"):
+                validate_provenance_catalog(base, tsv_path=path)
 
     def test_weight_integrity_status_precedence(self):
         from fidelis.studio.provenance import _weight_integrity
