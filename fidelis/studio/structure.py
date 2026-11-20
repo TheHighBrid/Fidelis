@@ -17,7 +17,18 @@ def measure_region(base, candidate, region, stripe_rows):
     """Count RGB changes and directional edge disagreements on the same grid."""
     import numpy as np
 
+    if type(stripe_rows) is not int or stripe_rows <= 0:
+        raise ValueError("stripe_rows must be a positive integer")
+    if (not isinstance(base, np.ndarray) or not isinstance(candidate, np.ndarray)
+            or base.shape != candidate.shape or base.ndim != 3
+            or base.shape[2] != 3 or base.dtype != np.uint8
+            or candidate.dtype != np.uint8):
+        raise ValueError("Structural comparison requires aligned RGB8 arrays")
     x, y, width, height = region
+    if (len(region) != 4 or any(type(value) is not int for value in region)
+            or x < 0 or y < 0 or width <= 0 or height <= 0
+            or x + width > base.shape[1] or y + height > base.shape[0]):
+        raise ValueError("Structural rectangle must fit the source grid")
     changed_pixels = 0
     changed_edges = 0
 
