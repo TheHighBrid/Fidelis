@@ -617,11 +617,17 @@ class UpscalePipeline:
         self._run_direct_upscale(input_path, output_path, model)
 
     def _run_direct_upscale(self, input_path: Path, output_path: Path, model: str) -> None:
+        # The direct and tiled lanes share the same fresh-artifact contract.
+        # Do not allow a stale file or symlink to satisfy a successful exit.
+        if output_path.exists() or output_path.is_symlink():
+            raise RuntimeError("Direct upscale output path already exists")
         cmd = [self.cli_path, "upscale", str(input_path), str(output_path), "--model", model]
         res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         if res.returncode != 0:
             err = res.stderr.strip() or res.stdout.strip()
             raise RuntimeError(f"Direct upscale failed ({res.returncode}): {err}")
+        if output_path.is_symlink() or not output_path.is_file() or output_path.stat().st_size == 0:
+            raise RuntimeError("Direct upscale reported success without a nonempty output file")
 
     def _run_tiled_upscale(
         self,
@@ -643,10 +649,15 @@ class UpscalePipeline:
             "--cli-path", str(self.cli_path),
             "--scale", str(scale),
         ]
+        # A successful subprocess must produce a fresh artifact, not reuse a stale one.
+        if output_path.exists() or output_path.is_symlink():
+            raise RuntimeError("Tiled upscale output path already exists")
         res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         if res.returncode != 0:
             err = res.stderr.strip() or res.stdout.strip()
             raise RuntimeError(f"Tiled upscale failed ({res.returncode}): {err}")
+        if output_path.is_symlink() or not output_path.is_file() or output_path.stat().st_size == 0:
+            raise RuntimeError("Tiled upscale reported success without a nonempty output file")
 
     def _verify_zero_black_tiles(self, arr: np.ndarray, tile_size: int = 128) -> bool:
         """Scan image for completely dead all-zero black tiles."""
