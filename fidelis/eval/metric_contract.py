@@ -1,0 +1,128 @@
+"""Fail-closed presentation of image quality metrics.
+
+Legacy pipeline metrics can contain placeholders and a gradient-derived value
+named LPIPS. They are never accepted as ground-truth quality evidence without
+an explicit reference contract.
+"""
+from __future__ import annotations
+
+import math
+from collections.abc import Mapping
+from typing import Any
+
+
+def format_quality_summary(metrics: Mapping[str, Any], *, reference_kind: str | None = None) -> str:
+    """Return a human-readable report without inventing benchmark evidence.
+
+    reference_kind='ground_truth' is reserved for an independently verified,
+    aligned ground-truth reference. 'source_consistency' describes downsampled
+    output compared with the input and is NOT restoration accuracy.
+    """
+    if reference_kind is None:
+        return "Quality:      unavailable (legacy metrics lack verified reference/provenance)"
+    if reference_kind not in {"ground_truth", "source_consistency"}:
+        raise ValueError("Unknown quality reference kind")
+    if not isinstance(metrics, Mapping):
+        return "Quality:      unavailable (invalid metric payload)"
+    if any(isinstance(key, str) and key.casefold() in {"lpips", "lpips_proxy"} for key in metrics):
+        raise ValueError("Legacy gradient-derived 'lpips' is not a real LPIPS measurement")
+    values = []
+    for key in ("psnr", "ssim"):
+        value = metrics.get(key)
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+            return "Quality:      unavailable (missing or invalid PSNR/SSIM)"
+        values.append(float(value))
+    psnr, ssim = values
+    if psnr < 0 or not 0 <= ssim <= 1:
+        return "Quality:      unavailable (out-of-range PSNR/SSIM)"
+    label = "ground-truth reference" if reference_kind == "ground_truth" else "source consistency only; not recovery accuracy"
+    return f"PSNR / SSIM:  {psnr:.2f} dB / {ssim:.4f} ({label}; no LPIPS measured)"
+
+
+def sanitize_quality_payload(metrics: Mapping[str, Any], *, reference_kind: str | None = None) -> dict[str, Any]:
+    """Produce a fail-closed machine-readable metric record for telemetry.
+
+    Legacy numeric values are never forwarded without an explicitly declared
+    reference type. This does not authenticate a reference: the caller must
+    establish independent provenance before setting reference_kind.
+    """
+    if reference_kind is None:
+        return {"status": "unavailable", "reason": "reference_not_verified", "metrics": {}}
+    if reference_kind not in {"ground_truth", "source_consistency"}:
+        raise ValueError("Unknown quality reference kind")
+    if not isinstance(metrics, Mapping):
+        return {"status": "unavailable", "reason": "invalid_payload", "metrics": {}}
+    if any(isinstance(key, str) and key.casefold() in {"lpips", "lpips_proxy"} for key in metrics):
+        return {"status": "unavailable", "reason": "unverified_lpips", "metrics": {}}
+    values: dict[str, float] = {}
+    for key in ("psnr", "ssim"):
+        value = metrics.get(key)
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+            return {"status": "unavailable", "reason": "invalid_metrics", "metrics": {}}
+        values[key] = float(value)
+    if values["psnr"] < 0 or not 0 <= values["ssim"] <= 1:
+        return {"status": "unavailable", "reason": "out_of_range", "metrics": {}}
+    return {"status": "measured", "reference_kind": reference_kind,
+            "is_ground_truth": reference_kind == "ground_truth", "metrics": values}
+
+
+def sanitize_legacy_manifest(manifest: Mapping[str, Any]) -> dict[str, Any]:
+    """Remove unsupported legacy quality claims from exported CLI manifests.
+
+    The legacy pipeline also embeds quality values in root span attributes.
+    Preserve non-quality execution evidence while removing those claims.
+    This is an export boundary, not a correction to upstream telemetry.
+    """
+    if not isinstance(manifest, Mapping):
+        raise TypeError("Invalid execution manifest")
+    from copy import deepcopy
+
+    result = deepcopy(dict(manifest))
+    result["metrics"] = sanitize_quality_payload(result.get("metrics"))
+    quality_keys = {
+        "psnr", "psnr_db", "ssim", "ssim_score", "lpips", "lpips_proxy",
+        "cielab_delta_e", "gradient_coherence_pct",
+    }
+
+    def redact_quality_attributes(value: Any) -> bool:
+        """Redact nested legacy quality values and return whether any were found.
+
+        Propagate invalidation to enclosing measured quality records, so a
+        nested diagnostic cannot leave a misleading measured verdict behind.
+        """
+        if isinstance(value, dict):
+            has_quality_claim = any(
+                isinstance(key, str) and key.casefold() in quality_keys
+                for key in value
+            )
+            for key in list(value):
+                if isinstance(key, str) and key.casefold() in quality_keys:
+                    value.pop(key, None)
+            for child in value.values():
+                has_quality_claim = redact_quality_attributes(child) or has_quality_claim
+            if has_quality_claim and value.get("status") == "measured":
+                value["status"] = "unavailable"
+                value.pop("reference_kind", None)
+                value.pop("is_ground_truth", None)
+            return has_quality_claim
+        if isinstance(value, (list, tuple)):
+            return any_claim(value)
+        return False
+
+    def any_claim(items: Any) -> bool:
+        # Do not short-circuit: every sibling must be sanitized.
+        found = False
+        for item in items:
+            found = redact_quality_attributes(item) or found
+        return found
+
+    # Other exporters may attach span-like events and telemetry outside "spans".
+    # Redact their nested claims as well, while retaining the root-level
+    # normalized metrics contract and unrelated execution evidence.
+    for key in list(result):
+        if isinstance(key, str) and key.casefold() in quality_keys:
+            result.pop(key, None)
+    for key, value in result.items():
+        if key != "metrics":
+            redact_quality_attributes(value)
+    return result
