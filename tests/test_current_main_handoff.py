@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class CurrentMainHandoffTests(unittest.TestCase):
     def test_active_entrypoints_identify_integrated_main(self):
-        for name in ("README.md", "AGENTS.md", "ONBOARDING.md", "docs/project/HANDOFF.md"):
+        for name in ("README.md", "AGENTS.md", "ONBOARDING.md", "docs/project/HANDOFF.md", "docs/project/STATUS.md"):
             with self.subTest(path=name):
                 text = (ROOT / name).read_text(encoding="utf-8")
                 self.assertIn("7310aa6", text)
@@ -24,7 +24,7 @@ class CurrentMainHandoffTests(unittest.TestCase):
                 self.assertIn("git switch main", text)
 
     def test_entrypoints_do_not_conflate_merge_with_release(self):
-        for name in ("README.md", "AGENTS.md", "docs/project/HANDOFF.md"):
+        for name in ("README.md", "AGENTS.md", "docs/project/HANDOFF.md", "docs/project/STATUS.md"):
             with self.subTest(path=name):
                 text = (ROOT / name).read_text(encoding="utf-8")
                 self.assertTrue(any(
