@@ -27,6 +27,29 @@ from fidelis.studio.store import sha256
 WORKER_PREFLIGHT_SCHEMA = "fidelis.worker_preflight.v1"
 WORKER_PREFLIGHT_POLICY_SCHEMA = "fidelis.worker_preflight_policy.v1"
 DEFAULT_POLICY_PATH = Path(__file__).resolve().parents[2] / "config" / "worker-preflight-policy-v1.json"
+_LOCAL_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
+_LOCAL_SCHEMES = frozenset({"http"})
+_FORBIDDEN_SECRET_KEYS = frozenset({
+    "access_key", "api_key", "apikey", "auth_token", "authorization", "bearer",
+    "client_secret", "password", "private_key", "secret", "secret_key", "token",
+})
+
+
+def _local_policy_choices(policy, key, permitted):
+    values = policy.get(key, sorted(permitted))
+    if (not isinstance(values, list) or not values
+            or any(not isinstance(value, str) or value not in permitted for value in values)):
+        raise ValueError(f"{key} may only narrow the built-in local worker policy")
+    return set(values)
+
+
+def _bounded_timeout_range(budget):
+    values = budget.get("timeout_seconds_range", [0.5, 60.0])
+    if (not isinstance(values, list) or len(values) != 2
+            or any(type(value) not in (int, float) for value in values)
+            or not 0.5 <= values[0] <= values[1] <= 60.0):
+        raise ValueError("Worker timeout range must stay within 0.5..60 seconds")
+    return values
 
 _SECRET_VALUE_PATTERNS = (
     re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._\-+/=]{8,}"),
@@ -58,11 +81,21 @@ def load_worker_preflight_policy(policy_path: Path | str | None = None) -> dict[
         raise ValueError(f"Expected {WORKER_PREFLIGHT_POLICY_SCHEMA} policy document")
     if data.get("allow_remote_cloud_fallback") is not False:
         raise ValueError("Worker preflight policy must forbid automatic remote cloud fallback")
+    _local_policy_choices(data, "allowed_hosts", _LOCAL_HOSTS)
+    _local_policy_choices(data, "allowed_schemes", _LOCAL_SCHEMES)
     budget = data.get("budget_policy")
     if not isinstance(budget, dict):
         raise ValueError("Missing budget_policy in worker preflight policy")
-    if budget.get("allow_paid_remote_execution") is not False or float(budget.get("max_paid_spend_usd", -1)) != 0.0:
+    spend = budget.get("max_paid_spend_usd")
+    if budget.get("allow_paid_remote_execution") is not False or type(spend) not in (int, float) or spend != 0:
         raise ValueError("Local Studio worker preflight policy requires zero paid remote spend")
+    _bounded_timeout_range(budget)
+    max_nodes = budget.get("max_workflow_nodes", 500)
+    if type(max_nodes) is not int or not 1 <= max_nodes <= 500:
+        raise ValueError("Worker workflow node budget must stay within 1..500")
+    keys = data.get("forbidden_secret_keys", [])
+    if not isinstance(keys, list) or any(not isinstance(key, str) or not key for key in keys):
+        raise ValueError("Invalid forbidden_secret_keys policy")
     access = data.get("resource_access_policy")
     if not isinstance(access, dict) or access.get("secret_storage_policy") != "forbid_repo_secrets":
         raise ValueError("Missing or invalid resource_access_policy in worker preflight policy")
@@ -75,21 +108,7 @@ def find_secret_violations(
     forbidden_keys: set[str] | None = None,
     path: str = "root",
 ) -> list[str]:
-    if forbidden_keys is None:
-        forbidden_keys = {
-            "access_key",
-            "api_key",
-            "apikey",
-            "auth_token",
-            "authorization",
-            "bearer",
-            "client_secret",
-            "password",
-            "private_key",
-            "secret",
-            "secret_key",
-            "token",
-        }
+    forbidden_keys = _FORBIDDEN_SECRET_KEYS | (forbidden_keys or set())
     violations: list[str] = []
     if isinstance(value, dict):
         for key, item in value.items():
@@ -115,37 +134,45 @@ def find_secret_violations(
 
 def validate_endpoint_policy(address: str, policy: dict[str, Any]) -> dict[str, Any]:
     violations: list[str] = []
-    parsed = urlparse(address)
-    allowed_schemes = set(policy.get("allowed_schemes", ["http"]))
-    allowed_hosts = set(policy.get("allowed_hosts", ["127.0.0.1", "localhost", "::1"]))
+    allowed_schemes = _local_policy_choices(policy, "allowed_schemes", _LOCAL_SCHEMES)
+    allowed_hosts = _local_policy_choices(policy, "allowed_hosts", _LOCAL_HOSTS)
+    try:
+        if not isinstance(address, str) or any(c.isspace() or ord(c) < 32 or c == "\\" for c in address):
+            raise ValueError("Malformed endpoint")
+        parsed = urlparse(address)
+        port = parsed.port
+        host = parsed.hostname
+    except ValueError:
+        return {"endpoint": None, "hostname": None, "port": None, "scheme": None,
+                "policy_compliant": False, "violations": ["Malformed worker endpoint or port"]}
 
     if parsed.scheme not in allowed_schemes:
-        violations.append(f"Endpoint scheme '{parsed.scheme}' not in allowed_schemes {sorted(allowed_schemes)}")
-    if parsed.hostname not in allowed_hosts:
-        violations.append(f"Endpoint host '{parsed.hostname}' not in allowed_hosts {sorted(allowed_hosts)}")
+        violations.append("Endpoint scheme not in allowed_schemes")
+    if host not in allowed_hosts:
+        violations.append("Endpoint host not in allowed_hosts")
     if parsed.path not in ("", "/"):
         violations.append("Endpoint URL must not include a subpath")
-    if parsed.username or parsed.password:
+    if parsed.username is not None or parsed.password is not None:
         violations.append("Endpoint URL must not embed username/password credentials")
-    if parsed.query or parsed.fragment:
+    if "?" in address or "#" in address:
         violations.append("Endpoint URL must not include query parameters or fragments")
-    if parsed.port is not None and not (1 <= int(parsed.port) <= 65535):
+    if parsed.netloc.endswith(":") or (port is not None and not 1 <= port <= 65535):
         violations.append("Endpoint port must be in 1..65535")
 
     host_str = (
-        f"[{parsed.hostname}]"
-        if parsed.hostname and ":" in parsed.hostname
-        else parsed.hostname
+        f"[{host}]" if host and ":" in host else host
     )
     sanitized_endpoint = f"{parsed.scheme}://{host_str}"
-    if parsed.port:
-        sanitized_endpoint = f"{sanitized_endpoint}:{parsed.port}"
+    if port is not None:
+        sanitized_endpoint = f"{sanitized_endpoint}:{port}"
+    if not violations and parsed.netloc.lower() != sanitized_endpoint.split("://", 1)[1]:
+        violations.append("Endpoint authority must be canonical")
 
     return {
-        "endpoint": sanitized_endpoint,
-        "hostname": parsed.hostname,
-        "port": parsed.port or (80 if parsed.scheme == "http" else None),
-        "scheme": parsed.scheme,
+        "endpoint": sanitized_endpoint if not violations else None,
+        "hostname": host if not violations else None,
+        "port": (port or 80) if not violations else None,
+        "scheme": parsed.scheme if not violations else None,
         "policy_compliant": len(violations) == 0,
         "violations": violations,
     }
@@ -389,8 +416,8 @@ def _request_policy_check(policy, address, timeout, owner, access_method):
     endpoint_check = validate_endpoint_policy(address, policy)
     policy_violations.extend(endpoint_check["violations"])
 
-    timeout_range = policy["budget_policy"].get("timeout_seconds_range", [0.5, 60.0])
-    if not (float(timeout_range[0]) <= float(timeout) <= float(timeout_range[1])):
+    timeout_range = _bounded_timeout_range(policy["budget_policy"])
+    if type(timeout) not in (int, float) or not timeout_range[0] <= timeout <= timeout_range[1]:
         policy_violations.append(
             f"Timeout {timeout}s outside allowed range [{timeout_range[0]}, {timeout_range[1]}]"
         )
