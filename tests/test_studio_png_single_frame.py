@@ -38,6 +38,22 @@ class StudioPngSingleFrameTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "multi-frame"):
                 read_export_pass(path)
 
+    def test_export_pass_rejects_apng_with_alpha_enabled(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "animated.png"
+            path.write_bytes(_png_bytes(True))
+            with self.assertRaisesRegex(ValueError, "multi-frame"):
+                read_export_pass(path, allow_alpha=True, convert_icc=True)
+
+    def test_single_frame_rgba_export_still_accepted(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "still_rgba.png"
+            Image.new("RGBA", (8, 8), (20, 30, 40, 128)).save(path)
+            actual, converted = read_export_pass(path, allow_alpha=True)
+            self.assertFalse(converted)
+            self.assertEqual(actual.shape, (8, 8, 4))
+            np.testing.assert_array_equal(actual[0, 0], (20, 30, 40, 128))
+
     def test_single_frame_rgb_still_accepted(self):
         payload = _png_bytes(False)
         actual = read_rgb8_png(io.BytesIO(payload))
