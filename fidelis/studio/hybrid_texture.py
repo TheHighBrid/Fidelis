@@ -105,17 +105,28 @@ class RealESRGANNCNNBackend:
         return self._verified_hashes
 
     def _run_ncnn(self, src_path: Path, dst_path: Path) -> None:
-        cmd = [
-            str(self.engine_path),
-            "-i", str(src_path),
-            "-o", str(dst_path),
-            "-m", str(self.model_dir),
-            "-n", "realesr-general-v3",
-            "-s", "4",
-        ]
+        cli_path = REPO_ROOT / "bin" / "fidelis"
         if self._command_runner is not None:
+            cmd = [
+                str(self.engine_path),
+                "-i", str(src_path),
+                "-o", str(dst_path),
+                "-m", str(self.model_dir),
+                "-n", "realesr-general-v3",
+                "-s", "4",
+            ]
             proc = self._command_runner(cmd)
+        elif cli_path.is_file() and os.access(cli_path, os.X_OK):
+            cmd = [str(cli_path), "upscale", str(src_path), str(dst_path), "--model", MODEL_NAME]
+            proc = subprocess.run(cmd, capture_output=True, text=True, check=False)  # nosec B603
         else:
+            cmd = [
+                str(self.engine_path),
+                "-i", str(src_path),
+                "-o", str(dst_path),
+                "-m", str(self.model_dir),
+                "-s", "4",
+            ]
             proc = subprocess.run(cmd, capture_output=True, text=True, check=False)  # nosec B603
         if proc.returncode != 0 or not dst_path.is_file():
             detail = (proc.stderr or proc.stdout or "").strip()
@@ -136,7 +147,7 @@ class RealESRGANNCNNBackend:
         with tempfile.TemporaryDirectory(prefix="fidelis-realesr-") as tmpdir:
             src_path = Path(tmpdir) / "source.png"
             dst_path = Path(tmpdir) / "output.png"
-            Image.fromarray(np.asarray(source_rgb, dtype=np.uint8), mode="RGB").save(src_path)
+            Image.fromarray(np.asarray(source_rgb, dtype=np.uint8)).save(src_path)
             self._run_ncnn(src_path, dst_path)
             with Image.open(dst_path) as img:
                 rgb_img = img.convert("RGB")
