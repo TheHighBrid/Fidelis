@@ -88,5 +88,34 @@ class StructuralScreenContractTests(unittest.TestCase):
                     self.assertEqual(result["strong_edge_disagreements"], expected_edges)
 
 
+    def test_same_size_internal_seam_translation_is_detected(self):
+        """Identical dimensions do not establish garment seam registration."""
+        base = np.zeros((16, 18, 3), dtype=np.uint8)
+        base[:, 6:8] = 230
+        candidate = np.zeros_like(base)
+        candidate[:, 7:9] = 230
+        for rows in (1, 2, 3, 16, 32):
+            with self.subTest(rows=rows):
+                result = measure_region(base, candidate, [3, 2, 10, 12], rows)
+                self.assertEqual(result["pixels"], 120)
+                self.assertEqual(result["changed_pixels"], 24)
+                self.assertGreater(result["strong_edge_disagreements"], 0)
+
+    def test_logo_shift_inside_roi_detected_without_outside_noise(self):
+        """A moved logo must register even if unrelated pixels also change."""
+        base = np.zeros((14, 16, 3), dtype=np.uint8)
+        base[4:8, 5:9] = 255
+        candidate = base.copy()
+        candidate[4:8, 5:9] = 0
+        candidate[4:8, 6:10] = 255
+        candidate[:, 0:2] = 170
+        roi = [3, 3, 9, 7]
+        for rows in (1, 2, 4, 20):
+            with self.subTest(rows=rows):
+                result = measure_region(base, candidate, roi, rows)
+                self.assertEqual(result["changed_pixels"], 8)
+                self.assertGreater(result["strong_edge_disagreements"], 0)
+
+
 if __name__ == "__main__":
     unittest.main()
