@@ -17,7 +17,7 @@ def measure_region(base, candidate, region, stripe_rows):
     """Count RGB changes and directional edge disagreements on the same grid."""
     import numpy as np
 
-    if type(stripe_rows) is not int or stripe_rows <= 0:
+    if not isinstance(stripe_rows, int) or isinstance(stripe_rows, bool) or stripe_rows <= 0:
         raise ValueError("stripe_rows must be a positive integer")
     if (not isinstance(base, np.ndarray) or not isinstance(candidate, np.ndarray)
             or base.shape != candidate.shape or base.ndim != 3
