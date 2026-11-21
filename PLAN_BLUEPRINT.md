@@ -73,7 +73,8 @@ authenticate the underlying evidence or human signoffs.
 Open integration/review work may change these contracts: check
 [PR #87](https://github.com/TheHighBrid/Fidelis/pull/87) for post-integration
 image/structural integrity and [PR #90](https://github.com/TheHighBrid/Fidelis/pull/90)
-for strict release gate declarations. Neither PR is presumed merged.
+for strict release gate declarations (merged into main by 2026-11-21).
+PR #87 remains open; do not assume its integrity integration is merged.
 The outstanding acceptance gates include a compatible live generative workflow,
 rights-cleared 60-case corpus and blind held-out review, physical-device
 validation and explicit owner release approval. Do not mistake deterministic
