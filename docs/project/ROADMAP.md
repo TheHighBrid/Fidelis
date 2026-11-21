@@ -6,6 +6,28 @@ The committed [backlog](backlog.json) contains actual IDs, links, scope and acce
 Dates and staffing are not agreed. The earlier solo effort range is a planning
 hypothesis, not a deadline or a substitute for resource/quality evidence.
 
+## Current integration and acceptance interpretation (2026-11-21)
+
+Unified Studio [PR #82](https://github.com/TheHighBrid/Fidelis/pull/82)
+merged into `main` at `7310aa6` on 2026-11-20. The historical
+implementation/coordination states in the tables below are snapshots,
+**not** assertions that modules are absent from current `main`.
+Consult the latest `main`, [status ledger](STATUS.md), open PRs and
+the linked Linear issues before claiming or implementing a task.
+
+Implementation, fixture verification, live model qualification, device
+acceptance, corpus acceptance and production release are separate gates.
+Current integration review includes
+[PR #87](https://github.com/TheHighBrid/Fidelis/pull/87)
+(image/structure regression integration) and
+[PR #90](https://github.com/TheHighBrid/Fidelis/pull/90)
+(strict release declaration types, merged into main by 2026-11-21).
+PR #87 remains open and must not be assumed merged.
+Do not duplicate those scopes or infer release approval from passing CI.
+A compatible live generative worker, licensed 60-case photographic corpus,
+blind human quality review, physical-device validation and owner signoff
+remain acceptance dependencies.
+
 ## Milestone chapters
 
 | Milestone | Scope | Current snapshot | Exit evidence |
