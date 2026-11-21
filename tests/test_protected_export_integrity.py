@@ -1,11 +1,12 @@
 """Regression tests for independent protected-export verification."""
 import importlib.util
+import struct
 import tempfile
 import unittest
 from pathlib import Path
 
 import numpy as np
-from PIL import Image
+from PIL import Image, PngImagePlugin
 
 SCRIPT = Path(__file__).resolve().parents[1] / 'scripts' / 'verify-protected-export.py'
 SPEC = importlib.util.spec_from_file_location('verify_protected_export', SCRIPT)
@@ -84,6 +85,69 @@ class ProtectedExportVerificationTests(unittest.TestCase):
     def test_integer_binary_mask_supported(self):
         self.save(protect=self.protect.astype(np.uint8))
         self.assertEqual(module.verify(self.base, self.output, self.mask)['protected_pixels'], 1)
+
+    def test_png_transparency_metadata_fails_closed(self):
+        image = Image.fromarray(self.pixels)
+        image.save(self.output, transparency=(50, 50, 50))
+        with self.assertRaisesRegex(ValueError, 'transparency'):
+            module.verify(self.base, self.output, self.mask)
+
+    def test_nonidentity_exif_orientation_fails_closed(self):
+        image = Image.fromarray(self.pixels)
+        exif = Image.Exif()
+        exif[274] = 6
+        image.save(self.output, exif=exif)
+        with self.assertRaisesRegex(ValueError, 'EXIF orientation'):
+            module.verify(self.base, self.output, self.mask)
+
+    def test_base_png_transparency_metadata_fails_closed(self):
+        image = Image.fromarray(self.pixels)
+        image.save(self.base, transparency=(50, 50, 50))
+        with self.assertRaisesRegex(ValueError, 'transparency'):
+            module.verify(self.base, self.output, self.mask)
+
+    def test_base_nonidentity_exif_orientation_fails_closed(self):
+        image = Image.fromarray(self.pixels)
+        exif = Image.Exif()
+        exif[274] = 8
+        image.save(self.base, exif=exif)
+        with self.assertRaisesRegex(ValueError, 'EXIF orientation'):
+            module.verify(self.base, self.output, self.mask)
+
+    def test_identity_exif_orientation_remains_valid(self):
+        exif = Image.Exif()
+        exif[274] = 1
+        Image.fromarray(self.pixels).save(self.output, exif=exif)
+        self.assertTrue(module.verify(self.base, self.output, self.mask)['pass'])
+
+    def test_png_colour_transfer_chunks_fail_closed_on_either_input(self):
+        chunks = (
+            (b'gAMA', struct.pack('>I', 45455)),
+            (b'sRGB', bytes([0])),
+            (b'cHRM', struct.pack('>8I', *([31270] * 8))),
+        )
+        for chunk, payload in chunks:
+            for path in (self.base, self.output):
+                with self.subTest(chunk=chunk, path=path.name):
+                    self.save()
+                    metadata = PngImagePlugin.PngInfo()
+                    metadata.add(chunk, payload)
+                    Image.fromarray(self.pixels).save(path, pnginfo=metadata)
+                    with self.assertRaisesRegex(ValueError, 'colour-transfer'):
+                        module.verify(self.base, self.output, self.mask)
+
+    def test_animated_png_fails_closed_on_either_input(self):
+        for path in (self.base, self.output):
+            with self.subTest(path=path.name):
+                self.save()
+                first = Image.fromarray(self.pixels)
+                second = Image.fromarray(np.zeros_like(self.pixels))
+                first.save(path, save_all=True, append_images=[second],
+                           duration=100, loop=0)
+                with Image.open(path) as image:
+                    self.assertEqual(image.n_frames, 2)
+                with self.assertRaisesRegex(ValueError, 'multi-frame PNG'):
+                    module.verify(self.base, self.output, self.mask)
 
     def test_non_rgb_export_fails_closed(self):
         Image.fromarray(self.pixels[..., 0]).save(self.output)
