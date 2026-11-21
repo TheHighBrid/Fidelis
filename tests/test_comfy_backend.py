@@ -182,6 +182,14 @@ class ComfyTests(unittest.TestCase):
             with self.assertRaises(ValueError):validate_workflow(bundle,SCHEMA)
         self.assertEqual(self.state['submits'],0)
 
+    def test_boolean_workflow_link_indices_fail_before_submission(self):
+        for index in (True, False):
+            bundle = copy.deepcopy(BUNDLE)
+            bundle['workflow']['2']['inputs']['image'] = ['1', index]
+            with self.subTest(index=index), self.assertRaisesRegex(ValueError, 'boolean'):
+                validate_workflow(bundle, SCHEMA)
+        self.assertEqual(self.state['submits'], 0)
+
     def test_invalid_endpoint_nodes_are_rejected_before_graph_submission(self):
         for node_id in ('1', '3'):
             bundle = copy.deepcopy(BUNDLE)
