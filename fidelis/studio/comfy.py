@@ -58,10 +58,10 @@ def _validate_node(node_id, node, graph, schema, input_node):
     required = spec.get('required', {})
     if set(required) - set(values):
         raise ValueError(f'Missing required inputs on node {node_id}')
-    return _validate_node_inputs(node_id, input_node, values, spec, graph)
+    return _validate_node_inputs(node_id, input_node, values, spec, graph, schema)
 
 
-def _validate_node_inputs(node_id, input_node, values, spec, graph):
+def _validate_node_inputs(node_id, input_node, values, spec, graph, schema):
     required = spec.get('required', {})
     links = []
     for name, value in values.items():
@@ -70,6 +70,13 @@ def _validate_node_inputs(node_id, input_node, values, spec, graph):
         if isinstance(value, list) and len(value) == 2 and isinstance(value[0], str) and isinstance(value[1], int):
             if value[0] not in graph or value[1] < 0:
                 raise ValueError('Dangling workflow link')
+            upstream = graph[value[0]]
+            if not isinstance(upstream, dict):
+                raise ValueError('Workflow link references an invalid node')
+            upstream_spec = schema.get(upstream.get('class_type'), {})
+            outputs = upstream_spec.get('output')
+            if isinstance(outputs, list) and value[1] >= len(outputs):
+                raise ValueError('Workflow link output index exceeds installed node outputs')
             links.append(value[0])
         else:
             field = required.get(name, spec.get('optional', {}).get(name))
