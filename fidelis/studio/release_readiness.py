@@ -155,7 +155,7 @@ def _package_evidence(raw_packages: Any, repo_root: str | Path | None) -> dict[s
 
 def _quality_and_operations(manifest: Mapping[str, Any]) -> tuple[dict, dict]:
     quality_gate = manifest.get("quality_gate") or {}
-    quality_accepted = quality_gate.get("overall_status") == "accepted" and bool(quality_gate.get("report_sha256"))
+    quality_accepted = (quality_gate.get("overall_status") == "accepted" and isinstance(quality_gate.get("report_sha256"), str) and bool(re.fullmatch(r"[0-9a-fA-F]{64}", quality_gate["report_sha256"])))
     operational_gate = manifest.get("operational_gate") or {}
     ops_verified = (
         bool(operational_gate.get("live_worker_verified", False))
