@@ -263,10 +263,14 @@ class ComfyTextureBackend:
             record['error'] = str(error)
             self._save(record)
             raise SubmissionUnknown('Submission could not be confirmed; this run will not be automatically resubmitted') from error
-        if not isinstance(queued.get('prompt_id'), str) or queued.get('error'):
+        # A successful HTTP response can still be malformed or lack an ID.
+        # Submission may have happened, so never retry automatically.
+        prompt_id = queued.get('prompt_id') if isinstance(queued, dict) else None
+        if (not isinstance(prompt_id, str) or not prompt_id.strip()
+                or queued.get('error')):
             record['status'] = 'submission_unknown'
             self._save(record)
-            raise SubmissionUnknown('Missing prompt ID; reconcile the existing run before retrying')
+            raise SubmissionUnknown('Missing or invalid prompt ID; reconcile the existing run before retrying')
         record.update(status='submitted', prompt_id=queued['prompt_id'])
         self._save(record)
 
