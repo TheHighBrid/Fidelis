@@ -158,9 +158,9 @@ def _quality_and_operations(manifest: Mapping[str, Any]) -> tuple[dict, dict]:
     quality_accepted = (quality_gate.get("overall_status") == "accepted" and isinstance(quality_gate.get("report_sha256"), str) and bool(re.fullmatch(r"[0-9a-fA-F]{64}", quality_gate["report_sha256"])))
     operational_gate = manifest.get("operational_gate") or {}
     ops_verified = (
-        bool(operational_gate.get("live_worker_verified", False))
-        and bool(operational_gate.get("device_budgets_measured", False))
-        and bool(operational_gate.get("upgrade_rollback_verified", False))
+        operational_gate.get("live_worker_verified") is True
+        and operational_gate.get("device_budgets_measured") is True
+        and operational_gate.get("upgrade_rollback_verified") is True
     )
     return (
         {
@@ -171,7 +171,7 @@ def _quality_and_operations(manifest: Mapping[str, Any]) -> tuple[dict, dict]:
         {
             "verified": ops_verified,
             **{
-                key: bool(operational_gate.get(key, False))
+                key: operational_gate.get(key) is True
                 for key in ("live_worker_verified", "device_budgets_measured", "upgrade_rollback_verified")
             },
         },
@@ -244,7 +244,7 @@ def evaluate_release_readiness(
     manifest = dict(release_manifest or {})
     core, defects = _backlog_evidence(backlog_data)
     release_sha = manifest.get("release_sha")
-    merged_to_main = bool(manifest.get("merged_to_main", False))
+    merged_to_main = manifest.get("merged_to_main") is True
     packages = _package_evidence(manifest.get("packages"), repo_root)
     quality, ops = _quality_and_operations(manifest)
     docs = _documentation_evidence(manifest)
