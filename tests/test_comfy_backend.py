@@ -194,7 +194,7 @@ class ComfyTests(unittest.TestCase):
         schema = copy.deepcopy(SCHEMA)
         schema['LoadImage']['output'] = ['IMAGE']
         schema['FixtureTexture']['output'] = ['IMAGE']
-        self.assertEqual(validate_workflow(BUNDLE, schema), BUNDLE)
+        self.assertEqual(validate_workflow(BUNDLE, schema), BUNDLE['workflow'])
         for node_id, input_name in (('2', 'image'), ('3', 'images')):
             for invalid_index in (1, 100):
                 bundle = copy.deepcopy(BUNDLE)
