@@ -190,6 +190,27 @@ class ComfyTests(unittest.TestCase):
                 validate_workflow(bundle, SCHEMA)
         self.assertEqual(self.state['submits'], 0)
 
+    def test_workflow_link_output_slots_match_installed_schema(self):
+        schema = copy.deepcopy(SCHEMA)
+        schema['LoadImage']['output'] = ['IMAGE']
+        schema['FixtureTexture']['output'] = ['IMAGE']
+        self.assertEqual(validate_workflow(BUNDLE, schema), BUNDLE['workflow'])
+        for node_id, input_name in (('2', 'image'), ('3', 'images')):
+            for invalid_index in (1, 100):
+                bundle = copy.deepcopy(BUNDLE)
+                bundle['workflow'][node_id]['inputs'][input_name][1] = invalid_index
+                with self.subTest(node_id=node_id, index=invalid_index):
+                    with self.assertRaisesRegex(ValueError, 'output index exceeds'):
+                        validate_workflow(bundle, schema)
+        self.assertEqual(self.state['submits'], 0)
+
+    def test_workflow_link_to_invalid_upstream_node_fails_closed(self):
+        bundle = copy.deepcopy(BUNDLE)
+        bundle['workflow']['2'] = None
+        with self.assertRaisesRegex(TypeError, 'Invalid workflow node'):
+            validate_workflow(bundle, SCHEMA)
+        self.assertEqual(self.state['submits'], 0)
+
     def test_invalid_endpoint_nodes_are_rejected_before_graph_submission(self):
         for node_id in ('1', '3'):
             bundle = copy.deepcopy(BUNDLE)
