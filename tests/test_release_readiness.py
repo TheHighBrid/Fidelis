@@ -214,6 +214,48 @@ class ReleaseReadinessTests(unittest.TestCase):
             )
             self.assertNotIn("held_out_quality_gate_not_accepted", dossier["blocking_reasons"])
 
+    def test_release_boolean_declarations_require_literal_true(self) -> None:
+        """Strings, numbers and containers cannot self-certify release gates."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            artifact = root / "release.tar.gz"
+            artifact.write_bytes(b"release")
+            checksum = hashlib.sha256(b"release").hexdigest()
+            for invalid in ("true", "false", "yes", 1, -1, [True], {"ok": True}, None):
+                with self.subTest(invalid=invalid):
+                    manifest = _make_complete_manifest(artifact.name, checksum)
+                    manifest["merged_to_main"] = invalid
+                    dossier = evaluate_release_readiness(
+                        _make_closed_backlog(), release_manifest=manifest, repo_root=root
+                    )
+                    self.assertFalse(dossier["ready_for_release"])
+                    self.assertFalse(dossier["merged_to_main"])
+                    self.assertIn(
+                        "release_sha_or_main_merge_unverified", dossier["blocking_reasons"]
+                    )
+                    for field in (
+                        "live_worker_verified",
+                        "device_budgets_measured",
+                        "upgrade_rollback_verified",
+                    ):
+                        with self.subTest(invalid=invalid, field=field):
+                            manifest = _make_complete_manifest(artifact.name, checksum)
+                            manifest["operational_gate"][field] = invalid
+                            dossier = evaluate_release_readiness(
+                                _make_closed_backlog(), release_manifest=manifest, repo_root=root
+                            )
+                            self.assertFalse(dossier["ready_for_release"])
+                            self.assertFalse(dossier["operational_gate"][field])
+                            self.assertIn(
+                                "operational_and_device_gates_incomplete",
+                                dossier["blocking_reasons"],
+                            )
+            manifest = _make_complete_manifest(artifact.name, checksum)
+            dossier = evaluate_release_readiness(
+                _make_closed_backlog(), release_manifest=manifest, repo_root=root
+            )
+            self.assertTrue(dossier["ready_for_release"])
+
     def test_package_checksum_mismatch_or_unmerged_sha_blocks_release(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
