@@ -161,6 +161,59 @@ class ReleaseReadinessTests(unittest.TestCase):
             self.assertEqual(dossier_signed["certified_evidence_level"], "E4_released")
             self.assertEqual(dossier_signed["blocking_reasons"], [])
 
+    def test_team_delegation_cannot_bypass_both_owner_signoffs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            artifact = root / "release.tar.gz"
+            artifact.write_bytes(b"release")
+            checksum = hashlib.sha256(b"release").hexdigest()
+            for signoff in (
+                {"status": "approved", "team_delegated": True, "team_lead": "Agent",
+                 "signed_at": "2026-11-20T00:00:00Z"},
+                {"status": "approved", "team_delegated": True, "release_lead": "Agent",
+                 "release_owner": "Release Lead", "signed_at": "2026-11-20T00:00:00Z"},
+                {"status": "approved", "creative_owner": " ", "release_owner": "Release Lead",
+                 "signed_at": "2026-11-20T00:00:00Z"},
+                {"status": "approved", "creative_owner": "Creative Lead",
+                 "release_owner": "Release Lead", "signed_at": " "},
+            ):
+                with self.subTest(signoff=signoff):
+                    manifest = _make_complete_manifest(artifact.name, checksum)
+                    manifest["owner_release_signoff"] = signoff
+                    dossier = evaluate_release_readiness(
+                        _make_closed_backlog(), release_manifest=manifest, repo_root=root
+                    )
+                    self.assertFalse(dossier["ready_for_release"])
+                    self.assertIn("owner_release_signoff_missing", dossier["blocking_reasons"])
+
+            manifest = _make_complete_manifest(artifact.name, checksum)
+            manifest["owner_release_signoff"]["team_delegated"] = True
+            dossier = evaluate_release_readiness(
+                _make_closed_backlog(), release_manifest=manifest, repo_root=root
+            )
+            self.assertTrue(dossier["ready_for_release"])
+
+    def test_quality_report_digest_requires_sha256_hex(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            artifact = root / "release.tar.gz"
+            artifact.write_bytes(b"release")
+            checksum = hashlib.sha256(b"release").hexdigest()
+            for digest in ("placeholder", "g" * 64, "a" * 63, "", None, 123):
+                with self.subTest(digest=digest):
+                    manifest = _make_complete_manifest(artifact.name, checksum)
+                    manifest["quality_gate"]["report_sha256"] = digest
+                    dossier = evaluate_release_readiness(
+                        _make_closed_backlog(), release_manifest=manifest, repo_root=root
+                    )
+                    self.assertFalse(dossier["ready_for_release"])
+                    self.assertIn("held_out_quality_gate_not_accepted", dossier["blocking_reasons"])
+            manifest = _make_complete_manifest(artifact.name, checksum)
+            dossier = evaluate_release_readiness(
+                _make_closed_backlog(), release_manifest=manifest, repo_root=root
+            )
+            self.assertNotIn("held_out_quality_gate_not_accepted", dossier["blocking_reasons"])
+
     def test_package_checksum_mismatch_or_unmerged_sha_blocks_release(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

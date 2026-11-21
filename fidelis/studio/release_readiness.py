@@ -155,7 +155,7 @@ def _package_evidence(raw_packages: Any, repo_root: str | Path | None) -> dict[s
 
 def _quality_and_operations(manifest: Mapping[str, Any]) -> tuple[dict, dict]:
     quality_gate = manifest.get("quality_gate") or {}
-    quality_accepted = quality_gate.get("overall_status") == "accepted" and bool(quality_gate.get("report_sha256"))
+    quality_accepted = (quality_gate.get("overall_status") == "accepted" and isinstance(quality_gate.get("report_sha256"), str) and bool(re.fullmatch(r"[0-9a-fA-F]{64}", quality_gate["report_sha256"])))
     operational_gate = manifest.get("operational_gate") or {}
     ops_verified = (
         bool(operational_gate.get("live_worker_verified", False))
@@ -199,18 +199,17 @@ def _documentation_evidence(manifest: Mapping[str, Any]) -> dict[str, Any]:
 def _signoff_evidence(manifest: Mapping[str, Any]) -> tuple[dict, dict]:
     signoff = manifest.get("owner_release_signoff") or manifest.get("team_release_signoff") or {}
     signoff_status = str(signoff.get("status", "pending")).strip()
-    # Team has full authority to sign off release without owner interruption
+    # A manifest cannot grant itself delegated release authority. Both named
+    # owner approvals are mandatory; team fields are informational only.
     is_team_delegated = bool(signoff.get("team_delegated", False))
     signoff_approved = (
         signoff_status == "approved"
-        and (
-            (bool(signoff.get("creative_owner")) and bool(signoff.get("release_owner")))
-            or (
-                is_team_delegated
-                and bool(signoff.get("team_lead") or signoff.get("release_lead") or signoff.get("release_owner"))
-            )
-        )
-        and bool(signoff.get("signed_at"))
+        and isinstance(signoff.get("creative_owner"), str)
+        and bool(signoff["creative_owner"].strip())
+        and isinstance(signoff.get("release_owner"), str)
+        and bool(signoff["release_owner"].strip())
+        and isinstance(signoff.get("signed_at"), str)
+        and bool(signoff["signed_at"].strip())
     )
     shared = {
         "status": signoff_status,
