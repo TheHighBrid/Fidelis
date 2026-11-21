@@ -161,6 +161,27 @@ class ReleaseReadinessTests(unittest.TestCase):
             self.assertEqual(dossier_signed["certified_evidence_level"], "E4_released")
             self.assertEqual(dossier_signed["blocking_reasons"], [])
 
+    def test_quality_report_digest_requires_sha256_hex(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            artifact = root / "release.tar.gz"
+            artifact.write_bytes(b"release")
+            checksum = hashlib.sha256(b"release").hexdigest()
+            for digest in ("placeholder", "g" * 64, "a" * 63, "", None, 123):
+                with self.subTest(digest=digest):
+                    manifest = _make_complete_manifest(artifact.name, checksum)
+                    manifest["quality_gate"]["report_sha256"] = digest
+                    dossier = evaluate_release_readiness(
+                        _make_closed_backlog(), release_manifest=manifest, repo_root=root
+                    )
+                    self.assertFalse(dossier["ready_for_release"])
+                    self.assertIn("held_out_quality_gate_not_accepted", dossier["blocking_reasons"])
+            manifest = _make_complete_manifest(artifact.name, checksum)
+            dossier = evaluate_release_readiness(
+                _make_closed_backlog(), release_manifest=manifest, repo_root=root
+            )
+            self.assertNotIn("held_out_quality_gate_not_accepted", dossier["blocking_reasons"])
+
     def test_package_checksum_mismatch_or_unmerged_sha_blocks_release(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
