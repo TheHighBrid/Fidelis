@@ -11,6 +11,14 @@ from PIL import Image
 
 
 def verify(base_path, export_path, mask_path):
+    # Pillow can expose RGB16 PNGs as RGB8 after silently discarding low bits.
+    # Check the encoded IHDR sample depth on both inputs before decoding.
+    for path in (base_path, export_path):
+        with open(path, 'rb') as stream:
+            header = stream.read(26)
+        if (len(header) != 26 or header[:16] != b'\x89PNG\r\n\x1a\n\x00\x00\x00\x0dIHDR'
+                or header[24:] != b'\x08\x02'):
+            raise ValueError('base and export must be untagged 8-bit RGB PNGs')
     with Image.open(base_path) as base_image, Image.open(export_path) as output_image:
         if base_image.format != 'PNG' or output_image.format != 'PNG':
             raise ValueError('base and export must be PNG files')
