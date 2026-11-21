@@ -3,6 +3,7 @@ import importlib.util
 import struct
 import tempfile
 import unittest
+import zlib
 from pathlib import Path
 
 import numpy as np
@@ -153,6 +154,26 @@ class ProtectedExportVerificationTests(unittest.TestCase):
         Image.fromarray(self.pixels[..., 0]).save(self.output)
         with self.assertRaisesRegex(ValueError, 'RGB'):
             module.verify(self.base, self.output, self.mask)
+
+
+    def test_rgb16_low_bits_cannot_be_silently_discarded(self):
+        def chunk(kind, payload):
+            return (struct.pack('>I', len(payload)) + kind + payload
+                    + struct.pack('>I', zlib.crc32(kind + payload)))
+
+        samples = (self.pixels.astype(np.uint16) * 256 + 1).astype('>u2')
+        png = (b'\x89PNG\r\n\x1a\n'
+               + chunk(b'IHDR', struct.pack('>IIBBBBB', 4, 3, 16, 2, 0, 0, 0))
+               + chunk(b'IDAT', zlib.compress(b''.join(b'\x00' + row.tobytes() for row in samples)))
+               + chunk(b'IEND', b''))
+        for path in (self.base, self.output):
+            with self.subTest(path=path.name):
+                self.save()
+                path.write_bytes(png)
+                with Image.open(path) as image:
+                    np.testing.assert_array_equal(np.asarray(image), self.pixels)
+                with self.assertRaisesRegex(ValueError, '8-bit RGB'):
+                    module.verify(self.base, self.output, self.mask)
 
 
 if __name__ == '__main__':
