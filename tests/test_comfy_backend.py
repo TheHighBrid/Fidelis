@@ -63,6 +63,7 @@ class ComfyTests(unittest.TestCase):
                        'outputs':{'3':{'images':[{'filename':'out.png','subfolder':'','type':'output'}]}}}
                     if state['mode']=='error':state['history']['prompt-1']['status']['status_str']='error'
                     if state['mode']=='ambiguous':return self.reply({'error':'connection lost after queueing'},500)
+                    if state['mode']=='malformed_ack':return self.reply(state['ack'])
                     return self.reply({'prompt_id':'prompt-1'})
                 self.reply({},404)
             def log_message(self,*args):pass
@@ -152,6 +153,26 @@ class ComfyTests(unittest.TestCase):
         output,_=self.backend.run(self.source,BUNDLE,run_id=self.run_id)
         np.testing.assert_array_equal(output,self.output)
         self.assertEqual(self.state['submits'],1)
+
+    def test_malformed_prompt_acknowledgements_reconcile_without_duplicate_submission(self):
+        # HTTP 200 is not proof that the prompt ID was returned. A retry could
+        # generate the same image twice if the worker already queued the prompt.
+        for acknowledgement in ([], None, 'prompt-1', {}, {'prompt_id': ''},
+                                {'prompt_id': 123}, {'prompt_id': '   '},
+                                {'prompt_id': 'prompt-1', 'error': 'uncertain'}):
+            with self.subTest(acknowledgement=acknowledgement):
+                run_id = str(uuid.uuid4())
+                self.state['mode'] = 'malformed_ack'
+                self.state['ack'] = acknowledgement
+                before = self.state['submits']
+                with self.assertRaisesRegex(SubmissionUnknown, 'prompt ID'):
+                    self.backend.run(self.source, BUNDLE, run_id=run_id)
+                self.assertEqual(self.backend._get(run_id)['status'], 'submission_unknown')
+                self.assertEqual(self.state['submits'], before + 1)
+                output, record = self.backend.run(self.source, BUNDLE, run_id=run_id)
+                np.testing.assert_array_equal(output, self.output)
+                self.assertEqual(record['status'], 'completed')
+                self.assertEqual(self.state['submits'], before + 1)
 
     def test_timeout_resume_polls_existing_prompt(self):
         self.state['mode']='pending'
