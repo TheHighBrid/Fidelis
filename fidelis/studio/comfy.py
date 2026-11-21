@@ -65,6 +65,8 @@ def _validate_node_inputs(node_id, input_node, values, spec, graph):
     required = spec.get('required', {})
     links = []
     for name, value in values.items():
+        if isinstance(value, list) and len(value) == 2 and isinstance(value[0], str) and isinstance(value[1], bool):
+            raise ValueError('Workflow link output index must be an integer, not a boolean')
         if isinstance(value, list) and len(value) == 2 and isinstance(value[0], str) and isinstance(value[1], int):
             if value[0] not in graph or value[1] < 0:
                 raise ValueError('Dangling workflow link')
