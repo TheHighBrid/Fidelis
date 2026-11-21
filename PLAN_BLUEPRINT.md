@@ -55,11 +55,29 @@ parallel lanes. No calendar promise or project completion percentage is implied.
 
 ## 5. Current position
 
-F01-F04 are implemented in an open feature PR, not released. F05-F08 have substantial
-engineering work but remaining live/device/async acceptance. The 62-test local
-snapshot is at `5f32fba`. The audited executor lacks model weights and a GPU worker.
-Automatic segmentation, robust structural detection, managed high-precision export,
-full benchmark acceptance and production packaging remain ahead.
+The unified Studio engineering implementation entered `main` through
+[PR #82](https://github.com/TheHighBrid/Fidelis/pull/82) at `7310aa6` on
+2026-11-20. Always inspect the latest `main`, active PRs and
+[status ledger](docs/project/STATUS.md) before choosing a new scope.
+The earlier PR #12 and 62-test `5f32fba` snapshot are historical evidence,
+not current checkout or test baselines.
+
+The integrated code includes persistent jobs, local ComfyUI protocol handling,
+regional painting, optional segmentation suggestions, structural ROI locks and
+screening, native inspection, high-precision export, bounded batch/export paths,
+and release-readiness declarations. Their existence is **not** evidence of a
+qualified live texture worker, photographic parity, automatic logo/seam detection,
+device acceptance or release. In particular, release manifest declarations do not
+authenticate the underlying evidence or human signoffs.
+
+Open integration/review work may change these contracts: check
+[PR #87](https://github.com/TheHighBrid/Fidelis/pull/87) for post-integration
+image/structural integrity and [PR #90](https://github.com/TheHighBrid/Fidelis/pull/90)
+for strict release gate declarations. Neither PR is presumed merged.
+The outstanding acceptance gates include a compatible live generative workflow,
+rights-cleared 60-case corpus and blind held-out review, physical-device
+validation and explicit owner release approval. Do not mistake deterministic
+fixture tests or an Apple M1 replay for these gates.
 
 A new documentation audit also records legacy pipeline/claim defects rather than
 quietly treating historical claims as validated. See [Risks](docs/project/RISKS.md).
