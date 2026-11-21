@@ -207,7 +207,7 @@ class ComfyTests(unittest.TestCase):
     def test_workflow_link_to_invalid_upstream_node_fails_closed(self):
         bundle = copy.deepcopy(BUNDLE)
         bundle['workflow']['2'] = None
-        with self.assertRaisesRegex(ValueError, 'invalid node'):
+        with self.assertRaisesRegex(TypeError, 'Invalid workflow node'):
             validate_workflow(bundle, SCHEMA)
         self.assertEqual(self.state['submits'], 0)
 
