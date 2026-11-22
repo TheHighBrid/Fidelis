@@ -358,12 +358,25 @@ class ComfyTextureBackend:
             return record
         candidates = []
         queue = self._json('GET', '/queue')
-        for row in queue.get('queue_running', []) + queue.get('queue_pending', []):
-            if len(row) >= 4 and row[3].get('fidelis_request_id') == run_id:
-                candidates.append(row[1])
-        for prompt_id, item in self._json('GET', '/history?max_items=1000').items():
-            prompt = item.get('prompt', [])
-            if len(prompt) >= 4 and prompt[3].get('fidelis_request_id') == run_id:
+        history = self._json('GET', '/history?max_items=1000')
+        if not isinstance(queue, dict) or not isinstance(history, dict):
+            raise SubmissionUnknown('Malformed ComfyUI reconciliation response; no new run was sent')
+        for key in ('queue_running', 'queue_pending'):
+            rows = queue.get(key, [])
+            if not isinstance(rows, list):
+                raise SubmissionUnknown('Malformed ComfyUI queue response; no new run was sent')
+            for row in rows:
+                if (isinstance(row, list) and len(row) >= 4
+                        and isinstance(row[3], dict)
+                        and row[3].get('fidelis_request_id') == run_id
+                        and isinstance(row[1], str) and row[1]):
+                    candidates.append(row[1])
+        for prompt_id, item in history.items():
+            prompt = item.get('prompt', []) if isinstance(item, dict) else []
+            if (isinstance(prompt, list) and len(prompt) >= 4
+                    and isinstance(prompt[3], dict)
+                    and prompt[3].get('fidelis_request_id') == run_id
+                    and isinstance(prompt_id, str) and prompt_id):
                 candidates.append(prompt_id)
         candidates = set(candidates)
         if len(candidates) != 1:

@@ -174,6 +174,30 @@ class ComfyTests(unittest.TestCase):
                 self.assertEqual(record['status'], 'completed')
                 self.assertEqual(self.state['submits'], before + 1)
 
+    def test_malformed_reconciliation_payloads_never_resubmit(self):
+        self.state['mode'] = 'malformed_ack'
+        self.state['ack'] = {}
+        with self.assertRaises(SubmissionUnknown):
+            self.backend.run(self.source, BUNDLE, run_id=self.run_id)
+        self.assertEqual(self.state['submits'], 1)
+        original_json = self.backend._json
+        for route, payload in (('/queue', []), ('/queue', {'queue_pending': None}),
+                               ('/history?max_items=1000', [])):
+            with self.subTest(route=route, payload=payload):
+                self.backend._json = lambda method, requested, **kwargs: (
+                    payload if requested == route else original_json(method, requested, **kwargs))
+                try:
+                    with self.assertRaises(SubmissionUnknown):
+                        self.backend.run(self.source, BUNDLE, run_id=self.run_id)
+                finally:
+                    self.backend._json = original_json
+                self.assertEqual(self.backend._get(self.run_id)['status'], 'submission_unknown')
+                self.assertEqual(self.state['submits'], 1)
+        output, record = self.backend.run(self.source, BUNDLE, run_id=self.run_id)
+        np.testing.assert_array_equal(output, self.output)
+        self.assertEqual(record['status'], 'completed')
+        self.assertEqual(self.state['submits'], 1)
+
     def test_timeout_resume_polls_existing_prompt(self):
         self.state['mode']='pending'
         with self.assertRaises(TimeoutError):self.backend.run(self.source,BUNDLE,run_id=self.run_id,deadline_seconds=.01)
