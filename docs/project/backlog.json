@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "snapshot_date": "2026-11-24",
-  "code_snapshot": "5cf8cb1",
+  "code_snapshot": "da2e33a",
   "code_branch": "main",
-  "code_pr": "https://github.com/TheHighBrid/Fidelis/pull/82",
+  "code_pr": "https://github.com/TheHighBrid/Fidelis/pull/104",
   "canonical_spec": "docs/FIDELIS_STUDIO_PLAN.md",
   "coordination_project": "https://linear.app/melato/project/fidelis-studio-a057f366fa71",
   "umbrella": "MEL-53",
-  "note": "Committed coordination snapshot reconciled against main (5cf8cb1) and Linear P-MEL-3. F01-F04, F05-B, F07-A, F07-B, F08-A, F08-B, F09, F11, F14, F15, F17, and D01-D04 are merged into main and marked Done in Linear (engineering/fixture/protocol verified, not a production release). F05, F05-A, F06, F07, F08, F10, F12, F12-A, F13, and F16 remain In Progress pending external ComfyUI GPU worker, off-repo 60-case corpus, physical mobile hardware, blind human review, and owner release signoff.",
+  "note": "Committed coordination snapshot reconciled against main (da2e33a) and Linear P-MEL-3. F01-F04, F05-B, F07-A, F07-B, F08-A, F08-B, F09, F10, F11, F14, F15, F17, and D01-D04 are merged into main and marked Done in Linear (engineering/fixture/protocol verified, not a production release). F05, F05-A, F06, F07, F08, F12, F12-A, F13, and F16 remain In Progress pending external ComfyUI GPU worker, off-repo 60-case corpus, physical mobile hardware, blind human review, and owner release signoff.",
   "items": [
     {
       "id": "F01",
@@ -125,7 +125,7 @@
       "role": "Inference / model research",
       "scope": "Promote one SDXL/Clarity-style texture workflow through the local adapter.",
       "acceptance": "Live worker run with actual compatible weights/nodes/seed, exact dimensions and documented registration, output evidence and quality review; mocked HTTP is insufficient.",
-      "evidence": "scripts/qualify-realesr-general-v3.py; docs/F06_ZERO_COST_TEXTURE.md; tests/test_f06_realesr_qualification.py; fidelis/studio/comfy.py; scripts/generate-texture.py; tests/test_comfy_backend.py; zero-cost BSD-3-Clause RealeSR-general-v3 E2 live inference verified on Apple M1 (8GB); live GPU ComfyUI SDXL workflow remains pending external worker",
+      "evidence": "scripts/qualify-realesr-general-v3.py; docs/F06_ZERO_COST_TEXTURE.md; tests/test_f06_realesr_qualification.py; fidelis/studio/hybrid_texture.py; fidelis/engine/restoration_runner.py; fidelis/studio/comfy.py; scripts/generate-texture.py; tests/test_comfy_backend.py; tests/test_hybrid_texture.py; tests/test_restoration_runner.py; zero-cost BSD-3-Clause RealeSR-general-v3 E2 live inference verified on Apple M1 (8GB) and wired into RestorationRunner (PR #104, da2e33a); live GPU ComfyUI SDXL workflow remains pending external worker",
       "priority": 2,
       "linear": {
         "id": "MEL-60",
@@ -168,7 +168,7 @@
       "role": "Studio UX",
       "scope": "Complete acceptance of painted masks, brush tools, revision saves, preview and actual native-pixel inspection.",
       "acceptance": "Mouse/pen/touch/keyboard and stale edits verified on real browser/device; native 100/200% crops distinguish source pixels from preview zoom; no mask protection regression.",
-      "evidence": "fidelis/studio/studio.html; editor.js; brush.py; tests/test_region_brush.py; F08-A native crops/paired inspector and F08-B same-host Chrome CDP (desktop 1440x900 + touch 390x844, 0 defects) verified in PR #12; physical Android/iOS touch hardware review remains open",
+      "evidence": "fidelis/studio/studio.html; fidelis/studio/review-ui.js; editor.js; brush.py; tests/test_region_brush.py; F08-A native crops/paired inspector, F08-B same-host Chrome CDP (desktop 1440x900 + touch 390x844, 0 defects), and Studio native-inspector structural ROI proposal/lock UI (PR #103, d135326) verified on main; physical Android/iOS touch hardware review remains open",
       "priority": 2,
       "linear": {
         "id": "MEL-59",
@@ -204,7 +204,7 @@
       "id": "F10",
       "title": "Protect structural ROIs and screen internal drift",
       "milestone": "M2",
-      "state": "In Progress",
+      "state": "Done",
       "implementation": "partial_explicit_roi_locks_and_drift_screening_verified",
       "depends_on": [
         "F06",
