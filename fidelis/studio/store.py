@@ -473,15 +473,16 @@ class JobStore:
         *,
         expected_revision,
         target=None,
-        max_proposals=16,
-        cell_size=16,
-        min_edges_per_cell=None,
-        min_area=64,
-        padding=4,
+        options=None,
     ):
         """Propose high-contrast structural rectangles on the saved base grid without mutating masks."""
         if target is not None and target not in ("texture", "master"):
             raise ValueError("Optional comparison target must be texture or master")
+        opts = dict(options or {})
+        allowed_keys = {"max_proposals", "cell_size", "min_edges_per_cell", "min_area", "padding"}
+        unknown = sorted(set(opts) - allowed_keys)
+        if unknown:
+            raise ValueError(f"Unsupported proposal options: {', '.join(unknown)}")
         with self._transaction() as db:
             job = self._read(db, job_id)
             if job["revision"] != expected_revision:
@@ -490,15 +491,7 @@ class JobStore:
             base = self._array(artifacts["base"], verify=True)
             height, width = base.shape[:2]
             rows = self._rows(width)
-            report = propose_regions(
-                base,
-                stripe_rows=rows,
-                cell_size=cell_size,
-                min_edges_per_cell=min_edges_per_cell,
-                min_area=min_area,
-                max_proposals=max_proposals,
-                padding=padding,
-            )
+            report = propose_regions(base, stripe_rows=rows, **opts)
             target_sha256 = None
             if target is not None:
                 candidate = self._array(artifacts[target], verify=True)

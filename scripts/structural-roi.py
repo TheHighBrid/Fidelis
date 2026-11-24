@@ -38,11 +38,13 @@ def main():
                 args.job,
                 expected_revision=args.expected_revision,
                 target=args.target,
-                max_proposals=args.max_proposals,
-                cell_size=args.cell_size,
-                min_edges_per_cell=args.min_edges_per_cell,
-                min_area=args.min_area,
-                padding=args.padding,
+                options={
+                    "max_proposals": args.max_proposals,
+                    "cell_size": args.cell_size,
+                    "min_edges_per_cell": args.min_edges_per_cell,
+                    "min_area": args.min_area,
+                    "padding": args.padding,
+                },
             )
         else:
             if not args.roi:

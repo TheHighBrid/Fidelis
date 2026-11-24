@@ -118,34 +118,8 @@ def _connected_cell_components(active, cell_edges):
     return components
 
 
-def propose_regions(
-    base,
-    *,
-    stripe_rows=256,
-    cell_size=16,
-    edge_threshold=24,
-    min_edges_per_cell=None,
-    min_area=64,
-    max_proposals=16,
-    padding=4,
-):
-    """Propose candidate structural rectangles via bounded-stripe luminance-edge clustering.
-
-    This is a contrast heuristic for flagging dense edges (potential typography,
-    logos, seams, zippers, or hardware) for operator review. It is not semantic
-    recognition and never locks pixels without explicit confirmation.
-    """
+def _accumulate_cell_edges(base, *, stripe_rows, cell_size, edge_threshold):
     import numpy as np
-
-    _validate_rgb8(base, "base")
-    _require_int(stripe_rows, "stripe_rows", minimum=1)
-    _require_int(cell_size, "cell_size", minimum=4)
-    _require_int(edge_threshold, "edge_threshold", minimum=1)
-    if min_edges_per_cell is not None:
-        _require_int(min_edges_per_cell, "min_edges_per_cell", minimum=1)
-    _require_int(min_area, "min_area", minimum=1)
-    _require_int(max_proposals, "max_proposals", minimum=1, maximum=64)
-    _require_int(padding, "padding", minimum=0)
 
     height, width = base.shape[:2]
     grid_h = (height + cell_size - 1) // cell_size
@@ -166,28 +140,36 @@ def propose_regions(
         if v_rows > 0:
             v_edges = np.abs(np.diff(lum, axis=0)) >= edge_threshold
             row_counts[:v_rows, :width] += v_edges
-        col_sums = row_counts.reshape(rows, grid_w, cell_size).sum(axis=2)
+        col_sums = row_counts.reshape((rows, grid_w, cell_size)).sum(axis=2)
         first_cy = start // cell_size
         last_cy = (end - 1) // cell_size
         for cy in range(first_cy, last_cy + 1):
             r0 = max(start, cy * cell_size) - start
             r1 = min(end, (cy + 1) * cell_size) - start
             cell_edges[cy] += col_sums[r0:r1].sum(axis=0)
+    return cell_edges
 
+
+def _build_proposals(cell_edges, width, height, config):
+    import numpy as np
+
+    min_edges = config["min_edges_per_cell"]
     threshold_used = (
-        int(min_edges_per_cell)
-        if min_edges_per_cell is not None
+        int(min_edges)
+        if min_edges is not None
         else max(16, int(np.percentile(cell_edges, 80)))
     )
     active = cell_edges >= threshold_used
+    cell_size = config["cell_size"]
+    padding = config["padding"]
+    min_area = config["min_area"]
     proposals = []
     for min_cx, min_cy, max_cx, max_cy, edge_sum in _connected_cell_components(active, cell_edges):
         x0 = max(0, min_cx * cell_size - padding)
         y0 = max(0, min_cy * cell_size - padding)
         x1 = min(width, (max_cx + 1) * cell_size + padding)
         y1 = min(height, (max_cy + 1) * cell_size + padding)
-        w = x1 - x0
-        h = y1 - y0
+        w, h = x1 - x0, y1 - y0
         pixels = w * h
         if pixels < min_area:
             continue
@@ -197,11 +179,58 @@ def propose_regions(
             "strong_edges": int(edge_sum),
             "edge_density": round(edge_sum / float(pixels), 4),
         })
-
     proposals.sort(
         key=lambda item: (-item["edge_density"], -item["strong_edges"], item["rectangle"][1], item["rectangle"][0])
     )
-    proposals = proposals[:max_proposals]
+    return proposals[:config["max_proposals"]]
+
+
+def propose_regions(
+    base,
+    *,
+    stripe_rows=256,
+    cell_size=16,
+    edge_threshold=24,
+    min_edges_per_cell=None,
+    min_area=64,
+    max_proposals=16,
+    padding=4,
+):
+    """Propose candidate structural rectangles via bounded-stripe luminance-edge clustering.
+
+    This is a contrast heuristic for flagging dense edges (potential typography,
+    logos, seams, zippers, or hardware) for operator review. It is not semantic
+    recognition and never locks pixels without explicit confirmation.
+    """
+    _validate_rgb8(base, "base")
+    _require_int(stripe_rows, "stripe_rows", minimum=1)
+    _require_int(cell_size, "cell_size", minimum=4)
+    _require_int(edge_threshold, "edge_threshold", minimum=1)
+    if min_edges_per_cell is not None:
+        _require_int(min_edges_per_cell, "min_edges_per_cell", minimum=1)
+    _require_int(min_area, "min_area", minimum=1)
+    _require_int(max_proposals, "max_proposals", minimum=1, maximum=64)
+    _require_int(padding, "padding", minimum=0)
+
+    height, width = base.shape[:2]
+    cell_edges = _accumulate_cell_edges(
+        base,
+        stripe_rows=stripe_rows,
+        cell_size=cell_size,
+        edge_threshold=edge_threshold,
+    )
+    proposals = _build_proposals(
+        cell_edges,
+        width,
+        height,
+        {
+            "cell_size": cell_size,
+            "min_edges_per_cell": min_edges_per_cell,
+            "min_area": min_area,
+            "max_proposals": max_proposals,
+            "padding": padding,
+        },
+    )
     return {
         "schema_version": 1,
         "dimensions": [int(width), int(height)],

@@ -261,10 +261,10 @@ def dispatch(handler, workspace_root):
                 revision = data.get("expected_revision")
                 if isinstance(revision, bool) or not isinstance(revision, int):
                     raise ValueError("Expected an integer revision")
-                kwargs = {"expected_revision": revision, "target": data.get("target")}
+                options = {}
                 if "max_proposals" in data:
-                    kwargs["max_proposals"] = data["max_proposals"]
-                _json(handler, 200, store.propose_structure(parts[3], **kwargs))
+                    options["max_proposals"] = data["max_proposals"]
+                _json(handler, 200, store.propose_structure(parts[3], expected_revision=revision, target=data.get("target"), options=options))
             elif (len(parts) == 5 and parts[:3] == ["api", "regions", "jobs"]
                   and parts[4] in ("inspect-structure", "lock-structure")):
                 revision = data.get("expected_revision")
