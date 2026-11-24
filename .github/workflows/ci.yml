@@ -26,7 +26,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install test dependencies
-        run: python -m pip install --disable-pip-version-check pillow numpy scipy scikit-image opencv-python-headless pyyaml httpx==0.28.1
+        run: python -m pip install --disable-pip-version-check pillow numpy scipy scikit-image opencv-python-headless pyyaml httpx==0.28.1 pytest
 
       - name: F09 confidence routing and protection contracts
         run: |
@@ -140,6 +140,7 @@ jobs:
           node --test tests/test-studio-interactions.cjs
           node --test tests/review-ui.cjs
           node --test tests/test_browser_acceptance_report.mjs
+          node tests/native-inspection-ui.cjs fidelis/studio/studio.html
           python -m unittest discover -s tests -p 'test_browser_evidence.py'
 
       - name: Instrumented pipeline integrity and metric reference tests
@@ -196,7 +197,18 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_release_packaging.py'
 
       - name: Release readiness dossier and signoff audit tests
-        run: python -m unittest discover -s tests -p 'test_release_readiness.py'
+        run: |
+          python -m unittest discover -s tests -p 'test_release_readiness.py'
+          python -m unittest discover -s tests -p 'test_release_readiness_gate.py'
+
+      - name: Adversarial invariant and research capture tests
+        run: |
+          python -m unittest discover -s tests -p 'test_adversarial_packaging_and_roi_invariants.py'
+          python -m unittest discover -s tests -p 'test_gate_f07_f08_adversarial.py'
+          python -m unittest discover -s tests -p 'test_contextdev_research.py'
+
+      - name: Pytest protocol, coffee regression, and tiered E2E suites
+        run: python -m pytest tests/test_coffee_regression.py tests/test_melato_protocol.py tests/e2e/ -q
 
       - name: Web UI server integration tests
         run: bash tests/test-web-ui.sh
