@@ -120,9 +120,14 @@ class ReleaseReadinessTests(unittest.TestCase):
         self.assertEqual(
             dossier["certified_evidence_level"], "E1_fixture_and_protocol_tested"
         )
+        self.assertEqual(dossier["blocking_defects"]["open_ids"], [])
+        self.assertEqual(dossier["blocking_defects"]["unmerged_in_review_ids"], [])
+        self.assertNotIn(
+            "blocking_defects_not_closed_on_main", dossier["blocking_reasons"]
+        )
         self.assertIn("unfinished_core_deliverables", dossier["blocking_reasons"])
-        self.assertIn("blocking_defects_not_closed_on_main", dossier["blocking_reasons"])
         self.assertIn("held_out_quality_gate_not_accepted", dossier["blocking_reasons"])
+        self.assertIn("operational_and_device_gates_incomplete", dossier["blocking_reasons"])
         self.assertIn("owner_release_signoff_missing", dossier["blocking_reasons"])
 
     def test_complete_evidence_and_signoff_reaches_e4_released(self) -> None:
