@@ -1,21 +1,65 @@
 # Current progress and evidence checkpoint
 
-> **Current coordination update (2026-11-21):** The latest inspected `main` commit is `cb0d4f7` (after Studio integration and subsequent release-safety work). PR #91 updates the blueprint and roadmap to distinguish implemented engineering from unaccepted live inference, photographic quality, target-device and owner-release gates. PR #87 remains open for post-integration integrity reconciliation. Historical branch and test-count records below are provenance only; they must not be used as present-tense merge, CI, deployment or acceptance claims. Confirm live branch/PR state before starting overlapping work.
+> **Current coordination update (2026-11-24):** The latest inspected `main` commit is `127385d` (`127385daae5f44d310e2d6d8c8bcc6f2587686a5`, committed 2026-11-23 19:58 ET) after PR #98. This remains an engineering integration, **not a release**, not deployment, and not visual or model-quality acceptance. Historical branch and test-count records below are provenance only; they must not be used as present-tense merge, CI, deployment or acceptance claims. Dated sections that still say “pending PR #12” are historical receipts; #12 is not pending. Confirm live branch/PR state before starting overlapping work.
 
 > **Current integration checkpoint (2026-11-20):** Unified Studio PR #82 merged into `main` at `7310aa6`. This is an engineering integration, **not a release**, not deployment, or visual/model-quality acceptance. Start new work from the latest `main`; open PRs remain independent review work. Historical snapshots and branch-specific evidence below are retained for provenance and must not be interpreted as current branch instructions.
 
 Snapshot date: 2026-11-10. Latest delivery base: `e0a8602`; native-inspection delivery is the commit containing its receipt below. Original Studio snapshot: `5f32fba`.
-This is a committed checkpoint, not a live status feed.
+The 2026-11-10 date applies to those historical receipts, not to the coordination banner above. This page is a committed checkpoint, not a live status feed.
+
+## Live main as of 2026-11-24
+
+Latest inspected `main` is `127385daae5f44d310e2d6d8c8bcc6f2587686a5`. First-parent history after the #82 Studio merge (`7310aa6`, 2026-11-20) includes:
+
+- F16 release-declaration guards: #88 fail-closed offline manifest preflight, #89 hardened quality digest and explicit dual-owner release signoff, #90 fail-closed on truthy non-boolean declarations. These are engineering checks, not a completed owner signoff.
+- Protected-export and structure integrity: #83 transparency/orientation/colour metadata, #85 animated PNG import rejection, #86 source-grid and stripe-screening validation, #92 RGB16 IHDR fail-closed.
+- F06 ComfyUI protocol fail-closed work: #93 boolean output indices, #94 linked output-index validation, #95 malformed prompt acknowledgement reconciliation, #96 malformed reconciliation payloads.
+- Docs: #84 contributor entrypoints, #91 blueprint/roadmap reconciliation.
+- #98 isolated Context.dev research capture (issue #97).
+
+PR #12 merged via unified PR #82. Product-edge work from PR #14 landed through #64 and #82; #14 itself was closed unmerged. Do not treat #12 or #14 as pending merges.
+
+Latest `main` push CI on `127385d`: Fidelis CI run [45301452853](https://github.com/TheHighBrid/Fidelis/actions/runs/45301452853) success (`shell-and-sweep-tests` on ubuntu-latest and macos-latest) and report-integrity run [45301453130](https://github.com/TheHighBrid/Fidelis/actions/runs/45301453130) success. That is fixture CI, not visual, GPU, device, or release acceptance. Codacy did not run on that `main` push.
+
+### Open pull requests (tree/diff audit vs `127385d`, 2026-11-24)
+
+Do not merge these leftover PRs as if the work were missing from `main`. Several are dirty or still targeted at obsolete bases. Close or retarget only with owner approval.
+
+| PR | Verdict | Notes |
+| --- | --- | --- |
+| #75 | Fully absorbed, safe to close | Head `9c53598` is an ancestor of `main` (ahead 0, 282 behind). |
+| #66 | Fully absorbed, safe to close | Head `ec4adc5` is an ancestor of `main` (ahead 0, 184 behind). |
+| #67 | Fully absorbed, safe to close | Head `36bd4e6` is an ancestor of `main` (ahead 0, 126 behind). |
+| #81 | Fully absorbed, safe to close | Four unique commit SHAs remain, but file diffs vs `main` show no unabsorbed logic. `scripts/verify-protected-export.py` is a strict subset of `main`; CI and export tests on `main` already cover the intended guards. The tip is 287 commits behind. |
+| #58 | Has unique changes; do not merge as-is | Only leftover vs `main` is executable mode `100755` on `scripts/check-studio-integration.py` (`main` is `100644` with identical later, stricter script content). Merging the PR would regress that script. |
+| #87 | Has unique changes; do not merge the dirty PR | Unique leftovers: (1) `.github/workflows/ci.yml` explicitly runs `test_studio_png_single_frame.py`, `test_structure_screen_contract.py`, and `test_current_main_handoff.py`, which exist on `main` but are absent from the curated workflow list; (2) the same executable-mode bit as #58. Other file diffs are stale or equivalent wording already superseded on `main` (#83–#86, #92, later STATUS banner). The PR is conflicted against current `main`. |
+
+The #58/#87 executable-mode leftover and the three unlisted CI test modules are housekeeping items, not release gates, and are not claimed fixed here.
+
+Leftover open-PR Codacy conclusions were not certified resolved on `main`: #66 tip `ec4adc5` action_required (12 new issues), #67 tip `36bd4e6` (10 new), #75 (1 new), #87 (1 new), #58 (1 new). #81's head was Codacy success. Codacy did not run on the `127385d` `main` push.
+
+### Release gates still open
+
+None of the following is accepted or certified by current `main` CI:
+
+- E2: live ComfyUI GPU texture worker qualification (F05-A / F06 / F07), including live queue/cancellation against a real worker.
+- F12 / F12-A: rights-cleared 60-case photographic corpus is not frozen. The 2026-11-19 unified checkpoint records 30/60 off-repo Melato slots inventoried, still pending `--master-root` byte verification and license clearance, with 30 slots still unfilled. Paid comparator runs are not done.
+- F13: 30-case dual-reviewer blind held-out human signoff is not done.
+- F08-B / F15: physical Android/iOS touch-device review is not done. Headless Chrome is not device signoff.
+- F16: owner release signoff is not done. `main` has the dual-owner declaration guards from #88–#90; those guards are not themselves a signoff.
+- Automatic segmentation / confidence-mask quality is not qualified; F09 remains partial.
+- Automatic structural-detail detection and production-corpus validation remain open.
+- Managed ICC / alpha / precision export and target-device colour acceptance remain open.
 
 ## Delivery reality
 
 | Record | Verified state |
 | --- | --- |
-| Audited baseline code on main | Historical audit `0f10ca6`; current main at integration time is `1c954cd` |
-| Studio code | This branch folds PR #12 and PR #14 onto that main. It is not merged or released. Source heads `feat/region-aware-studio` `26d80750` and `codex/product-edge-protection` `62f55cb` were not rewritten |
+| Audited baseline code on main | Historical audit `0f10ca6`. Pre-Studio `main` at integration time was `1c954cd`. Studio landed via PR #82 at `7310aa6`. Latest inspected `main` is `127385d`. |
+| Studio code | PR #12 and the product-edge work from PR #14 are on `main` through #64 and #82. This is not a release. Historical source heads were not rewritten. |
 | Project coordination | Linear Fidelis Studio, P-MEL-3; existing umbrella MEL-53 linked to GH #11 |
 | Product status | Engineering alpha; no GPU quality certificate or parity claim |
-| Latest runtime work | D01-D04, F07-A and F08-A implemented/tested in PR #12; pending review/merge |
+| Latest runtime work | D01-D04, F07-A and F08-A are on `main` via #82. Later integrity, F06, and F16 declaration guards are also on `main`. External acceptance gates remain open. |
 
 ## Implemented achievements
 
@@ -29,9 +73,9 @@ This is a committed checkpoint, not a live status feed.
   size/hardness/opacity, unsaved undo/redo, keyboard controls, preview zoom,
   revision reload, comparison and streaming full-resolution PNG export.
 
-F01-F04 remain In Review rather than Done on the coordination board until delivery
-is reviewed/merged. F05-F08 remain partial; the existence of these modules is not
-the final one-click, automatically segmented, GPU-accepted product.
+F01-F04 implementation is on `main` via #82; Linear workflow labels may lag.
+F05-F08 remain partial; the existence of these modules is not the final
+one-click, automatically segmented, GPU-accepted product.
 
 ## Verification provenance
 
@@ -74,8 +118,7 @@ actual code or quality change and update its existing Linear issue.
 
 ## Latest pipeline integrity delivery
 
-D01-D04 are implemented and fixture-tested on the Studio branch, pending PR #12
-review/merge. The latest full Python run passed **77 tests**. See the
+D01-D04 are implemented and fixture-tested; this 2026-11-10 receipt predates the #82 merge of PR #12. The latest full Python run passed **77 tests**. See the
 [2026-11-10 integrity receipt](checkpoints/2026-11-10-pipeline-integrity.md)
 for changes, compatibility requirements, verification and remaining live gates.
 Next independent work: F07-A asynchronous execution and F08-A native crop inspection.
@@ -84,7 +127,7 @@ Next independent work: F07-A asynchronous execution and F08-A native crop inspec
 
 F07-A adds the opt-in durable queue, editor generation/status controls, scoped local
 cancellation and explicit same-run recovery. **92 Python tests pass**; fixtures do
-not certify live model quality. Pending review/merge in PR #12. See the
+not certify live model quality. This 2026-11-10 receipt predates the #82 merge of PR #12. See the
 [async checkpoint](checkpoints/2026-11-10-async-generation.md) for evidence, resource limits and recovery boundaries.
 Next implementation: F08-A native-pixel inspection. Live worker, device acceptance
 and aggregate generated-cache retention remain open.
@@ -94,7 +137,7 @@ and aggregate generated-cache retention remain open.
 F08-A adds read-only, same-grid native crops with 100/200% CSS-pixel comparison,
 revision pinning and stale-load protection. **102 Python tests pass**, including
 Node geometry/DOM contracts; real browser/touch visual acceptance is separate.
-Pending PR #12 review/merge. See the [native inspection receipt](checkpoints/2026-11-10-native-inspection.md).
+This 2026-11-10 receipt predates the #82 merge of PR #12. See the [native inspection receipt](checkpoints/2026-11-10-native-inspection.md).
 Next: F08-B browser/device acceptance and F12-A corpus/ROI preparation. Live model
 quality, confidence masks and resource/release gates remain open.
 
@@ -164,7 +207,7 @@ All M1–M4 engineering deliverables (`F05-A`, `F05-B`, `F08-B`, `F10`, `F11`, `
 
 Target-device **Apple M1 (8 GB RAM) Vulkan NCNN precision-base audition** (`F05` / `MEL-58`) is recorded in [`docs/APPLE_M1_PRECISION_BASE_AUDITION.md`](../APPLE_M1_PRECISION_BASE_AUDITION.md) across `RealeSR-general-v3` (`70.9–104.6 MB` peak RSS, `1.35–1.80 s` on `512×512 -> 2048×2048`), `RealSR-DF2K` (`556.8–684.1 MB` peak RSS, `PSNR 34.70–37.41 dB`), and `ESRGAN-Remacri` (`407.7–415.1 MB` peak RSS, `98.93%–99.22%` gradient coherence) with `0.0 px` registration shift across all evaluated blocks and ROIs. Target-device **Apple M1 (8 GB RAM) SegFormer B0 segmentation benchmark** (`F09` / `MEL-62`, `onnxruntime 1.32.0`) is recorded in [`docs/SEGFORMER_B0_AUDITION.md`](../SEGFORMER_B0_AUDITION.md) (`0.44–0.83 s` total CLI + stripe upsample latency and `292.1–379.0 MB` peak RSS across `512×512` to `2048×2048` grids). An **end-to-end 4.2 MP (`2048×2048`) Apple M1 multi-pass Studio pipeline replay** (`RealeSR-general-v3` base + `ESRGAN-Remacri` texture pass + `SegFormer B0` proposal/accept + `F10` 4x patch/zipper locks preserving all `103,376` locked pixels bit-for-bit + `F11`/`F14` 16-bit/8-bit batch export + `F15` workspace snapshot/restore + `F16` release candidate manifest `config/release-candidate-v1.json`) is recorded in [`docs/APPLE_M1_PRECISION_BASE_AUDITION.md`](../APPLE_M1_PRECISION_BASE_AUDITION.md#6-end-to-end-42-mp-2048--2048-multi-pass-studio-pipeline-benchmark-on-apple-m1-8-gb) and [`docs/RELEASE_READINESS.md`](../RELEASE_READINESS.md).
 
-Remaining gates are strictly external `E2..E4` operational/human gates: live ComfyUI GPU texture worker (`F05-A`/`F06`/`F07`), 60-case licensed photographic corpus & paid comparator runs (`F12-A`/`F12`), 30-case blind human signoff (`F13`), physical Android/iOS touch hardware review (`F08-B`/`F15`), PR #12 merge, and owner release signoff (`F16`).
+Remaining gates are strictly external `E2..E4` operational/human gates: live ComfyUI GPU texture worker (`F05-A`/`F06`/`F07`), 60-case licensed photographic corpus & paid comparator runs (`F12-A`/`F12`), 30-case blind human signoff (`F13`), physical Android/iOS touch hardware review (`F08-B`/`F15`), and owner release signoff (`F16`). PR #12 later landed on `main` via #82; it is not a remaining merge gate.
 
 ## F07-B generation cache budget · 2026-11-16
 
