@@ -121,5 +121,56 @@ function finish(images){for(const image of images){const params=new URL(image.ur
  elements.get('toolInspect').onclick();
  assert.equal(elements.get('paintMode').value,'off');
  assert.equal(elements.get('toolInspect').attributes['aria-pressed'],'true');
+
+ // Propose structural ROIs -> Inspect candidate -> Lock ROI -> clear stale proposals.
+ run("setJob({id:'job-d',revision:2,dimensions:[200,160],label:'D',profile:'luxury_apparel',blend:{skin:0,hair:0,fabric:0,edge_protection:0}});");
+ elements.get('inspectNative').onclick();
+ finish(pending.slice(-2));await flush();
+ assert.equal(elements.get('proposeNativeStructure').disabled,false);
+ assert.equal(elements.get('nativeProposalList').hidden,true);
+ const proposalRequests=[];
+ context.fetch=async(path,options)=>{
+  proposalRequests.push([path,options.body&&JSON.parse(options.body)]);
+  if(path.endsWith('/propose-structure')){
+   return {ok:true,json:async()=>({
+    semantic_proof:false,
+    proposals:[
+     {rectangle:[20,10,40,30],pixels:1200,strong_edges:140,edge_density:0.1167,changed_pixels:90,strong_edge_disagreements:12},
+     {rectangle:[100,80,16,16],pixels:256,strong_edges:32,edge_density:0.125,changed_pixels:10,strong_edge_disagreements:1},
+    ],
+   })};
+  }
+  if(path.endsWith('/lock-structure')){
+   return {ok:true,json:async()=>({...run('current'),revision:3})};
+  }
+  return {ok:true,json:async()=>({jobs:[],profiles:{},generation_enabled:false})};
+ };
+ await elements.get('proposeNativeStructure').onclick();
+ assert.deepEqual(proposalRequests[0],['/api/regions/jobs/job-d/propose-structure',{expected_revision:2,target:'master',max_proposals:8}]);
+ assert.match(elements.get('nativeStructureStatus').textContent,/2 contrast proposals \(heuristic only, not semantic proof\)/);
+ assert.equal(elements.get('nativeProposalList').hidden,false);
+ assert.equal(elements.get('nativeProposalList').children.length,2);
+ const firstItem=elements.get('nativeProposalList').children[0];
+ assert.match(firstItem.children[0].textContent,/#1 · x 20–59, y 10–39 \(40 × 30 px\)/);
+ firstItem._actions.inspect.onclick();
+ assert.equal(elements.get('nativeX').value,'40');
+ assert.equal(elements.get('nativeY').value,'25');
+ assert.equal(elements.get('nativeSide').value,'64');
+ assert.equal(elements.get('nativeProposalList').hidden,false);
+ finish(pending.slice(-2));await flush();
+ // Unsaved paint disables Lock ROI on proposal cards and blocks direct invocation.
+ run("history.done.push({unsaved:true});history.dirty=true;controls();");
+ assert.equal(firstItem._actions.lock.disabled,true);
+ await firstItem._actions.lock.onclick();
+ assert.match(elements.get('error').textContent,/Save or discard unsaved edits/);
+ run("history.reset();controls();");
+ assert.equal(firstItem._actions.lock.disabled,false);
+ await firstItem._actions.lock.onclick();
+ assert.deepEqual(proposalRequests[1],['/api/regions/jobs/job-d/lock-structure',{expected_revision:2,regions:[[20,10,40,30]]}]);
+ assert.equal(elements.get('nativeProposalList').hidden,true);
+ assert.equal(elements.get('nativeProposalList').children.length,0);
+ assert.equal(run('current.revision'),3);
+ assert.match(elements.get('nativeStructureStatus').textContent,/Proposed ROI locked in revision 3/);
+
  console.log('Inspector and suggestion DOM contracts passed: paired loading, scales, unsaved state, review gates and stale rejection.');
 })().catch(error=>{console.error(error);process.exitCode=1});

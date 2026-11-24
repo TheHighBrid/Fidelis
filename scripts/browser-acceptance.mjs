@@ -653,6 +653,38 @@ async function main() {
     );
     const structureAfterLock = await cdp.eval(`document.getElementById('nativeStructureStatus').textContent`);
 
+    // 3c. Structural ROI candidate proposals -> inspect proposal -> explicit lock -> verify 0 changed pixels
+    await cdp.eval(`document.getElementById('proposeNativeStructure').click()`);
+    await waitFor(
+      () =>
+        cdp.eval(
+          `!busy && !document.getElementById('nativeProposalList').hidden && document.querySelectorAll('#nativeProposalList li').length > 0`,
+        ),
+      { label: 'structural ROI proposals rendered in native inspector' },
+    );
+    const proposeStatus = await cdp.eval(`document.getElementById('nativeStructureStatus').textContent`);
+    assert.match(proposeStatus, /heuristic only, not semantic proof/);
+    const proposedRoiCount = await cdp.eval(`document.querySelectorAll('#nativeProposalList li').length`);
+    await cdp.eval(`document.querySelector('#nativeProposalList .proposal-inspect').click()`);
+    await waitFor(
+      () => cdp.eval(`!busy && !document.getElementById('nativeScroll').hidden && nativeRect !== null`),
+      { label: 'proposed structural ROI crop loaded into native inspector' },
+    );
+    await cdp.eval(`document.querySelector('#nativeProposalList .proposal-lock').click()`);
+    await waitFor(
+      () =>
+        cdp.eval(
+          `!busy && current && current.revision === 4 && document.getElementById('nativeProposalList').hidden && !document.getElementById('nativeScroll').hidden`,
+        ),
+      { label: 'proposed structural ROI locked in revision 4 and stale proposals cleared' },
+    );
+    await cdp.eval(`document.getElementById('checkNativeStructure').click()`);
+    await waitFor(
+      () => cdp.eval(`!busy && /^0 of [0-9,]+ pixels differ/.test(document.getElementById('nativeStructureStatus').textContent)`),
+      { label: 'locked proposed ROI confirms 0 changed pixels' },
+    );
+    const proposalAfterLock = await cdp.eval(`document.getElementById('nativeStructureStatus').textContent`);
+
     if (opts.screenshotsDir) {
       const shot = await cdp.send('Page.captureScreenshot', { format: 'png' });
       writeEvidenceFile(path.join(opts.screenshotsDir, '02-desktop-native-zoom.png'), Buffer.from(shot.data, 'base64'), pythonBin);
@@ -821,6 +853,7 @@ async function main() {
         export_png_download_200: true,
         native_100_200_crop_and_split: true,
         native_structural_crop_check_and_lock: /^0 of 256 pixels differ/.test(structureAfterLock),
+        native_structural_propose_and_lock: /^0 of [0-9,]+ pixels differ/.test(proposalAfterLock) && proposedRoiCount > 0,
         stale_409_conflict_preserves_unsaved_edit: expectedConflictCount === 1,
         mobile_390_no_horizontal_overflow: true,
         mobile_touch_event_paint: true,
@@ -834,6 +867,8 @@ async function main() {
         native_200_width: native200Check.width,
         structure_before_lock: structureBeforeLock,
         structure_after_lock: structureAfterLock,
+        proposed_roi_count: proposedRoiCount,
+        proposal_after_lock: proposalAfterLock,
         mobile_scroll_width: mobileMetrics.docScrollWidth,
         mobile_inner_width: mobileMetrics.innerWidth,
         desktop_canvas_bottom_when_save_scrolled: desktopCanvasBottomWhenSidebarBottomFocused,
