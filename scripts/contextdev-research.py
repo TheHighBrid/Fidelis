@@ -74,21 +74,16 @@ def public_url(url: str) -> str:
     return url
 
 
-def scrape(url: str, *, api_key: str, include_images: bool = False,
-           highlights: bool = False, zdr: bool = False, freshness_ms: int = CACHE_MS,
-           request_fn=urlopen) -> dict:
-    public_url(url)
-    if not api_key:
-        raise ValueError("CONTEXT_DEV_API_KEY not configured")
-    if zdr and highlights:
-        raise ValueError("highlights are incompatible with ZDR")
-    if not 0 <= freshness_ms <= 31_536_000_000:
-        raise ValueError("invalid cache freshness")
+def _formats(include_images, highlights):
     formats = {"json": True, "markdown": True}
     if include_images:
         formats["images"] = True
     if highlights:
         formats["highlights"] = True
+    return formats
+
+
+def _request(url, api_key, formats, zdr, freshness_ms, highlights):
     payload = {
         "url": url, "formats": formats, "maxAgeMs": freshness_ms,
         "timeoutOpts": {"milliseconds": 20000},
@@ -103,6 +98,38 @@ def scrape(url: str, *, api_key: str, include_images: bool = False,
     request = Request(API, method="POST",
                       data=json.dumps(payload).encode("utf-8"),
                       headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"})
+    return request
+
+
+def _outputs(raw, formats):
+    outputs = {}
+    for name in ("json", "markdown", "images", "highlights"):
+        item = raw.get(name)
+        if not isinstance(item, dict):
+            item = {"requested": name in formats, "success": False if name in formats else None, "data": None}
+        outputs[name] = {
+            "requested": bool(item.get("requested")), "success": item.get("success"),
+            "error_code": item.get("error_code"), "message": item.get("message"),
+            "data": item.get("data") if item.get("success") is True else None,
+        }
+    return outputs
+
+
+def _record(raw, url, formats):
+    outputs = _outputs(raw, formats)
+    parsed = outputs["json"]["data"] if isinstance(outputs["json"]["data"], dict) else {}
+    return {
+        "source_url": url, "final_url": raw.get("url", url),
+        "retrieved_at": datetime.now(UTC).isoformat(), "request_id": raw.get("request_id"),
+        "is_partial": bool(raw.get("isPartial")) or any(
+            x["success"] is False for x in outputs.values() if x["requested"]),
+        "formats": outputs, "extracted": parsed,
+        "license_review": "pending", "rights_cleared_for_benchmark": False,
+        "publisher_results_locally_verified": False, "candidate_status": "pending_review",
+    }
+
+
+def _send(request, formats, url, request_fn):
     start = time.monotonic()
     for attempt in range(2):
         remaining = 25.0 - (time.monotonic() - start)
@@ -113,33 +140,7 @@ def scrape(url: str, *, api_key: str, include_images: bool = False,
                 raw = json.loads(response.read(4_000_000))
             if not isinstance(raw, dict):
                 raise RuntimeError("invalid Context.dev response")
-            outputs = {}
-            for name in ("json", "markdown", "images", "highlights"):
-                item = raw.get(name)
-                if not isinstance(item, dict):
-                    item = {"requested": name in formats, "success": False if name in formats else None, "data": None}
-                outputs[name] = {
-                    "requested": bool(item.get("requested")), "success": item.get("success"),
-                    "error_code": item.get("error_code"), "message": item.get("message"),
-                    "data": item.get("data") if item.get("success") is True else None,
-                }
-            parsed = outputs["json"]["data"] if isinstance(outputs["json"]["data"], dict) else {}
-            return {
-                "source_url": url,
-                "final_url": raw.get("url", url),
-                "retrieved_at": datetime.now(UTC).isoformat(),
-                "request_id": raw.get("request_id"),
-                "is_partial": bool(raw.get("isPartial")) or any(
-                    x["success"] is False for x in outputs.values() if x["requested"]
-                ),
-                "formats": outputs,
-                "extracted": parsed,
-                # No rights are granted by a model card, repo link, or scrape.
-                "license_review": "pending",
-                "rights_cleared_for_benchmark": False,
-                "publisher_results_locally_verified": False,
-                "candidate_status": "pending_review",
-            }
+            return _record(raw, url, formats)
         except HTTPError as exc:
             if exc.code in {408, 409, 429, 500, 502, 503, 504} and attempt == 0:
                 continue
@@ -149,6 +150,21 @@ def scrape(url: str, *, api_key: str, include_images: bool = False,
                 continue
             raise RuntimeError(f"Context.dev connection failed: {type(exc).__name__}") from exc
     raise RuntimeError("Context.dev request failed")
+
+
+def scrape(url: str, *, api_key: str, include_images: bool = False,
+           highlights: bool = False, zdr: bool = False, freshness_ms: int = CACHE_MS,
+           request_fn=urlopen) -> dict:
+    public_url(url)
+    if not api_key:
+        raise ValueError("CONTEXT_DEV_API_KEY not configured")
+    if zdr and highlights:
+        raise ValueError("highlights are incompatible with ZDR")
+    if not 0 <= freshness_ms <= 31_536_000_000:
+        raise ValueError("invalid cache freshness")
+    formats = _formats(include_images, highlights)
+    request = _request(url, api_key, formats, zdr, freshness_ms, highlights)
+    return _send(request, formats, url, request_fn)
 
 
 def main(argv: list[str] | None = None) -> int:
