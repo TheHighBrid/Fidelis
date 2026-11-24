@@ -25,7 +25,7 @@ from fidelis.postprocess.regions import (
 )
 from fidelis.studio.brush import EDIT_FIELDS, apply_stripe, validate_strokes
 from fidelis.studio.png import write_rgb_png  # noqa: F401  # Preserve the existing encoder import path.
-from fidelis.studio.structure import measure_region, validate_regions
+from fidelis.studio.structure import measure_region, propose_regions, validate_regions
 
 MASK_NAMES = {"skin", "hair", "fabric", "protected", "confidence", "edge_guard"}
 
@@ -465,6 +465,57 @@ class JobStore:
                 "target": target,
                 "target_sha256": artifacts[target]["sha256"],
                 "regions": [measure_region(base, candidate, box, self._rows(width)) for box in regions],
+            }
+
+    def propose_structure(
+        self,
+        job_id,
+        *,
+        expected_revision,
+        target=None,
+        max_proposals=16,
+        cell_size=16,
+        min_edges_per_cell=None,
+        min_area=64,
+        padding=4,
+    ):
+        """Propose high-contrast structural rectangles on the saved base grid without mutating masks."""
+        if target is not None and target not in ("texture", "master"):
+            raise ValueError("Optional comparison target must be texture or master")
+        with self._transaction() as db:
+            job = self._read(db, job_id)
+            if job["revision"] != expected_revision:
+                raise RevisionConflict("Job changed; reload the current revision before proposing")
+            artifacts = job["artifacts"]
+            base = self._array(artifacts["base"], verify=True)
+            height, width = base.shape[:2]
+            rows = self._rows(width)
+            report = propose_regions(
+                base,
+                stripe_rows=rows,
+                cell_size=cell_size,
+                min_edges_per_cell=min_edges_per_cell,
+                min_area=min_area,
+                max_proposals=max_proposals,
+                padding=padding,
+            )
+            target_sha256 = None
+            if target is not None:
+                candidate = self._array(artifacts[target], verify=True)
+                if candidate.shape != base.shape:
+                    raise ValueError("Comparison requires the exact saved base grid")
+                target_sha256 = artifacts[target]["sha256"]
+                for proposal in report["proposals"]:
+                    metrics = measure_region(base, candidate, proposal["rectangle"], rows)
+                    proposal["changed_pixels"] = metrics["changed_pixels"]
+                    proposal["strong_edge_disagreements"] = metrics["strong_edge_disagreements"]
+            return {
+                "id": job_id,
+                "revision": expected_revision,
+                "base_sha256": artifacts["base"]["sha256"],
+                "target": target,
+                "target_sha256": target_sha256,
+                **report,
             }
 
     def _lock_regions(self, artifacts, regions, width, height):

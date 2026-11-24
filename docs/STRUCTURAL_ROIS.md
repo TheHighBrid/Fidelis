@@ -6,6 +6,8 @@ and renders a new revision. It preserves existing brush protection and
 semantic masks. The latest lock operation records its rectangles and revision.
 
 ```bash
+.venv/bin/python scripts/structural-roi.py propose --workspace WORKSPACE --job JOB_ID \
+  --expected-revision 3 --target texture --max-proposals 8
 .venv/bin/python scripts/structural-roi.py inspect --workspace WORKSPACE --job JOB_ID \
   --expected-revision 3 --target texture --roi 130 348 75 65 --roi 241 323 13 122
 .venv/bin/python scripts/structural-roi.py lock --workspace WORKSPACE --job JOB_ID \
@@ -15,17 +17,24 @@ semantic masks. The latest lock operation records its rectangles and revision.
 ```
 
 Coordinates are zero-based x, y, width and height on the saved base. Replace
-the sample revisions with the current saved revisions. Studio can reopen the
-latest result and display its protection mask. The default inspection target
-is the blended master. The `texture` target inspects the candidate before
-blending. Reports identify the exact artifact hashes and revision.
+the sample revisions with the current saved revisions. `propose` scans the saved
+precision base in bounded stripes for dense strong-edge clusters (`>= 24`
+8-bit luminance steps) and optionally scores `changed_pixels` and
+`strong_edge_disagreements` against `texture` or `master` (`POST
+/api/regions/jobs/<id>/propose-structure`). Proposals are read-only contrast
+heuristics (`semantic_proof: false`); they do not prove OCR/logo/hardware
+semantics and never auto-lock pixels without explicit operator `lock` review.
+Studio can reopen the latest result and display its protection mask. The default
+inspection target is the blended master. The `texture` target inspects the
+candidate before blending. Reports identify the exact artifact hashes and
+revision.
 
 The screen counts changed RGB pixels and horizontal or vertical neighbor
 pairs where a strong luminance edge appeared, disappeared or flipped
 polarity. The strong-edge threshold is 24 levels on an 8-bit luminance scale.
 These counts flag areas for visual review. Zero edge disagreements can occur
-even when some pixels changed. Automatic recognition of construction details
-and validation across the production corpus remain open.
+even when some pixels changed. Production-corpus validation (`F12`/`F13`)
+remains open.
 
 ## Photo replay · 2026-11-12
 

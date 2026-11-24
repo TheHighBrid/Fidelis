@@ -1,5 +1,7 @@
 # Current progress and evidence checkpoint
 
+> **Current coordination update (2026-11-24, F10 / MEL-64 autonomous resume):** On branch `work/mel-64-structural-roi-proposals` (based on `origin/main` `152570d`), bounded-stripe structural ROI candidate proposal (`propose_regions` in `fidelis/studio/structure.py`, `JobStore.propose_structure`, `POST /api/regions/jobs/<id>/propose-structure`, and `scripts/structural-roi.py propose`) was added and verified. This remains an engineering integration, **not a release**, not deployment, and not visual or model-quality acceptance.
+
 > **Current coordination update (2026-11-24):** The latest inspected `main` commit is `127385d` (`127385daae5f44d310e2d6d8c8bcc6f2587686a5`, committed 2026-11-23 19:58 ET) after PR #98. This remains an engineering integration, **not a release**, not deployment, and not visual or model-quality acceptance. Historical branch and test-count records below are provenance only; they must not be used as present-tense merge, CI, deployment or acceptance claims. Dated sections that still say “pending PR #12” are historical receipts; #12 is not pending. Confirm live branch/PR state before starting overlapping work.
 
 > **Current integration checkpoint (2026-11-20):** Unified Studio PR #82 merged into `main` at `7310aa6`. This is an engineering integration, **not a release**, not deployment, or visual/model-quality acceptance. Start new work from the latest `main`; open PRs remain independent review work. Historical snapshots and branch-specific evidence below are retained for provenance and must not be interpreted as current branch instructions.
@@ -48,8 +50,9 @@ None of the following is accepted or certified by current `main` CI:
 - F08-B / F15: physical Android/iOS touch-device review is not done. Headless Chrome is not device signoff.
 - F16: owner release signoff is not done. `main` has the dual-owner declaration guards from #88–#90; those guards are not themselves a signoff.
 - Automatic segmentation / confidence-mask quality is not qualified; F09 remains partial.
-- Automatic structural-detail detection and production-corpus validation remain open.
+- Automatic structural-detail detection and production-corpus validation remain open (bounded-stripe luminance-edge cluster proposal `scripts/structural-roi.py propose` / `POST /api/regions/jobs/<id>/propose-structure` is now implemented as a read-only contrast heuristic requiring explicit operator lock; semantic OCR/hardware recognition and 60-case corpus validation remain open).
 - Managed ICC / alpha / precision export and target-device colour acceptance remain open.
+- External hardware/access gates confirmed unavailable on the audited Apple M1 (`8 GB`) macOS host (`2026-11-24`): no reachable ComfyUI worker (`127.0.0.1:8188` `ConnectError`), no PyTorch (`torch_importable: false`), no NVIDIA GPU (`nvidia_smi_present: false`), no physical Android/iOS touch device (`adb not found`), no local off-repo 60-case Melato masters (stored off-repo on `/workspace/melato-corpus/fidelis`), and no paid Clarity/Krea API budget/keys. Note also that `tests/test-pipeline-instrumentation.sh` fails on `152570d` when the local telemetry receiver is offline (`AssertionError: Telemetry must be successfully posted to kernel`).
 
 ## Delivery reality
 
