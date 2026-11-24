@@ -257,6 +257,14 @@ def dispatch(handler, workspace_root):
                 manifest = store.resolve_suggestion(parts[3], expected_revision=data.get('expected_revision'),
                            accept=parts[4] == 'accept-suggestion')
                 _json(handler, 200, _public(manifest))
+            elif len(parts) == 5 and parts[:3] == ["api", "regions", "jobs"] and parts[4] == "propose-structure":
+                revision = data.get("expected_revision")
+                if isinstance(revision, bool) or not isinstance(revision, int):
+                    raise ValueError("Expected an integer revision")
+                options = {}
+                if "max_proposals" in data:
+                    options["max_proposals"] = data["max_proposals"]
+                _json(handler, 200, store.propose_structure(parts[3], expected_revision=revision, target=data.get("target"), options=options))
             elif (len(parts) == 5 and parts[:3] == ["api", "regions", "jobs"]
                   and parts[4] in ("inspect-structure", "lock-structure")):
                 revision = data.get("expected_revision")
