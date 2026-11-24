@@ -2,7 +2,7 @@
 
 > **Current coordination update (2026-11-21):** The latest inspected `main` commit is `cb0d4f7` (after Studio integration and subsequent release-safety work). PR #91 updates the blueprint and roadmap to distinguish implemented engineering from unaccepted live inference, photographic quality, target-device and owner-release gates. PR #87 remains open for post-integration integrity reconciliation. Historical branch and test-count records below are provenance only; they must not be used as present-tense merge, CI, deployment or acceptance claims. Confirm live branch/PR state before starting overlapping work.
 
-> **Current integration checkpoint (2026-11-20):** Unified Studio PR #82 merged into `main` at `7310aa6`. This is an engineering integration, **not a release**, deployment, or visual/model-quality acceptance. Start new work from the latest `main`; open PRs remain independent review work. Historical snapshots and branch-specific evidence below are retained for provenance and must not be interpreted as current branch instructions.
+> **Current integration checkpoint (2026-11-20):** Unified Studio PR #82 merged into `main` at `7310aa6`. This is an engineering integration, **not a release**, not deployment, or visual/model-quality acceptance. Start new work from the latest `main`; open PRs remain independent review work. Historical snapshots and branch-specific evidence below are retained for provenance and must not be interpreted as current branch instructions.
 
 Snapshot date: 2026-11-10. Latest delivery base: `e0a8602`; native-inspection delivery is the commit containing its receipt below. Original Studio snapshot: `5f32fba`.
 This is a committed checkpoint, not a live status feed.
