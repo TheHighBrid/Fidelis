@@ -358,6 +358,75 @@ class RestorationRunnerTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             create_restoration_runner("nonexistent_backend")
 
+    def test_realesrgan_ncnn_and_hybrid_runner_integration(self) -> None:
+        import subprocess
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            engine = root / "realsr-ncnn"
+            engine.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+            engine.chmod(0o755)
+            model_dir = root / "models-RealeSR-general-v3"
+            model_dir.mkdir(parents=True, exist_ok=True)
+            (model_dir / "x4.param").write_bytes(b"param")
+            (model_dir / "x4.bin").write_bytes(b"bin")
+            expected_bin_sha = hashlib.sha256(b"bin").hexdigest()
+
+            def _fake_ncnn(cmd):
+                out_path = Path(cmd[cmd.index("-o") + 1])
+                src_path = Path(cmd[cmd.index("-i") + 1])
+                with Image.open(src_path) as im:
+                    w, h = im.size
+                Image.fromarray(np.full((h * 4, w * 4, 3), 220, dtype=np.uint8)).save(out_path)
+                return subprocess.CompletedProcess(cmd, 0, "", "")
+
+            src = _make_textured_rgb(16, 16, seed=5)
+            base_4x = np.asarray(Image.fromarray(src).resize((64, 64), Image.Resampling.BICUBIC), dtype=np.uint8)
+            rois = [
+                {"id": "hw", "kind": "hardware", "policy": "preserve", "rect": [0, 0, 20, 20]},
+                {"id": "fab", "kind": "fabric", "policy": "texture_allowed", "rect": [32, 32, 24, 24]},
+            ]
+
+            ncnn_runner = create_restoration_runner(
+                "realesrgan_ncnn",
+                engine_path=engine,
+                model_dir=model_dir,
+                verify_hashes=False,
+                detail_blend_weight=0.6,
+                command_runner=_fake_ncnn,
+            )
+            res = ncnn_runner.run(src, scale=4, rois=rois, roi_space="target", case_id="ncnn_case")
+            self.assertEqual(res.provenance.backend, "realesrgan_ncnn_vulkan")
+            self.assertEqual(res.provenance.weights_sha256, expected_bin_sha)
+            self.assertEqual(res.drift_report["locked_pixel_mismatches"], 0)
+            np.testing.assert_array_equal(res.image[0:20, 0:20], base_4x[0:20, 0:20])
+            self.assertFalse(np.array_equal(res.image[32:56, 32:56], base_4x[32:56, 32:56]))
+
+            hybrid_runner = create_restoration_runner(
+                "hybrid",
+                engine_path=engine,
+                model_dir=model_dir,
+                verify_hashes=False,
+                probe_fn=lambda: {"reachable": False, "reason": "ConnectError"},
+                command_runner=_fake_ncnn,
+            )
+            hres = hybrid_runner.run(src, scale=4, rois=rois, roi_space="target", case_id="hybrid_case")
+            self.assertEqual(hres.provenance.backend, "hybrid_zero_cost_texture")
+            self.assertEqual(hres.provenance.weights_sha256, expected_bin_sha)
+            self.assertTrue(hres.provenance.extra["fallback_used"])
+            np.testing.assert_array_equal(hres.image[0:20, 0:20], base_4x[0:20, 0:20])
+
+            missing_runner = create_restoration_runner("realesrgan_ncnn", app_home=root / "missing")
+            with self.assertRaises(BackendUnavailableError):
+                missing_runner.run(src, scale=4, apply_texture_guard=False)
+
+            src_path = root / "src.png"
+            Image.fromarray(src).save(src_path)
+            comp = missing_runner.to_comparator_runner()
+            comp_out = comp({"id": "c1", "target_dimensions": [64, 64]}, src_path, root / "out.png")
+            self.assertEqual(comp_out.status, "unavailable")
+
 
 if __name__ == "__main__":
     unittest.main()

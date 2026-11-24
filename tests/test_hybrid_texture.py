@@ -1,6 +1,7 @@
 """Tests for automatic ComfyUI detection, M1 RealeSR tiling, and CPU fallback."""
 from __future__ import annotations
 
+import hashlib
 import subprocess
 import tempfile
 import unittest
@@ -9,6 +10,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
+from fidelis.engine.restoration_runner import DimensionMismatchError
 from fidelis.studio.comfy import BackendUnavailable
 from fidelis.studio.hybrid_texture import (
     HybridTextureBackend,
@@ -175,6 +177,47 @@ class HybridTextureBackendTests(unittest.TestCase):
             out, meta = realesr.restore(src, base_4x=base_4x, scale=4, target_shape=(32, 32, 3))
             self.assertEqual(meta["detail_blend_weight"], 0.6)
             self.assertEqual(int(out[0, 0, 0]), 160)
+            self.assertEqual(realesr.weights_sha256, hashlib.sha256(b"bin").hexdigest())
+
+    def test_realesr_rejects_mismatched_output_dimensions_without_resizing(self) -> None:
+        def _bad_size_runner(cmd: list[str]) -> subprocess.CompletedProcess[str]:
+            out_path = Path(cmd[cmd.index("-o") + 1])
+            Image.fromarray(np.full((16, 16, 3), 99, dtype=np.uint8)).save(out_path)
+            return subprocess.CompletedProcess(cmd, 0, "", "")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            engine, model_dir = _make_fake_realesr_env(Path(tmp))
+            realesr = RealESRGANNCNNBackend(
+                engine_path=engine,
+                model_dir=model_dir,
+                verify_hashes=False,
+                command_runner=_bad_size_runner,
+            )
+            src = np.zeros((8, 8, 3), dtype=np.uint8)
+            base_4x = np.zeros((32, 32, 3), dtype=np.uint8)
+            with self.assertRaises(DimensionMismatchError):
+                realesr.restore(src, base_4x=base_4x, scale=4, target_shape=(32, 32, 3))
+
+            hybrid = HybridTextureBackend(
+                realesr_backend=realesr,
+                probe_fn=lambda: {"reachable": False},
+            )
+            with self.assertRaises(DimensionMismatchError):
+                hybrid.restore(src, base_4x=base_4x, scale=4, target_shape=(32, 32, 3))
+
+    def test_realesr_rejects_non_4x_scale(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            engine, model_dir = _make_fake_realesr_env(Path(tmp))
+            realesr = RealESRGANNCNNBackend(
+                engine_path=engine,
+                model_dir=model_dir,
+                verify_hashes=False,
+                command_runner=_fake_runner_factory(100),
+            )
+            src = np.zeros((8, 8, 3), dtype=np.uint8)
+            base_2x = np.zeros((16, 16, 3), dtype=np.uint8)
+            with self.assertRaisesRegex(ValueError, "4x"):
+                realesr.restore(src, base_4x=base_2x, scale=2, target_shape=(16, 16, 3))
 
 
 if __name__ == "__main__":

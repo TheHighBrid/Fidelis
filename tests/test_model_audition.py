@@ -253,6 +253,35 @@ class ModelAuditionTests(unittest.TestCase):
             self.assertEqual(status["counts"]["completed"], 1)
             self.assertTrue(out_p.is_file())
 
+    def test_audition_melato_cli_realesrgan_ncnn_missing_runtime_fails_closed(self) -> None:
+        import os
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            env = dict(os.environ)
+            env["FIDELIS_HOME"] = str(root / "empty_fidelis_home")
+            env.pop("FIDELIS_ENGINE", None)
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    str(REPO_ROOT / "scripts" / "audition-melato.py"),
+                    "--smoke",
+                    "--backend",
+                    "realesrgan_ncnn",
+                    "--detail-blend-weight",
+                    "0.6",
+                    "--output-dir",
+                    str(root / "out"),
+                ],
+                cwd=str(REPO_ROOT),
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(proc.returncode, 2, msg=proc.stdout + proc.stderr)
+            self.assertIn("Local NCNN runtime not installed", proc.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

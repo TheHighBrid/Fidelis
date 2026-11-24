@@ -204,9 +204,20 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--backend",
-        choices=["bicubic", "imported", "onnxruntime", "torch_spandrel"],
+        choices=["bicubic", "imported", "onnxruntime", "torch_spandrel", "realesrgan_ncnn", "hybrid"],
         default="imported",
         help="Restoration backend to audition against 4x bicubic.",
+    )
+    parser.add_argument(
+        "--detail-blend-weight",
+        type=float,
+        default=1.0,
+        help="Optional detail blend weight in (0.0, 1.0] for realesrgan_ncnn / hybrid backends.",
+    )
+    parser.add_argument(
+        "--comfy-address",
+        default="http://127.0.0.1:8188",
+        help="Loopback ComfyUI worker address for --backend hybrid.",
     )
     parser.add_argument(
         "--imported-dir",
@@ -291,6 +302,10 @@ def main(argv: list[str] | None = None) -> int:
             runner_kwargs["weights_path"] = args.weights
         if args.model_id is not None:
             runner_kwargs["model_id"] = args.model_id
+        if args.backend in ("realesrgan_ncnn", "hybrid"):
+            runner_kwargs["detail_blend_weight"] = args.detail_blend_weight
+        if args.backend == "hybrid":
+            runner_kwargs["address"] = args.comfy_address
 
         runner = create_restoration_runner(args.backend, **runner_kwargs)
         report = run_model_vs_bicubic_audition(
