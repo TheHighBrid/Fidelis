@@ -65,9 +65,11 @@ def main() -> None:
     aud_p.add_argument("--output-dir", type=Path, required=True)
     aud_p.add_argument(
         "--backend",
-        choices=["bicubic", "imported", "onnxruntime", "torch_spandrel"],
+        choices=["bicubic", "imported", "onnxruntime", "torch_spandrel", "realesrgan_ncnn", "hybrid"],
         default="imported",
     )
+    aud_p.add_argument("--detail-blend-weight", type=float, default=1.0)
+    aud_p.add_argument("--comfy-address", default="http://127.0.0.1:8188")
     aud_p.add_argument("--imported-dir", type=Path, default=None)
     aud_p.add_argument("--weights", type=Path, default=None)
     aud_p.add_argument("--model-id", default=None)
@@ -129,6 +131,11 @@ def main() -> None:
                 if args.weights is None:
                     raise ValueError(f"--weights is required when --backend={args.backend}")
                 backend_kwargs["weights_path"] = args.weights
+            elif args.backend == "realesrgan_ncnn":
+                backend_kwargs["detail_blend_weight"] = args.detail_blend_weight
+            elif args.backend == "hybrid":
+                backend_kwargs["detail_blend_weight"] = args.detail_blend_weight
+                backend_kwargs["address"] = args.comfy_address
             runner = create_restoration_runner(args.backend, **backend_kwargs)
             report = run_model_vs_bicubic_audition(
                 cases,

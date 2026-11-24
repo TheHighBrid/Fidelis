@@ -494,6 +494,163 @@ class TorchSpandrelRestorationBackend:
         return out, {"weights_path": str(self.weights_path), "device": self.device}
 
 
+_REALESR_OPTION_KEYS = frozenset(
+    {
+        "app_home",
+        "engine_path",
+        "model_dir",
+        "model_id",
+        "verify_hashes",
+        "tile_threshold",
+        "detail_blend_weight",
+        "command_runner",
+    }
+)
+_HYBRID_OPTION_KEYS = _REALESR_OPTION_KEYS | frozenset(
+    {
+        "comfy_backend",
+        "bundle",
+        "root",
+        "address",
+        "probe_timeout",
+        "probe_fn",
+    }
+)
+
+
+def _validate_option_keys(cls_name: str, options: Mapping[str, Any], allowed: frozenset[str]) -> None:
+    unexpected = sorted(set(options) - allowed)
+    if unexpected:
+        raise TypeError(f"{cls_name}.__init__() got unexpected keyword argument(s): {', '.join(unexpected)}")
+
+
+def _build_hybrid_backend(options: Mapping[str, Any]) -> Any:
+    from fidelis.studio.hybrid_texture import HybridTextureBackend, RealESRGANNCNNBackend
+
+    address = str(options.get("address", "http://127.0.0.1:8188"))
+    comfy_backend = options.get("comfy_backend")
+    if comfy_backend is None and options.get("bundle") is not None:
+        comfy_backend = ComfyRestorationBackend(
+            options["bundle"],
+            root=options.get("root"),
+            address=address,
+        )
+    realesr_kwargs = {
+        key: options[key]
+        for key in _REALESR_OPTION_KEYS - {"model_id"}
+        if key in options
+    }
+    realesr_backend = RealESRGANNCNNBackend(**realesr_kwargs)
+    return HybridTextureBackend(
+        comfy_backend=comfy_backend,
+        realesr_backend=realesr_backend,
+        address=address,
+        probe_timeout=float(options.get("probe_timeout", 1.5)),
+        probe_fn=options.get("probe_fn"),
+        model_id=options.get("model_id"),
+    )
+
+
+class RealESRGANRestorationBackend:
+    """Zero-cost local NCNN-Vulkan RealeSR-general-v3 restoration backend."""
+
+    backend_name = "realesrgan_ncnn_vulkan"
+
+    def __init__(self, backend: Any | None = None, **options: Any) -> None:
+        _validate_option_keys(type(self).__name__, options, _REALESR_OPTION_KEYS)
+        try:
+            from fidelis.studio.comfy import BackendUnavailable
+            from fidelis.studio.hybrid_texture import MODEL_NAME, RealESRGANNCNNBackend
+        except ModuleNotFoundError as exc:
+            raise BackendUnavailableError(
+                f"Local NCNN restoration dependencies unavailable: {exc}"
+            ) from exc
+
+        self._unavailable_exc = BackendUnavailable
+        if backend is not None:
+            self._backend = backend
+        else:
+            kwargs = dict(options)
+            if kwargs.get("model_id") is None:
+                kwargs["model_id"] = MODEL_NAME
+            self._backend = RealESRGANNCNNBackend(**kwargs)
+        self.model_id = str(getattr(self._backend, "model_id", options.get("model_id") or MODEL_NAME))
+
+    @property
+    def weights_sha256(self) -> str:
+        return str(getattr(self._backend, "weights_sha256", "unverified_until_run"))
+
+    def restore(
+        self,
+        source_rgb: np.ndarray,
+        *,
+        base_4x: np.ndarray,
+        scale: int,
+        target_shape: tuple[int, int, int],
+        case_id: str | None = None,
+    ) -> tuple[np.ndarray, dict[str, Any]]:
+        try:
+            raw_out, meta = self._backend.restore(
+                source_rgb,
+                base_4x=base_4x,
+                scale=scale,
+                target_shape=target_shape,
+                case_id=case_id,
+            )
+        except self._unavailable_exc as exc:
+            raise BackendUnavailableError(str(exc)) from exc
+        out = _enforce_exact_shape(raw_out, target_shape, "realesrgan_ncnn_output")
+        return out, dict(meta)
+
+
+class HybridRestorationBackend:
+    """Zero-cost ComfyUI -> M1 RealeSR-general-v3 -> CPU Lanczos-3 hybrid backend."""
+
+    backend_name = "hybrid_zero_cost_texture"
+
+    def __init__(self, backend: Any | None = None, **options: Any) -> None:
+        _validate_option_keys(type(self).__name__, options, _HYBRID_OPTION_KEYS)
+        try:
+            from fidelis.studio.comfy import BackendUnavailable
+        except ModuleNotFoundError as exc:
+            raise BackendUnavailableError(
+                f"Hybrid texture restoration dependencies unavailable: {exc}"
+            ) from exc
+
+        self._unavailable_exc = BackendUnavailable
+        self._backend = backend if backend is not None else _build_hybrid_backend(options)
+
+    @property
+    def model_id(self) -> str:
+        return str(getattr(self._backend, "model_id", "hybrid_zero_cost_texture"))
+
+    @property
+    def weights_sha256(self) -> str:
+        return str(getattr(self._backend, "weights_sha256", "unresolved_until_run"))
+
+    def restore(
+        self,
+        source_rgb: np.ndarray,
+        *,
+        base_4x: np.ndarray,
+        scale: int,
+        target_shape: tuple[int, int, int],
+        case_id: str | None = None,
+    ) -> tuple[np.ndarray, dict[str, Any]]:
+        try:
+            raw_out, meta = self._backend.restore(
+                source_rgb,
+                base_4x=base_4x,
+                scale=scale,
+                target_shape=target_shape,
+                case_id=case_id,
+            )
+        except self._unavailable_exc as exc:
+            raise BackendUnavailableError(str(exc)) from exc
+        out = _enforce_exact_shape(raw_out, target_shape, "hybrid_texture_output")
+        return out, dict(meta)
+
+
 class RestorationRunner:
     """Unified restoration runner with exact-grid enforcement and M2 texture guard."""
 
@@ -704,4 +861,8 @@ def create_restoration_runner(backend: str, **kwargs: Any) -> RestorationRunner:
         return RestorationRunner(OnnxRestorationBackend(**kwargs))
     if name == "torch_spandrel":
         return RestorationRunner(TorchSpandrelRestorationBackend(**kwargs))
+    if name in ("realesrgan_ncnn", "realesrgan_ncnn_vulkan", "realesr"):
+        return RestorationRunner(RealESRGANRestorationBackend(**kwargs))
+    if name in ("hybrid", "hybrid_zero_cost_texture"):
+        return RestorationRunner(HybridRestorationBackend(**kwargs))
     raise ValueError(f"Unknown restoration backend: {backend!r}")

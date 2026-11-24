@@ -13,6 +13,7 @@ from typing import Any, Callable
 import numpy as np
 from PIL import Image
 
+from fidelis.engine.restoration_runner import DimensionMismatchError
 from fidelis.engine.tiler import MultiDiffusionTiler
 from fidelis.studio.comfy import BackendUnavailable, ComfyTextureBackend
 
@@ -101,6 +102,8 @@ class LocalCPUFallbackBackend:
     """Zero-cost CPU Lanczos-3 + restrained luminance detail fallback (no network/GPU)."""
 
     backend_name = "cpu_lanczos_fallback"
+    model_id = "lanczos3-cpu"
+    weights_sha256 = "deterministic_lanczos3_cpu"
 
     def restore(
         self,
@@ -136,6 +139,7 @@ class RealESRGANNCNNBackend:
         app_home: str | Path | None = None,
         engine_path: str | Path | None = None,
         model_dir: str | Path | None = None,
+        model_id: str = MODEL_NAME,
         verify_hashes: bool = True,
         tile_threshold: int = 512,
         detail_blend_weight: float = 1.0,
@@ -149,11 +153,19 @@ class RealESRGANNCNNBackend:
             Path(env_engine) if env_engine else home / "runtime" / "realsr-ncnn"
         )
         self.model_dir = Path(model_dir) if model_dir is not None else home / "runtime" / f"models-{MODEL_NAME}"
+        self.model_id = str(model_id)
         self.verify_hashes = verify_hashes
         self.tile_threshold = int(tile_threshold)
         self.detail_blend_weight = float(detail_blend_weight)
         self._command_runner = command_runner
         self._verified_hashes: tuple[str, str] | None = None
+
+    @property
+    def weights_sha256(self) -> str:
+        """Return verified binary SHA-256 after readiness check, or unverified sentinel."""
+        if self._verified_hashes is not None:
+            return self._verified_hashes[1]
+        return "unverified_until_run"
 
     def _ensure_ready(self) -> tuple[str, str]:
         if not self.engine_path.is_file() or not os.access(self.engine_path, os.X_OK):
@@ -218,7 +230,9 @@ class RealESRGANNCNNBackend:
         case_id: str | None = None,
     ) -> tuple[np.ndarray, dict[str, Any]]:
         """Run local zero-cost RealeSR-general-v3 with automatic tiling for large inputs."""
-        del scale, case_id
+        del case_id
+        if int(scale) != 4:
+            raise ValueError(f"{self.model_id} only supports fixed 4x scaling, got scale={scale}")
         param_sha, bin_sha = self._ensure_ready()
         src = np.asarray(source_rgb, dtype=np.uint8)
         h, w = src.shape[:2]
@@ -230,27 +244,34 @@ class RealESRGANNCNNBackend:
             raw_out = self._upscale_single(src)
 
         target_h, target_w = int(target_shape[0]), int(target_shape[1])
-        if raw_out.shape[:2] != (target_h, target_w):
-            rgb_img = Image.fromarray(raw_out).resize((target_w, target_h), Image.Resampling.LANCZOS)
-            out = np.asarray(rgb_img, dtype=np.uint8)
-        else:
-            out = raw_out
+        expected_shape = (target_h, target_w, 3)
+        if raw_out.shape != expected_shape:
+            raise DimensionMismatchError(
+                f"{self.model_id} output shape {raw_out.shape} does not match expected "
+                f"{expected_shape}; silent resizing is forbidden"
+            )
+        out = raw_out
         if self.detail_blend_weight < 1.0:
             base_arr = np.asarray(base_4x, dtype=np.float32)
-            if base_arr.shape[:2] == out.shape[:2]:
-                w_det = self.detail_blend_weight
-                out = np.clip(
-                    np.rint(w_det * out.astype(np.float32) + (1.0 - w_det) * base_arr),
-                    0,
-                    255,
-                ).astype(np.uint8)
+            if base_arr.shape != out.shape:
+                raise DimensionMismatchError(
+                    f"Precision base shape {base_arr.shape} does not match {out.shape}; "
+                    "silent resizing is forbidden"
+                )
+            w_det = self.detail_blend_weight
+            out = np.clip(
+                np.rint(w_det * out.astype(np.float32) + (1.0 - w_det) * base_arr),
+                0,
+                255,
+            ).astype(np.uint8)
         return out, {
             "backend": self.backend_name,
-            "model": MODEL_NAME,
+            "model": self.model_id,
             "tiled": tiled,
             "detail_blend_weight": self.detail_blend_weight,
             "param_sha256": param_sha,
             "bin_sha256": bin_sha,
+            "weights_sha256": bin_sha,
             "api_fee_usd": 0.0,
             "cloud_fallback": False,
             "evidence_level": "E2_local_m1_ncnn",
@@ -271,6 +292,7 @@ class HybridTextureBackend:
         address: str = "http://127.0.0.1:8188",
         probe_timeout: float = 1.5,
         probe_fn: Callable[[], dict[str, Any]] | None = None,
+        model_id: str | None = None,
     ) -> None:
         self.comfy_backend = comfy_backend
         self.realesr_backend = realesr_backend or RealESRGANNCNNBackend()
@@ -278,6 +300,23 @@ class HybridTextureBackend:
         self.address = address
         self.probe_timeout = probe_timeout
         self.probe_fn = probe_fn
+        self._configured_model_id = model_id
+        self._last_model_id: str | None = None
+        self._last_weights_sha256: str = "unresolved_until_run"
+
+    @property
+    def model_id(self) -> str:
+        """Return configured or last-selected model identifier."""
+        if self._configured_model_id:
+            return self._configured_model_id
+        if self._last_model_id:
+            return self._last_model_id
+        return f"hybrid({getattr(self.realesr_backend, 'model_id', MODEL_NAME)})"
+
+    @property
+    def weights_sha256(self) -> str:
+        """Return SHA-256 provenance of the backend selected in the latest run."""
+        return self._last_weights_sha256
 
     def detect_worker(self) -> dict[str, Any]:
         """Probe ComfyUI availability and report whether GPU or local fallback is active."""
@@ -316,6 +355,11 @@ class HybridTextureBackend:
                 out, meta = self.comfy_backend.restore(
                     source_rgb, base_4x=base_4x, scale=scale, target_shape=target_shape, case_id=case_id
                 )
+                self._last_model_id = str(getattr(self.comfy_backend, "model_id", "comfyui"))
+                self._last_weights_sha256 = str(
+                    meta.get("weights_sha256")
+                    or getattr(self.comfy_backend, "weights_sha256", "unavailable_unverified")
+                )
                 return out, {
                     **meta,
                     "backend_selected": "comfyui",
@@ -331,6 +375,8 @@ class HybridTextureBackend:
             out, meta = self.realesr_backend.restore(
                 source_rgb, base_4x=base_4x, scale=scale, target_shape=target_shape, case_id=case_id
             )
+            self._last_model_id = str(meta.get("model") or getattr(self.realesr_backend, "model_id", MODEL_NAME))
+            self._last_weights_sha256 = str(meta.get("bin_sha256") or self.realesr_backend.weights_sha256)
             return out, {
                 **meta,
                 "backend_selected": self.realesr_backend.backend_name,
@@ -343,6 +389,10 @@ class HybridTextureBackend:
         except (BackendUnavailable, OSError) as exc:
             out, meta = self.cpu_backend.restore(
                 source_rgb, base_4x=base_4x, scale=scale, target_shape=target_shape, case_id=case_id
+            )
+            self._last_model_id = str(meta.get("model") or getattr(self.cpu_backend, "model_id", "lanczos3-cpu"))
+            self._last_weights_sha256 = str(
+                getattr(self.cpu_backend, "weights_sha256", "deterministic_lanczos3_cpu")
             )
             return out, {
                 **meta,
