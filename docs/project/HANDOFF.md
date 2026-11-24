@@ -11,8 +11,8 @@ Krea-style editable region workflow. Competitive parity is not established.
 ## Locate the actual work
 
 - Repository: https://github.com/TheHighBrid/Fidelis
-- Current Studio code: integrated into `main` through [PR #82](https://github.com/TheHighBrid/Fidelis/pull/82), merge `7310aa6` (2026-11-20). Check newer commits before working.
-- Audited baseline `0f10ca6` and PR #12 are historical references, not the current checkout. No release or quality acceptance is implied.
+- Current Studio code: integrated into `main` through [PR #82](https://github.com/TheHighBrid/Fidelis/pull/82), merge `7310aa6` (2026-11-20). Latest inspected `main` is `127385d` (2026-11-23 19:58 ET, PR #98). Check newer commits before working.
+- Audited baseline `0f10ca6` and PR #12 are historical references, not the current checkout. PR #12 is merged via #82; it is not pending. No release or quality acceptance is implied.
 - Execution board: https://linear.app/melato/project/fidelis-studio-a057f366fa71
 - Umbrella: GitHub #11 / Linear MEL-53. Stable plan IDs: F01-F17.
 
@@ -51,13 +51,13 @@ Nomos and source-fusion history. One full-resolution output per file.
 ## Current review work
 
 Read the risk register for the legacy large-input import, provenance, metric-label
-and network-bind findings. These inherited findings now have a fixture-tested
-implementation in PR #12, pending review/merge; see the latest receipt below. The [backlog snapshot](backlog.json) maps actual Linear links.
+and network-bind findings. The fixture-tested implementations from PR #12 are on
+`main` via #82; that is not a release. See the latest receipts below. The
+[backlog snapshot](backlog.json) maps actual Linear links.
 
 ## Latest pipeline integrity delivery
 
-D01-D04 are implemented and fixture-tested on the Studio branch, pending PR #12
-review/merge. The latest full Python run passed **77 tests**. See the
+D01-D04 are implemented and fixture-tested; this 2026-11-10 receipt predates the #82 merge of PR #12. The latest full Python run passed **77 tests**. See the
 [2026-11-10 integrity receipt](checkpoints/2026-11-10-pipeline-integrity.md)
 for changes, compatibility requirements, verification and remaining live gates.
 Next independent work: F07-A asynchronous execution and F08-A native crop inspection.
@@ -66,7 +66,7 @@ Next independent work: F07-A asynchronous execution and F08-A native crop inspec
 
 F07-A adds the opt-in durable queue, editor generation/status controls, scoped local
 cancellation and explicit same-run recovery. **92 Python tests pass**; fixtures do
-not certify live model quality. Pending review/merge in PR #12. See the
+not certify live model quality. This 2026-11-10 receipt predates the #82 merge of PR #12. See the
 [async checkpoint](checkpoints/2026-11-10-async-generation.md) for evidence, resource limits and recovery boundaries.
 Next implementation: F08-A native-pixel inspection. Live worker, device acceptance
 and aggregate generated-cache retention remain open.
@@ -76,7 +76,7 @@ and aggregate generated-cache retention remain open.
 F08-A adds read-only, same-grid native crops with 100/200% CSS-pixel comparison,
 revision pinning and stale-load protection. **102 Python tests pass**, including
 Node geometry/DOM contracts; real browser/touch visual acceptance is separate.
-Pending PR #12 review/merge. See the [native inspection receipt](checkpoints/2026-11-10-native-inspection.md).
+This 2026-11-10 receipt predates the #82 merge of PR #12. See the [native inspection receipt](checkpoints/2026-11-10-native-inspection.md).
 Next: F08-B browser/device acceptance and F12-A corpus/ROI preparation. Live model
 quality, confidence masks and resource/release gates remain open.
 
@@ -154,3 +154,25 @@ PRs `#48`, `#61`/`#75`, `#65`, `#66`, `#67`, `#69`–`#73`, `#76`–`#81`, passi
 deterministic `v3.1.0` packaging, and Apple M1 `E2` zero-cost `RealeSR-general-v3`
 qualification. See
 [2026-11-19 unified integration checkpoint](checkpoints/2026-11-19-unified-studio-integration.md).
+
+## Coordination refresh · 2026-11-24
+
+Latest inspected `main` is `127385d`. After #82, `main` also has F16 dual-owner
+declaration guards (#88–#90), protected-export/structure integrity (#83, #85,
+#86, #92), F06 Comfy fail-closed protocol work (#93–#96), docs reconciliation
+(#84, #91), and the isolated Context.dev research capture (#98). Fixture CI on
+that SHA was green; that is not visual, GPU, device, or release acceptance.
+
+A 2026-11-24 tree/diff audit of leftover open PRs versus `127385d`: #75, #66,
+#67, and #81 are fully absorbed and safe to close; #58 and #87 have narrow
+unique leftovers (executable mode on `scripts/check-studio-integration.py`, and
+#87 also lists three test modules in CI that `main`'s curated workflow omits).
+Do not merge dirty or obsolete-based PRs as if their work were missing. See
+[STATUS.md](STATUS.md) for the verdict table.
+
+Release gates still open: live ComfyUI GPU worker (E2 / F05-A / F06 / F07),
+rights-cleared 60-case corpus (F12; 30/60 slots inventoried but not frozen),
+30-case dual-reviewer blind signoff (F13), physical Android/iOS review
+(F08-B / F15), owner F16 signoff (the #88–#90 guards are not a signoff),
+segmentation/ICC/colour acceptance, and uncertified leftover Codacy findings
+on those open PR tips. PR #82 integration is merged, not released.
