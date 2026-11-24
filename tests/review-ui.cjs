@@ -96,8 +96,26 @@ assert.match(review.centreReadout(rect, null, null, 'raw candidate'), /not previ
 assert.equal(review.jobContext(null, true), 'No saved job open');
 assert.equal(review.jobContext({ label: 'Coat', revision: 4, dimensions: [12, 8] }, true), 'Coat · revision 4 · 12 × 8 px · unsaved edits');
 
+assert.deepEqual(review.proposalCenterAndSide([10, 20, 12, 8]), { centerX: 16, centerY: 24, side: 16 });
+assert.deepEqual(review.proposalCenterAndSide([10, 20, 40, 25]), { centerX: 30, centerY: 32, side: 64 });
+assert.deepEqual(review.proposalCenterAndSide([0, 0, 640, 200]), { centerX: 320, centerY: 100, side: 512 });
+assert.throws(() => review.proposalCenterAndSide([-1, 0, 10, 10]), /non-negative/);
+assert.throws(() => review.proposalCenterAndSide([0, 0, 0, 10]), /non-negative/);
+
+const summary = review.formatProposalSummary({
+  rectangle: [80, 60, 40, 20],
+  strong_edges: 120,
+  changed_pixels: 45,
+  strong_edge_disagreements: 7,
+}, 0);
+assert.match(summary, /^#1 · x 80–119, y 60–79 \(40 × 20 px\)/);
+assert.match(summary, /120 edges/);
+assert.match(summary, /45 changed px · 7 edge diffs/);
+
 const html = fs.readFileSync(require('node:path').join(__dirname, '../fidelis/studio/studio.html'), 'utf8');
 assert.match(html, /\/api\/regions\/review-ui\.js/);
+assert.match(html, /id="proposeNativeStructure"/);
+assert.match(html, /id="nativeProposalList"/);
 assert.match(html, /id="channelProtected"/);
 assert.match(html, /id="overlayOpacity"/);
 assert.match(html, /id="dockNative"/);

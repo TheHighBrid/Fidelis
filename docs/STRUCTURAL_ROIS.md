@@ -71,7 +71,10 @@ Locking both 4x rectangles (`103,376` total pixels) via `scripts/structural-roi.
 
 Open **Inspect native pixels** and click or tap the overview to centre a crop.
 Use a 16, 32 or 64 pixel crop for small details, or enter its centre coordinates.
-**Check crop changes** compares the displayed target with the precision base.
-**Lock crop to base** commits the displayed crop at the saved revision and
-reopens the same crop against the new master. Save or discard pending brush
-and blend edits before applying a lock.
+**Propose structural ROIs** queries `POST /api/regions/jobs/<id>/propose-structure`
+for contrast-cluster candidates against the selected target, lets you jump the
+native crop to each candidate with **Inspect**, and requires an explicit
+**Lock ROI** click to commit. **Check crop changes** compares the displayed target
+with the precision base. **Lock crop to base** commits the displayed crop at the
+saved revision and reopens the same crop against the new master. Save or discard
+pending brush and blend edits before applying a lock.

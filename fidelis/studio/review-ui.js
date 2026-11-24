@@ -231,6 +231,46 @@
     return `${job.label || 'Untitled'} · revision ${revision} · ${dimensions} px${dirty ? ' · unsaved edits' : ''}`;
   }
 
+  const NATIVE_SIDES = [16, 32, 64, 128, 256, 512];
+
+  function proposalCenterAndSide(rectangle) {
+    if (!Array.isArray(rectangle) || rectangle.length !== 4 || !rectangle.every(Number.isSafeInteger)) {
+      throw new Error('Proposed ROI must be an integer [x, y, width, height] rectangle.');
+    }
+    const [x, y, width, height] = rectangle;
+    if (x < 0 || y < 0 || width < 1 || height < 1) {
+      throw new Error('Proposed ROI coordinates must be non-negative with positive size.');
+    }
+    const maxDim = Math.max(width, height);
+    const side = NATIVE_SIDES.find((candidate) => candidate >= maxDim) || 512;
+    return {
+      centerX: x + Math.floor(width / 2),
+      centerY: y + Math.floor(height / 2),
+      side,
+    };
+  }
+
+  function formatProposalSummary(proposal, index = 0) {
+    if (!proposal || !Array.isArray(proposal.rectangle) || proposal.rectangle.length !== 4) {
+      throw new Error('Proposal record must include a rectangle.');
+    }
+    const [x, y, width, height] = proposal.rectangle;
+    if (![x, y, width, height].every(Number.isSafeInteger) || x < 0 || y < 0 || width < 1 || height < 1) {
+      throw new Error('Proposal rectangle must contain valid pixel bounds.');
+    }
+    const parts = [
+      `#${Number.isSafeInteger(index) && index >= 0 ? index + 1 : 1}`,
+      `x ${x}–${x + width - 1}, y ${y}–${y + height - 1} (${width} × ${height} px)`,
+    ];
+    if (Number.isSafeInteger(proposal.strong_edges)) {
+      parts.push(`${proposal.strong_edges.toLocaleString()} edges`);
+    }
+    if (Number.isSafeInteger(proposal.changed_pixels) && Number.isSafeInteger(proposal.strong_edge_disagreements)) {
+      parts.push(`${proposal.changed_pixels.toLocaleString()} changed px · ${proposal.strong_edge_disagreements.toLocaleString()} edge diffs`);
+    }
+    return parts.join(' · ');
+  }
+
   const api = {
     CHANNELS,
     COLORS,
@@ -253,6 +293,8 @@
     centreReadout,
     describePointer,
     jobContext,
+    proposalCenterAndSide,
+    formatProposalSummary,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.FidelisReview = api;

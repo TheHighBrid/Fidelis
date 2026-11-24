@@ -37,12 +37,16 @@
 #workspace[data-inspector="side"] #status{grid-column:1;grid-row:4}
 #workspace[data-inspector="sheet"] #nativePanel{position:sticky;bottom:0;z-index:6;margin:0;max-height:42vh;overflow:auto;background:var(--panel);box-shadow:0 -8px 24px rgba(0,0,0,.35)}
 #workspace[data-inspector="sheet"] #nativeScroll{max-height:24vh}
+.proposal-list{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
+.proposal-item{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:8px 10px;border:1px solid var(--border);border-radius:7px;background:#20231e;min-width:0}
+.proposal-meta{font-size:12px;color:var(--text);line-height:1.4;overflow-wrap:anywhere;flex:1 1 200px;min-width:0}
+.proposal-actions{margin-top:0;flex:0 0 auto}
 </style></head>
 <body>
 <header><div><strong>FIDELIS</strong><span>Regional Review</span></div><a href="/">Restoration studio ↗</a></header>
 <div class="layout" id="workspace"><aside>
 <section id="savedWork"><h2>Saved work</h2><label for="jobs">Reopen a job</label><select id="jobs"><option value="">Choose a saved job</option></select><button id="reload" class="danger" disabled>Reload saved revision</button><button id="delete" class="danger" disabled>Delete selected job</button><p class="subtle">Passes, masks and blend settings persist across restarts. Reblending makes no model or cloud calls.</p></section>
-<section id="importPasses"><h2>Import aligned passes</h2><label for="base">Precision base · RGB PNG</label><input id="base" type="file" accept="image/png"><label for="texture">Generated candidate · RGB PNG</label><input id="texture" type="file" accept="image/png"><label for="masks">Regional masks · NPZ (optional)</label><input id="masks" type="file" accept=".npz"><label for="profile">Starting profile</label><select id="profile"></select><button id="import" class="primary">Create saved job</button><p class="subtle">Use aligned, untagged sRGB images. Import masks with confidence values, or paint regions after opening the job. Unknown areas remain unchanged. <a href="https://github.com/TheHighBrid/Fidelis/blob/feat/region-aware-studio/docs/REGION_REBLEND.md" target="_blank" rel="noreferrer">Input format ↗</a></p></section>
+<section id="importPasses"><h2>Import aligned passes</h2><label for="base">Precision base · RGB PNG</label><input id="base" type="file" accept="image/png"><label for="texture">Generated candidate · RGB PNG</label><input id="texture" type="file" accept="image/png"><label for="masks">Regional masks · NPZ (optional)</label><input id="masks" type="file" accept=".npz"><label for="profile">Starting profile</label><select id="profile"></select><button id="import" class="primary">Create saved job</button><p class="subtle">Use aligned, untagged sRGB images. Import masks with confidence values, or paint regions after opening the job. Unknown areas remain unchanged. <a href="https://github.com/TheHighBrid/Fidelis/blob/main/docs/REGION_REBLEND.md" target="_blank" rel="noreferrer">Input format ↗</a></p></section>
 <section id="paintRegions" aria-label="Paint regions"><h2>Paint regions</h2>
 <div class="toolstrip" role="toolbar" aria-label="Paint and inspect tools">
 <button type="button" id="toolInspect" aria-pressed="true" aria-keyshortcuts="V">Inspect</button>
@@ -86,9 +90,11 @@
 <div class="edit-buttons">
 <button id="checkNativeStructure" disabled>Check crop changes</button>
 <button id="lockNativeStructure" disabled>Lock crop to base</button>
+<button id="proposeNativeStructure" type="button" disabled>Propose structural ROIs</button>
 <button type="button" id="readNativePixel" disabled>Read centre pixel</button>
 </div>
 <p id="nativeStructureStatus" class="subtle" role="status"></p>
+<ul id="nativeProposalList" class="proposal-list" hidden aria-label="Proposed structural ROIs"></ul>
 </section>
 <div id="splitControl" hidden><label for="split">Comparison</label><input id="split" type="range" min="0" max="100" value="50" aria-label="Base and final comparison divider"></div><div id="status" role="status" aria-live="polite">Local workspace ready. Automatic segmentation is unavailable. Generation requires an explicitly configured local workflow.</div>
 </main></div>
@@ -196,9 +202,98 @@ let nativeRect = null;
 
 function nativeStructureControls() {
  const unavailable = busy || !current || !nativeRect || $('nativePanel').hidden;
+ const panelUnavailable = busy || !current || $('nativePanel').hidden;
+ const lockUnavailable = unavailable || !!stroke || history.dirty || dirtyBlend;
  $('checkNativeStructure').disabled = unavailable;
- $('lockNativeStructure').disabled = unavailable || !!stroke || history.dirty || dirtyBlend;
+ $('lockNativeStructure').disabled = lockUnavailable;
+ $('proposeNativeStructure').disabled = panelUnavailable;
  $('readNativePixel').disabled = unavailable;
+ for (const item of $('nativeProposalList').children) {
+  const buttons = item._actions;
+  if (!buttons) continue;
+  buttons.inspect.disabled = panelUnavailable;
+  buttons.lock.disabled = busy || !current || $('nativePanel').hidden || !!stroke || history.dirty || dirtyBlend;
+ }
+}
+
+function clearProposals() {
+ $('nativeProposalList').replaceChildren();
+ $('nativeProposalList').hidden = true;
+}
+
+function inspectProposedRoi(rectangle) {
+ if (!current || $('nativePanel').hidden) return;
+ const {centerX, centerY, side} = FidelisReview.proposalCenterAndSide(rectangle);
+ $('nativeX').value = String(centerX);
+ $('nativeY').value = String(centerY);
+ $('nativeSide').value = String(side);
+ loadNative();
+ $('nativeStructureStatus').textContent = 'Inspecting proposed ROI (contrast heuristic only; click Lock ROI to commit).';
+}
+
+async function applyLockedRevision(updated, centerX, centerY, side, statusMessage) {
+ setJob(updated);
+ $('nativeX').value = String(centerX);
+ $('nativeY').value = String(centerY);
+ if (side !== null && side !== undefined) $('nativeSide').value = String(side);
+ $('nativeRole').value = 'master';
+ $('nativePanel').hidden = false;
+ $('inspectNative').setAttribute('aria-expanded', 'true');
+ loadNative();
+ syncLayout();
+ $('nativeStructureStatus').textContent = statusMessage;
+ await refresh();
+}
+
+function lockProposedRoi(rectangle) {
+ return action(async () => {
+  if (stroke || history.dirty || dirtyBlend) throw new Error('Save or discard unsaved edits before locking a proposed ROI.');
+  if (!current) throw new Error('Open a saved job first.');
+  const [x, y, width, height] = rectangle;
+  const {centerX, centerY, side} = FidelisReview.proposalCenterAndSide(rectangle);
+  const updated = await request('/api/regions/jobs/' + current.id + '/lock-structure', {
+   expected_revision: current.revision,
+   regions: [[x, y, width, height]],
+  });
+  await applyLockedRevision(updated, centerX, centerY, side, 'Proposed ROI locked in revision ' + updated.revision + '.');
+ });
+}
+
+function renderProposals(proposals) {
+ const list = $('nativeProposalList');
+ list.replaceChildren();
+ if (!proposals.length) {
+  list.hidden = true;
+  $('nativeStructureStatus').textContent = 'No dense luminance-edge clusters proposed. Select a crop manually to inspect or lock.';
+  return;
+ }
+ $('nativeStructureStatus').textContent = `${proposals.length} contrast proposal${proposals.length === 1 ? '' : 's'} (heuristic only, not semantic proof). Inspect before locking.`;
+ const items = proposals.map((proposal, index) => {
+  const item = document.createElement('li');
+  item.className = 'proposal-item';
+  const meta = document.createElement('span');
+  meta.className = 'proposal-meta';
+  meta.textContent = FidelisReview.formatProposalSummary(proposal, index);
+  const actions = document.createElement('div');
+  actions.className = 'edit-buttons proposal-actions';
+  const inspectBtn = document.createElement('button');
+  inspectBtn.type = 'button';
+  inspectBtn.className = 'proposal-inspect';
+  inspectBtn.textContent = 'Inspect';
+  inspectBtn.onclick = () => inspectProposedRoi(proposal.rectangle);
+  const lockBtn = document.createElement('button');
+  lockBtn.type = 'button';
+  lockBtn.className = 'proposal-lock';
+  lockBtn.textContent = 'Lock ROI';
+  lockBtn.onclick = () => lockProposedRoi(proposal.rectangle);
+  actions.append(inspectBtn, lockBtn);
+  item.append(meta, actions);
+  item._actions = {inspect: inspectBtn, lock: lockBtn};
+  return item;
+ });
+ list.append(...items);
+ list.hidden = false;
+ nativeStructureControls();
 }
 
 function structuralCropPayload() {
@@ -206,6 +301,17 @@ function structuralCropPayload() {
  const {x, y, width, height} = nativeRect;
  return {expected_revision: current.revision, regions: [[x, y, width, height]]};
 }
+
+$('proposeNativeStructure').onclick = () => action(async () => {
+ if (!current || $('nativePanel').hidden) throw new Error('Open native pixel inspection first.');
+ $('nativeStructureStatus').textContent = '';
+ const report = await request('/api/regions/jobs/' + current.id + '/propose-structure', {
+  expected_revision: current.revision,
+  target: $('nativeRole').value,
+  max_proposals: 8,
+ });
+ renderProposals(Array.isArray(report.proposals) ? report.proposals : []);
+});
 
 $('checkNativeStructure').onclick = () => action(async () => {
  $('nativeStructureStatus').textContent = '';
@@ -224,18 +330,9 @@ $('lockNativeStructure').onclick = () => action(async () => {
  const payload = structuralCropPayload();
  const centreX = $('nativeX').value, centreY = $('nativeY').value;
  const updated = await request('/api/regions/jobs/' + current.id + '/lock-structure', payload);
- setJob(updated);
- $('nativeX').value = centreX;
- $('nativeY').value = centreY;
- $('nativeRole').value = 'master';
- $('nativePanel').hidden = false;
- $('inspectNative').setAttribute('aria-expanded', 'true');
- loadNative();
- syncLayout();
- $('nativeStructureStatus').textContent = 'Crop locked in revision ' + updated.revision + '.';
- await refresh();
+ await applyLockedRevision(updated, centreX, centreY, null, 'Crop locked in revision ' + updated.revision + '.');
 });
-function resetNative(){nativeLoader.invalidate();nativeRect=null;nativeSamples=null;clearTimeout(nudgeTimer);$('nativeStructureStatus').textContent='';$('nativePair').replaceChildren();$('nativeScroll').hidden=true;$('nativePanel').hidden=true;$('inspectNative').setAttribute('aria-expanded','false');showReadout('Hover the crop, or read its centre. RGB is browser-decoded from the loaded native crop, not from preview zoom.',false);syncLayout();}
+function resetNative(){nativeLoader.invalidate();nativeRect=null;nativeSamples=null;clearTimeout(nudgeTimer);$('nativeStructureStatus').textContent='';clearProposals();$('nativePair').replaceChildren();$('nativeScroll').hidden=true;$('nativePanel').hidden=true;$('inspectNative').setAttribute('aria-expanded','false');showReadout('Hover the crop, or read its centre. RGB is browser-decoded from the loaded native crop, not from preview zoom.',false);syncLayout();}
 function nativeScale(){if(!nativeRect)return;const size=FidelisInspection.cssSize(nativeRect,Number($('nativeZoom').value));$('nativePair').style.width=size.width+'px';$('nativePair').style.height=size.height+'px';for(const image of $('nativePair').children){image.style.width=size.width+'px';image.style.height=size.height+'px';}$('nativePair').dataset.scale=$('nativeZoom').value;applyNativeSplit();}
 function applyNativeSplit(){const base=$('nativePair').children[1],percent=100-Number($('nativeSplit').value);if(base)base.style.clipPath=`inset(0 ${percent}% 0 0)`;$('nativePair').style['--split']=$('nativeSplit').value+'%';$('nativeCompareLabel').textContent=$('nativeRole').value==='master'?'Saved final':'Raw candidate';}
 function usableSamples(samples){return Array.isArray(samples)&&samples.length===2&&samples.every(item=>item&&item.data);}
