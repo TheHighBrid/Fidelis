@@ -427,6 +427,11 @@ class RestorationRunnerTests(unittest.TestCase):
             comp_out = comp({"id": "c1", "target_dimensions": [64, 64]}, src_path, root / "out.png")
             self.assertEqual(comp_out.status, "unavailable")
 
+            with self.assertRaises(TypeError):
+                create_restoration_runner("realesrgan_ncnn", unknown_option=True)
+            with self.assertRaises(TypeError):
+                create_restoration_runner("hybrid", unknown_option=True)
+
 
 if __name__ == "__main__":
     unittest.main()

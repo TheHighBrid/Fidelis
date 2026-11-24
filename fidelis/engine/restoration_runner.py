@@ -494,24 +494,70 @@ class TorchSpandrelRestorationBackend:
         return out, {"weights_path": str(self.weights_path), "device": self.device}
 
 
+_REALESR_OPTION_KEYS = frozenset(
+    {
+        "app_home",
+        "engine_path",
+        "model_dir",
+        "model_id",
+        "verify_hashes",
+        "tile_threshold",
+        "detail_blend_weight",
+        "command_runner",
+    }
+)
+_HYBRID_OPTION_KEYS = _REALESR_OPTION_KEYS | frozenset(
+    {
+        "comfy_backend",
+        "bundle",
+        "root",
+        "address",
+        "probe_timeout",
+        "probe_fn",
+    }
+)
+
+
+def _validate_option_keys(cls_name: str, options: Mapping[str, Any], allowed: frozenset[str]) -> None:
+    unexpected = sorted(set(options) - allowed)
+    if unexpected:
+        raise TypeError(f"{cls_name}.__init__() got unexpected keyword argument(s): {', '.join(unexpected)}")
+
+
+def _build_hybrid_backend(options: Mapping[str, Any]) -> Any:
+    from fidelis.studio.hybrid_texture import HybridTextureBackend, RealESRGANNCNNBackend
+
+    address = str(options.get("address", "http://127.0.0.1:8188"))
+    comfy_backend = options.get("comfy_backend")
+    if comfy_backend is None and options.get("bundle") is not None:
+        comfy_backend = ComfyRestorationBackend(
+            options["bundle"],
+            root=options.get("root"),
+            address=address,
+        )
+    realesr_kwargs = {
+        key: options[key]
+        for key in _REALESR_OPTION_KEYS - {"model_id"}
+        if key in options
+    }
+    realesr_backend = RealESRGANNCNNBackend(**realesr_kwargs)
+    return HybridTextureBackend(
+        comfy_backend=comfy_backend,
+        realesr_backend=realesr_backend,
+        address=address,
+        probe_timeout=float(options.get("probe_timeout", 1.5)),
+        probe_fn=options.get("probe_fn"),
+        model_id=options.get("model_id"),
+    )
+
+
 class RealESRGANRestorationBackend:
     """Zero-cost local NCNN-Vulkan RealeSR-general-v3 restoration backend."""
 
     backend_name = "realesrgan_ncnn_vulkan"
 
-    def __init__(
-        self,
-        *,
-        backend: Any | None = None,
-        app_home: str | Path | None = None,
-        engine_path: str | Path | None = None,
-        model_dir: str | Path | None = None,
-        model_id: str | None = None,
-        verify_hashes: bool = True,
-        tile_threshold: int = 512,
-        detail_blend_weight: float = 1.0,
-        command_runner: Any | None = None,
-    ) -> None:
+    def __init__(self, backend: Any | None = None, **options: Any) -> None:
+        _validate_option_keys(type(self).__name__, options, _REALESR_OPTION_KEYS)
         try:
             from fidelis.studio.comfy import BackendUnavailable
             from fidelis.studio.hybrid_texture import MODEL_NAME, RealESRGANNCNNBackend
@@ -524,21 +570,11 @@ class RealESRGANRestorationBackend:
         if backend is not None:
             self._backend = backend
         else:
-            kwargs: dict[str, Any] = {
-                "app_home": app_home,
-                "engine_path": engine_path,
-                "model_dir": model_dir,
-                "verify_hashes": verify_hashes,
-                "tile_threshold": tile_threshold,
-                "detail_blend_weight": detail_blend_weight,
-                "command_runner": command_runner,
-            }
-            if model_id is not None:
-                kwargs["model_id"] = model_id
-            else:
+            kwargs = dict(options)
+            if kwargs.get("model_id") is None:
                 kwargs["model_id"] = MODEL_NAME
             self._backend = RealESRGANNCNNBackend(**kwargs)
-        self.model_id = str(getattr(self._backend, "model_id", model_id or MODEL_NAME))
+        self.model_id = str(getattr(self._backend, "model_id", options.get("model_id") or MODEL_NAME))
 
     @property
     def weights_sha256(self) -> str:
@@ -572,63 +608,17 @@ class HybridRestorationBackend:
 
     backend_name = "hybrid_zero_cost_texture"
 
-    def __init__(
-        self,
-        *,
-        backend: Any | None = None,
-        comfy_backend: Any | None = None,
-        bundle: dict[str, Any] | None = None,
-        root: str | Path | None = None,
-        address: str = "http://127.0.0.1:8188",
-        app_home: str | Path | None = None,
-        engine_path: str | Path | None = None,
-        model_dir: str | Path | None = None,
-        model_id: str | None = None,
-        verify_hashes: bool = True,
-        tile_threshold: int = 512,
-        detail_blend_weight: float = 1.0,
-        probe_timeout: float = 1.5,
-        probe_fn: Callable[[], dict[str, Any]] | None = None,
-        command_runner: Any | None = None,
-    ) -> None:
+    def __init__(self, backend: Any | None = None, **options: Any) -> None:
+        _validate_option_keys(type(self).__name__, options, _HYBRID_OPTION_KEYS)
         try:
             from fidelis.studio.comfy import BackendUnavailable
-            from fidelis.studio.hybrid_texture import (
-                HybridTextureBackend,
-                RealESRGANNCNNBackend,
-            )
         except ModuleNotFoundError as exc:
             raise BackendUnavailableError(
                 f"Hybrid texture restoration dependencies unavailable: {exc}"
             ) from exc
 
         self._unavailable_exc = BackendUnavailable
-        if backend is not None:
-            self._backend = backend
-        else:
-            if comfy_backend is None and bundle is not None:
-                comfy_backend = ComfyRestorationBackend(
-                    bundle,
-                    root=root,
-                    address=address,
-                )
-            realesr_backend = RealESRGANNCNNBackend(
-                app_home=app_home,
-                engine_path=engine_path,
-                model_dir=model_dir,
-                verify_hashes=verify_hashes,
-                tile_threshold=tile_threshold,
-                detail_blend_weight=detail_blend_weight,
-                command_runner=command_runner,
-            )
-            self._backend = HybridTextureBackend(
-                comfy_backend=comfy_backend,
-                realesr_backend=realesr_backend,
-                address=address,
-                probe_timeout=probe_timeout,
-                probe_fn=probe_fn,
-                model_id=model_id,
-            )
+        self._backend = backend if backend is not None else _build_hybrid_backend(options)
 
     @property
     def model_id(self) -> str:
