@@ -319,6 +319,54 @@ class WorkerPreflightTest(unittest.TestCase):
             "missing_checkpoint_v1.safetensors",
         )
 
+    def test_comfy_v3_combo_options_are_checked_for_model_choices(self):
+        schema = _sample_object_info()
+        schema["UpscaleModelLoader"] = {
+            "input": {
+                "required": {
+                    "model_name": [
+                        "COMBO",
+                        {"multiselect": False, "options": ["realesr-general-x4v3.pth"]},
+                    ]
+                }
+            },
+            "output": ["UPSCALE_MODEL"],
+        }
+        schema["ImageUpscaleWithModel"] = {
+            "input": {
+                "required": {
+                    "upscale_model": ["UPSCALE_MODEL"],
+                    "image": ["IMAGE"],
+                }
+            },
+            "output": ["IMAGE"],
+        }
+        valid_bundle = {
+            "schema_version": 1,
+            "family": "other",
+            "input_node": "1",
+            "output_node": "4",
+            "workflow": {
+                "1": {"class_type": "LoadImage", "inputs": {"image": "placeholder.png"}},
+                "2": {"class_type": "UpscaleModelLoader", "inputs": {"model_name": "realesr-general-x4v3.pth"}},
+                "3": {"class_type": "ImageUpscaleWithModel", "inputs": {"upscale_model": ["2", 0], "image": ["1", 0]}},
+                "4": {"class_type": "SaveImage", "inputs": {"images": ["3", 0], "filename_prefix": "out"}},
+            },
+        }
+        ok = inspect_workflow_bundle(valid_bundle, schema)
+        self.assertTrue(ok["schema_compatible"])
+        self.assertEqual(len(ok["model_choice_checks"]), 1)
+        self.assertTrue(ok["model_choice_checks"][0]["available"])
+        self.assertEqual(ok["model_choice_checks"][0]["requested_value"], "realesr-general-x4v3.pth")
+
+        missing_bundle = json.loads(json.dumps(valid_bundle))
+        missing_bundle["workflow"]["2"]["inputs"]["model_name"] = "absent_model.pth"
+        bad = inspect_workflow_bundle(missing_bundle, schema)
+        self.assertFalse(bad["schema_compatible"])
+        self.assertEqual(len(bad["model_choice_checks"]), 1)
+        self.assertFalse(bad["model_choice_checks"][0]["available"])
+        self.assertEqual(bad["model_choice_checks"][0]["requested_value"], "absent_model.pth")
+
     def test_unreachable_worker_records_offline_workflow_digest_without_failing_crash(self):
         bundle = _sample_workflow_bundle()
         with tempfile.TemporaryDirectory() as tmpdir:

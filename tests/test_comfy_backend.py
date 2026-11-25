@@ -318,4 +318,32 @@ class ComfyTests(unittest.TestCase):
             np.testing.assert_array_equal(master[:,3:],self.output[:,3:])
         with self.assertRaises(RevisionConflict):store.replace_texture(job['id'],output,expected_revision=1,candidate_recipe=record)
 
+    def test_validate_workflow_rejects_missing_comfy_v3_combo_choice(self):
+        schema = copy.deepcopy(SCHEMA)
+        schema['UpscaleModelLoader'] = {
+            'input': {'required': {'model_name': ['COMBO', {'multiselect': False, 'options': ['realesr-general-x4v3.pth']}]}},
+            'output': ['UPSCALE_MODEL'],
+        }
+        schema['ImageUpscaleWithModel'] = {
+            'input': {'required': {'upscale_model': ['UPSCALE_MODEL'], 'image': ['IMAGE']}},
+            'output': ['IMAGE'],
+        }
+        valid_bundle = {
+            'schema_version': 1,
+            'family': 'other',
+            'input_node': '1',
+            'output_node': '4',
+            'workflow': {
+                '1': {'class_type': 'LoadImage', 'inputs': {'image': 'placeholder.png'}},
+                '2': {'class_type': 'UpscaleModelLoader', 'inputs': {'model_name': 'realesr-general-x4v3.pth'}},
+                '3': {'class_type': 'ImageUpscaleWithModel', 'inputs': {'upscale_model': ['2', 0], 'image': ['1', 0]}},
+                '4': {'class_type': 'SaveImage', 'inputs': {'images': ['3', 0], 'filename_prefix': 'test'}},
+            },
+        }
+        validate_workflow(valid_bundle, schema)
+        bad_bundle = copy.deepcopy(valid_bundle)
+        bad_bundle['workflow']['2']['inputs']['model_name'] = 'missing_upscaler.pth'
+        with self.assertRaises(ValueError):
+            validate_workflow(bad_bundle, schema)
+
 if __name__=='__main__':unittest.main()

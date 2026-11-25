@@ -61,6 +61,19 @@ def _validate_node(node_id, node, graph, schema, input_node):
     return _validate_node_inputs(node_id, input_node, values, spec, graph, schema)
 
 
+def extract_field_choices(field):
+    """Extract allowed combo choices from legacy (`[[...], meta]`) or ComfyUI v3 (`['COMBO', {'options': [...]}]`) specs."""
+    if not isinstance(field, list) or not field:
+        return None
+    if isinstance(field[0], list):
+        return field[0]
+    if field[0] == 'COMBO' and len(field) >= 2 and isinstance(field[1], dict):
+        options = field[1].get('options')
+        if isinstance(options, list):
+            return options
+    return None
+
+
 def _validate_node_inputs(node_id, input_node, values, spec, graph, schema):
     required = spec.get('required', {})
     links = []
@@ -80,8 +93,9 @@ def _validate_node_inputs(node_id, input_node, values, spec, graph, schema):
             links.append(value[0])
         else:
             field = required.get(name, spec.get('optional', {}).get(name))
+            choices = extract_field_choices(field)
             # LoadImage choices change after upload, so its image path is injected later.
-            if field and isinstance(field[0], list) and value not in field[0] and not (node_id == input_node and name == 'image'):
+            if choices is not None and value not in choices and not (node_id == input_node and name == 'image'):
                 raise ValueError(f'Installed model/choice unavailable for {node_id}.{name}')
     return links
 

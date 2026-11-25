@@ -390,13 +390,13 @@
       "title": "Prepare a reproducible live-worker preflight",
       "parent": "F05",
       "milestone": "M1",
-      "state": "In Progress",
-      "implementation": "partial_preflight_tooling_implemented_live_worker_pending",
+      "state": "Done",
+      "implementation": "live_mps_preflight_verified_comfy_v3_combo_supported",
       "depends_on": [],
       "role": "Runtime / infrastructure",
       "scope": "Record an actual worker endpoint, device capability, exported workflow, runtime/node revisions and model availability without placing secrets in the repo.",
       "acceptance": "Doctor and workflow schema preflight run against a real reachable worker; resource owner/access and budget policy are explicit. Current executor has no worker.",
-      "evidence": "config/worker-preflight-policy-v1.json; fidelis/studio/worker_preflight.py; scripts/worker-preflight.py; tests/test_worker_preflight.py; docs/WORKER_PREFLIGHT.md; docs/project/checkpoints/2026-11-11-worker-preflight.md; preflight harness and mock worker verified; live ComfyUI GPU worker remains offline",
+      "evidence": "config/worker-preflight-policy-v1.json; fidelis/studio/comfy.py; fidelis/studio/worker_preflight.py; scripts/worker-preflight.py; tests/test_worker_preflight.py; tests/test_comfy_backend.py; docs/WORKER_PREFLIGHT.md; docs/project/checkpoints/2026-11-24-f05a-live-worker-preflight.md; backend-doctor.py and worker-preflight.py --require-qualified verified live against ComfyUI 0.46.0 Apple M1 MPS (127.0.0.1:8188) including v3 COMBO model-choice checks; parent F05/F06 SDXL quality gates remain open",
       "priority": 2,
       "linear": {
         "id": "MEL-76",
@@ -404,7 +404,7 @@
         "url": "https://linear.app/melato/issue/MEL-76/f05-a-prepare-a-reproducible-live-worker-preflight",
         "title": "F05-A \u00b7 Prepare a reproducible live-worker preflight"
       },
-      "verification_checkpoint": "docs/project/checkpoints/2026-11-11-worker-preflight.md"
+      "verification_checkpoint": "docs/project/checkpoints/2026-11-24-f05a-live-worker-preflight.md"
     },
     {
       "id": "F05-B",
