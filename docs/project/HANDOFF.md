@@ -1,5 +1,27 @@
 # Fresh-context handoff
 
+## Active v1 evidence recovery · 2026-11-24
+
+Execution remains authorized; creative and production approval remain pending.
+Candidate manifest now identifies main `d6f420cc` with `merged_to_main: true`;
+historical package hashes must be rebuilt and verified for that candidate.
+The approved 97 Melato masters have an existing rights receipt in
+`docs/CORPUS_ACQUISITION_PROPOSAL.md`; recover exact bytes by manifest hashes
+from connected Drive rather than requesting renewed rights approval. Local
+inventory currently has 34 unique images and eight inventory SHA matches.
+The remaining specialty slots require material/ROI suitability review.
+
+The local runtime investigation has installed official ComfyUI in isolated
+temporary environments. Torch 2.15.0 reports MPS available and a real MPS tensor
+operation passed on Apple M1. Local servers are reachable on 8188/8189;
+actual image inference and workflow preflight receipts are still being collected.
+Do not continue to classify local worker access as owner-dependent.
+
+Current signoff policy permits the same person to fill creative-owner and
+release-owner roles; neither final approval has been supplied. Independent F13
+blind reviewers remain separately required. Existing M1 latency/RSS, composition,
+and rollback evidence remains reusable within its recorded model/device scope.
+
 Use this page when another human or AI takes over without the conversation.
 
 ## Mission
