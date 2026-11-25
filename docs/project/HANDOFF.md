@@ -1,19 +1,16 @@
 # Fresh-context handoff
 
-Latest specialty subject-fit audit: 41/60 available after also separating a
-plain-weave embroidery sampler from the required fleece monogram and looped-knit
-upholstery from woven tweed. Preserve all five candidate review records; rights
-clearance alone does not establish frozen-subject coverage.
+## Specialty material eligibility audit & jacquard fill · 2026-11-25
 
-## Specialty material eligibility audit · 2026-11-25
-
-Treat 43/60 fixed slots as available pending the remaining per-case audit.
-The previous 46/60 count included three unsupported material substitutions:
-polyester for cotton twill, unverified fleece for merino rib, and unverified fiber
-jacquard for silk. Their rights-cleared candidate metadata remains preserved in
-`experiments/corpus_material_candidate_reviews.json`; those exact subjects are
-missing until evidence matches the original criteria. Do not weaken fiber,
-construction, colour or split requirements to fill a slot.
+Treat **42/60** fixed slots as available (`calibration 21/30`, `held_out 21/30`)
+after the material eligibility and construction-fit audits (#122 `46/60` ->
+`43/60`, #123 `43/60` -> `41/60`) and subsequent verification of
+`tex_held_jacquard_brocade` (`CH 18766647-30`, Public-Domain Cooper Hewitt
+tonal floral silk jacquard, `3774×4096`). All five separated candidate review
+records remain preserved in `experiments/corpus_material_candidate_reviews.json`;
+the remaining `18` unfilled slots stay missing until exact-subject/model-released
+sources are verified. Do not weaken fiber, construction, colour or split
+requirements to fill a slot.
 
 ## Active v1 evidence recovery · 2026-11-24
 

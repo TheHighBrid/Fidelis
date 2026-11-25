@@ -1450,24 +1450,27 @@
       "case_id": "tex_held_jacquard_brocade",
       "category": "textiles",
       "split": "held_out",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Tonal floral silk jacquard testing repeating motif registration",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "public_domain_cooperhewitt_verified",
+        "license_id": "PUBLIC-DOMAIN",
         "model_release_required": false,
         "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "notes": "Off-repo Public-Domain verified photograph from Cooper Hewitt Smithsonian Design Museum (Fabbriche Italiane di Seterie Como sample book 1870-79, https://commons.wikimedia.org/wiki/File:Sample_Book,_Fabbriche_Italiane_di_Seterie,_Como,_Serie_C_Vol._1_DAL_1322_AL_Couleur,_1870%E2%80%9379_(CH_18766647-30).jpg); explicitly documented as jacquard-woven silk and visually inspected for tonal floral pattern vs satin ground."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "pd_cooperhewitt_silk_jacquard_18766647_30.jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "2c52643ae2ca641f6d11c536b76d58ab09037be96638c03281224e5006df7090",
+        "width": 3774,
+        "height": 4096,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT"
       },
       "target": {
         "scale": null,
@@ -1481,9 +1484,16 @@
           "label": "Woven pattern edges vs background satin",
           "roi_type": "stitch",
           "must_lock_base": true,
-          "bbox_norm": null
+          "bbox_norm": [
+            0.16,
+            0.08,
+            0.88,
+            0.94
+          ]
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false
     },
     {
       "case_id": "tex_held_merino_rib",
