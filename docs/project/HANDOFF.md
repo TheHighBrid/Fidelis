@@ -1,5 +1,10 @@
 # Fresh-context handoff
 
+Latest specialty subject-fit audit: 41/60 available after also separating a
+plain-weave embroidery sampler from the required fleece monogram and looped-knit
+upholstery from woven tweed. Preserve all five candidate review records; rights
+clearance alone does not establish frozen-subject coverage.
+
 ## Specialty material eligibility audit · 2026-11-25
 
 Treat 43/60 fixed slots as available pending the remaining per-case audit.
