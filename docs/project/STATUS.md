@@ -1,5 +1,16 @@
 # Current progress and evidence checkpoint
 
+> **F13 diagnostic receipt correction (#127, 2026-11-25):** Confirmed that the
+> audition CLI filled release receipt fields with placeholder hashes and asserted
+> `recipe_frozen: true` for an unfrozen single-case diagnostic. Replaced these
+> with measured input hashes/runtime/code metadata and an explicit missing corpus
+> lock / unfrozen recipe. A separate `audition_receipt.json` retains the full
+> metadata. The real CLI smoke run still reports `blocked_incomplete_evidence`,
+> now with an incomplete receipt instead of a false completeness claim. Historical
+> image outputs and measured failures remain evidence; historical placeholder
+> receipts must not qualify a release. Four receipt regressions and nine acceptance
+> tests passed; model audition integration results are recorded in the PR.
+
 > **F12 / MEL-63 cotton chino twill fill & PR #124 merge (2026-11-25):** Merged
 > PR #124 (`03e6170`) to `main` (`42/60`) and populated `tex_cotton_twill_chino`
 > (`calibration`, `textiles`) with a visually inspected (full-frame and 1:1 crop),

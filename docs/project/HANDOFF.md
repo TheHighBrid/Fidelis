@@ -1,5 +1,17 @@
 # Fresh-context handoff
 
+## Diagnostic receipt correction · 2026-11-25 · #127
+
+`scripts/audition-melato.py --evaluate-acceptance` now saves
+`audition_receipt.json` with actual protocol/manifest hashes, available checkpoint
+hash, Python version and code identity. A dirty checkout or source archive without
+Git cannot claim an exact commit. Diagnostic manifests are not corpus locks, and
+this command cannot claim a frozen calibration recipe. Older summaries containing
+`audition-melato-local`, `unfrozen-melato-audition`, `melato-protocol-v1` or weight
+hash `local` contain placeholders; their `receipt.complete: true` is invalid.
+Retain their image/metric evidence, but regenerate receipt/acceptance metadata
+before using them for release qualification. No quantitative criterion changed.
+
 ## Specialty material eligibility audit & corpus fills · 2026-11-25
 
 Treat **43/60** fixed slots as available (`calibration 22/30`, `held_out 21/30`)

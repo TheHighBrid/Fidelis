@@ -4,7 +4,11 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import platform
+import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -107,6 +111,7 @@ def _build_single_image_case(
 def _build_acceptance_payload(
     report: dict[str, Any],
     protocol: dict[str, Any],
+    receipt: dict[str, Any],
 ) -> dict[str, Any]:
     cases = report.get("cases", [])
     all_texture = all(
@@ -127,20 +132,10 @@ def _build_acceptance_payload(
     )
     submission = {
         "protocol_id": protocol.get("id", "melato-fabric-hardware-v1"),
-        "reproducibility_receipt": {
-            "code_sha": "audition-melato-local",
-            "corpus_lock_sha256": "unfrozen-melato-audition",
-            "calibration_recipe_sha256": "melato-protocol-v1",
-            "runtime_versions": {"python": "3"},
-            "model_weight_hashes": {
-                report.get("model", {}).get("model_id", "candidate"): "local"
-            },
-            "seed_policy": f"blind_seed={report.get('blind', {}).get('seed', report.get('blind_seed', 20261110))}",
-            "colour_path": "sRGB_linear_blend",
-        },
+        "reproducibility_receipt": receipt,
         "calibration_summary": {
-            "recipe_frozen": True,
-            "case_ids": [],
+            "recipe_frozen": False,
+            "case_ids": [c["id"] for c in cases if c.get("split") == "calibration"],
         },
         "automated_metrics": {
             "interior_texture_passed": all_texture if cases else False,
@@ -154,6 +149,46 @@ def _build_acceptance_payload(
         submission,
         thresholds=AcceptanceThresholds(require_automated_detail_gates=True),
     )
+
+
+def _diagnostic_receipt(protocol_path: Path, manifest_path: Path | None) -> dict[str, Any]:
+    """Capture actual inputs without treating a diagnostic manifest as a corpus lock."""
+    repo = Path(__file__).resolve().parents[1]
+    base_sha = None
+    dirty = None
+    try:
+        base_sha = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=repo, check=True,
+            capture_output=True, text=True, timeout=5,
+        ).stdout.strip()
+        dirty = bool(subprocess.run(
+            ["git", "status", "--porcelain"], cwd=repo, check=True,
+            capture_output=True, text=True, timeout=5,
+        ).stdout.strip())
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return {
+        "code_sha": base_sha if dirty is False else None,
+        "code_base_sha": base_sha,
+        "working_tree_dirty": dirty,
+        "script_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        "corpus_lock_sha256": None,
+        "source_manifest_sha256": (
+            hashlib.sha256(manifest_path.read_bytes()).hexdigest() if manifest_path else None
+        ),
+        "calibration_recipe_sha256": hashlib.sha256(protocol_path.read_bytes()).hexdigest(),
+        "runtime_versions": {"python": platform.python_version()},
+        "model_weight_hashes": {},
+        "colour_path": "sRGB_linear_blend",
+        "evidence_scope": "unfrozen_diagnostic_no_human_review",
+    }
+
+
+def _measured_weight_hashes(model: dict[str, Any]) -> dict[str, str]:
+    value = model.get("weights_sha256")
+    if isinstance(value, str) and re.fullmatch(r"[0-9a-fA-F]{64}", value):
+        return {model.get("model_id", "candidate"): value.lower()}
+    return {}
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -320,6 +355,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         protocol_path = args.protocol if args.protocol.is_absolute() else (args.root / args.protocol)
         protocol = _load_json(protocol_path)
+        receipt = _diagnostic_receipt(protocol_path, args.manifest)
         scale = int(protocol.get("scale", 4))
 
         manifest_resolution: dict[str, Any] | None = None
@@ -405,11 +441,17 @@ def main(argv: list[str] | None = None) -> int:
             out_summary["manifest_resolution"] = manifest_resolution
 
         if args.evaluate_acceptance:
-            acceptance = _build_acceptance_payload(report, protocol)
+            model = report.get("model", {})
+            receipt["model_weight_hashes"] = _measured_weight_hashes(model)
+            receipt["seed_policy"] = f"blind_seed={args.blind_seed}"
+            receipt_path = args.output_dir / "audition_receipt.json"
+            _write_json(receipt_path, receipt)
+            acceptance = _build_acceptance_payload(report, protocol, receipt)
             acceptance_path = args.output_dir / "acceptance_summary.json"
             _write_json(acceptance_path, acceptance)
             out_summary["acceptance_summary"] = str(acceptance_path)
             out_summary["acceptance_status"] = acceptance.get("overall_status")
+            out_summary["audition_receipt"] = str(receipt_path)
 
         print(json.dumps(out_summary, indent=2))
         return 0
