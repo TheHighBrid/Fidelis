@@ -9,6 +9,15 @@ gate is incomplete.
 
 ## Gate Checks
 
+The candidate's `live_worker_verified` operational declaration is supported by
+the actual F05-A/F07 local ComfyUI MPS receipts: qualified preflight, successful
+same-grid RealeSR inference, protected/unknown pixel equality, scoped cancellation
+and restart recovery with the same prompt ID. The private F07 receipt SHA256 is
+`c9000c1dc686c2f7a9b535af8ce38b78185d494493275303c973e1c9e048c6a4`.
+This closes the worker-operation declaration only. F06 SDXL texture qualification,
+representative image-quality acceptance, physical touch review and final signoff
+remain open, and no readiness thresholds or requirements have changed.
+
 1. **Core Deliverables (`F01..F15`)**: Every core milestone deliverable in
    `docs/project/backlog.json` must reach a closed state (`Done`, `Completed`, or
    `Released`).
