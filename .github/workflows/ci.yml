@@ -155,6 +155,7 @@ jobs:
           python -m unittest discover -s tests -p 'test_detail_metrics.py'
           python -m unittest discover -s tests -p 'test_texture_memory.py'
           python -m unittest discover -s tests -p 'test_spectral_memory.py'
+          python -m unittest discover -s tests -p 'test_bounded_composition_drift.py'
 
       - name: ROI normalization regressions
         run: python -m unittest discover -s tests -p 'test_roi_normalization.py'

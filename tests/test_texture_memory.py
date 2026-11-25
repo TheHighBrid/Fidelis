@@ -36,7 +36,9 @@ class TextureMemoryTests(unittest.TestCase):
                 for key, value in {"contour_overshoot_mean": 26.612518,
                                    "contour_overshoot_p95": 73.503578,
                                    "contour_nyquist_gain_vs_bicubic": 27.358342}.items():
-                    self.assertAlmostEqual(contour[key], value, places=5)
+                    # float32 spacing near 73.5 is ~7.6e-6 across OpenCV/NumPy builds (1 ULP).
+                    places = 4 if key == "contour_overshoot_p95" else 5
+                    self.assertAlmostEqual(contour[key], value, places=places)
 
     def test_exact_baseline_at_texture_threshold_stays_passing(self):
         rng = np.random.default_rng(7)

@@ -123,3 +123,74 @@ def spectral_band_means(
                 sums[name] += float(np.sum(power, where=mask, dtype=np.float64))
                 counts[name] += int(np.count_nonzero(mask))
     return {name: sums[name] / counts[name] if counts[name] else 0.0 for name in bands}
+
+
+def _unshifted_bin_offsets(length: int) -> np.ndarray:
+    """Return signed bin offsets matching ``fftshift`` distance from ``length // 2``."""
+    indices = np.arange(length, dtype=np.float64)
+    cutoff = (length - 1) // 2
+    return np.where(indices <= cutoff, indices, indices - length)
+
+
+def _accumulate_weave_strip(power_r, power_c, mask, stats):
+    stats["sum_r"] += float(np.sum(power_r, where=mask, dtype=np.float64))
+    stats["sum_c"] += float(np.sum(power_c, where=mask, dtype=np.float64))
+    pr_hp = np.where(mask, power_r.astype(np.float64), 0.0)
+    pc_hp = np.where(mask, power_c.astype(np.float64), 0.0)
+    stats["sum_r2"] += float(np.sum(pr_hp * pr_hp, dtype=np.float64))
+    stats["sum_c2"] += float(np.sum(pc_hp * pc_hp, dtype=np.float64))
+    stats["sum_rc"] += float(np.sum(pr_hp * pc_hp, dtype=np.float64))
+
+
+def spectral_weave_coherence(
+    ref_signal: np.ndarray,
+    cand_signal: np.ndarray,
+    scratch_dir: str | Path | None = None,
+    block_size: int = 128,
+) -> tuple[float, float]:
+    """Compute F4 weave FFT coherence and energy ratio without full-grid FFT arrays."""
+    for name, arr in (("ref_signal", ref_signal), ("cand_signal", cand_signal)):
+        if arr.ndim != 2 or min(arr.shape) <= 0:
+            raise ValueError(f"{name} must be a nonempty two-dimensional array")
+        if arr.dtype != np.float32:
+            raise TypeError(f"{name} must have float32 dtype")
+    if ref_signal.shape != cand_signal.shape:
+        raise ValueError("ref_signal and cand_signal must have identical shapes")
+    block_size = operator.index(block_size)
+    if block_size <= 0:
+        raise ValueError("block_size must be positive")
+
+    height, width = ref_signal.shape
+    dtype = np.fft.fft(np.zeros(1, dtype=np.float32)).dtype
+    dy = _unshifted_bin_offsets(height)
+    dx = _unshifted_bin_offsets(width)
+    scale = max(float(height * width), 1.0)
+    stats = {"sum_r": 0.0, "sum_c": 0.0, "sum_r2": 0.0, "sum_c2": 0.0, "sum_rc": 0.0}
+
+    with tempfile.TemporaryDirectory(prefix="fidelis-weave-", dir=scratch_dir) as temp:
+        ref_path = Path(temp) / "ref-rows.dat"
+        cand_path = Path(temp) / "cand-rows.dat"
+        byte_size = height * width * dtype.itemsize
+        for path, sig in ((ref_path, ref_signal), (cand_path, cand_signal)):
+            with path.open("wb") as backing:
+                backing.truncate(byte_size)
+            _write_row_transforms(sig, path, dtype, block_size)
+
+        for start in range(0, width, block_size):
+            stop = min(start + block_size, width)
+            spec_r = _column_transform(ref_path, dtype, ref_signal.shape, start, stop, block_size)
+            spec_c = _column_transform(cand_path, dtype, cand_signal.shape, start, stop, block_size)
+            power_r = (np.abs(spec_r) ** 2) / scale
+            power_c = (np.abs(spec_c) ** 2) / scale
+            mask = np.sqrt(dy[:, None] ** 2 + dx[None, start:stop] ** 2) >= 2.0
+            _accumulate_weave_strip(power_r, power_c, mask, stats)
+
+    sum_r, sum_c = stats["sum_r"], stats["sum_c"]
+    if sum_r < 1e-9 and sum_c < 1e-9:
+        return 1.0, 1.0
+    denom_r = sum_r + 1e-12
+    denom_c = sum_c + 1e-12
+    norm_prod = ((stats["sum_r2"] ** 0.5) / denom_r) * ((stats["sum_c2"] ** 0.5) / denom_c)
+    fft_coh = float((stats["sum_rc"] / (denom_r * denom_c)) / max(norm_prod, 1e-12))
+    energy_ratio = float(sum_c / max(sum_r, 1e-9))
+    return fft_coh, energy_ratio
