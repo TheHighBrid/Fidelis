@@ -1182,24 +1182,27 @@
       "case_id": "tex_cotton_twill_chino",
       "category": "textiles",
       "split": "calibration",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Sand-dyed 2/1 cotton twill weave macro crop",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "cc0_wikimedia_verified",
+        "license_id": "CC0-1.0",
         "model_release_required": false,
         "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "notes": "Off-repo CC0-1.0 verified photograph (https://commons.wikimedia.org/wiki/File:Chino_pants_close-up_-_DSC02850.JPG); visually inspected full-frame and 1:1 crop confirming sand-dyed cotton chino 2/1 diagonal twill weave macro."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "cc0_wikimedia_chino_twill_dsc02850.jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "eca7ad1ab4f540d9efbcd2b37eeb86a705ad8b96be63ba7ed63ce3c6541cc55f",
+        "width": 4351,
+        "height": 2854,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT"
       },
       "target": {
         "scale": null,
@@ -1213,9 +1216,16 @@
           "label": "Diagonal twill wale continuity",
           "roi_type": "textile_weave",
           "must_lock_base": false,
-          "bbox_norm": null
+          "bbox_norm": [
+            0.15,
+            0.15,
+            0.85,
+            0.85
+          ]
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false
     },
     {
       "case_id": "tex_full_grain_leather",

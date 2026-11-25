@@ -1,14 +1,16 @@
 # Fresh-context handoff
 
-## Specialty material eligibility audit & jacquard fill · 2026-11-25
+## Specialty material eligibility audit & corpus fills · 2026-11-25
 
-Treat **42/60** fixed slots as available (`calibration 21/30`, `held_out 21/30`)
+Treat **43/60** fixed slots as available (`calibration 22/30`, `held_out 21/30`)
 after the material eligibility and construction-fit audits (#122 `46/60` ->
-`43/60`, #123 `43/60` -> `41/60`) and subsequent verification of
-`tex_held_jacquard_brocade` (`CH 18766647-30`, Public-Domain Cooper Hewitt
-tonal floral silk jacquard, `3774×4096`). All five separated candidate review
-records remain preserved in `experiments/corpus_material_candidate_reviews.json`;
-the remaining `18` unfilled slots stay missing until exact-subject/model-released
+`43/60`, #123 `43/60` -> `41/60`), PR #124 (`tex_held_jacquard_brocade`,
+`CH 18766647-30`, Public-Domain Cooper Hewitt tonal floral silk jacquard,
+`3774×4096`), and verification of `tex_cotton_twill_chino` (Wikimedia Commons
+`Chino_pants_close-up_-_DSC02850.JPG`, `CC0-1.0`, `4351×2854`, visually
+inspected sand-dyed 2/1 cotton twill weave macro). All five separated candidate
+review records remain preserved in `experiments/corpus_material_candidate_reviews.json`;
+the remaining `17` unfilled slots stay missing until exact-subject/model-released
 sources are verified. Do not weaken fiber, construction, colour or split
 requirements to fill a slot.
 
