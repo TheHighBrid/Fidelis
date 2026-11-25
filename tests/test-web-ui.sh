@@ -44,13 +44,24 @@ port=18942
 server_pid=$!
 trap 'kill "$server_pid" 2>/dev/null || true; rm -rf "$test_home"' EXIT
 
-# Wait for server to start
-for _ in {1..20}; do
-  if curl -s "http://127.0.0.1:$port/" >/dev/null 2>&1; then
+# Cold scientific-library imports took 13 seconds in the clean macOS install.
+# Bound readiness to 30 seconds and report early server exits explicitly.
+server_ready=false
+for _ in {1..150}; do
+  if ! kill -0 "$server_pid" 2>/dev/null; then
+    printf 'error: Web UI exited before becoming ready\n' >&2
+    exit 1
+  fi
+  if curl --max-time 1 -fsS "http://127.0.0.1:$port/" >/dev/null 2>&1; then
+    server_ready=true
     break
   fi
   sleep 0.2
 done
+if [[ "$server_ready" != true ]]; then
+  printf 'error: Web UI did not become ready within the startup allowance\n' >&2
+  exit 1
+fi
 
 # Test HTML root
 origin="http://127.0.0.1:$port"
