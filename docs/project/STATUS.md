@@ -1,5 +1,7 @@
 # Current progress and evidence checkpoint
 
+> **Current coordination update (2026-11-24, F07 / MEL-61 live Studio async qualification):** Added `scripts/qualify-async-queue.py`, `fidelis/studio/async_qualification.py`, `fidelis/studio/async_scenarios.py`, `fidelis/studio/mock_comfy.py`, and `tests/test_async_queue_qualification.py` (wired into CI and `fidelis/studio/packaging.py`). Executed live `scripts/web-ui.py` + `GenerationQueue` + `ComfyTextureBackend` qualification against `ComfyUI 0.46.0` (Apple M1 MPS, `127.0.0.1:8188`, `realesr-general-x4v3.pth` same-grid workflow), passing HTTP responsiveness (`14.18 ms` max poll latency), exact protected/unknown pixel preservation (`0` mismatches), scoped cancellation without global `/interrupt`, and restart recovery preserving the exact `prompt_id` (`E2_live_async_queue_verified`). See [the F07 live async checkpoint](checkpoints/2026-11-24-f07-live-async-qualification.md). `F06` SDXL texture workflow quality, `F12`/`F13` held-out corpus/ballots, `F08` physical mobile touch, and `F16` release packaging/owner signoff remain open (`E3`/`E4` not claimed).
+
 > **F13 audition geometry integrity (2026-11-24):** The detail-only audition
 > classifier could report a passing material result despite a failing final-image
 > drift screen. Both single-image and batch audition now block that pass when

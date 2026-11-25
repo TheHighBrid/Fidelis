@@ -139,14 +139,14 @@
       "title": "Implement durable async jobs and scoped cancellation",
       "milestone": "M1",
       "state": "In Progress",
-      "implementation": "partial",
+      "implementation": "partial_live_comfy_mps_async_verified",
       "depends_on": [
         "F06"
       ],
       "role": "Job orchestration",
       "scope": "Extend existing run identity/reconciliation into a bounded async worker and cancellation path.",
       "acceptance": "Requests stay responsive; restart and cancel outcomes are scoped to the owned job; unknown submission cannot trigger duplicate generation; no global interruption of unrelated work.",
-      "evidence": "fidelis/studio/comfy.py; docs/COMFY_TEXTURE_BACKEND.md; F07-A bounded worker/local cancellation protocol-tested in PR #12; live acceptance remains open",
+      "evidence": "fidelis/studio/generation.py; fidelis/studio/comfy.py; scripts/qualify-async-queue.py; tests/test_async_queue_qualification.py; docs/ASYNC_GENERATION.md; docs/project/checkpoints/2026-11-24-f07-live-async-qualification.md; F07-A/F07-B merged and live Studio web-ui.py + GenerationQueue operational verification passed on ComfyUI 0.46.0 MPS (127.0.0.1:8188); SDXL F06 texture workflow and E3 visual acceptance remain open",
       "priority": 2,
       "linear": {
         "id": "MEL-61",

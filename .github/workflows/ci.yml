@@ -111,6 +111,7 @@ jobs:
         run: |
           python -m unittest discover -s tests -p 'test_generation_queue.py'
           python -m unittest discover -s tests -p 'test_cancellation_registry.py'
+          python -m unittest discover -s tests -p 'test_async_queue_qualification.py'
 
       - name: CLI tiled upscaling integration tests
         run: python -m unittest discover -s tests -p 'test_tiled_upscale_cli.py'
