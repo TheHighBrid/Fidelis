@@ -337,6 +337,33 @@
       },
       "quality_certified": false,
       "quality_note": "Deferred to F09 audition with confidence gating."
+    },
+    {
+      "model_id": "swinir-lightweight-div2k-x4",
+      "lane": "torch_spandrel",
+      "role": "calibration-challenger",
+      "provenance_status": "pinned_sha256",
+      "source": {
+        "repository": "https://github.com/JingyunLiang/SwinIR",
+        "revision": "v0.0",
+        "download_url": "https://github.com/JingyunLiang/SwinIR/releases/download/v0.0/002_lightweightSR_DIV2K_s64w8_SwinIR-S_x4.pth",
+        "catalog_source": "docs/project/checkpoints/2026-11-25-swinir-calibration.md"
+      },
+      "weights": {
+        "002_lightweightSR_DIV2K_s64w8_SwinIR-S_x4.pth": "09fad24e32ae62722e1a055efde9921328f4137981bab0a42a4a3a806306c58e"
+      },
+      "local_relative_dir": "models/torch_spandrel",
+      "terms": {
+        "license": "Apache-2.0 (SwinIR repository/code); DIV2K dataset page limits access to academic research (checkpoint/data obligations unresolved)",
+        "commercial_status": "unclear_terms_review_required",
+        "production_terms_cleared": false,
+        "separate_obligations": "SwinIR repository declares Apache-2.0 (https://github.com/JingyunLiang/SwinIR/blob/main/LICENSE) and the official DIV2K page (https://data.vision.ee.ethz.ch/cvl/DIV2K/, License section) limits dataset access to academic research. Neither cited primary source explicitly states that the released 002_lightweightSR_DIV2K_s64w8_SwinIR-S_x4.pth checkpoint is itself non-commercial or that deploying it necessarily requires retraining; checkpoint/data obligations remain unresolved. Excluded from commercial shipping until cleared.",
+        "reference_url": "https://github.com/JingyunLiang/SwinIR/blob/main/LICENSE",
+        "dataset_reference_url": "https://data.vision.ee.ethz.ch/cvl/DIV2K/",
+        "checked_date": "2026-11-25"
+      },
+      "quality_certified": false,
+      "quality_note": "Apple M1 MPS calibration challenger; checkpoint/data obligations unresolved (excluded from commercial shipping) and not production-promoted."
     }
   ]
 }

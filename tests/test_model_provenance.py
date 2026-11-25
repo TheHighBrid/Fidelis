@@ -121,8 +121,8 @@ class ModelProvenanceTests(unittest.TestCase):
 
         summary = validate_provenance_catalog(catalog, tsv_path=tsv_path)
         self.assertTrue(summary["tsv_cross_checked"])
-        self.assertEqual(summary["by_provenance_status"]["pinned_sha256"], 4)
-        self.assertGreaterEqual(summary["model_count"], 11)
+        self.assertEqual(summary["by_provenance_status"]["pinned_sha256"], 5)
+        self.assertGreaterEqual(summary["model_count"], 12)
 
         by_id = {m["model_id"]: m for m in catalog["models"]}
         self.assertTrue(by_id["RealeSR-general-v3"]["terms"]["production_terms_cleared"])
@@ -136,6 +136,7 @@ class ModelProvenanceTests(unittest.TestCase):
             "flux-1-dev",
             "Xenova/segformer_b0_clothes",
             "segformer-b2-clothes",
+            "swinir-lightweight-div2k-x4",
         ):
             self.assertFalse(by_id[restricted]["terms"]["production_terms_cleared"], restricted)
             self.assertFalse(by_id[restricted]["quality_certified"], restricted)
@@ -143,6 +144,7 @@ class ModelProvenanceTests(unittest.TestCase):
         self.assertEqual(by_id["clarity-upscaler-ref"]["terms"]["commercial_status"], "copyleft_agpl_restricted")
         self.assertEqual(by_id["flux-1-dev"]["terms"]["commercial_status"], "non_commercial_restricted")
         self.assertEqual(by_id["codeformer-onnx"]["terms"]["commercial_status"], "non_commercial_restricted")
+        self.assertEqual(by_id["swinir-lightweight-div2k-x4"]["terms"]["commercial_status"], "unclear_terms_review_required")
 
     def test_empty_home_reports_missing_without_claiming_installed_or_certified(self) -> None:
         with tempfile.TemporaryDirectory() as home:
@@ -236,7 +238,7 @@ class ModelProvenanceTests(unittest.TestCase):
                 check=True,
             )
             cli_data = json.loads(proc.stdout)
-            self.assertEqual(cli_data["catalog_summary"]["by_provenance_status"]["pinned_sha256"], 4)
+            self.assertEqual(cli_data["catalog_summary"]["by_provenance_status"]["pinned_sha256"], 5)
 
             inv = inventory(REPO_ROOT, home)
             self.assertIn("candidates", inv)
