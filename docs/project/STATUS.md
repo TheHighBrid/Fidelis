@@ -1,5 +1,17 @@
 # Current progress and evidence checkpoint
 
+> **Fixed-subject eligibility correction (2026-11-25):** Rechecked official
+> Poly Haven material metadata before promoting specialty cases. Terlenka is
+> explicitly polyester, contradicting the frozen cotton-twill subject; knitted
+> fleece does not establish merino/2x2 rib, and floral jacquard does not establish
+> silk fiber. Restored those three fixed slots to missing; preserved candidate
+> metadata and rights in `experiments/corpus_material_candidate_reviews.json`.
+> Current manifest availability is **43/60**, not the earlier 46/60 assertion;
+> calibration 22/30, held-out 21/30. No fixed subject or split was changed.
+> Source metadata: `https://api.polyhaven.com/info/terlenka`,
+> `https://api.polyhaven.com/info/knitted_fleece`,
+> `https://api.polyhaven.com/info/floral_jacquard`.
+
 > **F12 / MEL-63 CC0/Public-Domain corpus fill & held-out audition (2026-11-25):**
 > Populated 16 visually inspected, SHA-256-verified CC0/Public-Domain off-repo
 > photographs (Poly Haven, Wikimedia Commons, MET, Cleveland Museum of Art) with

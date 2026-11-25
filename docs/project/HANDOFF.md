@@ -1,5 +1,15 @@
 # Fresh-context handoff
 
+## Specialty material eligibility audit · 2026-11-25
+
+Treat 43/60 fixed slots as available pending the remaining per-case audit.
+The previous 46/60 count included three unsupported material substitutions:
+polyester for cotton twill, unverified fleece for merino rib, and unverified fiber
+jacquard for silk. Their rights-cleared candidate metadata remains preserved in
+`experiments/corpus_material_candidate_reviews.json`; those exact subjects are
+missing until evidence matches the original criteria. Do not weaken fiber,
+construction, colour or split requirements to fill a slot.
+
 ## Active v1 evidence recovery · 2026-11-24
 
 Execution remains authorized; creative and production approval remain pending.
