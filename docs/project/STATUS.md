@@ -1,5 +1,11 @@
 # Current progress and evidence checkpoint
 
+> **Alternative-model calibration (2026-11-25):** Official SwinIR lightweight
+> DIV2K x4 ran on M1 MPS and passed one unchanged mel_014 diagnostic comparison
+> against bicubic; final acceptance remains blocked. No model/preset promotion,
+> held-out tuning or human signoff occurred. See the
+> [reproduction and limits](checkpoints/2026-11-25-swinir-calibration.md).
+
 > **Operational manifest evidence reconciliation (2026-11-24):** Read back the
 > actual F05-A qualified preflight and F07 E2 live async receipt. They demonstrate
 > same-grid RealeSR inference on M1 MPS, zero protected/unknown mismatches, scoped
