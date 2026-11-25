@@ -21,7 +21,10 @@ from fidelis.eval.quality_acceptance import (
     AcceptanceThresholds,
     evaluate_held_out_acceptance,
 )
-from fidelis.studio.audition import run_model_vs_bicubic_audition
+from fidelis.studio.audition import (
+    load_audition_cases_from_manifest,
+    run_model_vs_bicubic_audition,
+)
 
 
 def _load_json(path: Path) -> Any:
@@ -197,6 +200,33 @@ def build_parser() -> argparse.ArgumentParser:
         help="Asset root directory for resolving relative source paths.",
     )
     parser.add_argument(
+        "--master-root",
+        type=Path,
+        default=None,
+        help="Off-repo Melato master directory (e.g. ~/melato-corpus/fidelis) for manifest entries.",
+    )
+    parser.add_argument(
+        "--split",
+        default=None,
+        help="Optional split filter when using --manifest (calibration, held_out, all).",
+    )
+    parser.add_argument(
+        "--select-id",
+        action="append",
+        default=[],
+        help="Restrict --manifest audition to specific case_id/asset_id values (repeatable).",
+    )
+    parser.add_argument(
+        "--skip-missing",
+        action="store_true",
+        help="Skip manifest entries that are missing on disk, uncleared, or lack annotated bbox_norm.",
+    )
+    parser.add_argument(
+        "--include-synthetic",
+        action="store_true",
+        help="Include synthetic/non-ground-truth manifest entries (excluded by default).",
+    )
+    parser.add_argument(
         "--output-dir",
         type=Path,
         required=True,
@@ -254,8 +284,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--blind-split",
-        default="held_out",
-        help="Split filter for blind pairwise ballot generation.",
+        default=None,
+        help="Split filter for blind pairwise ballot generation (default: held_out, or --split / manifest split).",
     )
     parser.add_argument(
         "--evaluate-acceptance",
@@ -274,17 +304,32 @@ def main(argv: list[str] | None = None) -> int:
         protocol = _load_json(protocol_path)
         scale = int(protocol.get("scale", 4))
 
+        manifest_resolution: dict[str, Any] | None = None
         if args.smoke:
             smoke = protocol.get("smoke_fixture")
             if not isinstance(smoke, dict):
                 raise ValueError(f"Protocol missing 'smoke_fixture': {protocol_path}")
             cases = [_normalize_case(smoke, scale=scale)]
+            default_blind_split = "held_out"
         elif args.manifest is not None:
             manifest = _load_json(args.manifest)
-            raw_cases = manifest.get("cases")
-            if not isinstance(raw_cases, list) or not raw_cases:
-                raise ValueError(f"Manifest must contain a non-empty 'cases' list: {args.manifest}")
-            cases = [_normalize_case(c, scale=scale) for c in raw_cases]
+            default_case_split = (
+                "calibration" if isinstance(manifest, dict) and "assets" in manifest else "held_out"
+            )
+            cases, manifest_resolution = load_audition_cases_from_manifest(
+                manifest,
+                scale=scale,
+                asset_root=args.root,
+                master_root=args.master_root,
+                split=args.split,
+                case_ids=args.select_id,
+                skip_missing=args.skip_missing,
+                exclude_synthetic=not args.include_synthetic,
+                default_split=default_case_split,
+            )
+            default_blind_split = (
+                args.split if args.split and args.split != "all" else default_case_split
+            )
         else:
             cases = [
                 _build_single_image_case(
@@ -294,6 +339,9 @@ def main(argv: list[str] | None = None) -> int:
                     scale=scale,
                 )
             ]
+            default_blind_split = "held_out"
+
+        blind_split = args.blind_split if args.blind_split is not None else default_blind_split
 
         runner_kwargs: dict[str, Any] = {}
         if args.imported_dir is not None:
@@ -316,7 +364,7 @@ def main(argv: list[str] | None = None) -> int:
             apply_texture_guard=not args.no_texture_guard,
             generate_html=not args.no_html,
             asset_root=args.root,
-            blind_split=args.blind_split,
+            blind_split=blind_split,
         )
 
         blind_info = report.get("blind", {})
@@ -328,6 +376,8 @@ def main(argv: list[str] | None = None) -> int:
             "blind_answer_key": blind_info.get("answer_key_path"),
             "summary": report["summary"],
         }
+        if manifest_resolution is not None:
+            out_summary["manifest_resolution"] = manifest_resolution
 
         if args.evaluate_acceptance:
             acceptance = _build_acceptance_payload(report, protocol)

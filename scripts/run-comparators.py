@@ -20,7 +20,10 @@ from fidelis.eval.comparators import (
     run_comparators,
     summarize_blind_reviews,
 )
-from fidelis.studio.audition import run_model_vs_bicubic_audition
+from fidelis.studio.audition import (
+    load_audition_cases_from_manifest,
+    run_model_vs_bicubic_audition,
+)
 
 
 def _load_json(path: Path) -> dict:
@@ -62,6 +65,9 @@ def main() -> None:
     aud_p = sub.add_parser("audition", help="Run model-vs-4x-bicubic audition harness")
     aud_p.add_argument("cases_manifest", type=Path)
     aud_p.add_argument("--root", type=Path, default=Path.cwd())
+    aud_p.add_argument("--master-root", type=Path, default=None)
+    aud_p.add_argument("--skip-missing", action="store_true")
+    aud_p.add_argument("--split", default=None)
     aud_p.add_argument("--output-dir", type=Path, required=True)
     aud_p.add_argument(
         "--backend",
@@ -119,7 +125,16 @@ def main() -> None:
             print(json.dumps(out, indent=2))
         elif args.command == "audition":
             raw_doc = _load_json(args.cases_manifest)
-            cases = raw_doc["cases"] if isinstance(raw_doc, dict) else raw_doc
+            cases, _ = load_audition_cases_from_manifest(
+                raw_doc,
+                asset_root=args.root,
+                master_root=args.master_root,
+                split=args.split,
+                skip_missing=args.skip_missing,
+                default_split="calibration"
+                if isinstance(raw_doc, dict) and "assets" in raw_doc
+                else "held_out",
+            )
             backend_kwargs: dict = {}
             if args.model_id:
                 backend_kwargs["model_id"] = args.model_id

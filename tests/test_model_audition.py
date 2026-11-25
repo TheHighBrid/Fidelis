@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 import subprocess
@@ -17,6 +18,7 @@ from fidelis.engine import DimensionMismatchError, create_restoration_runner
 from fidelis.studio.audition import (
     classify_audition_outcome,
     generate_side_by_side_crops,
+    load_audition_cases_from_manifest,
     run_model_vs_bicubic_audition,
 )
 from fidelis.studio.batch import BatchRunner, make_audition_worker
@@ -319,6 +321,195 @@ class ModelAuditionTests(unittest.TestCase):
             )
             self.assertEqual(proc.returncode, 2, msg=proc.stdout + proc.stderr)
             self.assertIn("Local NCNN runtime not installed", proc.stderr)
+
+    def test_load_audition_cases_from_melato_and_corpus_manifests(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            master_root = root / "masters"
+            master_root.mkdir()
+            img_path = master_root / "mel_sample.png"
+            src_arr, _ = _make_source_and_candidate(40, 20)
+            Image.fromarray(src_arr).save(img_path, format="PNG")
+            img_sha = hashlib.sha256(img_path.read_bytes()).hexdigest()
+
+            melato_manifest = {
+                "assets": [
+                    {
+                        "asset_id": "mel_sample",
+                        "filename": "mel_sample.png",
+                        "sha256": img_sha,
+                        "category": "apparel_model",
+                        "synthetic": False,
+                        "ground_truth_eligible": True,
+                        "critical_rois": [
+                            {
+                                "roi_id": "seam_lock",
+                                "label": "Stripe seam",
+                                "roi_type": "stitch",
+                                "must_lock_base": True,
+                                "bbox_norm": [0.1, 0.2, 0.6, 0.7],
+                            },
+                            {
+                                "roi_id": "fabric_zone",
+                                "label": "Velvet pile",
+                                "roi_type": "textile_weave",
+                                "must_lock_base": False,
+                                "bbox_norm": [0.5, 0.25, 0.9, 0.75],
+                            },
+                        ],
+                    },
+                    {
+                        "asset_id": "mel_missing",
+                        "filename": "does_not_exist.png",
+                        "sha256": "a" * 64,
+                        "category": "portraits",
+                        "synthetic": False,
+                        "ground_truth_eligible": True,
+                        "critical_rois": [
+                            {
+                                "roi_id": "face",
+                                "roi_type": "identity_landmark",
+                                "must_lock_base": True,
+                                "bbox_norm": [0.2, 0.2, 0.8, 0.8],
+                            }
+                        ],
+                    },
+                    {
+                        "asset_id": "mel_synth",
+                        "filename": "mel_sample.png",
+                        "sha256": img_sha,
+                        "category": "portraits",
+                        "synthetic": True,
+                        "ground_truth_eligible": False,
+                        "critical_rois": [],
+                    },
+                ]
+            }
+
+            with self.assertRaises(FileNotFoundError):
+                load_audition_cases_from_manifest(
+                    melato_manifest, master_root=master_root, skip_missing=False
+                )
+
+            cases, summary = load_audition_cases_from_manifest(
+                melato_manifest, master_root=master_root, skip_missing=True
+            )
+            self.assertEqual(summary["selected_count"], 1)
+            self.assertEqual(summary["skipped_count"], 2)
+            self.assertEqual(
+                summary["skipped_reasons"],
+                {"synthetic_excluded": 1, "source_missing": 1},
+            )
+            self.assertEqual(cases[0]["id"], "mel_sample")
+            self.assertEqual(cases[0]["rois"][0]["kind"], "seam")
+            self.assertEqual(cases[0]["rois"][0]["policy"], "preserve")
+            self.assertEqual(cases[0]["rois"][0]["rect"], [2, 8, 10, 20])
+            self.assertEqual(cases[0]["rois"][1]["kind"], "fabric")
+            self.assertEqual(cases[0]["rois"][1]["policy"], "texture_allowed")
+
+            corpus_manifest = {
+                "cases": [
+                    {
+                        "case_id": "app_held_test",
+                        "category": "apparel_model",
+                        "split": "held_out",
+                        "source": {
+                            "storage": "off_repo",
+                            "filename": "mel_sample.png",
+                            "sha256": img_sha,
+                        },
+                        "critical_rois": [
+                            {
+                                "roi_id": "hw",
+                                "roi_type": "hardware",
+                                "must_lock_base": True,
+                                "bbox_norm": [0.25, 0.25, 0.75, 0.75],
+                            }
+                        ],
+                    },
+                    {
+                        "case_id": "missing_slot",
+                        "category": "apparel_model",
+                        "split": "held_out",
+                        "availability": "missing",
+                        "rights": {"cleared": False},
+                        "source": {"relative_path": None, "sha256": None},
+                        "critical_rois": [],
+                    },
+                    {
+                        "case_id": "unannotated_slot",
+                        "category": "textiles",
+                        "split": "held_out",
+                        "source": {
+                            "storage": "off_repo",
+                            "filename": "mel_sample.png",
+                            "sha256": img_sha,
+                        },
+                        "critical_rois": [
+                            {
+                                "roi_id": "weave",
+                                "roi_type": "textile_weave",
+                                "must_lock_base": False,
+                                "bbox_norm": None,
+                            }
+                        ],
+                    },
+                ]
+            }
+            held_cases, held_summary = load_audition_cases_from_manifest(
+                corpus_manifest,
+                master_root=master_root,
+                split="held_out",
+                skip_missing=True,
+            )
+            self.assertEqual(held_summary["selected_ids"], ["app_held_test"])
+            self.assertEqual(
+                held_summary["skipped_reasons"],
+                {"source_missing": 1, "roi_unannotated": 1},
+            )
+            self.assertEqual(held_cases[0]["rois"][0]["kind"], "hardware")
+
+            tampered = json.loads(json.dumps(corpus_manifest))
+            tampered["cases"][0]["source"]["sha256"] = "0" * 64
+            with self.assertRaisesRegex(ValueError, "SHA-256 mismatch"):
+                load_audition_cases_from_manifest(
+                    tampered, master_root=master_root, skip_missing=True
+                )
+
+            traversal = json.loads(json.dumps(corpus_manifest))
+            traversal["cases"][0]["source"]["filename"] = "../outside.png"
+            with self.assertRaisesRegex(ValueError, "Unsafe off-repo filename"):
+                load_audition_cases_from_manifest(
+                    traversal, master_root=master_root, skip_missing=True
+                )
+
+            manifest_path = root / "melato.json"
+            manifest_path.write_text(json.dumps(melato_manifest), encoding="utf-8")
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    str(REPO_ROOT / "scripts" / "audition-melato.py"),
+                    "--manifest",
+                    str(manifest_path),
+                    "--master-root",
+                    str(master_root),
+                    "--skip-missing",
+                    "--backend",
+                    "bicubic",
+                    "--no-html",
+                    "--output-dir",
+                    str(root / "cli_out"),
+                ],
+                cwd=str(REPO_ROOT),
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(proc.returncode, 0, msg=proc.stdout + proc.stderr)
+            cli_payload = json.loads(proc.stdout)
+            self.assertEqual(cli_payload["manifest_resolution"]["selected_ids"], ["mel_sample"])
+            self.assertEqual(cli_payload["summary"]["total_cases"], 1)
+            self.assertTrue(Path(cli_payload["blind_ballot"]).is_file())
 
 
 if __name__ == "__main__":

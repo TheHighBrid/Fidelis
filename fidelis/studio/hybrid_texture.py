@@ -30,16 +30,26 @@ def _sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _load_expected_hashes(catalog_path: Path = CATALOG_PATH) -> tuple[str, str] | None:
+def _load_candidate_entry(
+    model_id: str, catalog_path: Path = CATALOG_PATH
+) -> tuple[str, tuple[str, str]] | None:
     if not catalog_path.is_file():
         return None
     for line in catalog_path.read_text(encoding="utf-8").splitlines():
         if not line or line.startswith("#"):
             continue
         parts = line.split("\t")
-        if len(parts) >= 6 and parts[0] == MODEL_NAME:
-            return parts[4].strip().lower(), parts[5].strip().lower()
+        if len(parts) >= 6 and parts[0].strip() == model_id:
+            folder = parts[3].strip()
+            return folder, (parts[4].strip().lower(), parts[5].strip().lower())
     return None
+
+
+def _load_expected_hashes(
+    catalog_path: Path = CATALOG_PATH, model_id: str = MODEL_NAME
+) -> tuple[str, str] | None:
+    entry = _load_candidate_entry(model_id, catalog_path=catalog_path)
+    return entry[1] if entry is not None else None
 
 
 def _default_app_home() -> Path:
@@ -152,8 +162,11 @@ class RealESRGANNCNNBackend:
         self.engine_path = Path(engine_path) if engine_path is not None else (
             Path(env_engine) if env_engine else home / "runtime" / "realsr-ncnn"
         )
-        self.model_dir = Path(model_dir) if model_dir is not None else home / "runtime" / f"models-{MODEL_NAME}"
         self.model_id = str(model_id)
+        candidate_entry = _load_candidate_entry(self.model_id)
+        default_folder = candidate_entry[0] if candidate_entry is not None else f"models-{self.model_id}"
+        self.model_dir = Path(model_dir) if model_dir is not None else home / "runtime" / default_folder
+        self._custom_model_dir = model_dir is not None
         self.verify_hashes = verify_hashes
         self.tile_threshold = int(tile_threshold)
         self.detail_blend_weight = float(detail_blend_weight)
@@ -173,13 +186,13 @@ class RealESRGANNCNNBackend:
         param_path = self.model_dir / "x4.param"
         bin_path = self.model_dir / "x4.bin"
         if not param_path.is_file() or not bin_path.is_file():
-            raise BackendUnavailable(f"Local {MODEL_NAME} weights missing in {self.model_dir}")
+            raise BackendUnavailable(f"Local {self.model_id} weights missing in {self.model_dir}")
         param_sha = _sha256_file(param_path)
         bin_sha = _sha256_file(bin_path)
         if self.verify_hashes:
-            expected = _load_expected_hashes()
+            expected = _load_expected_hashes(model_id=self.model_id)
             if expected is not None and (param_sha, bin_sha) != expected:
-                raise BackendUnavailable(f"{MODEL_NAME} weight digest mismatch in {self.model_dir}")
+                raise BackendUnavailable(f"{self.model_id} weight digest mismatch in {self.model_dir}")
         self._verified_hashes = (param_sha, bin_sha)
         return self._verified_hashes
 
@@ -195,8 +208,14 @@ class RealESRGANNCNNBackend:
                 "-s", "4",
             ]
             proc = self._command_runner(cmd)
-        elif cli_path.is_file() and os.access(cli_path, os.X_OK):
-            cmd = [str(cli_path), "upscale", str(src_path), str(dst_path), "--model", MODEL_NAME]
+        elif (
+            not self._custom_model_dir
+            and cli_path.is_file()
+            and os.access(cli_path, os.X_OK)
+            and self.model_dir.name.startswith("models-")
+        ):
+            cli_selector = self.model_dir.name[len("models-"):]
+            cmd = [str(cli_path), "upscale", str(src_path), str(dst_path), "--model", cli_selector]
             proc = subprocess.run(cmd, capture_output=True, text=True, check=False)  # nosec B603
         else:
             cmd = [
@@ -209,7 +228,7 @@ class RealESRGANNCNNBackend:
             proc = subprocess.run(cmd, capture_output=True, text=True, check=False)  # nosec B603
         if proc.returncode != 0 or not dst_path.is_file():
             detail = (proc.stderr or proc.stdout or "").strip()
-            raise BackendUnavailable(f"RealeSR-general-v3 execution failed ({proc.returncode}): {detail}")
+            raise BackendUnavailable(f"{self.model_id} execution failed ({proc.returncode}): {detail}")
 
     def _upscale_single(self, arr_rgb: np.ndarray) -> np.ndarray:
         with tempfile.TemporaryDirectory(prefix="fidelis-realesr-") as tmpdir:
