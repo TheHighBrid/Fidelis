@@ -195,7 +195,9 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_batch_runner.py'
 
       - name: Studio packaging, upgrade and rollback verification tests
-        run: python -m unittest discover -s tests -p 'test_release_packaging.py'
+        run: |
+          python -m unittest discover -s tests -p 'test_release_packaging.py'
+          python -m unittest discover -s tests -p 'test_offline_model_redistribution.py'
 
       - name: Release readiness dossier and signoff audit tests
         run: |

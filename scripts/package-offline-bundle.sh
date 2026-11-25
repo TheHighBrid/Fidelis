@@ -42,23 +42,14 @@ models_staging="$bundle_dir/offline_models"
 mkdir -p "$models_staging"
 
 fidelis_runtime="${FIDELIS_HOME:-$HOME/.local/share/fidelis}/runtime"
-models_found=0
-
-if [[ -d "$fidelis_runtime" ]]; then
-  for mdir in "$fidelis_runtime"/models-*; do
-    if [[ -d "$mdir" ]]; then
-      mname="$(basename "$mdir")"
-      printf '  Packaging model: %s\n' "$mname"
-      cp -R "$mdir" "$models_staging/$mname"
-      models_found=$((models_found + 1))
-    fi
-  done
-fi
-
-if [[ $models_found -eq 0 ]]; then
-  printf 'Warning: No installed models found in %s\n' "$fidelis_runtime" >&2
-  printf 'Run: bash scripts/install-photo-candidate.sh RealeSR-general-v3 first to bundle weights.\n' >&2
-fi
+"$python_bin" - "$repo_root" "$fidelis_runtime" "$models_staging" <<'PY'
+import sys
+sys.path.insert(0, sys.argv[1])
+from fidelis.studio.offline_models import stage_models
+receipt = stage_models(*sys.argv[1:])
+print('Redistributable models:', len(receipt['included']))
+print('Excluded models with unresolved terms:', len(receipt['excluded']))
+PY
 
 # 3. Create self-contained install-offline.sh inside bundle
 cat > "$bundle_dir/install-offline.sh" <<'EOF'
