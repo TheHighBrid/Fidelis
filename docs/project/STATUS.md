@@ -1,5 +1,13 @@
 # Current progress and evidence checkpoint
 
+> **Operational manifest evidence reconciliation (2026-11-24):** Read back the
+> actual F05-A qualified preflight and F07 E2 live async receipt. They demonstrate
+> same-grid RealeSR inference on M1 MPS, zero protected/unknown mismatches, scoped
+> cancellation and restart preserving prompt identity. The manifest now records
+> `live_worker_verified: true` with the receipt digest and explicit tested scope.
+> F06 SDXL quality and held-out acceptance remain open; the generic operational
+> declaration no longer incorrectly reports the completed worker checks as absent.
+
 > **Replacement offline artifact (2026-11-24):** PR #115 merged as `86c4f86`.
 > Rebuilt all three v3.1.0 archives on that candidate and audited contents. The
 > offline archive contains only verified RealeSR-general-v3 weights, BSD notice

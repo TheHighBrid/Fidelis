@@ -27,10 +27,14 @@
     "notes": "Evaluator (Wilson 95% CIs, Krippendorff alpha, Cohen kappa, G1-G6 gates) verified; 60-case licensed corpus and 30-case blind dual-reviewer held-out evaluation remain open."
   },
   "operational_gate": {
-    "live_worker_verified": false,
+    "live_worker_verified": true,
+    "live_worker_scope": "Local Apple M1 MPS ComfyUI same-grid RealeSR workflow: actual inference, exact protected/unknown preservation, scoped cancellation and restart with the same prompt ID. SDXL texture quality remains open under F06 and quality_gate.",
+    "live_worker_receipt_sha256": "c9000c1dc686c2f7a9b535af8ce38b78185d494493275303c973e1c9e048c6a4",
     "device_budgets_measured": true,
     "upgrade_rollback_verified": true,
     "evidence": [
+      "docs/project/checkpoints/2026-11-24-f05a-live-worker-preflight.md",
+      "docs/project/checkpoints/2026-11-24-f07-live-async-qualification.md",
       "docs/APPLE_M1_PRECISION_BASE_AUDITION.md",
       "docs/SEGFORMER_B0_AUDITION.md",
       "docs/RELEASE_PACKAGING.md",

@@ -9,6 +9,15 @@ gate is incomplete.
 
 ## Gate Checks
 
+The candidate's `live_worker_verified` operational declaration is supported by
+the actual F05-A/F07 local ComfyUI MPS receipts: qualified preflight, successful
+same-grid RealeSR inference, protected/unknown pixel equality, scoped cancellation
+and restart recovery with the same prompt ID. The private F07 receipt SHA256 is
+`c9000c1dc686c2f7a9b535af8ce38b78185d494493275303c973e1c9e048c6a4`.
+This closes the worker-operation declaration only. F06 SDXL texture qualification,
+representative image-quality acceptance, physical touch review and final signoff
+remain open, and no readiness thresholds or requirements have changed.
+
 1. **Core Deliverables (`F01..F15`)**: Every core milestone deliverable in
    `docs/project/backlog.json` must reach a closed state (`Done`, `Completed`, or
    `Released`).
@@ -64,5 +73,5 @@ corpus categories, splits, ROI requirements and human-review gates remain intact
 ## Current Evidence Status
 
 - **Tracked release candidate manifest**: [`config/release-candidate-v1.json`](../config/release-candidate-v1.json) links the rebuilt `7d97abdc` `v3.1.0` release archives (`dist/fidelis-v3.1.0.tar.gz`, `dist/fidelis-v3.1.0.zip`, `dist/fidelis-offline-bundle-v3.1.0.tar.gz`), explicit scope summary, 6 architectural/operational known limits, `verify-upgrade-rollback.py` snapshot/restore commands against baseline `5315046`, and verified Apple M1 (8 GB) device budgets + upgrade/rollback receipts (`documentation_and_rollback.rollback_ready: true`).
-- **Current repository level**: `E1_fixture_and_protocol_tested` (`ready_for_release: false`).
+- **Current repository level**: `E2_live_inference_verified` for the documented local workflow (`ready_for_release: false`; visual/corpus and owner approval remain pending).
 - **Remaining external gates for `E4_released`**: Live ComfyUI SDXL/Clarity-style GPU texture workflow qualification (`F05`/`F06`), 60-case licensed corpus & comparator runs (`F12-A`, `F12`), 30-case blind dual-reviewer held-out quality acceptance (`F13`), physical Android/iOS touch hardware review (`F08`), and explicit dual-owner creative/release signoff (`F16`).
