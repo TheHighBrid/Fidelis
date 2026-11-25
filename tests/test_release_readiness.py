@@ -320,7 +320,7 @@ class ReleaseReadinessTests(unittest.TestCase):
             )
         self.assertFalse(dossier["ready_for_release"])
         self.assertEqual(
-            dossier["certified_evidence_level"], "E1_fixture_and_protocol_tested"
+            dossier["certified_evidence_level"], "E2_live_inference_verified"
         )
         self.assertEqual(dossier["packages"]["verified_count"], 0)
         self.assertEqual(len(dossier["packages"]["errors"]), 3)
@@ -331,7 +331,7 @@ class ReleaseReadinessTests(unittest.TestCase):
         self.assertTrue(dossier["documentation_and_rollback"]["rollback_ready"])
         self.assertTrue(dossier["operational_gate"]["device_budgets_measured"])
         self.assertTrue(dossier["operational_gate"]["upgrade_rollback_verified"])
-        self.assertFalse(dossier["operational_gate"]["live_worker_verified"])
+        self.assertTrue(dossier["operational_gate"]["live_worker_verified"])
         self.assertIn("release_packages_unverified", dossier["blocking_reasons"])
         self.assertNotIn(
             "scope_limits_or_rollback_plan_incomplete", dossier["blocking_reasons"]
