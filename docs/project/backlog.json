@@ -1,5 +1,6 @@
 {
   "schema_version": 1,
+  "execution_checkpoint": "docs/project/checkpoints/2026-11-25-native-execution-evidence.md",
   "snapshot_date": "2026-11-24",
   "code_snapshot": "7d97abd",
   "code_branch": "main",
