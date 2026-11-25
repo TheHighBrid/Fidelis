@@ -1,5 +1,14 @@
 # Current progress and evidence checkpoint
 
+> **Clean-install startup verification (2026-11-24):** Archive for `c04aeb2`
+> passed the packaging contents audit. A fresh Python 3.12 environment installed
+> the documented dependencies. Web UI integration initially exceeded the old
+> four-second readiness wait; the server became reachable after approximately
+> thirteen seconds. With a thirty-second allowance the full HTTP integration
+> suite passed. The readiness loop now detects premature server exit and bounded
+> HTTP probe timeouts. This suite uses the documented fixture engine; real local
+> inference evidence is recorded separately in the v1 evidence checkpoint.
+
 > **v1 execution resumed (2026-11-24):** Reconciled candidate manifest to merged
 > main `d6f420cc`; historical archive digests remain explicitly historical. Local
 > ComfyUI MPS inference and automatic workflow/model hashes now have actual receipts.
