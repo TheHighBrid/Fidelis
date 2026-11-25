@@ -8,6 +8,16 @@ source-SHA conflicts and 15 unknown hashes. No splits/criteria were changed.
 Run before qualification; this does not automatically intercept audition runs or
 prove untouched historical exposure. Resolve the source-evidence plan before F13.
 
+## Native execution and evidence integrity · 2026-11-25
+
+#133 merged at `5099a7a`; [execution checkpoint](checkpoints/2026-11-25-native-execution-evidence.md)
+records the actual 198.7MP M1 output hashes, interrupted evaluation and corrected
+reason for stopping. No quality verdict exists. Exact approved assets recovered
+are now nine (new synthetic mel096; no added GT coverage). Drive image pagination
+is complete. Source-hash audit found actual calibration exposure for one frozen
+held-out source; #134 tracks isolation, #135 raw checkpoints/cached-artifact reading.
+Continue these software/evidence tasks independently; final approval remains open.
+
 ## Weave acceptance precision · 2026-11-25 · #129
 
 The [precision checkpoint](checkpoints/2026-11-25-weave-precision.md) records a
