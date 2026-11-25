@@ -1,5 +1,15 @@
 # Current progress and evidence checkpoint
 
+> **Construction-fit audit continuation (2026-11-25):** The downloaded floral/
+> alphabet sampler visibly uses a plain woven backing rather than the frozen
+> heavyweight-fleece monogram subject. Poly Haven `wool_boucle` metadata describes
+> looped knit upholstery, not the required multicolour woven tweed. Restored both
+> slots to missing, preserving photographs/rights as research candidates. Current
+> availability is **41/60** (calibration 21, held-out 20); fixed subjects and splits
+> remain unchanged. This also means earlier benchmark outcomes cannot establish
+> coverage of those missing subjects. Official material source:
+> `https://api.polyhaven.com/info/wool_boucle`.
+
 > **Fixed-subject eligibility correction (2026-11-25):** Rechecked official
 > Poly Haven material metadata before promoting specialty cases. Terlenka is
 > explicitly polyester, contradicting the frozen cotton-twill subject; knitted

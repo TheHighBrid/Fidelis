@@ -1313,27 +1313,24 @@
       "case_id": "tex_boucle_tweed",
       "category": "textiles",
       "split": "calibration",
-      "availability": "available",
+      "availability": "missing",
       "expected_subject": "Multicolour boucle tweed fabric testing yarn color fidelity",
       "rights": {
-        "cleared": true,
-        "permission_basis": "cc0_polyhaven_verified",
-        "license_id": "CC0-1.0",
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
         "model_release_required": false,
         "model_release_verified": false,
-        "notes": "Off-repo CC0/Public-Domain verified photograph (https://polyhaven.com/a/wool_boucle); visually inspected for subject/ROI accuracy."
+        "notes": "Pending licensed/consented source acquisition."
       },
       "source": {
-        "storage": "off_repo",
-        "filename": "cc0_polyhaven_wool_boucle_2k.jpg",
         "relative_path": null,
-        "sha256": "4776e044f74963c2e93d5ca85a53307cb3946c290c6dd397711b119536e4046a",
-        "width": 2048,
-        "height": 2538,
-        "color_space": "sRGB",
-        "bit_depth": 8,
-        "has_alpha": false,
-        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT"
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
       },
       "target": {
         "scale": null,
@@ -1347,16 +1344,9 @@
           "label": "Interwoven coloured slub yarns",
           "roi_type": "textile_weave",
           "must_lock_base": false,
-          "bbox_norm": [
-            0.15,
-            0.15,
-            0.85,
-            0.85
-          ]
+          "bbox_norm": null
         }
-      ],
-      "ground_truth_eligible": true,
-      "synthetic": false
+      ]
     },
     {
       "case_id": "tex_held_linen_slub",
@@ -2062,27 +2052,24 @@
       "case_id": "mac_held_chain_embroidery",
       "category": "macros",
       "split": "held_out",
-      "availability": "available",
+      "availability": "missing",
       "expected_subject": "Monogram chain-stitch embroidery on heavyweight fleece",
       "rights": {
-        "cleared": true,
-        "permission_basis": "cc0_wikimedia_verified",
-        "license_id": "CC0-1.0",
+        "cleared": false,
+        "permission_basis": null,
+        "license_id": null,
         "model_release_required": false,
         "model_release_verified": false,
-        "notes": "Off-repo CC0/Public-Domain verified photograph (https://commons.wikimedia.org/wiki/File:Embroidered_band_sampler_MET_DP158556.jpg); visually inspected for subject/ROI accuracy."
+        "notes": "Pending licensed/consented source acquisition."
       },
       "source": {
-        "storage": "off_repo",
-        "filename": "cc0_wikimedia_sampler_dp158556.jpg",
         "relative_path": null,
-        "sha256": "f2d0732dd7c253163300fe50790f3ed805c4660bf2900cffd3ecbc32fc905483",
-        "width": 3000,
-        "height": 4000,
-        "color_space": "sRGB",
-        "bit_depth": 8,
-        "has_alpha": false,
-        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT"
+        "sha256": null,
+        "width": null,
+        "height": null,
+        "color_space": null,
+        "bit_depth": null,
+        "has_alpha": null
       },
       "target": {
         "scale": null,
@@ -2090,9 +2077,7 @@
         "expected_height": null
       },
       "known_text": [
-        "MARY POTS WROUGHT THIS",
-        "SAMPLER AND THIS DATE",
-        "ABCEFG 1648 KLNXYZ"
+        "MLT"
       ],
       "critical_rois": [
         {
@@ -2100,16 +2085,9 @@
           "label": "Individual chain embroidery loops",
           "roi_type": "stitch",
           "must_lock_base": true,
-          "bbox_norm": [
-            0.12,
-            0.22,
-            0.88,
-            0.76
-          ]
+          "bbox_norm": null
         }
-      ],
-      "ground_truth_eligible": true,
-      "synthetic": false
+      ]
     },
     {
       "case_id": "mac_held_shoe_welt_stitch",
