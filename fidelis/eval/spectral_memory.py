@@ -1,11 +1,11 @@
 """Native-grid spectral band means without full-image FFT working arrays."""
 from __future__ import annotations
 
+import operator
+import tempfile
 from collections.abc import Mapping
 from contextlib import contextmanager
-import operator
 from pathlib import Path
-import tempfile
 
 import numpy as np
 
