@@ -512,7 +512,12 @@
           "label": "Primary face / identity landmarks",
           "roi_type": "identity_landmark",
           "must_lock_base": true,
-          "bbox_norm": null
+          "bbox_norm": [
+            0.34,
+            0.42,
+            0.7,
+            0.57
+          ]
         }
       ],
       "notes": "Owner-vouched Melato production asset; masters remain off-repo."
@@ -692,7 +697,12 @@
           "label": "Primary face / identity landmarks",
           "roi_type": "identity_landmark",
           "must_lock_base": true,
-          "bbox_norm": null
+          "bbox_norm": [
+            0.33,
+            0.43,
+            0.44,
+            0.48
+          ]
         }
       ],
       "notes": "Low-light social capture with digital butterfly stickers overlaid."
@@ -1289,7 +1299,7 @@
     {
       "asset_id": "mel_028",
       "filename": "509182202_1792638061047024.jpg",
-      "category": "portraits",
+      "category": "apparel_model",
       "set": "ground_truth",
       "synthetic": false,
       "ground_truth_eligible": true,
@@ -1322,14 +1332,43 @@
       "known_text": [],
       "critical_rois": [
         {
-          "roi_id": "face",
-          "label": "Primary face / identity landmarks",
-          "roi_type": "identity_landmark",
+          "roi_id": "stripe_seam",
+          "label": "Velvet trouser burgundy triple-stripe seam",
+          "roi_type": "stitch",
           "must_lock_base": true,
-          "bbox_norm": null
+          "bbox_norm": [
+            0.3454,
+            0.0,
+            0.5845,
+            0.6818
+          ]
+        },
+        {
+          "roi_id": "shoe_construction",
+          "label": "Black leather lug-sole shoe stitching and hardware",
+          "roi_type": "hardware",
+          "must_lock_base": true,
+          "bbox_norm": [
+            0.2976,
+            0.6579,
+            0.9245,
+            0.8612
+          ]
+        },
+        {
+          "roi_id": "velvet_interior",
+          "label": "Black velvet trouser pile texture",
+          "roi_type": "textile_weave",
+          "must_lock_base": false,
+          "bbox_norm": [
+            0.5845,
+            0.1495,
+            0.7333,
+            0.3768
+          ]
         }
       ],
-      "notes": "Owner-vouched Melato production asset; masters remain off-repo."
+      "notes": "Audited off-repo master: velvet track trousers with burgundy triple-stripe seam and black leather shoe (reclassified from mislabeled portraits to apparel_model)."
     },
     {
       "asset_id": "mel_029",
@@ -1371,7 +1410,12 @@
           "label": "Primary face / identity landmarks",
           "roi_type": "identity_landmark",
           "must_lock_base": true,
-          "bbox_norm": null
+          "bbox_norm": [
+            0.22,
+            0.19,
+            0.6,
+            0.46
+          ]
         }
       ],
       "notes": "Owner-vouched Melato production asset; masters remain off-repo."
@@ -1782,7 +1826,12 @@
           "label": "Primary face / identity landmarks",
           "roi_type": "identity_landmark",
           "must_lock_base": true,
-          "bbox_norm": null
+          "bbox_norm": [
+            0.32,
+            0.14,
+            0.68,
+            0.41
+          ]
         }
       ],
       "notes": "Owner-vouched Melato production asset; masters remain off-repo."
@@ -1872,7 +1921,12 @@
           "label": "Primary face / identity landmarks",
           "roi_type": "identity_landmark",
           "must_lock_base": true,
-          "bbox_norm": null
+          "bbox_norm": [
+            0.51,
+            0.17,
+            0.8,
+            0.39
+          ]
         }
       ],
       "notes": "Owner-vouched Melato production asset; masters remain off-repo."
@@ -2598,7 +2652,12 @@
           "label": "Primary face / identity landmarks",
           "roi_type": "identity_landmark",
           "must_lock_base": true,
-          "bbox_norm": null
+          "bbox_norm": [
+            0.35,
+            0.33,
+            0.95,
+            0.44
+          ]
         }
       ],
       "notes": "Mobile video frame / screenshot with UI home-indicator chrome. Trademark-heavy: Cartier-style eyewear hinge logo; mobile video/screenshot UI chrome at bottom."
@@ -2643,7 +2702,12 @@
           "label": "Primary face / identity landmarks",
           "roi_type": "identity_landmark",
           "must_lock_base": true,
-          "bbox_norm": null
+          "bbox_norm": [
+            0.2,
+            0.34,
+            0.74,
+            0.67
+          ]
         }
       ],
       "notes": "Mobile capture naming; real photography."
@@ -4418,10 +4482,10 @@
   "summary": {
     "total_assets": 97,
     "by_category": {
-      "apparel_model": 22,
+      "apparel_model": 23,
       "macros": 4,
       "packshot_edge": 11,
-      "portraits": 58,
+      "portraits": 57,
       "textiles": 2
     },
     "by_set": {
