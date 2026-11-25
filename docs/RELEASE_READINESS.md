@@ -27,6 +27,26 @@ gate is incomplete.
 7. **Owner Creative & Release Signoff**: Requires `owner_release_signoff.status == "approved"`
    with named `creative_owner`, `release_owner`, and `signed_at` timestamp.
 
+Both roles may be held by the same owner: the current policy and validators require
+named roles but do not require distinct people. Execution authorization does not
+approve either final signoff. F13's independent blind reviewers remain a separate
+requirement and are not replaced by this role interpretation.
+
+## Candidate reconciliation, 2026-11-24
+
+The candidate is main `d6f420ccf1754c79931c9822ec5127b98ab0df5c`.
+The prior manifest commit `24a2eb7` is an ancestor of main (verified with
+`git merge-base --is-ancestor`). `merged_to_main` is therefore true. Historical
+archive digests remain identified as historical; current candidate archives need
+fresh build and byte verification. The current local audit finds zero package
+files, so packaging remains open. Final creative and production approval remain
+pending under the owner's explicit instruction.
+
+All 97 Melato assets already have the approval recorded in
+[CORPUS_ACQUISITION_PROPOSAL.md](CORPUS_ACQUISITION_PROPOSAL.md). Missing local
+bytes are a recovery task, not a request to repeat that rights approval. Fixed
+corpus categories, splits, ROI requirements and human-review gates remain intact.
+
 ## CLI Usage
 
 ```bash
