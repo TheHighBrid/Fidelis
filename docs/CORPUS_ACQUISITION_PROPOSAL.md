@@ -51,9 +51,13 @@ Exact slot IDs live in `experiments/corpus_manifest.json`. Full Melato inventory
 
 ## Open gaps (intentional)
 
-- Frozen 60 readiness: **30 available / 30 missing** after Melato-first fill.
-- Prefer leaving textiles/macros/specialty packshot slots **missing** over forcing
-  AI or weak matches into ground-truth slots.
+- Frozen 60 readiness: **46 available / 14 missing** (`calibration 23/30`,
+  `held_out 23/30`: `portraits 10/12`, `apparel_model 8/12`, `textiles 9/12`,
+  `macros 10/12`, `packshot_edge 9/12`) after Melato-first fill plus 16 visually
+  inspected CC0/Public-Domain off-repo photographs (Poly Haven, Wikimedia Commons,
+  Metropolitan Museum, Cleveland Museum of Art).
+- Prefer leaving remaining specialty/released slots **missing** over forcing
+  AI, unverified-release portraits, or weak subject matches into ground-truth slots.
 - If Mohamed adds more cleared masters later, slot them into remaining intents.
 - Trademark notes cover Nike / Mazda / Adidas / etc.; Real Madrid remains unflagged
   until Huncho names a filename.

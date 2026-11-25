@@ -1182,24 +1182,27 @@
       "case_id": "tex_cotton_twill_chino",
       "category": "textiles",
       "split": "calibration",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Sand-dyed 2/1 cotton twill weave macro crop",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "cc0_polyhaven_verified",
+        "license_id": "CC0-1.0",
         "model_release_required": false,
         "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "notes": "Off-repo CC0/Public-Domain verified photograph (https://polyhaven.com/a/terlenka); visually inspected for subject/ROI accuracy."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "cc0_polyhaven_terlenka_2k.jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "9528ce33df474c01f938b3afafe895b79a7b66f5706e4c735e8362e61b5bfb84",
+        "width": 2048,
+        "height": 2053,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT"
       },
       "target": {
         "scale": null,
@@ -1213,9 +1216,16 @@
           "label": "Diagonal twill wale continuity",
           "roi_type": "textile_weave",
           "must_lock_base": false,
-          "bbox_norm": null
+          "bbox_norm": [
+            0.15,
+            0.15,
+            0.85,
+            0.85
+          ]
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false
     },
     {
       "case_id": "tex_full_grain_leather",
@@ -1313,24 +1323,27 @@
       "case_id": "tex_boucle_tweed",
       "category": "textiles",
       "split": "calibration",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Multicolour boucle tweed fabric testing yarn color fidelity",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "cc0_polyhaven_verified",
+        "license_id": "CC0-1.0",
         "model_release_required": false,
         "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "notes": "Off-repo CC0/Public-Domain verified photograph (https://polyhaven.com/a/wool_boucle); visually inspected for subject/ROI accuracy."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "cc0_polyhaven_wool_boucle_2k.jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "4776e044f74963c2e93d5ca85a53307cb3946c290c6dd397711b119536e4046a",
+        "width": 2048,
+        "height": 2538,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT"
       },
       "target": {
         "scale": null,
@@ -1344,32 +1357,42 @@
           "label": "Interwoven coloured slub yarns",
           "roi_type": "textile_weave",
           "must_lock_base": false,
-          "bbox_norm": null
+          "bbox_norm": [
+            0.15,
+            0.15,
+            0.85,
+            0.85
+          ]
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false
     },
     {
       "case_id": "tex_held_linen_slub",
       "category": "textiles",
       "split": "held_out",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Unbleached heavyweight linen swatch with organic flax slubs",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "cc0_cma_verified",
+        "license_id": "CC0-1.0",
         "model_release_required": false,
         "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "notes": "Off-repo CC0-1.0 verified photograph (Cleveland Museum of Art 1921.1026, https://openaccess-cdn.clevelandart.org/1921.1026/1921.1026_print.jpg); visually inspected for flax slub textile fidelity."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "cc0_cma_linen_1921_1026.jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "c47d76b0939c47e05fa15406195acf56a3542484f5bc2548f530fdd74c5114a5",
+        "width": 3400,
+        "height": 844,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT"
       },
       "target": {
         "scale": null,
@@ -1383,32 +1406,42 @@
           "label": "Irregular warp thickness transitions",
           "roi_type": "textile_weave",
           "must_lock_base": false,
-          "bbox_norm": null
+          "bbox_norm": [
+            0.15,
+            0.15,
+            0.85,
+            0.85
+          ]
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false
     },
     {
       "case_id": "tex_held_suede_nap",
       "category": "textiles",
       "split": "held_out",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Deep espresso goat suede testing velvety short nap direction",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "cc0_wikimedia_verified",
+        "license_id": "CC0-1.0",
         "model_release_required": false,
         "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "notes": "Off-repo CC0/Public-Domain verified photograph (https://commons.wikimedia.org/wiki/File:A_Derby_of_suede_leather_with_brogues.jpg); visually inspected for subject/ROI accuracy."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "cc0_wikimedia_suede_derby.jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "f92925a231c11d7d1c5a3ec33e9d55d7a4b4ba7296bd083ed8db84d8118bbd83",
+        "width": 2222,
+        "height": 1313,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT"
       },
       "target": {
         "scale": null,
@@ -1422,32 +1455,42 @@
           "label": "Fine directional brushed nap",
           "roi_type": "textile_weave",
           "must_lock_base": false,
-          "bbox_norm": null
+          "bbox_norm": [
+            0.28,
+            0.34,
+            0.68,
+            0.62
+          ]
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false
     },
     {
       "case_id": "tex_held_jacquard_brocade",
       "category": "textiles",
       "split": "held_out",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Tonal floral silk jacquard testing repeating motif registration",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "cc0_polyhaven_verified",
+        "license_id": "CC0-1.0",
         "model_release_required": false,
         "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "notes": "Off-repo CC0/Public-Domain verified photograph (https://polyhaven.com/a/floral_jacquard); visually inspected for subject/ROI accuracy."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "cc0_polyhaven_floral_jacquard_2k.jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "2c9af7d2a223df245f33cc8acd8362a0faff90aec507cc06a5c46c815016fb62",
+        "width": 2048,
+        "height": 3106,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT"
       },
       "target": {
         "scale": null,
@@ -1461,32 +1504,42 @@
           "label": "Woven pattern edges vs background satin",
           "roi_type": "stitch",
           "must_lock_base": true,
-          "bbox_norm": null
+          "bbox_norm": [
+            0.18,
+            0.22,
+            0.82,
+            0.78
+          ]
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false
     },
     {
       "case_id": "tex_held_merino_rib",
       "category": "textiles",
       "split": "held_out",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Fine 2x2 merino jersey rib stretch transition",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "cc0_polyhaven_verified",
+        "license_id": "CC0-1.0",
         "model_release_required": false,
         "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "notes": "Off-repo CC0/Public-Domain verified photograph (https://polyhaven.com/a/knitted_fleece); visually inspected for subject/ROI accuracy."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "cc0_polyhaven_knitted_fleece_2k.jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "7cc9a0bf3adca4a913d79fbe70149729e1ed2cc0ef479a9e9ab020a35d006e3a",
+        "width": 2048,
+        "height": 2079,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT"
       },
       "target": {
         "scale": null,
@@ -1500,32 +1553,42 @@
           "label": "Wale column parallelism",
           "roi_type": "textile_weave",
           "must_lock_base": false,
-          "bbox_norm": null
+          "bbox_norm": [
+            0.15,
+            0.15,
+            0.85,
+            0.85
+          ]
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false
     },
     {
       "case_id": "tex_held_chantilly_lace",
       "category": "textiles",
       "split": "held_out",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Openwork Chantilly lace net over contrasting backing",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "public_domain_wikimedia_verified",
+        "license_id": "PUBLIC-DOMAIN",
         "model_release_required": false,
         "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "notes": "Off-repo CC0/Public-Domain verified photograph (https://commons.wikimedia.org/wiki/File:Chantilly_Lace_Mantilla_-_DPLA_-_729981e6280344189e7980169ebbf251_(page_1).jpg); visually inspected for subject/ROI accuracy."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "pd_wikimedia_chantilly_lace_p1.jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "ccebc9a003de81ffb16b037915b6d9190c3b0758aabd06af35b1b851913dcb46",
+        "width": 4368,
+        "height": 2720,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT"
       },
       "target": {
         "scale": null,
@@ -1539,9 +1602,16 @@
           "label": "Hexagonal tulle net holes without infill",
           "roi_type": "hardware",
           "must_lock_base": true,
-          "bbox_norm": null
+          "bbox_norm": [
+            0.42,
+            0.44,
+            0.88,
+            0.84
+          ]
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false
     },
     {
       "case_id": "tex_held_technical_ripstop",
@@ -1586,24 +1656,27 @@
       "case_id": "mac_two_way_brass_zip",
       "category": "macros",
       "split": "calibration",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Brushed brass zipper teeth and slider pull tab macro",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "cc0_wikimedia_verified",
+        "license_id": "CC0-1.0",
         "model_release_required": false,
         "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "notes": "Off-repo CC0/Public-Domain verified photograph (https://commons.wikimedia.org/wiki/File:Zipper_(25761145875).jpg); visually inspected for subject/ROI accuracy."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "cc0_wikimedia_zipper_2576.jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "eeba1bc9b22e31368d2274bbe525633f52d9ac5cfd6cd63cc7ba4da03ae983ba",
+        "width": 1066,
+        "height": 1600,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT"
       },
       "target": {
         "scale": null,
@@ -1611,7 +1684,8 @@
         "expected_height": null
       },
       "known_text": [
-        "YKK 5"
+        "SBS",
+        "ALCW"
       ],
       "critical_rois": [
         {
@@ -1619,32 +1693,42 @@
           "label": "Interlocking teeth spacing and pull stamp",
           "roi_type": "zipper",
           "must_lock_base": true,
-          "bbox_norm": null
+          "bbox_norm": [
+            0.4,
+            0.43,
+            0.9,
+            0.52
+          ]
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false
     },
     {
       "case_id": "mac_woven_neck_label",
       "category": "macros",
       "split": "calibration",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Satin neck label sewn with folded miter corners",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "cc0_wikimedia_verified",
+        "license_id": "CC0-1.0",
         "model_release_required": false,
         "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "notes": "Off-repo CC0/Public-Domain verified photograph (https://commons.wikimedia.org/wiki/File:Bonnet_MET_C.I.42.165.12_label.jpg); visually inspected for subject/ROI accuracy."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "cc0_wikimedia_bonnet_label.jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "9443dcb665147adbaea925eed9e617ea63ebdae8f2e15bb4c5ab7d8bd7b84fec",
+        "width": 3236,
+        "height": 2000,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT"
       },
       "target": {
         "scale": null,
@@ -1652,7 +1736,8 @@
         "expected_height": null
       },
       "known_text": [
-        "MADE IN ITALY"
+        "R.H. Stearns Co.",
+        "BOSTON."
       ],
       "critical_rois": [
         {
@@ -1660,32 +1745,42 @@
           "label": "Micro-woven serif lettering",
           "roi_type": "logo",
           "must_lock_base": true,
-          "bbox_norm": null
+          "bbox_norm": [
+            0.05,
+            0.22,
+            0.95,
+            0.72
+          ]
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false
     },
     {
       "case_id": "mac_debossed_leather_stamp",
       "category": "macros",
       "split": "calibration",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Blind-debossed leather creed with gold foil micro-type",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "public_domain_wikimedia_verified",
+        "license_id": "PUBLIC-DOMAIN",
         "model_release_required": false,
         "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "notes": "Off-repo CC0/Public-Domain verified photograph (https://commons.wikimedia.org/wiki/File:Cigarette_Case_MET_DP275566.jpg); visually inspected for subject/ROI accuracy."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "pd_wikimedia_cigarette_case_dp275566.jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "08b54d06602c730c8b6840b83a22bf78debca061e5239b9644d344d5724f9371",
+        "width": 3917,
+        "height": 2614,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT"
       },
       "target": {
         "scale": null,
@@ -1693,7 +1788,7 @@
         "expected_height": null
       },
       "known_text": [
-        "MILANO 1984"
+        "PIERRE LEGRAIN"
       ],
       "critical_rois": [
         {
@@ -1701,32 +1796,42 @@
           "label": "Foil serif character geometry",
           "roi_type": "logo",
           "must_lock_base": true,
-          "bbox_norm": null
+          "bbox_norm": [
+            0.36,
+            0.43,
+            0.63,
+            0.5
+          ]
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false
     },
     {
       "case_id": "mac_twin_needle_topstitch",
       "category": "macros",
       "split": "calibration",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Double-needle felled seam with exact stitch-per-inch count",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "public_domain_wikimedia_verified",
+        "license_id": "PUBLIC-DOMAIN",
         "model_release_required": false,
         "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "notes": "Off-repo Public Domain photograph (https://commons.wikimedia.org/wiki/File:Man%27s_Off-White_Cotton_Dress_Shirt_Belonging_to_Charles_Lindbergh_-_DPLA_-_73ccccda3e1162ece8676944970eeea4_(page_12).jpg); visually inspected for double-needle felled sleeve topstitching."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "pd_wikimedia_lindbergh_shirt_p12.jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "e24ef5af9d48e1ebce34900c50cf3a060d46c0700e9ba0688309659623c91bd2",
+        "width": 2200,
+        "height": 3300,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT"
       },
       "target": {
         "scale": null,
@@ -1740,32 +1845,42 @@
           "label": "Needle punctures and twisted thread",
           "roi_type": "stitch",
           "must_lock_base": true,
-          "bbox_norm": null
+          "bbox_norm": [
+            0.56,
+            0.05,
+            0.74,
+            0.55
+          ]
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false
     },
     {
       "case_id": "mac_keyhole_buttonhole",
       "category": "macros",
       "split": "calibration",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Tailored gimp-reinforced keyhole buttonhole and corozo button",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "cc0_wikimedia_verified",
+        "license_id": "CC0-1.0",
         "model_release_required": false,
         "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "notes": "Off-repo CC0-1.0 verified photograph (https://commons.wikimedia.org/wiki/File:English_tailoring_lapel.jpg); visually inspected for gimp-reinforced tailored lapel buttonhole stitching."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "cc0_wikimedia_english_tailoring_lapel.jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "4803f03a56a3872a8a92f2a7a4ca72e5921882f386641a4ce3daa63d5d91afcf",
+        "width": 3024,
+        "height": 4032,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT"
       },
       "target": {
         "scale": null,
@@ -1779,9 +1894,16 @@
           "label": "Dense gimp buttonhole bartack",
           "roi_type": "stitch",
           "must_lock_base": true,
-          "bbox_norm": null
+          "bbox_norm": [
+            0.4,
+            0.43,
+            0.62,
+            0.55
+          ]
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false
     },
     {
       "case_id": "mac_engraved_clasp_bevel",
@@ -1828,24 +1950,27 @@
       "case_id": "mac_held_care_label_symbols",
       "category": "macros",
       "split": "held_out",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Printed satin care tag with laundry icons and composition text",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "public_domain_wikimedia_verified",
+        "license_id": "PUBLIC-DOMAIN",
         "model_release_required": false,
         "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "notes": "Off-repo CC0/Public-Domain verified photograph (https://commons.wikimedia.org/wiki/File:Label_with_care_symbols.JPG); visually inspected for subject/ROI accuracy."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "pd_wikimedia_care_label_symbols.jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "45afe06cb0d128b0e3ffd76c1bb5d95375fa5f014f01b84658eeb89fc83c0c0c",
+        "width": 2048,
+        "height": 1536,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT"
       },
       "target": {
         "scale": null,
@@ -1853,7 +1978,13 @@
         "expected_height": null
       },
       "known_text": [
-        "100% SILK"
+        "FULLY FASHIONED",
+        "SHETLAND",
+        "PURE NEW wool",
+        "100% WOOL",
+        "DRY CLEAN OR",
+        "HAND WASH WITH CARE",
+        "56"
       ],
       "critical_rois": [
         {
@@ -1861,9 +1992,16 @@
           "label": "Fine care icons and small percentages",
           "roi_type": "care_label",
           "must_lock_base": true,
-          "bbox_norm": null
+          "bbox_norm": [
+            0.1,
+            0.22,
+            0.97,
+            0.78
+          ]
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false
     },
     {
       "case_id": "mac_held_concealed_nylon_zip",
@@ -1954,24 +2092,27 @@
       "case_id": "mac_held_chain_embroidery",
       "category": "macros",
       "split": "held_out",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Monogram chain-stitch embroidery on heavyweight fleece",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "cc0_wikimedia_verified",
+        "license_id": "CC0-1.0",
         "model_release_required": false,
         "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "notes": "Off-repo CC0/Public-Domain verified photograph (https://commons.wikimedia.org/wiki/File:Embroidered_band_sampler_MET_DP158556.jpg); visually inspected for subject/ROI accuracy."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "cc0_wikimedia_sampler_dp158556.jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "f2d0732dd7c253163300fe50790f3ed805c4660bf2900cffd3ecbc32fc905483",
+        "width": 3000,
+        "height": 4000,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT"
       },
       "target": {
         "scale": null,
@@ -1979,7 +2120,9 @@
         "expected_height": null
       },
       "known_text": [
-        "MLT"
+        "MARY POTS WROUGHT THIS",
+        "SAMPLER AND THIS DATE",
+        "ABCEFG 1648 KLNXYZ"
       ],
       "critical_rois": [
         {
@@ -1987,9 +2130,16 @@
           "label": "Individual chain embroidery loops",
           "roi_type": "stitch",
           "must_lock_base": true,
-          "bbox_norm": null
+          "bbox_norm": [
+            0.12,
+            0.22,
+            0.88,
+            0.76
+          ]
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false
     },
     {
       "case_id": "mac_held_shoe_welt_stitch",
@@ -2449,24 +2599,27 @@
       "case_id": "pak_held_tinted_sunglasses",
       "category": "packshot_edge",
       "split": "held_out",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Semi-transparent acetate sunglasses over warm paper backdrop",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "cc0_wikimedia_verified",
+        "license_id": "CC0-1.0",
         "model_release_required": false,
         "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "notes": "Off-repo CC0-1.0 verified photograph (https://commons.wikimedia.org/wiki/File:Heart_sunglasses,_front_view.jpg); visually inspected for semi-transparent tinted lenses on paper backdrop."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "cc0_wikimedia_heart_sunglasses.jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "17e17ea195239690d6228d9f654c084efa0aecf70e8995415baa26250ecbd61e",
+        "width": 3645,
+        "height": 1460,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT"
       },
       "target": {
         "scale": null,
@@ -2482,9 +2635,16 @@
           "label": "Semi-transparent lens transmission hue",
           "roi_type": "background_edge",
           "must_lock_base": true,
-          "bbox_norm": null
+          "bbox_norm": [
+            0.04,
+            0.05,
+            0.96,
+            0.86
+          ]
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false
     },
     {
       "case_id": "pak_held_sunglass_case_grain",
@@ -2538,24 +2698,27 @@
       "case_id": "pak_held_high_key_jewelry",
       "category": "packshot_edge",
       "split": "held_out",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "High-key platinum ring over bright gradient shadow",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "cc0_wikimedia_verified",
+        "license_id": "CC0-1.0",
         "model_release_required": false,
         "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "notes": "Off-repo CC0-1.0 verified photograph (https://commons.wikimedia.org/wiki/File:Ring_MET_124434.jpg); visually inspected for high-key ring edge and inner band detail."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "cc0_wikimedia_ring_met_124434.jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "a36de5e535af891a6188c7ae39480047d6177879ba46b75bba4b8d86def6614a",
+        "width": 1764,
+        "height": 1508,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT"
       },
       "target": {
         "scale": null,
@@ -2571,9 +2734,16 @@
           "label": "Inner band hallmark engraving",
           "roi_type": "text",
           "must_lock_base": true,
-          "bbox_norm": null
+          "bbox_norm": [
+            0.27,
+            0.25,
+            0.72,
+            0.72
+          ]
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false
     },
     {
       "case_id": "pak_held_archival_print_scan",
