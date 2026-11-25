@@ -1,23 +1,23 @@
 {
   "schema_version": "fidelis.release_candidate.v1",
   "version": "3.1.0",
-  "release_sha": "7d97abdc518d5f91aa842572eb662adc9b90cc97",
+  "release_sha": "86c4f86db3d2875eb3b6902dd7da14987aaa413c",
   "merged_to_main": true,
-  "package_evidence_note": "Rebuilt and audited against candidate main SHA 7d97abdc518d5f91aa842572eb662adc9b90cc97 via scripts/package-release.sh, scripts/package-offline-bundle.sh, and scripts/verify-upgrade-rollback.py audit-archive; archives retained off-repo under release-evidence/7d97abdc/packages/ and remain unbundled in git.",
+  "package_evidence_note": "Rebuilt on main 86c4f86db3d2875eb3b6902dd7da14987aaa413c after redistribution fix #115. All three archives passed contents audits. Offline model receipt includes only hash-verified RealeSR-general-v3 with BSD notice, excluding three unresolved models. Retained off-repo under release-evidence/86c4f86d/packages/. Fully disconnected runtime/Python dependency installation remains unverified; this is not release approval.",
   "packages": [
     {
       "path": "dist/fidelis-v3.1.0.tar.gz",
-      "sha256": "0eddcde046d7805adab4d15c20cc716453f7c2d4157176aa83ed625bb19fd250",
+      "sha256": "68809a65c30e7cc59175a1ff451764a21c508a01bdb363a25c5da0076d88f7b4",
       "require_file_present": false
     },
     {
       "path": "dist/fidelis-v3.1.0.zip",
-      "sha256": "0c7279076907ddc78f21185bd177d0c30c2ce5767394e9c0e87887c4a5b332dd",
+      "sha256": "302654f6b0262369205d0e4e025afd95542c812223b3b576ce9f31f4d0f21473",
       "require_file_present": false
     },
     {
       "path": "dist/fidelis-offline-bundle-v3.1.0.tar.gz",
-      "sha256": "3d0e719f652e446a9c7d9f40ffde3072b0a28f8185be04068fe3642ecaa76c17",
+      "sha256": "1857ff786558c082d8549fa4391b8b96dfed5d011980edf3507b7b6810b90683",
       "require_file_present": false
     }
   ],
