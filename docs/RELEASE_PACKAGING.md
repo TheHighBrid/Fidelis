@@ -1,5 +1,15 @@
 # Release Packaging & Workspace Upgrade/Rollback Protection (`F15` / `MEL-69`)
 
+Offline weight staging uses `config/model-provenance-v1.json`: only explicit
+`production_terms_cleared: true` models with matching weight hashes and a packaged
+notice from `config/model-licenses/` are included. Unknown or unresolved models
+are omitted with reasons in `offline_models/redistribution-receipt.json`.
+Hash mismatches or missing notices fail the build. The rebuilt `7d97abdc` offline
+archive predates this boundary and includes unresolved model weights; it must be
+replaced before distribution. Archive contents audits alone do not prove model
+redistribution eligibility. Offline installation of the inference executable and
+Python dependencies remains separately required for a fully disconnected setup.
+
 Fidelis Studio packages must include all required Studio (`fidelis/studio`),
 postprocessing (`fidelis/postprocess`), evaluation (`fidelis/eval`), and benchmark
 protocol (`config/benchmark`) modules while strictly excluding local user workspaces

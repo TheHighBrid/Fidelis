@@ -1,5 +1,14 @@
 # Current progress and evidence checkpoint
 
+> **Offline redistribution blocker (2026-11-24):** Inspection of the rebuilt
+> `7d97abdc` offline archive found DF2K, Remacri and UltraSharp despite unresolved
+> production terms in the catalog. Contents auditing does not cover licensing.
+> A scoped packaging correction includes only explicitly cleared, exact-hash
+> models and their required notices, with excluded models recorded in a receipt.
+> Actual local build included RealeSR-general-v3 and excluded the three unresolved
+> models. Unknown models, altered weights and missing notices are regression-tested.
+> PR #114's old offline artifact must be replaced before distribution.
+
 > **Current coordination update (2026-11-24, F05-A / MEL-76 live worker preflight & ComfyUI v3 COMBO support):** Shared `extract_field_choices` across `fidelis/studio/comfy.py` and `fidelis/studio/worker_preflight.py` so ComfyUI `0.46.0` v3 `["COMBO", {"options": [...]}]` specs (such as `UpscaleModelLoader.model_name`) are validated alongside legacy list specs and fail closed on missing model choices. Executed `scripts/backend-doctor.py` and `scripts/worker-preflight.py --require-qualified` live against `ComfyUI 0.46.0` (Apple M1 MPS, `127.0.0.1:8188`, `1088` nodes, `$0.00` spend, `0` secret violations), verifying `qualified_preflight` on `realesr-general-x4v3.pth` and `workflow_incompatible` on a missing upscaler. See [the F05-A live worker preflight checkpoint](checkpoints/2026-11-24-f05a-live-worker-preflight.md). Parent `F05`/`F06` (SDXL weights & visual quality), `F08` physical mobile touch, `F12`/`F13` corpus/ballots, and `F16` release packaging/signoff remain open.
 
 > **Current coordination update (2026-11-24, F07 / MEL-61 live Studio async qualification):** Added `scripts/qualify-async-queue.py`, `fidelis/studio/async_qualification.py`, `fidelis/studio/async_scenarios.py`, `fidelis/studio/mock_comfy.py`, and `tests/test_async_queue_qualification.py` (wired into CI and `fidelis/studio/packaging.py`). Executed live `scripts/web-ui.py` + `GenerationQueue` + `ComfyTextureBackend` qualification against `ComfyUI 0.46.0` (Apple M1 MPS, `127.0.0.1:8188`, `realesr-general-x4v3.pth` same-grid workflow), passing HTTP responsiveness (`14.18 ms` max poll latency), exact protected/unknown pixel preservation (`0` mismatches), scoped cancellation without global `/interrupt`, and restart recovery preserving the exact `prompt_id` (`E2_live_async_queue_verified`). See [the F07 live async checkpoint](checkpoints/2026-11-24-f07-live-async-qualification.md). `F06` SDXL texture workflow quality, `F12`/`F13` held-out corpus/ballots, `F08` physical mobile touch, and `F16` release packaging/owner signoff remain open (`E3`/`E4` not claimed).
