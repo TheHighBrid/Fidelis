@@ -219,6 +219,39 @@ class HybridTextureBackendTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "4x"):
                 realesr.restore(src, base_4x=base_2x, scale=2, target_shape=(16, 16, 3))
 
+    def test_realesr_resolves_pinned_candidate_folder_and_hashes_for_model_id(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp)
+            runtime = home / "runtime"
+            runtime.mkdir(parents=True, exist_ok=True)
+            engine = runtime / "realsr-ncnn"
+            engine.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+            engine.chmod(0o755)
+            df2k_dir = runtime / "models-DF2K"
+            df2k_dir.mkdir()
+            (df2k_dir / "x4.param").write_bytes(b"wrong-param")
+            (df2k_dir / "x4.bin").write_bytes(b"wrong-bin")
+
+            realesr = RealESRGANNCNNBackend(app_home=home, model_id="RealSR-DF2K", verify_hashes=True)
+            self.assertEqual(realesr.model_dir, df2k_dir)
+            with self.assertRaisesRegex(BackendUnavailable, "RealSR-DF2K weight digest mismatch"):
+                realesr._ensure_ready()
+
+            unverified = RealESRGANNCNNBackend(
+                app_home=home,
+                model_id="RealSR-DF2K",
+                verify_hashes=False,
+                command_runner=_fake_runner_factory(88),
+            )
+            out, meta = unverified.restore(
+                np.zeros((8, 8, 3), dtype=np.uint8),
+                base_4x=np.zeros((32, 32, 3), dtype=np.uint8),
+                scale=4,
+                target_shape=(32, 32, 3),
+            )
+            self.assertEqual(out.shape, (32, 32, 3))
+            self.assertEqual(meta["model"], "RealSR-DF2K")
+
 
 if __name__ == "__main__":
     unittest.main()

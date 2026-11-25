@@ -101,3 +101,17 @@ To verify that all Studio subsystems (`F04`, `F05`, `F09`, `F10`, `F11`, `F14`, 
 | **5. Structural ROI Lock (`F10`)** | `scripts/structural-roi.py lock` (`[520,1392,300,260]`, `[964,1292,52,488]`) | `rev 3 → 4` | `0.591` | `158.34` | `0 / 78,000` patch changes (`0` edge disagreements) and `0 / 25,376` zipper changes (`0` edge disagreements); `locked_pixel_mismatches = 0` (`master_max_abs_diff = 0`) across all `103,376` locked pixels |
 | **6. 16-bit + 8-bit Batch Export (`F11`/`F14`)** | `scripts/export-studio-batch.py` | `rev 4` (`16-bit` + `8-bit`) | `1.313` | `170.92` | `16-bit`: `11,006,376 B` (`0ee302f7285d534c...`); `8-bit`: `6,416,504 B` (`1d41fbecbc13fc3d...`) |
 | **7. Workspace Snapshot & Atomic Restore (`F15`)** | `scripts/verify-upgrade-rollback.py snapshot` / `restore` | `8` `.npy` artifacts + SQLite | `0.202` / `0.211` | `22.47` / `22.48` | `passed: true`, `referenced_artifact_count: 8` |
+
+---
+
+## 7. Melato Local Master Multi-Candidate Audition (`mel_028`, 2026-11-25)
+
+Using `scripts/audition-melato.py --manifest experiments/melato_corpus_manifest.json --master-root ~/melato-corpus/fidelis --skip-missing --backend realesrgan_ncnn --model-id <candidate> --detail-blend-weight 0.6` (`0bba1c8`), all three pinned NCNN candidates were auditioned live on `mel_028` (`509182202_1792638061047024.jpg`, `941×1672 -> 3764×6688`, `stripe_seam`, `shoe_construction`, and `velvet_interior` ROIs):
+
+| Candidate | Weights SHA-256 (`.bin`) | Locked Pixel Mismatches | Interior Texture | Oversharpen Restraint | Fabric Weave | Outcome |
+| :--- | :--- | :---: | :---: | :---: | :---: | :--- |
+| `RealeSR-general-v3` (`BSD-3-Clause`) | `01450f4a...` | `0` | Fail | Pass | Fail | `FAIL_SMOOTHING_REGRESSION` (passed `5/8` local Melato portrait/apparel masters overall) |
+| `RealSR-DF2K` (terms unverified) | `a3f5eb53...` | `0` | Pass (`1.30×` var) | Pass (`0.0003` frac) | Fail (`0.803` FFT) | `FAIL_FAITHFULNESS` |
+| `ESRGAN-Remacri` (eval only) | `a43be595...` | `0` | Pass (`2.67×` var) | Fail (`0.140` frac) | Pass (`0.988` FFT) | `FAIL_SHARPENING_ONLY` |
+
+Off-repo receipts are stored under `~/melato-corpus/fidelis/release-evidence/0bba1c8/mel028-df2k/` and `mel028-remacri/` (plus `7d97abd/melato-8-masters-realesr/`). `RealeSR-general-v3` remains the selected commercial-cleared precision base (`BSD-3-Clause`); `RealSR-DF2K` and `ESRGAN-Remacri` stay excluded from distribution until upstream terms are cleared.

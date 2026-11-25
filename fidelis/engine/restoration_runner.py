@@ -537,7 +537,7 @@ def _build_hybrid_backend(options: Mapping[str, Any]) -> Any:
         )
     realesr_kwargs = {
         key: options[key]
-        for key in _REALESR_OPTION_KEYS - {"model_id"}
+        for key in _REALESR_OPTION_KEYS
         if key in options
     }
     realesr_backend = RealESRGANNCNNBackend(**realesr_kwargs)

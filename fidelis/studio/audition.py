@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import html
 import json
+import re
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +24,26 @@ from fidelis.engine.restoration_runner import (
 )
 from fidelis.eval.benchmark_suite import BenchmarkSuite
 from fidelis.eval.comparators import build_blind_pairwise_manifest
+from fidelis.postprocess.roi_protection import VALID_POLICIES, VALID_ROI_KINDS
+
+_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+
+_MANIFEST_ROI_TYPE_TO_KIND: dict[str, str] = {
+    "identity_landmark": "identity",
+    "skin_zone": "skin",
+    "hair_edge": "hair",
+    "garment_fit": "fabric",
+    "textile_weave": "fabric",
+    "logo": "logo",
+    "text": "text",
+    "care_label": "text",
+    "zipper": "seam",
+    "stitch": "seam",
+    "hardware": "hardware",
+    "background_edge": "background",
+    "alpha_edge": "alpha_boundary",
+    "shadow_rolloff": "shadow",
+}
 
 
 def classify_audition_outcome(detail_metrics: Mapping[str, Any]) -> dict[str, Any]:
@@ -721,3 +744,445 @@ def run_model_vs_bicubic_audition(
         report["report_html_path"] = str(html_path)
 
     return report
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(65536), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _resolve_safe_master_file(master_root: Path, filename: str) -> Path:
+    if not isinstance(filename, str) or not filename.strip():
+        raise ValueError("Off-repo manifest entry requires a non-empty filename")
+    rel = Path(filename)
+    if rel.is_absolute() or ".." in rel.parts:
+        raise ValueError(f"Unsafe off-repo filename {filename!r}")
+    root_resolved = master_root.resolve()
+    candidate = root_resolved / rel
+    if not candidate.parent.resolve().is_relative_to(root_resolved):
+        raise ValueError(f"Off-repo filename escapes master root: {filename!r}")
+    if candidate.exists() and not candidate.resolve().is_relative_to(root_resolved):
+        raise ValueError(f"Off-repo symlink escapes master root: {filename!r}")
+    return candidate
+
+
+def _resolve_manifest_entry_source(
+    raw_entry: Mapping[str, Any],
+    *,
+    case_id: str,
+    asset_root: Path | None,
+    master_root: Path | None,
+) -> tuple[Path, str | None, bool]:
+    """Return (resolved_path, expected_sha256, is_off_repo)."""
+    if raw_entry.get("source_path"):
+        src_p = Path(str(raw_entry["source_path"]))
+        if asset_root is not None and not src_p.is_absolute():
+            src_p = asset_root / src_p
+        return src_p, raw_entry.get("source_sha256"), False
+
+    source_obj = raw_entry.get("source")
+    if isinstance(source_obj, Mapping):
+        if source_obj.get("path"):
+            src_p = Path(str(source_obj["path"]))
+            if asset_root is not None and not src_p.is_absolute():
+                src_p = asset_root / src_p
+            return src_p, source_obj.get("sha256"), False
+        if source_obj.get("storage") == "off_repo" or source_obj.get("filename"):
+            if master_root is None:
+                raise ValueError(
+                    f"{case_id}: --master-root is required to resolve off-repo source"
+                )
+            filename = source_obj.get("filename")
+            if not filename:
+                raise ValueError(f"{case_id}: off-repo entry has no filename")
+            return (
+                _resolve_safe_master_file(master_root, str(filename)),
+                source_obj.get("sha256"),
+                True,
+            )
+
+    if raw_entry.get("filename"):
+        if master_root is None:
+            raise ValueError(
+                f"{case_id}: --master-root is required to resolve off-repo asset"
+            )
+        return (
+            _resolve_safe_master_file(master_root, str(raw_entry["filename"])),
+            raw_entry.get("sha256"),
+            True,
+        )
+
+    raise KeyError(f"Case {case_id!r} missing 'source_path', 'source', or 'filename'")
+
+
+def _resolve_roi_kind_and_policy(
+    roi: Mapping[str, Any], *, case_id: str, rid: str
+) -> tuple[str, str]:
+    raw_kind = roi.get("kind")
+    if isinstance(raw_kind, str) and raw_kind in VALID_ROI_KINDS:
+        kind = raw_kind
+    else:
+        raw_type = roi.get("roi_type")
+        if isinstance(raw_type, str) and raw_type in VALID_ROI_KINDS:
+            kind = raw_type
+        elif isinstance(raw_type, str) and raw_type in _MANIFEST_ROI_TYPE_TO_KIND:
+            kind = _MANIFEST_ROI_TYPE_TO_KIND[raw_type]
+        else:
+            raise ValueError(
+                f"{case_id}: ROI {rid} has unsupported kind/roi_type {raw_type or raw_kind!r}"
+            )
+
+    raw_policy = roi.get("policy")
+    if isinstance(raw_policy, str) and raw_policy in VALID_POLICIES:
+        policy = raw_policy
+    elif isinstance(roi.get("must_lock_base"), bool):
+        policy = "preserve" if roi["must_lock_base"] else "texture_allowed"
+    elif kind in ("hardware", "seam", "logo", "text", "identity", "alpha_boundary"):
+        policy = "preserve"
+    else:
+        policy = "texture_allowed"
+    return kind, policy
+
+
+def _convert_bbox_norm_to_rect(
+    bbox_norm: Any, *, case_id: str, rid: str, image_size: tuple[int, int]
+) -> list[int]:
+    if bbox_norm is None:
+        raise ValueError(f"{case_id}: ROI {rid} has null bbox_norm")
+    if (
+        not isinstance(bbox_norm, (list, tuple))
+        or len(bbox_norm) != 4
+        or any(isinstance(v, bool) or not isinstance(v, (int, float)) for v in bbox_norm)
+    ):
+        raise ValueError(f"{case_id}: ROI {rid} bbox_norm must be [x0, y0, x1, y1]")
+    x0, y0, x1, y1 = [float(v) for v in bbox_norm]
+    if not (0.0 <= x0 < x1 <= 1.0 and 0.0 <= y0 < y1 <= 1.0):
+        raise ValueError(f"{case_id}: ROI {rid} bbox_norm out of [0,1] bounds: {bbox_norm!r}")
+
+    w, h = image_size
+    px = max(0, min(w - 1, round(x0 * w)))
+    py = max(0, min(h - 1, round(y0 * h)))
+    x2 = max(px + 1, min(w, round(x1 * w)))
+    y2 = max(py + 1, min(h, round(y1 * h)))
+    return [px, py, x2 - px, y2 - py]
+
+
+def _convert_manifest_rois(
+    raw_entry: Mapping[str, Any], *, case_id: str, image_path: Path
+) -> list[dict[str, Any]]:
+    raw_rois = raw_entry.get("rois")
+    if raw_rois is None:
+        raw_rois = raw_entry.get("critical_rois")
+    if not raw_rois:
+        return []
+    if not isinstance(raw_rois, Sequence) or isinstance(raw_rois, (str, bytes)):
+        raise ValueError(f"{case_id}: ROIs must be a sequence")
+
+    needs_dims = any(
+        isinstance(r, Mapping) and "rect" not in r and "bbox" not in r and "bbox_norm" in r
+        for r in raw_rois
+    )
+    image_size: tuple[int, int] | None = None
+    if needs_dims:
+        with Image.open(image_path) as img:
+            image_size = img.size
+
+    converted: list[dict[str, Any]] = []
+    for idx, roi in enumerate(raw_rois):
+        if not isinstance(roi, Mapping):
+            raise ValueError(f"{case_id}: ROI[{idx}] must be a mapping")
+        rid = str(roi.get("id") or roi.get("roi_id") or f"roi_{idx}").strip() or f"roi_{idx}"
+        kind, policy = _resolve_roi_kind_and_policy(roi, case_id=case_id, rid=rid)
+        item: dict[str, Any] = {
+            "id": rid,
+            "kind": kind,
+            "policy": policy,
+            "override": roi.get("override"),
+            "label": str(roi.get("label", rid)),
+        }
+        if "rect" in roi:
+            item["rect"] = list(roi["rect"])
+        elif "bbox" in roi:
+            item["bbox"] = list(roi["bbox"])
+        elif "bbox_norm" in roi:
+            if image_size is None:
+                raise RuntimeError(f"{case_id}: image dimensions unavailable for bbox_norm")
+            item["rect"] = _convert_bbox_norm_to_rect(
+                roi.get("bbox_norm"), case_id=case_id, rid=rid, image_size=image_size
+            )
+        else:
+            raise ValueError(f"{case_id}: ROI {rid} missing rect, bbox, or bbox_norm")
+        converted.append(item)
+    return converted
+
+
+def _extract_manifest_entries(
+    manifest: Mapping[str, Any] | Sequence[Mapping[str, Any]],
+) -> list[Mapping[str, Any]]:
+    if isinstance(manifest, Mapping):
+        if isinstance(manifest.get("cases"), list):
+            return manifest["cases"]
+        if isinstance(manifest.get("assets"), list):
+            return manifest["assets"]
+        raise ValueError("Manifest must contain a 'cases' or 'assets' list")
+    if isinstance(manifest, Sequence) and not isinstance(manifest, (str, bytes)):
+        return list(manifest)
+    raise ValueError("Manifest must be a mapping or list of cases")
+
+
+def _verify_expected_sha(src_path: Path, expected_sha: Any, *, case_id: str) -> str | None:
+    if expected_sha is None:
+        return None
+    sha_norm = str(expected_sha).strip().lower()
+    if not _SHA256_RE.fullmatch(sha_norm):
+        raise ValueError(f"{case_id}: invalid expected sha256 {expected_sha!r}")
+    actual_sha = _sha256_file(src_path)
+    if actual_sha != sha_norm:
+        raise ValueError(f"{case_id}: source SHA-256 mismatch ({actual_sha} != {sha_norm})")
+    return sha_norm
+
+
+@dataclass(frozen=True)
+class ManifestLoadOptions:
+    """Configuration options for manifest-driven audition case loading."""
+
+    scale: int = 4
+    asset_root: str | Path | None = None
+    master_root: str | Path | None = None
+    split: str | None = None
+    case_ids: Sequence[str] = ()
+    skip_missing: bool = False
+    exclude_synthetic: bool = True
+    default_split: str | None = None
+
+
+def _check_manifest_entry_eligibility(
+    raw_entry: Mapping[str, Any],
+    cid: str,
+    *,
+    skip_missing: bool,
+    exclude_synthetic: bool,
+) -> str | None:
+    if exclude_synthetic and (
+        raw_entry.get("synthetic") is True or raw_entry.get("ground_truth_eligible") is False
+    ):
+        return "synthetic_excluded"
+
+    if raw_entry.get("availability") == "missing":
+        if skip_missing:
+            return "source_missing"
+        raise FileNotFoundError(f"{cid}: manifest marks availability='missing'")
+
+    rights_obj = raw_entry.get("rights")
+    if isinstance(rights_obj, Mapping) and rights_obj.get("cleared") is False:
+        if skip_missing:
+            return "rights_uncleared"
+        raise ValueError(f"{cid}: rights.cleared is False")
+
+    return None
+
+
+def _resolve_verified_entry_source(
+    raw_entry: Mapping[str, Any],
+    cid: str,
+    *,
+    asset_root: Path | None,
+    master_root: Path | None,
+    skip_missing: bool,
+) -> tuple[Path | None, str | None, bool, str | None]:
+    try:
+        src_path, expected_sha, is_off_repo = _resolve_manifest_entry_source(
+            raw_entry, case_id=cid, asset_root=asset_root, master_root=master_root
+        )
+    except KeyError:
+        if skip_missing:
+            return None, None, False, "source_missing"
+        raise
+
+    if not src_path.is_file():
+        if skip_missing:
+            return None, None, False, "source_missing"
+        raise FileNotFoundError(f"{cid}: source file missing: {src_path}")
+
+    sha_norm = _verify_expected_sha(src_path, expected_sha, case_id=cid)
+    return src_path, sha_norm, is_off_repo, None
+
+
+def _convert_entry_rois_or_skip(
+    raw_entry: Mapping[str, Any],
+    cid: str,
+    src_path: Path,
+    *,
+    skip_missing: bool,
+) -> tuple[list[dict[str, Any]] | None, str | None]:
+    try:
+        rois = _convert_manifest_rois(raw_entry, case_id=cid, image_path=src_path)
+    except ValueError as exc:
+        if skip_missing and "null bbox_norm" in str(exc):
+            return None, "roi_unannotated"
+        raise
+    return rois, None
+
+
+def _build_manifest_case(
+    raw_entry: Mapping[str, Any],
+    *,
+    cid: str,
+    entry_split: str,
+    src_path: Path,
+    rois: list[dict[str, Any]],
+    scale: int,
+    off_repo_sha: str | None = None,
+) -> dict[str, Any]:
+    case_dict: dict[str, Any] = {
+        "id": cid,
+        "source_path": str(src_path),
+        "scale": int(raw_entry.get("scale", scale)),
+        "roi_space": str(raw_entry.get("roi_space", "source")),
+        "split": entry_split,
+        "category": str(raw_entry.get("category", "model_apparel")),
+        "rois": rois,
+    }
+    if raw_entry.get("target_dimensions") is not None:
+        case_dict["target_dimensions"] = raw_entry["target_dimensions"]
+    if off_repo_sha is not None:
+        case_dict["source_sha256"] = off_repo_sha
+    return case_dict
+
+
+def _normalize_manifest_entry(
+    raw_entry: Mapping[str, Any],
+    *,
+    cid: str,
+    entry_split: str,
+    opts: ManifestLoadOptions,
+    asset_root: Path | None,
+    master_root: Path | None,
+) -> tuple[dict[str, Any] | None, str | None]:
+    """Validate and convert a single manifest entry, returning (case_dict, skip_reason)."""
+    ineligible_reason = _check_manifest_entry_eligibility(
+        raw_entry, cid, skip_missing=opts.skip_missing, exclude_synthetic=opts.exclude_synthetic
+    )
+    if ineligible_reason is not None:
+        return None, ineligible_reason
+
+    src_path, sha_norm, is_off_repo, src_skip = _resolve_verified_entry_source(
+        raw_entry, cid, asset_root=asset_root, master_root=master_root, skip_missing=opts.skip_missing
+    )
+    if src_skip is not None or src_path is None:
+        return None, src_skip
+
+    rois, roi_skip = _convert_entry_rois_or_skip(
+        raw_entry, cid, src_path, skip_missing=opts.skip_missing
+    )
+    if roi_skip is not None or rois is None:
+        return None, roi_skip
+
+    return (
+        _build_manifest_case(
+            raw_entry,
+            cid=cid,
+            entry_split=entry_split,
+            src_path=src_path,
+            rois=rois,
+            scale=opts.scale,
+            off_repo_sha=sha_norm if is_off_repo else None,
+        ),
+        None,
+    )
+
+
+def _extract_manifest_case_id(raw_entry: Any) -> str:
+    if not isinstance(raw_entry, Mapping):
+        raise ValueError("Manifest entry must be a JSON object")
+    cid = str(
+        raw_entry.get("id") or raw_entry.get("case_id") or raw_entry.get("asset_id") or ""
+    ).strip()
+    if not cid:
+        raise KeyError("Manifest entry missing 'id', 'case_id', or 'asset_id'")
+    return cid
+
+
+def _collect_manifest_cases(
+    raw_entries: Sequence[Mapping[str, Any]],
+    opts: ManifestLoadOptions,
+    *,
+    default_split: str,
+) -> tuple[list[dict[str, Any]], int, dict[str, int], set[str]]:
+    a_root = Path(opts.asset_root) if opts.asset_root is not None else None
+    m_root = Path(opts.master_root) if opts.master_root is not None else None
+    wanted_ids = {str(cid).strip() for cid in opts.case_ids if str(cid).strip()}
+    split_filter = None if opts.split in (None, "", "all") else str(opts.split)
+
+    cases: list[dict[str, Any]] = []
+    reason_counts: dict[str, int] = {}
+    skipped_count = 0
+    seen_ids: set[str] = set()
+
+    for raw_entry in raw_entries:
+        cid = _extract_manifest_case_id(raw_entry)
+        seen_ids.add(cid)
+        if wanted_ids and cid not in wanted_ids:
+            continue
+        entry_split = str(raw_entry.get("split") or default_split)
+        if split_filter is not None and entry_split != split_filter:
+            continue
+
+        case_dict, skip_reason = _normalize_manifest_entry(
+            raw_entry,
+            cid=cid,
+            entry_split=entry_split,
+            opts=opts,
+            asset_root=a_root,
+            master_root=m_root,
+        )
+        if skip_reason is not None:
+            skipped_count += 1
+            reason_counts[skip_reason] = reason_counts.get(skip_reason, 0) + 1
+        elif case_dict is not None:
+            cases.append(case_dict)
+
+    return cases, skipped_count, reason_counts, seen_ids
+
+
+def load_audition_cases_from_manifest(
+    manifest: Mapping[str, Any] | Sequence[Mapping[str, Any]],
+    *,
+    options: ManifestLoadOptions | None = None,
+    asset_root: str | Path | None = None,
+    master_root: str | Path | None = None,
+    split: str | None = None,
+    skip_missing: bool = False,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Normalize audition, corpus_manifest, or melato_corpus_manifest entries into audition cases."""
+    opts = options or ManifestLoadOptions(
+        asset_root=asset_root,
+        master_root=master_root,
+        split=split,
+        skip_missing=skip_missing,
+    )
+    default_split = opts.default_split or (
+        "calibration" if isinstance(manifest, Mapping) and "assets" in manifest else "held_out"
+    )
+    raw_entries = _extract_manifest_entries(manifest)
+    cases, skipped_count, reason_counts, seen_ids = _collect_manifest_cases(
+        raw_entries, opts, default_split=default_split
+    )
+
+    wanted_ids = {str(cid).strip() for cid in opts.case_ids if str(cid).strip()}
+    missing_requested = sorted(wanted_ids - seen_ids)
+    if missing_requested:
+        raise ValueError(f"Requested case IDs not found in manifest: {missing_requested}")
+    if not cases:
+        raise ValueError("No runnable audition cases matched manifest filters")
+
+    return cases, {
+        "total_entries": len(raw_entries),
+        "selected_count": len(cases),
+        "skipped_count": skipped_count,
+        "skipped_reasons": reason_counts,
+        "selected_ids": [c["id"] for c in cases],
+    }
