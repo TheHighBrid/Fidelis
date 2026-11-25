@@ -1,5 +1,30 @@
 # Current progress and evidence checkpoint
 
+> **F12 / MEL-63 silk charmeuse & bouclé tweed corpus fill (2026-11-25):**
+> Based on `main` `1e40d8b`, populated two visually inspected, SHA-256-verified
+> Public-Domain off-repo textile photographs in `experiments/corpus_manifest.json`:
+> (1) `tex_charmeuse_satin` (`calibration`, `textiles`) using Rijksmuseum
+> `BK-1978-283-A` (*Bruidsjapon van crème charmeuse zijde met lange sleep*,
+> 1939, Public domain, off-repo `pd_rijksmuseum_charmeuse_bk_1978_283_a.jpg`,
+> `5588×7231` untagged sRGB 8-bit, SHA-256
+> `6beccb70ccbdfc9cc9f01557e4df344ff73910b912cc1ab58eb99be2850cface`,
+> `satin_sheen` `bbox_norm [0.34, 0.45, 0.66, 0.88]`), and (2) `tex_boucle_tweed`
+> (`calibration`, `textiles`) using Wikimedia Commons `File:Boucle_fabric.jpg`
+> (`PD-self`, `70% wool / 25% acrylic / 5% nylon`, off-repo
+> `pd_wikimedia_boucle_fabric.jpg`, `895×677` sRGB 8-bit, SHA-256
+> `8f8cae1fb04202a28a9a92a616e70eeefc33ed1d288aa83fa2bb5bad0c1ab765`,
+> `tweed_dye` `bbox_norm [0.1, 0.1, 0.9, 0.9]`). Frozen 60-case manifest
+> readiness is now **45/60** (`calibration 24/30`, `held_out 21/30`; `textiles
+> 9/12`, `macros 9/12`, `packshot_edge 9/12`, `portraits 10/12`, `apparel_model
+> 8/12`; `15` missing slots retained without weakening material, construction,
+> colour, or model-release requirements). Preserved the historical Poly Haven
+> `wool_boucle` candidate rejection in
+> `experiments/corpus_material_candidate_reviews.json`. Remaining external gates:
+> `F06` live SDXL GPU workflow/weights, remaining `15` corpus slots & paid
+> Clarity/Krea comparator runs (`F12`), 30-case blind dual-reviewer ballots &
+> owner creative signoff (`F13`), physical Android/iOS touch review (`F08`), and
+> dual-owner release signoff (`F16`).
+
 > **F13 / F05 multi-category calibration & SwinIR provenance review (2026-11-25):**
 > Pinned `swinir-lightweight-div2k-x4` (`09fad24e32ae62722e1a055efde9921328f4137981bab0a42a4a3a806306c58e`) in `config/model-provenance-v1.json` with `commercial_status: "unclear_terms_review_required"` and `production_terms_cleared: false`: the SwinIR repository declares `Apache-2.0` (`https://github.com/JingyunLiang/SwinIR/blob/main/LICENSE`), and the official DIV2K page (`https://data.vision.ee.ethz.ch/cvl/DIV2K/`, License section) limits dataset access to academic research; neither cited primary source explicitly states that the released checkpoint is itself non-commercial or necessarily requires retraining, so checkpoint/data obligations remain unresolved and commercial shipping stays excluded. Also executed side-by-side Apple M1 calibration (`$0`) for `SwinIR-lightweight-DIV2K-x4` (MPS tiled `tile_core=192, tile_context=32`) vs `RealeSR-general-v3` on frozen `macros` calibration case `mac_two_way_brass_zip` and the `cc0_polyhaven_wool_boucle_2k.jpg` looped-knit candidate diagnostic (note: `tex_boucle_tweed` was restored to missing in `1e28ab8`, so the Poly Haven wool-bouclé run is a textile candidate diagnostic only and does not claim fixed-slot coverage). Both candidates preserved `0` locked pixel mismatches but reported `FAIL_SHARPENING_ONLY` (`SwinIR`: `p95 35.00` / `frac 0.2789` on raw `zip_teeth` and `5.71` / `0.0987` on `wool_boucle`; `RealeSR`: `p95 19.98` / `0.1640` on raw `zip_teeth` and `15.00` / `0.2886` + `37/81,408` drift blocks on `wool_boucle`), confirming neither promotes without structural locks and further tuning. See [SwinIR calibration checkpoint](checkpoints/2026-11-25-swinir-calibration.md). Remaining `E2..E4` external gates stay open: live GPU ComfyUI SDXL workflow (`F06`), 60-case corpus completion (`43/60`) & Clarity/Krea APIs (`F12`), 30-case blind dual-reviewer ballots & owner creative signoff (`F13`), physical mobile touch review (`F08`), and dual-owner release signoff (`F16`).
 

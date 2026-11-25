@@ -1104,24 +1104,27 @@
       "case_id": "tex_charmeuse_satin",
       "category": "textiles",
       "split": "calibration",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Ivory charmeuse satin bias drape with subtle highlight roll-off",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "pd_rijksmuseum_verified",
+        "license_id": "Public-Domain",
         "model_release_required": false,
         "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "notes": "Off-repo Public-Domain photograph from the Rijksmuseum (Bruidsjapon van creme charmeuse zijde met lange sleep, May 1939, BK-1978-283-A, https://www.rijksmuseum.nl/en/collection/BK-1978-283-A); visually inspected full-frame and 1:1 native crops confirming cream/ivory silk charmeuse bias-cut drape with subtle highlight roll-off."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "pd_rijksmuseum_charmeuse_bk_1978_283_a.jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "6beccb70ccbdfc9cc9f01557e4df344ff73910b912cc1ab58eb99be2850cface",
+        "width": 5588,
+        "height": 7231,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT"
       },
       "target": {
         "scale": null,
@@ -1135,9 +1138,16 @@
           "label": "Specular fold highlight without plasticizing",
           "roi_type": "textile_weave",
           "must_lock_base": false,
-          "bbox_norm": null
+          "bbox_norm": [
+            0.34,
+            0.45,
+            0.66,
+            0.88
+          ]
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false
     },
     {
       "case_id": "tex_cashmere_cable_knit",
@@ -1323,24 +1333,27 @@
       "case_id": "tex_boucle_tweed",
       "category": "textiles",
       "split": "calibration",
-      "availability": "missing",
+      "availability": "available",
       "expected_subject": "Multicolour boucle tweed fabric testing yarn color fidelity",
       "rights": {
-        "cleared": false,
-        "permission_basis": null,
-        "license_id": null,
+        "cleared": true,
+        "permission_basis": "pd_wikimedia_verified",
+        "license_id": "Public-Domain",
         "model_release_required": false,
         "model_release_verified": false,
-        "notes": "Pending licensed/consented source acquisition."
+        "notes": "Off-repo Public-Domain (PD-self) macro photograph from Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Boucle_fabric.jpg, 70% wool / 25% acrylic / 5% nylon); visually inspected confirming woven multicolour looped boucle tweed yarns."
       },
       "source": {
+        "storage": "off_repo",
+        "filename": "pd_wikimedia_boucle_fabric.jpg",
         "relative_path": null,
-        "sha256": null,
-        "width": null,
-        "height": null,
-        "color_space": null,
-        "bit_depth": null,
-        "has_alpha": null
+        "sha256": "8f8cae1fb04202a28a9a92a616e70eeefc33ed1d288aa83fa2bb5bad0c1ab765",
+        "width": 895,
+        "height": 677,
+        "color_space": "sRGB",
+        "bit_depth": 8,
+        "has_alpha": false,
+        "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT"
       },
       "target": {
         "scale": null,
@@ -1354,9 +1367,16 @@
           "label": "Interwoven coloured slub yarns",
           "roi_type": "textile_weave",
           "must_lock_base": false,
-          "bbox_norm": null
+          "bbox_norm": [
+            0.1,
+            0.1,
+            0.9,
+            0.9
+          ]
         }
-      ]
+      ],
+      "ground_truth_eligible": true,
+      "synthetic": false
     },
     {
       "case_id": "tex_held_linen_slub",
