@@ -1,5 +1,14 @@
 # Current progress and evidence checkpoint
 
+> **Native execution / integrity follow-up (2026-11-25):** #133 merged at
+> `5099a7a` after 647 local tests (four skips) and required CI. Actual M1 MPS
+> twill inference saved separate 198.7MP candidate/bicubic PNGs; evaluation was
+> prematurely interrupted by the agent after an incorrect report-path inference,
+> with no quality verdict. Nine approved exact assets are recovered (new mel096
+> is synthetic, not GT). Source-hash split exposure needs #134 preflight work;
+> #135 tracks raw checkpoints/cached reading. Fixed corpus availability remains
+> 45/60. [Evidence and next actions](checkpoints/2026-11-25-native-execution-evidence.md).
+
 > **F13 weave precision correction (#129, 2026-11-25):** Retained disk-backed
 > FFT processing while restoring the original shifted C-order NumPy sums, BLAS
 > norms and scalar precision. In a 2048×3072 M1 probe, previous bounded coherence
