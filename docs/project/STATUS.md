@@ -1,5 +1,14 @@
 # Current progress and evidence checkpoint
 
+> **F13 audition geometry integrity (2026-11-24):** The detail-only audition
+> classifier could report a passing material result despite a failing final-image
+> drift screen. Both single-image and batch audition now block that pass when
+> final drift is `FAIL` or protected-pixel mismatches are nonzero. Existing detail
+> failures remain failures with the geometry reason added. Thresholds and fixed
+> corpus criteria are unchanged. The real IMG_0932 comparison remains a failed
+> diagnostic: its default central fabric ROI covers portrait/background content
+> and supplies no seam/hardware evidence; it is not a qualified fabric case.
+
 > **Clean-install startup verification (2026-11-24):** Archive for `c04aeb2`
 > passed the packaging contents audit. A fresh Python 3.12 environment installed
 > the documented dependencies. Web UI integration initially exceeded the old

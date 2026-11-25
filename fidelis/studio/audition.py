@@ -76,6 +76,23 @@ def classify_audition_outcome(detail_metrics: Mapping[str, Any]) -> dict[str, An
     }
 
 
+def _screened_audition_outcome(detail_metrics, drift_report):
+    """Keep final-image geometry failures from becoming detail-only passes."""
+    outcome = classify_audition_outcome(detail_metrics)
+    if not isinstance(drift_report, dict):
+        return outcome
+    locked_mismatches = drift_report.get("locked_pixel_mismatches", 0)
+    failed = drift_report.get("overall_verdict") == "FAIL" or locked_mismatches > 0
+    outcome["gate_summary"]["geometry"] = not failed
+    if failed:
+        if outcome["passed"]:
+            outcome["outcome"] = "FAIL_FAITHFULNESS"
+        outcome["passed"] = False
+        reason = "protected_pixel_mismatch" if locked_mismatches > 0 else "geometric_drift"
+        outcome["failure_reasons"].append(reason)
+    return outcome
+
+
 def generate_side_by_side_crops(
     candidate_rgb: np.ndarray,
     bicubic_rgb: np.ndarray,
@@ -369,7 +386,7 @@ def _run_single_case_audition(
         flat_metrics["halo_restraint_passed"] = False
         flat_metrics["all_detail_gates_passed"] = False
 
-    outcome = classify_audition_outcome(detail_metrics)
+    outcome = _screened_audition_outcome(detail_metrics, result.drift_report)
 
     crops = generate_side_by_side_crops(
         result.image,
@@ -598,7 +615,7 @@ def run_model_vs_bicubic_audition(
             detail_metrics["oversharpening_restraint"] = raw_os
             detail_metrics["oversharpen_restraint_passed"] = False
             detail_metrics["all_detail_gates_passed"] = False
-        outcome = classify_audition_outcome(detail_metrics)
+        outcome = _screened_audition_outcome(detail_metrics, result.drift_report)
         verdict = outcome["outcome"]
         outcome_counts[verdict] = outcome_counts.get(verdict, 0) + 1
 

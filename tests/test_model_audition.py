@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 import numpy as np
 from PIL import Image
@@ -37,6 +38,43 @@ def _make_source_and_candidate(h: int = 24, w: int = 24) -> tuple[np.ndarray, np
 
 
 class ModelAuditionTests(unittest.TestCase):
+    def test_final_drift_failure_cannot_pass_detail_gates(self) -> None:
+        passed_detail = {
+            "status": "measured", "interior_texture_passed": True,
+            "oversharpen_restraint_passed": True, "fabric_weave_passed": True,
+            "hardware_seam_passed": True, "all_detail_gates_passed": True,
+        }
+        source = np.full((8, 8, 3), 128, dtype=np.uint8)
+        candidate = np.full((32, 32, 3), 128, dtype=np.uint8)
+        for verdict, mismatches, reason in (
+            ("FAIL", 0, "geometric_drift"),
+            ("PASS", 1, "protected_pixel_mismatch"),
+        ):
+            for batch in (False, True):
+                with self.subTest(verdict=verdict, batch=batch), tempfile.TemporaryDirectory() as tmp:
+                    root = Path(tmp)
+                    src_path, candidate_path = root / "source.png", root / "candidate.png"
+                    Image.fromarray(source).save(src_path)
+                    Image.fromarray(candidate).save(candidate_path)
+                    with patch("fidelis.engine.restoration_runner.screen_internal_drift", return_value={
+                        "overall_verdict": verdict, "locked_pixel_mismatches": mismatches,
+                    }), patch("fidelis.studio.audition.BenchmarkSuite.evaluate_4x_detail", return_value=passed_detail.copy()):
+                        if batch:
+                            runner = create_restoration_runner("imported", file_map={"case": candidate_path})
+                            report = run_model_vs_bicubic_audition(
+                                [{"id": "case", "source_path": str(src_path), "rois": []}],
+                                runner, output_dir=root / "out", generate_html=False,
+                            )
+                        else:
+                            report = run_model_vs_bicubic_audition(
+                                source_rgb=source, candidate_4x_rgb=candidate,
+                                rois=[], output_dir=root / "out", generate_html=False,
+                            )
+                    outcome = report["cases"][0]["outcome"]
+                    self.assertFalse(report["summary"]["all_passed"])
+                    self.assertEqual(outcome["outcome"], "FAIL_FAITHFULNESS")
+                    self.assertIn(reason, outcome["failure_reasons"])
+
     def test_classify_audition_outcome_all_states(self) -> None:
         p = classify_audition_outcome(
             {
