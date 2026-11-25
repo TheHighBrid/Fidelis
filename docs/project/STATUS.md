@@ -1,5 +1,13 @@
 # Current progress and evidence checkpoint
 
+> **Replacement offline artifact (2026-11-24):** PR #115 merged as `86c4f86`.
+> Rebuilt all three v3.1.0 archives on that candidate and audited contents. The
+> offline archive contains only verified RealeSR-general-v3 weights, BSD notice
+> and provenance; DF2K, Remacri and UltraSharp are explicitly excluded. Packages
+> are retained off-repo under `release-evidence/86c4f86d/packages/`. Earlier
+> `7d97abdc` offline archive is superseded and must not be distributed. Fully
+> disconnected runtime/dependency installation remains a separate open gate.
+
 > **Offline redistribution blocker (2026-11-24):** Inspection of the rebuilt
 > `7d97abdc` offline archive found DF2K, Remacri and UltraSharp despite unresolved
 > production terms in the catalog. Contents auditing does not cover licensing.
