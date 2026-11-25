@@ -1,5 +1,25 @@
 # Current progress and evidence checkpoint
 
+> **F12 / MEL-63 Cooper Hewitt silk jacquard fill (2026-11-25):** Populated
+> `tex_held_jacquard_brocade` (`held_out`, `textiles`) with a visually inspected,
+> SHA-256-verified Public-Domain photograph from the Cooper Hewitt, Smithsonian
+> Design Museum (*Fabbriche Italiane di Seterie, Como*, 1870–79,
+> `CH 18766647-30`, off-repo `pd_cooperhewitt_silk_jacquard_18766647_30.jpg`,
+> `3774×4096` sRGB 8-bit, SHA-256
+> `2c52643ae2ca641f6d11c536b76d58ab09037be96638c03281224e5006df7090`,
+> `jacquard_motif` `bbox_norm [0.16, 0.08, 0.88, 0.94]`), explicitly documented
+> as jacquard-woven silk with repeating tonal floral motifs against a satin
+> ground. Frozen 60-case manifest availability is now **42/60** (`calibration
+> 21/30`, `held_out 21/30`; `textiles 6/12`, `macros 9/12`, `18` missing slots
+> retained rather than forcing weak material/release matches). Verified via
+> `validate-corpus-manifest.py --verify-files`, `615` Python unit tests
+> (`unittest discover`), `tests/test-web-ui.sh`, `tests/smoke-test.sh`, and
+> `git diff --check`. External gates remain open: `F06` live SDXL GPU
+> workflow/weights (`ComfyUI 0.46.0` on 8 GB Apple M1 has no SDXL/ControlNet
+> checkpoints), remaining `18` corpus slots & paid Clarity/Krea comparator runs
+> (`F12`), 30-case blind dual-reviewer ballots (`F13`), physical Android/iOS
+> touch review (`F08`), and owner creative/release signoff (`F16`).
+
 > **Construction-fit audit continuation (2026-11-25):** The downloaded floral/
 > alphabet sampler visibly uses a plain woven backing rather than the frozen
 > heavyweight-fleece monogram subject. Poly Haven `wool_boucle` metadata describes
