@@ -11,11 +11,16 @@ from fidelis.eval.roi_normalization import normalize_rois_to_target as _normaliz
 
 _TEXTURE_ROI_KINDS = frozenset({"fabric", "crema", "skin", "hair"})
 _CONTOUR_ROI_KINDS = frozenset({"hardware", "seam", "logo", "text"})
+_SPECTRAL_MEMORY_THRESHOLD = 4_000_000
 
 
 def _bt709_luminance(rgb: np.ndarray) -> np.ndarray:
-    arr = rgb.astype(np.float32)
-    return 0.2126 * arr[:, :, 0] + 0.7152 * arr[:, :, 1] + 0.0722 * arr[:, :, 2]
+    # Preserve float32 arithmetic without a full-frame RGB float32 temporary.
+    out = np.empty(rgb.shape[:2], dtype=np.float32)
+    for y in range(0, rgb.shape[0], 128):
+        arr = rgb[y:y + 128].astype(np.float32)
+        out[y:y + 128] = 0.2126 * arr[:, :, 0] + 0.7152 * arr[:, :, 1] + 0.0722 * arr[:, :, 2]
+    return out
 
 
 def _radial_frequency_grid(height: int, width: int) -> np.ndarray:
@@ -29,6 +34,31 @@ def _fft_power_spectrum(signal: np.ndarray) -> np.ndarray:
     win = np.outer(np.hanning(h), np.hanning(w)).astype(np.float32)
     spec = np.fft.fftshift(np.fft.fft2(signal * win))
     return (np.abs(spec) ** 2) / max(float(h * w), 1.0)
+
+
+def _spectral_band_means(signal, bands):
+    if signal.size > _SPECTRAL_MEMORY_THRESHOLD:
+        from fidelis.eval.spectral_memory import spectral_band_means
+        return spectral_band_means(signal, bands)
+    power = _fft_power_spectrum(signal)
+    radius = _radial_frequency_grid(*signal.shape)
+    means = {}
+    for name, (low, high, inclusive_low) in bands.items():
+        mask = ((radius >= low) if inclusive_low else (radius > low)) & (radius <= high)
+        means[name] = float(np.mean(power[mask])) if np.any(mask) else 0.0
+    return means
+
+
+def _highpass_statistics(y, mask, bands, *, variance=False):
+    hp = y - cv2.GaussianBlur(y, (0, 0), sigmaX=2.0)
+    samples = hp[mask]
+    var = float(np.var(samples)) if variance else None
+    mean = float(np.mean(samples))
+    del samples
+    # hp is private to this call, so these operations need no extra frame buffers.
+    np.subtract(hp, mean, out=hp)
+    np.multiply(hp, mask, out=hp)
+    return var, _spectral_band_means(hp, bands)
 
 
 def _texture_pool(y_bic, rois):
@@ -70,31 +100,15 @@ def _texture_interior_mask(mag_ref, pool_mask):
 
 
 def _texture_ratios(y_cand, y_bic, interior_mask):
-    h, w = y_bic.shape
-    hp_cand = y_cand - cv2.GaussianBlur(y_cand, (0, 0), sigmaX=2.0)
-    hp_bic = y_bic - cv2.GaussianBlur(y_bic, (0, 0), sigmaX=2.0)
-
-    var_cand = float(np.var(hp_cand[interior_mask]))
-    var_bic = float(np.var(hp_bic[interior_mask]))
+    bands = {"mid": (0.06, 0.25, True)}
+    var_cand, candidate = _highpass_statistics(y_cand, interior_mask, bands, variance=True)
+    var_bic, baseline = _highpass_statistics(y_bic, interior_mask, bands, variance=True)
     if var_bic < 1e-6 and var_cand < 1e-6:
         var_ratio = 1.0
     else:
         var_ratio = var_cand / max(var_bic, 1e-6)
 
-    sig_cand = (hp_cand - float(np.mean(hp_cand[interior_mask]))) * interior_mask
-    sig_bic = (hp_bic - float(np.mean(hp_bic[interior_mask]))) * interior_mask
-
-    p_cand = _fft_power_spectrum(sig_cand)
-    p_bic = _fft_power_spectrum(sig_bic)
-    r_grid = _radial_frequency_grid(h, w)
-    mid_band = (r_grid >= 0.06) & (r_grid <= 0.25)
-
-    if np.any(mid_band):
-        e_mid_cand = float(np.mean(p_cand[mid_band]))
-        e_mid_bic = float(np.mean(p_bic[mid_band]))
-    else:
-        e_mid_cand = 0.0
-        e_mid_bic = 0.0
+    e_mid_cand, e_mid_bic = candidate["mid"], baseline["mid"]
 
     if e_mid_bic < 1e-9 and e_mid_cand < 1e-9:
         midband_ratio = 1.0
@@ -187,22 +201,11 @@ def _contour_excursion(y_cand, y_bic, contour_band):
 
 
 def _contour_frequency(y_cand, y_bic, contour_band):
-    h, w = y_bic.shape
-    hp_cand = y_cand - cv2.GaussianBlur(y_cand, (0, 0), sigmaX=2.0)
-    hp_bic = y_bic - cv2.GaussianBlur(y_bic, (0, 0), sigmaX=2.0)
-    sig_c = (hp_cand - float(np.mean(hp_cand[contour_band]))) * contour_band
-    sig_b = (hp_bic - float(np.mean(hp_bic[contour_band]))) * contour_band
-
-    p_c = _fft_power_spectrum(sig_c)
-    p_b = _fft_power_spectrum(sig_b)
-    r_grid = _radial_frequency_grid(h, w)
-    nyq_band = (r_grid > 0.25) & (r_grid <= 0.50)
-    mid_band = (r_grid >= 0.06) & (r_grid <= 0.25)
-
-    e_nyq_c = float(np.mean(p_c[nyq_band])) if np.any(nyq_band) else 0.0
-    e_mid_c = float(np.mean(p_c[mid_band])) if np.any(mid_band) else 0.0
-    e_nyq_b = float(np.mean(p_b[nyq_band])) if np.any(nyq_band) else 0.0
-    e_mid_b = float(np.mean(p_b[mid_band])) if np.any(mid_band) else 0.0
+    bands = {"mid": (0.06, 0.25, True), "nyq": (0.25, 0.50, False)}
+    _, candidate = _highpass_statistics(y_cand, contour_band, bands)
+    _, baseline = _highpass_statistics(y_bic, contour_band, bands)
+    e_nyq_c, e_mid_c = candidate["nyq"], candidate["mid"]
+    e_nyq_b, e_mid_b = baseline["nyq"], baseline["mid"]
 
     ratio_c = e_nyq_c / max(e_mid_c, 1e-9)
     ratio_b = e_nyq_b / max(e_mid_b, 1e-9)

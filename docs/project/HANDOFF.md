@@ -1,5 +1,16 @@
 # Fresh-context handoff
 
+## Native-grid evaluation memory · 2026-11-25 · #129
+
+The [memory checkpoint](checkpoints/2026-11-25-evaluation-memory.md) records a
+disk-backed full-grid spectral path, bit-identical chunked luminance and reduced
+F2/F3 temporary arrays. Actual M1 operation probes reduced spectral peak RSS
+from 484,360,192 to 129,286,144 bytes at 2048×3072. Retained guarded zipper
+pixels were evaluated at 4264×6400 in 7.127 s / 1,516,470,272 bytes peak RSS;
+this is a resource probe of identical protected pixels, not a new model pass.
+Original raw model failures remain. #129 is partial: bound remaining material,
+drift and composition buffers before retrying the full 198.7MP twill target.
+
 ## Diagnostic receipt correction · 2026-11-25 · #127
 
 `scripts/audition-melato.py --evaluate-acceptance` now saves
@@ -29,19 +40,25 @@ requirements to fill a slot.
 ## Active v1 evidence recovery · 2026-11-24
 
 Execution remains authorized; creative and production approval remain pending.
-Candidate manifest now identifies main `d6f420cc` with `merged_to_main: true`;
-historical package hashes must be rebuilt and verified for that candidate.
+The package manifest identifies `86c4f86d` with `merged_to_main: true`, retaining
+the redistribution-cleared archives from #115/#116. Newer engineering work
+includes #128 (`83f739a`) and the memory checkpoint above; these archives do not
+include newer code. Rebuild against the eventual frozen release candidate and
+verify its hashes, rather than labelling historical packages current.
 The approved 97 Melato masters have an existing rights receipt in
 `docs/CORPUS_ACQUISITION_PROPOSAL.md`; recover exact bytes by manifest hashes
 from connected Drive rather than requesting renewed rights approval. Local
 inventory currently has 34 unique images and eight inventory SHA matches.
 The remaining specialty slots require material/ROI suitability review.
 
-The local runtime investigation has installed official ComfyUI in isolated
-temporary environments. Torch 2.15.0 reports MPS available and a real MPS tensor
-operation passed on Apple M1. Local servers are reachable on 8188/8189;
-actual image inference and workflow preflight receipts are still being collected.
-Do not continue to classify local worker access as owner-dependent.
+Official ComfyUI was exercised in isolated temporary environments; recorded M1
+MPS inference/preflight and async receipts remain historical device evidence.
+The temporary environments were subsequently lost. On 2026-11-25 the local
+8188/8189 probes both failed to connect; this is current worker health, not a
+retraction of earlier inference. Torch/Spandrel and pinned local weights are
+available in the durable release-agent checkout. Restore a local worker from
+the recorded tooling when needed; worker setup is independent engineering work,
+not an owner-access requirement.
 
 Current signoff policy permits the same person to fill creative-owner and
 release-owner roles; neither final approval has been supplied. Independent F13

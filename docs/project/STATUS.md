@@ -1,5 +1,15 @@
 # Current progress and evidence checkpoint
 
+> **F13 native-grid evaluation memory (#129, 2026-11-25):** Removed full-RGB
+> float32 luminance temporaries, made F2/F3 high-pass evaluation sequential, and
+> added a scratch-backed FFT for large spectra without changing dimensions,
+> windows, frequency bands or thresholds. Actual 2048×3072 M1 spectral probe:
+> peak RSS 484,360,192 -> 129,286,144 bytes; max relative mean difference about
+> 2.8e-8. Retained guarded 4264×6400 zipper pixels completed F2/F3 in 7.127 s,
+> peak RSS 1,516,470,272 bytes. Their inputs are identical after protection;
+> this does not override the raw model's `FAIL_SHARPENING_ONLY` result.
+> [Checkpoint and remaining full-twill work](checkpoints/2026-11-25-evaluation-memory.md).
+
 > **F13 diagnostic receipt correction (#127, 2026-11-25):** Confirmed that the
 > audition CLI filled release receipt fields with placeholder hashes and asserted
 > `recipe_frozen: true` for an unfrozen single-case diagnostic. Replaced these
