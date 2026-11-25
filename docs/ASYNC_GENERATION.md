@@ -138,6 +138,15 @@ ownership, queued/running cancellation, late results, commit races, restart,
 explicit reconciliation, polling timeout, stale revisions, process ownership,
 HTTP responsiveness/origin checks and actual optional-worker server startup.
 
-F07 live acceptance still requires a compatible worker/model and operational
-review. Native crop inspection, browser/device visual acceptance, cache quotas and
-release packaging remain separate work.
+`scripts/qualify-async-queue.py` exercises the real `scripts/web-ui.py` HTTP routes
+(`POST /generations`, `POST .../cancel`, `POST .../resume`, `GET /export`) against
+either an embedded `--fixture` server (`E1_fixture_async_queue_tested`) or a live
+loopback ComfyUI worker (`E2_live_async_queue_verified`), verifying HTTP
+responsiveness, zero protected/unknown pixel drift, scoped cancellation without
+global `/interrupt`, and restart recovery without duplicate `/prompt` submission.
+
+Live Studio queue execution against local ComfyUI `0.46.0` (Apple M1 MPS,
+`realesr-general-x4v3.pth` same-grid graph) passed all three operational scenarios
+(`2026-11-24`); see
+[the F07 live async checkpoint](project/checkpoints/2026-11-24-f07-live-async-qualification.md).
+SDXL texture workflow quality (`F06`) and `E3` visual/device acceptance remain separate.
