@@ -131,9 +131,6 @@ def main() -> None:
                 master_root=args.master_root,
                 split=args.split,
                 skip_missing=args.skip_missing,
-                default_split="calibration"
-                if isinstance(raw_doc, dict) and "assets" in raw_doc
-                else "held_out",
             )
             backend_kwargs: dict = {}
             if args.model_id:

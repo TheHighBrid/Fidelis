@@ -22,6 +22,7 @@ from fidelis.eval.quality_acceptance import (
     evaluate_held_out_acceptance,
 )
 from fidelis.studio.audition import (
+    ManifestLoadOptions,
     load_audition_cases_from_manifest,
     run_model_vs_bicubic_audition,
 )
@@ -318,14 +319,16 @@ def main(argv: list[str] | None = None) -> int:
             )
             cases, manifest_resolution = load_audition_cases_from_manifest(
                 manifest,
-                scale=scale,
-                asset_root=args.root,
-                master_root=args.master_root,
-                split=args.split,
-                case_ids=args.select_id,
-                skip_missing=args.skip_missing,
-                exclude_synthetic=not args.include_synthetic,
-                default_split=default_case_split,
+                options=ManifestLoadOptions(
+                    scale=scale,
+                    asset_root=args.root,
+                    master_root=args.master_root,
+                    split=args.split,
+                    case_ids=args.select_id,
+                    skip_missing=args.skip_missing,
+                    exclude_synthetic=not args.include_synthetic,
+                    default_split=default_case_split,
+                ),
             )
             default_blind_split = (
                 args.split if args.split and args.split != "all" else default_case_split

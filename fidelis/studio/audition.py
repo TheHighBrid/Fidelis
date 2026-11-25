@@ -8,6 +8,7 @@ import html
 import json
 import re
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -944,57 +945,98 @@ def _verify_expected_sha(src_path: Path, expected_sha: Any, *, case_id: str) -> 
     return sha_norm
 
 
-def _normalize_manifest_entry(
+@dataclass(frozen=True)
+class ManifestLoadOptions:
+    """Configuration options for manifest-driven audition case loading."""
+
+    scale: int = 4
+    asset_root: str | Path | None = None
+    master_root: str | Path | None = None
+    split: str | None = None
+    case_ids: Sequence[str] = ()
+    skip_missing: bool = False
+    exclude_synthetic: bool = True
+    default_split: str | None = None
+
+
+def _check_manifest_entry_eligibility(
     raw_entry: Mapping[str, Any],
-    *,
     cid: str,
-    entry_split: str,
-    scale: int,
-    asset_root: Path | None,
-    master_root: Path | None,
+    *,
     skip_missing: bool,
     exclude_synthetic: bool,
-) -> tuple[dict[str, Any] | None, str | None]:
-    """Validate and convert a single manifest entry, returning (case_dict, skip_reason)."""
+) -> str | None:
     if exclude_synthetic and (
         raw_entry.get("synthetic") is True or raw_entry.get("ground_truth_eligible") is False
     ):
-        return None, "synthetic_excluded"
+        return "synthetic_excluded"
 
     if raw_entry.get("availability") == "missing":
         if skip_missing:
-            return None, "source_missing"
+            return "source_missing"
         raise FileNotFoundError(f"{cid}: manifest marks availability='missing'")
 
     rights_obj = raw_entry.get("rights")
     if isinstance(rights_obj, Mapping) and rights_obj.get("cleared") is False:
         if skip_missing:
-            return None, "rights_uncleared"
+            return "rights_uncleared"
         raise ValueError(f"{cid}: rights.cleared is False")
 
+    return None
+
+
+def _resolve_verified_entry_source(
+    raw_entry: Mapping[str, Any],
+    cid: str,
+    *,
+    asset_root: Path | None,
+    master_root: Path | None,
+    skip_missing: bool,
+) -> tuple[Path | None, str | None, bool, str | None]:
     try:
         src_path, expected_sha, is_off_repo = _resolve_manifest_entry_source(
             raw_entry, case_id=cid, asset_root=asset_root, master_root=master_root
         )
     except KeyError:
         if skip_missing:
-            return None, "source_missing"
+            return None, None, False, "source_missing"
         raise
 
     if not src_path.is_file():
         if skip_missing:
-            return None, "source_missing"
+            return None, None, False, "source_missing"
         raise FileNotFoundError(f"{cid}: source file missing: {src_path}")
 
     sha_norm = _verify_expected_sha(src_path, expected_sha, case_id=cid)
+    return src_path, sha_norm, is_off_repo, None
 
+
+def _convert_entry_rois_or_skip(
+    raw_entry: Mapping[str, Any],
+    cid: str,
+    src_path: Path,
+    *,
+    skip_missing: bool,
+) -> tuple[list[dict[str, Any]] | None, str | None]:
     try:
         rois = _convert_manifest_rois(raw_entry, case_id=cid, image_path=src_path)
     except ValueError as exc:
         if skip_missing and "null bbox_norm" in str(exc):
             return None, "roi_unannotated"
         raise
+    return rois, None
 
+
+def _build_manifest_case(
+    raw_entry: Mapping[str, Any],
+    *,
+    cid: str,
+    entry_split: str,
+    src_path: Path,
+    rois: list[dict[str, Any]],
+    scale: int,
+    off_repo_sha: str | None = None,
+) -> dict[str, Any]:
     case_dict: dict[str, Any] = {
         "id": cid,
         "source_path": str(src_path),
@@ -1006,29 +1048,74 @@ def _normalize_manifest_entry(
     }
     if raw_entry.get("target_dimensions") is not None:
         case_dict["target_dimensions"] = raw_entry["target_dimensions"]
-    if is_off_repo and sha_norm is not None:
-        case_dict["source_sha256"] = sha_norm
-    return case_dict, None
+    if off_repo_sha is not None:
+        case_dict["source_sha256"] = off_repo_sha
+    return case_dict
 
 
-def load_audition_cases_from_manifest(
-    manifest: Mapping[str, Any] | Sequence[Mapping[str, Any]],
+def _normalize_manifest_entry(
+    raw_entry: Mapping[str, Any],
     *,
-    scale: int = 4,
-    asset_root: str | Path | None = None,
-    master_root: str | Path | None = None,
-    split: str | None = None,
-    case_ids: Sequence[str] = (),
-    skip_missing: bool = False,
-    exclude_synthetic: bool = True,
-    default_split: str = "calibration",
-) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    """Normalize audition, corpus_manifest, or melato_corpus_manifest entries into audition cases."""
-    raw_entries = _extract_manifest_entries(manifest)
-    a_root = Path(asset_root) if asset_root is not None else None
-    m_root = Path(master_root) if master_root is not None else None
-    wanted_ids = {str(cid).strip() for cid in case_ids if str(cid).strip()}
-    split_filter = None if split in (None, "", "all") else str(split)
+    cid: str,
+    entry_split: str,
+    opts: ManifestLoadOptions,
+    asset_root: Path | None,
+    master_root: Path | None,
+) -> tuple[dict[str, Any] | None, str | None]:
+    """Validate and convert a single manifest entry, returning (case_dict, skip_reason)."""
+    ineligible_reason = _check_manifest_entry_eligibility(
+        raw_entry, cid, skip_missing=opts.skip_missing, exclude_synthetic=opts.exclude_synthetic
+    )
+    if ineligible_reason is not None:
+        return None, ineligible_reason
+
+    src_path, sha_norm, is_off_repo, src_skip = _resolve_verified_entry_source(
+        raw_entry, cid, asset_root=asset_root, master_root=master_root, skip_missing=opts.skip_missing
+    )
+    if src_skip is not None or src_path is None:
+        return None, src_skip
+
+    rois, roi_skip = _convert_entry_rois_or_skip(
+        raw_entry, cid, src_path, skip_missing=opts.skip_missing
+    )
+    if roi_skip is not None or rois is None:
+        return None, roi_skip
+
+    return (
+        _build_manifest_case(
+            raw_entry,
+            cid=cid,
+            entry_split=entry_split,
+            src_path=src_path,
+            rois=rois,
+            scale=opts.scale,
+            off_repo_sha=sha_norm if is_off_repo else None,
+        ),
+        None,
+    )
+
+
+def _extract_manifest_case_id(raw_entry: Any) -> str:
+    if not isinstance(raw_entry, Mapping):
+        raise ValueError("Manifest entry must be a JSON object")
+    cid = str(
+        raw_entry.get("id") or raw_entry.get("case_id") or raw_entry.get("asset_id") or ""
+    ).strip()
+    if not cid:
+        raise KeyError("Manifest entry missing 'id', 'case_id', or 'asset_id'")
+    return cid
+
+
+def _collect_manifest_cases(
+    raw_entries: Sequence[Mapping[str, Any]],
+    opts: ManifestLoadOptions,
+    *,
+    default_split: str,
+) -> tuple[list[dict[str, Any]], int, dict[str, int], set[str]]:
+    a_root = Path(opts.asset_root) if opts.asset_root is not None else None
+    m_root = Path(opts.master_root) if opts.master_root is not None else None
+    wanted_ids = {str(cid).strip() for cid in opts.case_ids if str(cid).strip()}
+    split_filter = None if opts.split in (None, "", "all") else str(opts.split)
 
     cases: list[dict[str, Any]] = []
     reason_counts: dict[str, int] = {}
@@ -1036,15 +1123,8 @@ def load_audition_cases_from_manifest(
     seen_ids: set[str] = set()
 
     for raw_entry in raw_entries:
-        if not isinstance(raw_entry, Mapping):
-            raise ValueError("Manifest entry must be a JSON object")
-        cid = str(
-            raw_entry.get("id") or raw_entry.get("case_id") or raw_entry.get("asset_id") or ""
-        ).strip()
-        if not cid:
-            raise KeyError("Manifest entry missing 'id', 'case_id', or 'asset_id'")
+        cid = _extract_manifest_case_id(raw_entry)
         seen_ids.add(cid)
-
         if wanted_ids and cid not in wanted_ids:
             continue
         entry_split = str(raw_entry.get("split") or default_split)
@@ -1055,11 +1135,9 @@ def load_audition_cases_from_manifest(
             raw_entry,
             cid=cid,
             entry_split=entry_split,
-            scale=scale,
+            opts=opts,
             asset_root=a_root,
             master_root=m_root,
-            skip_missing=skip_missing,
-            exclude_synthetic=exclude_synthetic,
         )
         if skip_reason is not None:
             skipped_count += 1
@@ -1067,6 +1145,34 @@ def load_audition_cases_from_manifest(
         elif case_dict is not None:
             cases.append(case_dict)
 
+    return cases, skipped_count, reason_counts, seen_ids
+
+
+def load_audition_cases_from_manifest(
+    manifest: Mapping[str, Any] | Sequence[Mapping[str, Any]],
+    *,
+    options: ManifestLoadOptions | None = None,
+    asset_root: str | Path | None = None,
+    master_root: str | Path | None = None,
+    split: str | None = None,
+    skip_missing: bool = False,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Normalize audition, corpus_manifest, or melato_corpus_manifest entries into audition cases."""
+    opts = options or ManifestLoadOptions(
+        asset_root=asset_root,
+        master_root=master_root,
+        split=split,
+        skip_missing=skip_missing,
+    )
+    default_split = opts.default_split or (
+        "calibration" if isinstance(manifest, Mapping) and "assets" in manifest else "held_out"
+    )
+    raw_entries = _extract_manifest_entries(manifest)
+    cases, skipped_count, reason_counts, seen_ids = _collect_manifest_cases(
+        raw_entries, opts, default_split=default_split
+    )
+
+    wanted_ids = {str(cid).strip() for cid in opts.case_ids if str(cid).strip()}
     missing_requested = sorted(wanted_ids - seen_ids)
     if missing_requested:
         raise ValueError(f"Requested case IDs not found in manifest: {missing_requested}")
