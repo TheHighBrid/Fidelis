@@ -428,7 +428,7 @@
         "license_id": "MELATO-OWNER-2026-11-19",
         "model_release_required": true,
         "model_release_verified": true,
-        "notes": "Trademark-heavy: Cartier-style eyewear hinge logo; mobile video/screenshot UI chrome at bottom. Model release owner-vouched. ROI bbox_norm intentionally null pending annotation; off-repo Melato master."
+        "notes": "Trademark-heavy: Cartier-style eyewear hinge logo; mobile video/screenshot UI chrome at bottom. Model release owner-vouched. eyewear_frame bbox_norm visually verified against off-repo IMG_0932.jpg."
       },
       "source": {
         "storage": "off_repo",
@@ -455,7 +455,12 @@
           "label": "Frame hinges and temple inscription",
           "roi_type": "hardware",
           "must_lock_base": true,
-          "bbox_norm": null
+          "bbox_norm": [
+            0.35,
+            0.33,
+            0.95,
+            0.44
+          ]
         }
       ],
       "ground_truth_eligible": true,
@@ -524,7 +529,7 @@
         "license_id": "MELATO-OWNER-2026-11-19",
         "model_release_required": true,
         "model_release_verified": true,
-        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched. ROI bbox_norm intentionally null pending annotation; off-repo Melato master."
+        "notes": "Owner-vouched Melato corpus asset. Model release owner-vouched. skin_microtexture bbox_norm visually verified against off-repo 4cf38666019303d6e0195054fc3b684e.jpg."
       },
       "source": {
         "storage": "off_repo",
@@ -551,7 +556,12 @@
           "label": "Natural cheek grain vs smoothing",
           "roi_type": "skin_zone",
           "must_lock_base": false,
-          "bbox_norm": null
+          "bbox_norm": [
+            0.33,
+            0.43,
+            0.44,
+            0.48
+          ]
         }
       ],
       "ground_truth_eligible": true,

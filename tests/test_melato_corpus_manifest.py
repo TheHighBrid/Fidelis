@@ -360,6 +360,19 @@ class CorpusManifestTests(unittest.TestCase):
             with self.assertRaisesRegex(ManifestValidationError, "escapes"):
                 validate_melato_corpus_manifest(melato, master_root=root, verify_files=True)
 
+    def test_melato_summary_matches_assets_and_local_audited_rois_populated(self) -> None:
+        frozen, _ = load_corpus_manifest(REPO_ROOT / "experiments" / "corpus_manifest.json")
+        melato, summary = load_melato_corpus_manifest(
+            REPO_ROOT / "experiments" / "melato_corpus_manifest.json"
+        )
+        self.assertEqual(melato["summary"]["by_category"], summary["by_category"])
+        by_id = {asset["asset_id"]: asset for asset in melato["assets"]}
+        self.assertEqual(by_id["mel_028"]["category"], "apparel_model")
+        for aid in ("mel_010", "mel_014", "mel_028", "mel_029", "mel_038", "mel_040", "mel_056", "mel_057"):
+            self.assertTrue(all(roi["bbox_norm"] is not None for roi in by_id[aid]["critical_rois"]))
+        cases_by_id = {case["case_id"]: case for case in frozen["cases"]}
+        for cid in ("por_held_glasses_reflection", "por_held_high_iso_backstage"):
+            self.assertIsNotNone(cases_by_id[cid]["critical_rois"][0]["bbox_norm"])
 
 
 if __name__ == "__main__":
