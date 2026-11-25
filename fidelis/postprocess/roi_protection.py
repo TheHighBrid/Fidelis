@@ -186,17 +186,32 @@ def _roi_semantic_masks(norm_rois, roi_locked, explicit_unlock):
     return hard_contour, interior_texture, interior_texture_bool
 
 
+_DRIFT_STRIP_ROWS = 256
+
+
 def _roi_edge_guard(base_rgb, user_edge_guard, use_sobel_heuristic, sobel_strength, max_sobel_guard, suppress):
     edge_guard = np.array(user_edge_guard, dtype=np.float32, copy=True)
-    if use_sobel_heuristic:
-        lum = _luminance(base_rgb)
-        gx = ndimage.sobel(lum, axis=1)
-        gy = ndimage.sobel(lum, axis=0)
-        mag = np.sqrt(gx * gx + gy * gy)
-        ref_scale = max(float(np.percentile(mag, 95)), 25.0)
-        sobel_mask = np.clip((mag / ref_scale) * float(sobel_strength), 0.0, float(max_sobel_guard)).astype(np.float32)
-        sobel_mask[suppress] = 0.0
-        edge_guard = np.maximum(edge_guard, sobel_mask).astype(np.float32)
+    if not use_sobel_heuristic:
+        return edge_guard
+    height, width = base_rgb.shape[:2]
+    mag = np.empty((height, width), dtype=np.float32)
+    for y0 in range(0, height, _DRIFT_STRIP_ROWS):
+        y1 = min(height, y0 + _DRIFT_STRIP_ROWS)
+        sy0 = max(0, y0 - 1)
+        sy1 = min(height, y1 + 1)
+        lum_s = _luminance(base_rgb[sy0:sy1])
+        gx_s = ndimage.sobel(lum_s, axis=1)
+        gy_s = ndimage.sobel(lum_s, axis=0)
+        mag_s = np.sqrt(gx_s * gx_s + gy_s * gy_s)
+        mag[y0:y1] = mag_s[y0 - sy0:y1 - sy0]
+    ref_scale = max(float(np.percentile(mag, 95)), 25.0)
+    strength = float(sobel_strength)
+    max_guard = float(max_sobel_guard)
+    for y0 in range(0, height, _DRIFT_STRIP_ROWS):
+        y1 = min(height, y0 + _DRIFT_STRIP_ROWS)
+        strip = np.clip((mag[y0:y1] / ref_scale) * strength, 0.0, max_guard).astype(np.float32)
+        strip[suppress[y0:y1]] = 0.0
+        np.maximum(edge_guard[y0:y1], strip, out=edge_guard[y0:y1])
     return edge_guard
 
 
@@ -405,19 +420,45 @@ class _DriftImages:
     candidate: np.ndarray
     master: np.ndarray | None
     protected: np.ndarray | None
-    reference_luminance: np.ndarray
-    candidate_luminance: np.ndarray
-    reference_gradients: tuple
-    candidate_gradients: tuple
+
+    def make_window(self, y0: int, x0: int, y1: int, x1: int, search_radius: int):
+        height, width = self.base.shape[:2]
+        pad = search_radius + 1
+        sy0 = max(0, y0 - pad)
+        sy1 = min(height, y1 + pad)
+        sx0 = max(0, x0 - pad)
+        sx1 = min(width, x1 + pad)
+        ref_lum = _luminance(self.base[sy0:sy1, sx0:sx1])
+        cand_lum = _luminance(self.candidate[sy0:sy1, sx0:sx1])
+        return _DriftWindow(
+            ref_lum=ref_lum,
+            cand_lum=cand_lum,
+            ref_grads=_gradients(ref_lum),
+            cand_grads=_gradients(cand_lum),
+            y_offset=sy0,
+            x_offset=sx0,
+        )
+
+
+@dataclass(frozen=True)
+class _DriftWindow:
+    ref_lum: np.ndarray
+    cand_lum: np.ndarray
+    ref_grads: tuple
+    cand_grads: tuple
+    y_offset: int
+    x_offset: int
 
     def measure(self, rectangle, search_radius):
         y0, x0, y1, x1 = rectangle
+        ry0, ry1 = y0 - self.y_offset, y1 - self.y_offset
+        rx0, rx1 = x0 - self.x_offset, x1 - self.x_offset
         dx, dy, improvement = _estimate_patch_shift(
-            self.reference_luminance, self.candidate_luminance, y0, x0, y1, x1, search_radius
+            self.ref_lum, self.cand_lum, ry0, rx0, ry1, rx1, search_radius
         )
-        area = np.s_[y0:y1, x0:x1]
+        area = np.s_[ry0:ry1, rx0:rx1]
         coherence = _gradient_coherence(
-            *(gradient[area] for gradient in self.reference_gradients + self.candidate_gradients)
+            *(gradient[area] for gradient in self.ref_grads + self.cand_grads)
         )
         return dx, dy, improvement, coherence
 
@@ -441,17 +482,6 @@ def _drift_roi_maps(rois, shape):
     return locked, texture_allowed
 
 
-def _blocks(shape, block_size):
-    height, width = shape
-    step = min(block_size, height, width)
-    for y0 in range(0, height, step):
-        y1 = min(height, y0 + step)
-        for x0 in range(0, width, step):
-            x1 = min(width, x0 + step)
-            if y1 - y0 >= 3 and x1 - x0 >= 3:
-                yield y0, x0, y1, x1
-
-
 def _coherence_flag(images, texture_allowed, area, coherence, minimum):
     if coherence is None or coherence >= minimum or np.any(texture_allowed[area]):
         return False
@@ -460,27 +490,36 @@ def _coherence_flag(images, texture_allowed, area, coherence, minimum):
 
 
 def _screen_blocks(images, texture_allowed, settings):
-    shape = images.base.shape[:2]
-    guard = np.zeros(shape, dtype=np.float32)
+    height, width = images.base.shape[:2]
+    guard = np.zeros((height, width), dtype=np.float32)
+    step = min(settings.block_size, height, width)
     evaluated = flagged = 0
     max_shift = 0.0
     coherence_values = []
-    for y0, x0, y1, x1 in _blocks(shape, settings.block_size):
-        area = np.s_[y0:y1, x0:x1]
-        dx, dy, _, coherence = images.measure((y0, x0, y1, x1), settings.search_radius)
-        shift = float(np.hypot(dx, dy))
-        evaluated += 1
-        if coherence is not None:
-            coherence_values.append(coherence)
-        max_shift = max(max_shift, shift)
-        if shift >= settings.shift_warn_px or _coherence_flag(
-            images, texture_allowed, area, coherence, settings.min_edge_coherence
-        ):
-            flagged += 1
-            severe = shift >= settings.shift_fail_px or (
-                coherence is not None and coherence < settings.min_edge_coherence - 0.15
-            )
-            guard[area] = max(float(guard[area].max()), 1.0 if severe else 0.6)
+    for y0 in range(0, height, step):
+        y1 = min(height, y0 + step)
+        if y1 - y0 < 3:
+            continue
+        window = images.make_window(y0, 0, y1, width, settings.search_radius)
+        for x0 in range(0, width, step):
+            x1 = min(width, x0 + step)
+            if x1 - x0 < 3:
+                continue
+            area = np.s_[y0:y1, x0:x1]
+            dx, dy, _, coherence = window.measure((y0, x0, y1, x1), settings.search_radius)
+            shift = float(np.hypot(dx, dy))
+            evaluated += 1
+            if coherence is not None:
+                coherence_values.append(coherence)
+            max_shift = max(max_shift, shift)
+            if shift >= settings.shift_warn_px or _coherence_flag(
+                images, texture_allowed, area, coherence, settings.min_edge_coherence
+            ):
+                flagged += 1
+                severe = shift >= settings.shift_fail_px or (
+                    coherence is not None and coherence < settings.min_edge_coherence - 0.15
+                )
+                guard[area] = max(float(guard[area].max()), 1.0 if severe else 0.6)
     return {
         "blocks_evaluated": evaluated, "blocks_flagged": flagged,
         "max_block_shift_px": max_shift,
@@ -492,8 +531,14 @@ def _screen_blocks(images, texture_allowed, settings):
 def _locked_mismatches(images):
     if images.master is None or images.protected is None:
         return 0
-    locked = images.protected == 1.0
-    return int(np.sum(np.any(images.master[locked] != images.base[locked], axis=-1)))
+    height = images.base.shape[0]
+    mismatches = 0
+    for y0 in range(0, height, _DRIFT_STRIP_ROWS):
+        y1 = min(height, y0 + _DRIFT_STRIP_ROWS)
+        locked = images.protected[y0:y1] == 1.0
+        if np.any(locked):
+            mismatches += int(np.sum(np.any(images.master[y0:y1][locked] != images.base[y0:y1][locked], axis=-1)))
+    return mismatches
 
 
 def _roi_status(expected_locked, master_diff, shift, coherence, texture_allowed, settings):
@@ -510,7 +555,8 @@ def _roi_status(expected_locked, master_diff, shift, coherence, texture_allowed,
 def _screen_roi(images, roi, roi_locked, settings):
     x, y, w, h = roi["rect"]
     area = np.s_[y:y + h, x:x + w]
-    dx, dy, improvement, coherence = images.measure((y, x, y + h, x + w), settings.search_radius)
+    window = images.make_window(y, x, y + h, x + w, settings.search_radius)
+    dx, dy, improvement, coherence = window.measure((y, x, y + h, x + w), settings.search_radius)
     shift = round(float(np.hypot(dx, dy)), 3)
     base = images.base[area].astype(np.int16)
     candidate_diff = np.abs(images.candidate[area].astype(np.int16) - base)
@@ -577,12 +623,7 @@ def screen_internal_drift(
 
     prot_mask = _mask(protected, shape, "protected") if protected is not None else None
     norm_rois = validate_rois(rois, shape)
-    ref_lum = _luminance(base_rgb)
-    cand_lum = _luminance(cand_rgb)
-    images = _DriftImages(
-        base_rgb, cand_rgb, master_rgb, prot_mask, ref_lum, cand_lum,
-        _gradients(ref_lum), _gradients(cand_lum),
-    )
+    images = _DriftImages(base_rgb, cand_rgb, master_rgb, prot_mask)
     locked, texture_allowed = _drift_roi_maps(norm_rois, shape)
     blocks = _screen_blocks(images, texture_allowed, settings)
     mismatches = _locked_mismatches(images)

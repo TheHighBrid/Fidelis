@@ -776,11 +776,12 @@ class RestorationRunner:
             # An absent texture ROI is not permission to replace the image.
             # Only explicitly texture-allowed or unlocked regions can receive
             # synthetic detail. The remainder stays on the precision base.
-            semantic_masks = {
-                name: np.zeros((th, tw), dtype=np.float32)
-                for name in ("skin", "hair", "fabric")
+            semantic_masks: dict[str, np.ndarray | None] = {
+                "skin": None,
+                "hair": None,
+                "fabric": None,
             }
-            unlocked_mask = np.zeros((th, tw), dtype=np.float32)
+            unlocked_mask: np.ndarray | None = None
             for r in target_rois:
                 if r.get("policy") != "texture_allowed" and r.get("override") != "unlock":
                     continue
@@ -789,21 +790,33 @@ class RestorationRunner:
                 # unlock for a structural ROI remains explicit permission, but
                 # has no semantic texture class and therefore uses fabric.
                 channel = r["kind"] if r["kind"] in semantic_masks else "fabric"
+                if semantic_masks[channel] is None:
+                    semantic_masks[channel] = np.zeros((th, tw), dtype=np.float32)
                 rx, ry, rw, rh = r["rect"]
                 semantic_masks[channel][ry : ry + rh, rx : rx + rw] = 1.0
                 if r.get("override") == "unlock":
+                    if unlocked_mask is None:
+                        unlocked_mask = np.zeros((th, tw), dtype=np.float32)
                     unlocked_mask[ry : ry + rh, rx : rx + rw] = 1.0
-            texture_allowed = np.maximum(masks["interior_texture"], np.clip(sum(semantic_masks.values()), 0.0, 1.0))
-            permitted = texture_allowed
+            permitted = np.array(masks["interior_texture"], dtype=np.float32, copy=True)
+            active_sum: np.ndarray | None = None
+            for channel_mask in semantic_masks.values():
+                if channel_mask is not None:
+                    active_sum = channel_mask.copy() if active_sum is None else active_sum + channel_mask
+            if active_sum is not None:
+                np.clip(active_sum, 0.0, 1.0, out=active_sum)
+                np.maximum(permitted, active_sum, out=permitted)
             # An explicit unlock is a deliberate texture authorization even
             # when its original policy was preserve, so it cannot depend on
             # the texture-allowed interior mask. Explicit locks still win at
             # the final protection boundary below.
-            permitted = np.maximum(permitted, unlocked_mask)
-            permitted *= (1.0 - masks["protected"]).astype(np.float32)
-            for channel in semantic_masks:
-                semantic_masks[channel] *= permitted
-            confidence_mask = permitted.astype(np.float32)
+            if unlocked_mask is not None:
+                np.maximum(permitted, unlocked_mask, out=permitted)
+            permitted *= 1.0 - masks["protected"]
+            for channel, channel_mask in semantic_masks.items():
+                if channel_mask is not None:
+                    channel_mask *= permitted
+            confidence_mask = permitted
             active_blend = (
                 blend
                 if blend is not None

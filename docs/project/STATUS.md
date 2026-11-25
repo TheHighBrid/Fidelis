@@ -1,5 +1,19 @@
 # Current progress and evidence checkpoint
 
+> **F13 bounded composition, drift & F4 material metrics (#129, 2026-11-25):**
+> Bounded `compose_regions` (`fidelis/postprocess/regions.py`, 256-row strips),
+> `build_roi_protection_masks` / `screen_internal_drift`
+> (`fidelis/postprocess/roi_protection.py`, padded strip/window Sobel + SSD),
+> `RestorationRunner` semantic mask allocation, and F4
+> `measure_fabric_hardware_faithfulness` (`fidelis/eval/material_metrics.py` +
+> `spectral_weave_coherence` in `fidelis/eval/spectral_memory.py`) without
+> changing dimensions, thresholds, or locked-pixel invariants. Measured M1 probes:
+> `4096×6144` `compose_regions` + `screen_internal_drift` peak RSS `2,255,323,136
+> -> 1,584,201,728` bytes (`21.637 s`); `2048×3072` F4 with `2048×2048` fabric
+> ROI peak RSS `1,124,876,288 -> 623,493,120` bytes (`5.563 s`). Issue #129 and
+> the full 198.7 MP twill execution remain open.
+> [Memory checkpoint](checkpoints/2026-11-25-evaluation-memory.md).
+
 > **F12 / MEL-63 silk charmeuse & bouclé tweed corpus fill (2026-11-25):**
 > Based on `main` `1e40d8b`, populated two visually inspected, SHA-256-verified
 > Public-Domain off-repo textile photographs in `experiments/corpus_manifest.json`:

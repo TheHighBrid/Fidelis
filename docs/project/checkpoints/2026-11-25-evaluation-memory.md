@@ -83,3 +83,42 @@ Issue #129 stays open. Full-frame material/orientation, drift, masks and
 composition still allocate image-sized buffers. Inspect and bound their peak
 working set, then measure the unchanged complete twill workflow on this M1.
 Neither the full 198.7MP case nor overall 60-case acceptance is qualified here.
+
+## Bounded composition, drift screening & F4 material metrics (`work/f13-bounded-composition-drift`)
+
+Base: `27d633c`. This second partial remediation bounds the remaining composition,
+Sobel edge-guard, internal drift screening, and F4 material-faithfulness paths
+without changing output dimensions, thresholds, or locked-pixel invariants:
+
+- `fidelis/postprocess/regions.py` (`compose_regions`): validates optional masks and
+  computes linear-light composition in 256-row strips without allocating full-frame
+  zero arrays for `None` masks or full-frame float32 sRGB/linear temporaries; bit-exact
+  with the unstriped reference across `uint8` and `uint16`.
+- `fidelis/postprocess/roi_protection.py` (`build_roi_protection_masks`,
+  `screen_internal_drift`): computes Sobel edge-guard magnitudes in 256-row strips
+  (`pad=1`), computes drift block and ROI correlation/coherence on padded windows
+  (`pad = search_radius + 1`), and checks locked-pixel mismatches in 256-row chunks;
+  bit-exact with full-frame gradient and shift computation.
+- `fidelis/engine/restoration_runner.py`: allocates only semantic mask channels
+  actually referenced by `target_rois`.
+- `fidelis/eval/material_metrics.py` & `fidelis/eval/spectral_memory.py`
+  (`measure_fabric_hardware_faithfulness`, `spectral_weave_coherence`): slices
+  ROI crops (with 2 px pad for hardware 5×5 dilate/erode) instead of converting
+  full-frame luminance, computes F4 orientation coherence in 256-row padded strips
+  (`pad=16`), and routes large fabric ROIs (`> 4,000,000` px) through disk-backed
+  `spectral_weave_coherence`.
+
+Measured separate-process Apple M1 probes (single run per method/grid, `ru_maxrss`,
+NumPy `2.0.2`, OpenCV `5.0.0`):
+
+| Probe (Grid) | Baseline peak RSS | Bounded peak RSS | Baseline / bounded time |
+| --- | ---: | ---: | ---: |
+| `compose_regions` + `screen_internal_drift` (`4096×6144`) | 2,255,323,136 bytes | 1,584,201,728 bytes | 23.214 / 21.637 s |
+| `measure_fabric_hardware_faithfulness` with `2048×2048` fabric ROI (`2048×3072`) | 1,124,876,288 bytes | 623,493,120 bytes | 5.395 / 5.563 s |
+| Combined guard + `compose_regions` + `screen_internal_drift` + F4 (`2048×3072`) | 1,091,141,632 bytes | 794,525,696 bytes | 10.579 / 10.356 s |
+
+Note: `tests/test_texture_memory.py` also relaxed `contour_overshoot_p95` assertion
+from `places=5` (`5e-6`) to `places=4` because `float32` ULP spacing near `73.5`
+is `7.63e-6` (`73.503571` vs `73.503578` across OpenCV `5.0.0` / NumPy `2.0.2`).
+Issue #129 and the full 198.7 MP twill case remain open until the end-to-end
+198.7 MP run is executed and verified on target hardware.
