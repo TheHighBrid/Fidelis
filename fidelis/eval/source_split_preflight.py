@@ -61,6 +61,23 @@ def _alias(record, collection, manifest, index):
     }
 
 
+def _collect_aliases(records, collection, manifest, aliases_by_hash, unknown, errors):
+    seen = set()
+    for index, record in enumerate(records):
+        try:
+            alias = _alias(record, collection, manifest, index)
+            if alias["id"] in seen:
+                raise ValueError("Duplicate record ID in manifest")
+            seen.add(alias["id"])
+        except ValueError as exc:
+            errors.append({"manifest": manifest, "record_index": index, "error": str(exc)})
+            continue
+        if alias["sha256"] is None:
+            unknown.append(alias)
+        else:
+            aliases_by_hash[alias["sha256"]].append(alias)
+
+
 def check_source_split_isolation(manifest_paths):
     """Return JSON-compatible evidence; conflicts/invalid/unknown inputs cannot pass.
 
@@ -87,20 +104,7 @@ def check_source_split_isolation(manifest_paths):
             continue
         manifests.append({"path": manifest, "sha256": hashlib.sha256(raw).hexdigest(),
                           "collection": collection, "record_count": len(records)})
-        seen = set()
-        for index, record in enumerate(records):
-            try:
-                alias = _alias(record, collection, manifest, index)
-                if alias["id"] in seen:
-                    raise ValueError("Duplicate record ID in manifest")
-                seen.add(alias["id"])
-            except ValueError as exc:
-                errors.append({"manifest": manifest, "record_index": index, "error": str(exc)})
-                continue
-            if alias["sha256"] is None:
-                unknown.append(alias)
-            else:
-                aliases_by_hash[alias["sha256"]].append(alias)
+        _collect_aliases(records, collection, manifest, aliases_by_hash, unknown, errors)
     groups = [{"sha256": sha, "aliases": aliases,
                "splits": sorted({alias["split"] for alias in aliases})}
               for sha, aliases in sorted(aliases_by_hash.items())]
