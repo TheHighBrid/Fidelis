@@ -1,5 +1,11 @@
 # Current progress and evidence checkpoint
 
+> **Source-SHA split detector (#134, 2026-11-25):** Explicit manifest preflight
+> detects aliases across cases/assets and fails closed on conflicting, invalid or
+> unknown identities. Actual inventory result: blocked, 12 split conflicts,
+> 15 unknown hashes; no records relabelled. Eight new plus 35 adjacent regressions
+> pass. [Usage, actual result and limits](checkpoints/2026-11-25-source-split-preflight.md).
+
 > **F13 weave precision correction (#129, 2026-11-25):** Retained disk-backed
 > FFT processing while restoring the original shifted C-order NumPy sums, BLAS
 > norms and scalar precision. In a 2048×3072 M1 probe, previous bounded coherence

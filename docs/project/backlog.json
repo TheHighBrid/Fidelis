@@ -1,5 +1,6 @@
 {
   "schema_version": 1,
+  "source_split_checkpoint": "docs/project/checkpoints/2026-11-25-source-split-preflight.md",
   "snapshot_date": "2026-11-24",
   "code_snapshot": "7d97abd",
   "code_branch": "main",
