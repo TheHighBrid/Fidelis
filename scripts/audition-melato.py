@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import platform
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -181,6 +182,13 @@ def _diagnostic_receipt(protocol_path: Path, manifest_path: Path | None) -> dict
         "colour_path": "sRGB_linear_blend",
         "evidence_scope": "unfrozen_diagnostic_no_human_review",
     }
+
+
+def _measured_weight_hashes(model: dict[str, Any]) -> dict[str, str]:
+    value = model.get("weights_sha256")
+    if isinstance(value, str) and re.fullmatch(r"[0-9a-fA-F]{64}", value):
+        return {model.get("model_id", "candidate"): value.lower()}
+    return {}
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -434,10 +442,7 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.evaluate_acceptance:
             model = report.get("model", {})
-            weight_hash = model.get("weights_sha256")
-            receipt["model_weight_hashes"] = (
-                {model.get("model_id", "candidate"): weight_hash} if weight_hash else {}
-            )
+            receipt["model_weight_hashes"] = _measured_weight_hashes(model)
             receipt["seed_policy"] = f"blind_seed={args.blind_seed}"
             receipt_path = args.output_dir / "audition_receipt.json"
             _write_json(receipt_path, receipt)

@@ -56,6 +56,13 @@ class DiagnosticReceiptTests(unittest.TestCase):
         self.assertFalse(result["calibration"]["recipe_frozen"])
         self.assertNotEqual(result["overall_status"], "accepted")
 
+    def test_imported_and_unverified_backend_labels_are_not_weight_hashes(self):
+        for value in (None, "local", "imported", "deterministic_bicubic", "unverified_until_run"):
+            with self.subTest(value=value):
+                self.assertEqual(CLI._measured_weight_hashes({"weights_sha256": value}), {})
+        self.assertEqual(CLI._measured_weight_hashes({"model_id": "pinned", "weights_sha256": "ab" * 32}),
+                         {"pinned": "ab" * 32})
+
 
 if __name__ == "__main__":
     unittest.main()
