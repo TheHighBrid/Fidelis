@@ -51,10 +51,10 @@ Exact slot IDs live in `experiments/corpus_manifest.json`. Full Melato inventory
 
 ## Open gaps (intentional)
 
-- Frozen 60 readiness: **42 available / 18 missing** (`calibration 21/30`,
-  `held_out 21/30`: `portraits 10/12`, `apparel_model 8/12`, `textiles 6/12`,
+- Frozen 60 readiness: **43 available / 17 missing** (`calibration 22/30`,
+  `held_out 21/30`: `portraits 10/12`, `apparel_model 8/12`, `textiles 7/12`,
   `macros 9/12`, `packshot_edge 9/12`) after Melato-first fill, the 2026-11-25
-  eligibility/construction audits (#122, #123), and 12 visually inspected
+  eligibility/construction audits (#122, #123), and 13 visually inspected
   CC0/Public-Domain off-repo photographs (Wikimedia Commons, Metropolitan Museum,
   Cleveland Museum of Art, Cooper Hewitt).
 - Prefer leaving remaining specialty/released slots **missing** over forcing

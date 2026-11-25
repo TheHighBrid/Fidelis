@@ -1,5 +1,25 @@
 # Current progress and evidence checkpoint
 
+> **F12 / MEL-63 cotton chino twill fill & PR #124 merge (2026-11-25):** Merged
+> PR #124 (`03e6170`) to `main` (`42/60`) and populated `tex_cotton_twill_chino`
+> (`calibration`, `textiles`) with a visually inspected (full-frame and 1:1 crop),
+> SHA-256-verified `CC0-1.0` macro photograph (`Chino_pants_close-up_-_DSC02850.JPG`,
+> off-repo `cc0_wikimedia_chino_twill_dsc02850.jpg`, `4351×2854` sRGB 8-bit,
+> SHA-256 `eca7ad1ab4f540d9efbcd2b37eeb86a705ad8b96be63ba7ed63ce3c6541cc55f`,
+> `diagonal_wale` `bbox_norm [0.15, 0.15, 0.85, 0.85]`). Frozen 60-case manifest
+> availability is now **43/60** (`calibration 22/30`, `held_out 21/30`; `textiles
+> 7/12`, `macros 9/12`, `packshot_edge 9/12`, `portraits 10/12`, `apparel_model
+> 8/12`; `17` missing slots retained without weakening material, construction,
+> colour, or model-release requirements). Verified via
+> `validate-corpus-manifest.py --verify-files`, **615/615** Python unit tests
+> (`unittest discover`), `tests/test-web-ui.sh`, `tests/smoke-test.sh`, and
+> `git diff --check`. External gates remain open: `F06` live SDXL GPU
+> workflow/weights (`ComfyUI` unreachable / no SDXL checkpoints on 8 GB Apple M1
+> host), remaining `17` corpus slots & paid Clarity/Krea comparator runs (`F12`),
+> 30-case blind dual-reviewer ballots (`F13`), physical Android/iOS touch review
+> (`F08`: `adb` and `xcrun devicectl` unavailable, no USB device attached), and
+> owner creative/release signoff (`F16`).
+
 > **F12 / MEL-63 Cooper Hewitt silk jacquard fill (2026-11-25):** Populated
 > `tex_held_jacquard_brocade` (`held_out`, `textiles`) with a visually inspected,
 > SHA-256-verified Public-Domain photograph from the Cooper Hewitt, Smithsonian
