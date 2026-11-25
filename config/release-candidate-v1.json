@@ -1,23 +1,23 @@
 {
   "schema_version": "fidelis.release_candidate.v1",
   "version": "3.1.0",
-  "release_sha": "d6f420ccf1754c79931c9822ec5127b98ab0df5c",
+  "release_sha": "7d97abdc518d5f91aa842572eb662adc9b90cc97",
   "merged_to_main": true,
-  "package_evidence_note": "Listed package hashes are historical artifacts from 24a2eb7bdcef32f85d0eafbe1aed98b7d01a97cc; rebuild and verify packages for release_sha before release. No current package verification is implied.",
+  "package_evidence_note": "Rebuilt and audited against candidate main SHA 7d97abdc518d5f91aa842572eb662adc9b90cc97 via scripts/package-release.sh, scripts/package-offline-bundle.sh, and scripts/verify-upgrade-rollback.py audit-archive; archives retained off-repo under release-evidence/7d97abdc/packages/ and remain unbundled in git.",
   "packages": [
     {
       "path": "dist/fidelis-v3.1.0.tar.gz",
-      "sha256": "dc721155e174f5c92d7af94b89c9e525227b69a01afa14f6d5aa6e901db3c6ee",
+      "sha256": "0eddcde046d7805adab4d15c20cc716453f7c2d4157176aa83ed625bb19fd250",
       "require_file_present": false
     },
     {
       "path": "dist/fidelis-v3.1.0.zip",
-      "sha256": "8f7db34388ff53f1a6b6b8a6bea47026099814afac5f424e6b7a5d68148a6815",
+      "sha256": "0c7279076907ddc78f21185bd177d0c30c2ce5767394e9c0e87887c4a5b332dd",
       "require_file_present": false
     },
     {
       "path": "dist/fidelis-offline-bundle-v3.1.0.tar.gz",
-      "sha256": "40088fb82393c40d0dc6537108ab4905860eadb97c5059c85d06173afffeb84f",
+      "sha256": "3d0e719f652e446a9c7d9f40ffde3072b0a28f8185be04068fe3642ecaa76c17",
       "require_file_present": false
     }
   ],
@@ -44,7 +44,7 @@
     "SegFormer B0 automatic garment segmentation can spill onto embroidered patches and zipper hardware; explicit structural ROI locks or manual protection masks are required.",
     "Sobel luminance gradient and block phase correlation are geometric/contrast heuristics, not semantic identity or OCR proof.",
     "RealSR-DF2K, ESRGAN-Remacri, 4x-UltraSharp, and ATR-trained SegFormer B0 weights require commercial license clearance before commercial production deployment; RealeSR-general-v3 is BSD-3-Clause.",
-    "Live ComfyUI GPU texture worker qualification (F05-A/F06/F07), 60-case licensed photographic corpus & comparator runs (F12-A/F12), 30-case blind human signoff (F13), and physical Android/iOS touch hardware review (F08-B/F15) remain open."
+    "SDXL/Clarity-style ComfyUI GPU texture workflow qualification (F06), 60-case licensed photographic corpus & comparator runs (F12-A/F12), 30-case blind human signoff (F13), physical Android/iOS touch hardware review (F08), and owner creative/release signoff (F16) remain open."
   ],
   "rollback_plan": {
     "previous_stable_tag_or_sha": "5315046",

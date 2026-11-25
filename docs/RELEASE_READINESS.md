@@ -34,13 +34,16 @@ requirement and are not replaced by this role interpretation.
 
 ## Candidate reconciliation, 2026-11-24
 
-The candidate is main `d6f420ccf1754c79931c9822ec5127b98ab0df5c`.
-The prior manifest commit `24a2eb7` is an ancestor of main (verified with
-`git merge-base --is-ancestor`). `merged_to_main` is therefore true. Historical
-archive digests remain identified as historical; current candidate archives need
-fresh build and byte verification. The current local audit finds zero package
-files, so packaging remains open. Final creative and production approval remain
-pending under the owner's explicit instruction.
+The latest rebuilt candidate is main `7d97abdc518d5f91aa842572eb662adc9b90cc97`
+(after PR #109 `F07`, PR #112 `F05-A`, and PR #113 `F12-A`).
+Deterministic `v3.1.0` archives (`dist/fidelis-v3.1.0.tar.gz`,
+`dist/fidelis-v3.1.0.zip`, and `dist/fidelis-offline-bundle-v3.1.0.tar.gz`) were
+rebuilt and passed `scripts/verify-upgrade-rollback.py audit-archive` against
+`7d97abdc`, with artifacts retained off-repo under
+`release-evidence/7d97abdc/packages/`. Because `dist/` is gitignored and not
+committed, running `audit-release-readiness.py` in a fresh git checkout reports
+`packages.verified_count: 0` unless those archives are present under `dist/`.
+Final creative and production approval remain pending.
 
 All 97 Melato assets already have the approval recorded in
 [CORPUS_ACQUISITION_PROPOSAL.md](CORPUS_ACQUISITION_PROPOSAL.md). Missing local
@@ -60,6 +63,6 @@ corpus categories, splits, ROI requirements and human-review gates remain intact
 
 ## Current Evidence Status
 
-- **Tracked release candidate manifest**: [`config/release-candidate-v1.json`](../config/release-candidate-v1.json) links the verified `v3.1.0` release archives (`dist/fidelis-v3.1.0.tar.gz`, `dist/fidelis-v3.1.0.zip`, `dist/fidelis-offline-bundle-v3.1.0.tar.gz`), explicit scope summary, 6 architectural/operational known limits, `verify-upgrade-rollback.py` snapshot/restore commands against baseline `5315046`, and verified Apple M1 (8 GB) device budgets + upgrade/rollback receipts (`packages.verified_count: 3`, `documentation_and_rollback.rollback_ready: true`).
+- **Tracked release candidate manifest**: [`config/release-candidate-v1.json`](../config/release-candidate-v1.json) links the rebuilt `7d97abdc` `v3.1.0` release archives (`dist/fidelis-v3.1.0.tar.gz`, `dist/fidelis-v3.1.0.zip`, `dist/fidelis-offline-bundle-v3.1.0.tar.gz`), explicit scope summary, 6 architectural/operational known limits, `verify-upgrade-rollback.py` snapshot/restore commands against baseline `5315046`, and verified Apple M1 (8 GB) device budgets + upgrade/rollback receipts (`documentation_and_rollback.rollback_ready: true`).
 - **Current repository level**: `E1_fixture_and_protocol_tested` (`ready_for_release: false`).
-- **Remaining external gates for `E4_released`**: Merge PR #12 to `main` (`merged_to_main: true`, closing `D01..D04` on `main`), run live ComfyUI GPU texture worker qualification (`F05-A`, `F06`, `F07`), complete 60-case licensed corpus & 30-case blind held-out quality acceptance (`F12-A`, `F12`, `F13`), complete physical Android/iOS touch hardware review (`F08-B`, `F15`), and record owner creative/release signoff.
+- **Remaining external gates for `E4_released`**: Live ComfyUI SDXL/Clarity-style GPU texture workflow qualification (`F05`/`F06`), 60-case licensed corpus & comparator runs (`F12-A`, `F12`), 30-case blind dual-reviewer held-out quality acceptance (`F13`), physical Android/iOS touch hardware review (`F08`), and explicit dual-owner creative/release signoff (`F16`).
