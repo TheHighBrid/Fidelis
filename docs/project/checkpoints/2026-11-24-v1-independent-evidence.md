@@ -37,9 +37,27 @@ compatible source to investigate for photographic textile references. Material,
 source-photo and ROI suitability must be verified individually before slotting;
 rendered PBR previews must not be presented as photographic restoration truth.
 
-Full-resolution NCNN versus bicubic audition on IMG_0932 is running, with separate
-output files under `release-evidence/d6f420cc/IMG_0932/cases/melato-case/`.
-Its final metrics and randomized ballots remain pending. No human score is supplied.
+Full-resolution NCNN versus bicubic audition on IMG_0932 completed: 1170×2532
+input, 4680×10128 outputs, detail blend 0.6. Result: `FAIL_SHARPENING_ONLY`,
+zero passed / one failed; acceptance remains `blocked_incomplete_evidence`.
+Separate PNG outputs, `audition_report.json`, `acceptance_summary.json` and
+randomized `blind/blind-ballot.json` plus private answer key are saved under
+`/Users/tyf12/melato-corpus/fidelis/release-evidence/d6f420cc/IMG_0932/`.
+No human score is supplied. This case is a diagnostic, not a frozen-corpus pass.
+
+Real CPU fallback also ran the official weights on a 64×64 crop, producing
+256×256 finite output in 0.088876 seconds. Receipt and PNG are in `comfy-mps/`
+as `fidelis-comfy-cpu-receipt.json` and `fidelis-comfy-cpu-crop.png`.
+The local Comfy bridge additionally completed submitted-job cancellation and
+same-run recovery with the same prompt ID; `bridge-cancel-recovery.json` records
+`cancelled_observed: true`. Its explicit graph upscales 4× then area-downsamples
+0.25 to the original grid; this is not a silently resized texture qualification.
+
+Drive recovery scanned 600 folder entries and searched remaining inventory
+filenames through both connected accounts. No new exact masters were recovered.
+The ninth filename match (`images (18).jpeg`) differs from the approved bytes and
+was not substituted. Detailed receipt:
+`/Users/tyf12/melato-corpus/fidelis/corpus-recovery-2026-11-24.md`.
 
 ## Signoff and packaging
 
