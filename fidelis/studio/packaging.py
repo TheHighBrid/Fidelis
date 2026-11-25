@@ -105,6 +105,7 @@ REQUIRED_ARCHIVE_PATHS: tuple[str, ...] = (
     "fidelis/eval/texture_eval_hooks.py",
     "fidelis/eval/spectral_memory.py",
     "tests/test_spectral_memory.py",
+    "tests/test_weave_memory.py",
     "tests/test_texture_memory.py",
     "fidelis/eval/pipeline_metrics.py",
     "fidelis/eval/benchmark_suite.py",
