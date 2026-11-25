@@ -1,0 +1,165 @@
+{
+  "schema_version": 1,
+  "policy": "Candidate rights and bytes retained; fixed slot subject eligibility unproven or contradicted. Do not count as available frozen cases.",
+  "reviews": [
+    {
+      "case_id": "tex_cotton_twill_chino",
+      "reason": "Official Poly Haven metadata identifies Terlenka as synthetic polyester, contradicting frozen cotton 2/1 twill criterion.",
+      "candidate": {
+        "case_id": "tex_cotton_twill_chino",
+        "category": "textiles",
+        "split": "calibration",
+        "availability": "available",
+        "expected_subject": "Sand-dyed 2/1 cotton twill weave macro crop",
+        "rights": {
+          "cleared": true,
+          "permission_basis": "cc0_polyhaven_verified",
+          "license_id": "CC0-1.0",
+          "model_release_required": false,
+          "model_release_verified": false,
+          "notes": "Off-repo CC0/Public-Domain verified photograph (https://polyhaven.com/a/terlenka); visually inspected for subject/ROI accuracy."
+        },
+        "source": {
+          "storage": "off_repo",
+          "filename": "cc0_polyhaven_terlenka_2k.jpg",
+          "relative_path": null,
+          "sha256": "9528ce33df474c01f938b3afafe895b79a7b66f5706e4c735e8362e61b5bfb84",
+          "width": 2048,
+          "height": 2053,
+          "color_space": "sRGB",
+          "bit_depth": 8,
+          "has_alpha": false,
+          "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT"
+        },
+        "target": {
+          "scale": null,
+          "expected_width": null,
+          "expected_height": null
+        },
+        "known_text": [],
+        "critical_rois": [
+          {
+            "roi_id": "diagonal_wale",
+            "label": "Diagonal twill wale continuity",
+            "roi_type": "textile_weave",
+            "must_lock_base": false,
+            "bbox_norm": [
+              0.15,
+              0.15,
+              0.85,
+              0.85
+            ]
+          }
+        ],
+        "ground_truth_eligible": true,
+        "synthetic": false
+      }
+    },
+    {
+      "case_id": "tex_held_jacquard_brocade",
+      "reason": "Official metadata confirms black floral jacquard but does not establish required silk fiber.",
+      "candidate": {
+        "case_id": "tex_held_jacquard_brocade",
+        "category": "textiles",
+        "split": "held_out",
+        "availability": "available",
+        "expected_subject": "Tonal floral silk jacquard testing repeating motif registration",
+        "rights": {
+          "cleared": true,
+          "permission_basis": "cc0_polyhaven_verified",
+          "license_id": "CC0-1.0",
+          "model_release_required": false,
+          "model_release_verified": false,
+          "notes": "Off-repo CC0/Public-Domain verified photograph (https://polyhaven.com/a/floral_jacquard); visually inspected for subject/ROI accuracy."
+        },
+        "source": {
+          "storage": "off_repo",
+          "filename": "cc0_polyhaven_floral_jacquard_2k.jpg",
+          "relative_path": null,
+          "sha256": "2c9af7d2a223df245f33cc8acd8362a0faff90aec507cc06a5c46c815016fb62",
+          "width": 2048,
+          "height": 3106,
+          "color_space": "sRGB",
+          "bit_depth": 8,
+          "has_alpha": false,
+          "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT"
+        },
+        "target": {
+          "scale": null,
+          "expected_width": null,
+          "expected_height": null
+        },
+        "known_text": [],
+        "critical_rois": [
+          {
+            "roi_id": "jacquard_motif",
+            "label": "Woven pattern edges vs background satin",
+            "roi_type": "stitch",
+            "must_lock_base": true,
+            "bbox_norm": [
+              0.18,
+              0.22,
+              0.82,
+              0.78
+            ]
+          }
+        ],
+        "ground_truth_eligible": true,
+        "synthetic": false
+      }
+    },
+    {
+      "case_id": "tex_held_merino_rib",
+      "reason": "Official metadata identifies knitted fleece, not verified merino fiber or fine 2x2 rib construction.",
+      "candidate": {
+        "case_id": "tex_held_merino_rib",
+        "category": "textiles",
+        "split": "held_out",
+        "availability": "available",
+        "expected_subject": "Fine 2x2 merino jersey rib stretch transition",
+        "rights": {
+          "cleared": true,
+          "permission_basis": "cc0_polyhaven_verified",
+          "license_id": "CC0-1.0",
+          "model_release_required": false,
+          "model_release_verified": false,
+          "notes": "Off-repo CC0/Public-Domain verified photograph (https://polyhaven.com/a/knitted_fleece); visually inspected for subject/ROI accuracy."
+        },
+        "source": {
+          "storage": "off_repo",
+          "filename": "cc0_polyhaven_knitted_fleece_2k.jpg",
+          "relative_path": null,
+          "sha256": "7cc9a0bf3adca4a913d79fbe70149729e1ed2cc0ef479a9e9ab020a35d006e3a",
+          "width": 2048,
+          "height": 2079,
+          "color_space": "sRGB",
+          "bit_depth": 8,
+          "has_alpha": false,
+          "off_repo_root_env": "FIDELIS_MELATO_MASTER_ROOT"
+        },
+        "target": {
+          "scale": null,
+          "expected_width": null,
+          "expected_height": null
+        },
+        "known_text": [],
+        "critical_rois": [
+          {
+            "roi_id": "rib_columns",
+            "label": "Wale column parallelism",
+            "roi_type": "textile_weave",
+            "must_lock_base": false,
+            "bbox_norm": [
+              0.15,
+              0.15,
+              0.85,
+              0.85
+            ]
+          }
+        ],
+        "ground_truth_eligible": true,
+        "synthetic": false
+      }
+    }
+  ]
+}
