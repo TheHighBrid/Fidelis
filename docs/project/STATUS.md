@@ -4,9 +4,15 @@
 > Added `model_id` folder/SHA-256 resolution in `RealESRGANNCNNBackend` (`fidelis/studio/hybrid_texture.py`, `fidelis/engine/restoration_runner.py`) and unified `load_audition_cases_from_manifest` (`fidelis/studio/audition.py`, `scripts/audition-melato.py`, `scripts/run-comparators.py`) supporting `corpus_manifest.json` and `melato_corpus_manifest.json` with fail-closed SHA-256 and path-traversal guards. Executed live Apple M1 NCNN comparison on `mel_028` (`3764×6688`, `0` locked pixel mismatches) across `RealeSR-general-v3`, `RealSR-DF2K`, and `ESRGAN-Remacri` (`docs/APPLE_M1_PRECISION_BASE_AUDITION.md`). `RealeSR-general-v3` (`BSD-3-Clause`) remains the selected commercial-cleared precision base (`5/8` local Melato masters `PASS_MATERIAL_DETAIL`); `RealSR-DF2K` / `ESRGAN-Remacri` commercial terms and full 60-case corpus coverage remain open.
 
 > **Alternative-model calibration (2026-11-25):** Official SwinIR lightweight
-> DIV2K x4 ran on M1 MPS and passed one unchanged mel_014 diagnostic comparison
-> against bicubic; final acceptance remains blocked. No model/preset promotion,
-> held-out tuning or human signoff occurred. See the
+> DIV2K x4 ran on M1 MPS and passed unchanged `mel_014` (`331×494 → 1324×1976`)
+> and `mel_028` velvet (`941×1672 → 3764×6688`, `tile_core=192`, `tile_context=32`,
+> `90.29 s`, `0` locked pixel mismatches, `PASS_MATERIAL_DETAIL`) calibration
+> comparisons against bicubic while preserving the failing `RealeSR-general-v3`,
+> `RealSR-DF2K`, and `ESRGAN-Remacri` `mel_028` comparisons; final acceptance
+> remains `blocked_incomplete_evidence`. `TorchSpandrelRestorationBackend` and
+> `scripts/audition-melato.py` now support bounded overlapping-context tiling and
+> `auto` device selection. No model/preset promotion, held-out tuning or human
+> signoff occurred. See the
 > [reproduction and limits](checkpoints/2026-11-25-swinir-calibration.md).
 
 > **Operational manifest evidence reconciliation (2026-11-24):** Read back the
