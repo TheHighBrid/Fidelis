@@ -293,7 +293,9 @@
         "url": "https://linear.app/melato/issue/MEL-66/f13-calibrate-and-pass-held-out-quality-acceptance",
         "title": "F13 \u00b7 Calibrate and pass held-out quality acceptance"
       },
-      "verification_checkpoint": "docs/project/checkpoints/2026-11-10-held-out-acceptance.md"
+      "verification_checkpoint": "docs/project/checkpoints/2026-11-10-held-out-acceptance.md",
+      "resource_checkpoint": "docs/project/checkpoints/2026-11-25-evaluation-memory.md",
+      "resource_followup": "GitHub #129 remains open: spectral/luminance hotspots reduced and native guarded-pixel operation measured; full-resolution twill and remaining material/drift/composition peak memory are not qualified."
     },
     {
       "id": "F14",

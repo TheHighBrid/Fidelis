@@ -166,7 +166,7 @@ class RestorationRunnerTests(unittest.TestCase):
             weights.write_bytes(b"fake-pth-weights")
             expected_sha = hashlib.sha256(b"fake-pth-weights").hexdigest()
 
-            with self.assertRaises(BackendUnavailableError):
+            with patch.dict(sys.modules, {"torch": None, "spandrel": None}), self.assertRaises(BackendUnavailableError):
                 create_restoration_runner("torch_spandrel", weights_path=weights)
 
             class _FakeTensor:
