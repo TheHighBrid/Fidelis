@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Emit a read-only JSON split preflight for explicit manifest paths."""
 
 from __future__ import annotations
