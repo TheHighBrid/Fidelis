@@ -263,6 +263,23 @@ def build_parser() -> argparse.ArgumentParser:
         help="Model weights path for onnxruntime / torch_spandrel backends.",
     )
     parser.add_argument(
+        "--torch-device",
+        default="cpu",
+        help="Device for --backend torch_spandrel (e.g. cpu, mps, cuda, auto).",
+    )
+    parser.add_argument(
+        "--tile-core",
+        type=int,
+        default=None,
+        help="Optional core tile size in source pixels for --backend torch_spandrel.",
+    )
+    parser.add_argument(
+        "--tile-context",
+        type=int,
+        default=32,
+        help="Optional overlap context in source pixels for tiled --backend torch_spandrel (default: 32).",
+    )
+    parser.add_argument(
         "--model-id",
         default=None,
         help="Optional model identifier recorded in the audition report.",
@@ -353,6 +370,11 @@ def main(argv: list[str] | None = None) -> int:
             runner_kwargs["weights_path"] = args.weights
         if args.model_id is not None:
             runner_kwargs["model_id"] = args.model_id
+        if args.backend == "torch_spandrel":
+            runner_kwargs["device"] = args.torch_device
+            if args.tile_core is not None:
+                runner_kwargs["tile_core"] = args.tile_core
+            runner_kwargs["tile_context"] = args.tile_context
         if args.backend in ("realesrgan_ncnn", "hybrid"):
             runner_kwargs["detail_blend_weight"] = args.detail_blend_weight
         if args.backend == "hybrid":

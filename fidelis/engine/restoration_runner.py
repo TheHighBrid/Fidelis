@@ -433,8 +433,21 @@ class OnnxRestorationBackend:
         return out, {"weights_path": str(self.weights_path), "providers": self.providers}
 
 
+def _resolve_torch_device(torch_mod: Any, device: str) -> str:
+    if device != "auto":
+        return device
+    backends = getattr(torch_mod, "backends", None)
+    mps = getattr(backends, "mps", None)
+    if mps is not None and callable(getattr(mps, "is_available", None)) and mps.is_available():
+        return "mps"
+    cuda = getattr(torch_mod, "cuda", None)
+    if cuda is not None and callable(getattr(cuda, "is_available", None)) and cuda.is_available():
+        return "cuda"
+    return "cpu"
+
+
 class TorchSpandrelRestorationBackend:
-    """PyTorch + Spandrel restoration backend with lazy imports and SHA-256 provenance."""
+    """PyTorch + Spandrel restoration backend with lazy imports, optional tiling, and SHA-256 provenance."""
 
     backend_name = "torch_spandrel"
 
@@ -444,14 +457,21 @@ class TorchSpandrelRestorationBackend:
         *,
         model_id: str | None = None,
         device: str = "cpu",
+        tile_core: int | None = None,
+        tile_context: int = 32,
         model: Any = None,
     ) -> None:
         self.weights_path = Path(weights_path)
         if not self.weights_path.is_file():
             raise FileNotFoundError(f"PyTorch weights file not found: {self.weights_path}")
+        if tile_core is not None and (isinstance(tile_core, bool) or not isinstance(tile_core, int) or tile_core <= 0):
+            raise ValueError(f"tile_core must be a positive integer or None, got {tile_core!r}")
+        if isinstance(tile_context, bool) or not isinstance(tile_context, int) or tile_context < 0:
+            raise ValueError(f"tile_context must be a non-negative integer, got {tile_context!r}")
         self.model_id = model_id or self.weights_path.stem
         self.weights_sha256 = _sha256_file(self.weights_path)
-        self.device = device
+        self.tile_core = tile_core
+        self.tile_context = tile_context
 
         try:
             self._torch = importlib.import_module("torch")
@@ -461,24 +481,17 @@ class TorchSpandrelRestorationBackend:
                 "torch and spandrel are required for torch_spandrel backend"
             ) from exc
 
+        self.device = _resolve_torch_device(self._torch, device)
         if model is not None:
             self._model = model
         else:
             descriptor = spandrel.ModelLoader().load_from_file(str(self.weights_path))
             self._model = descriptor.model.to(self.device).eval()
 
-    def restore(
-        self,
-        source_rgb: np.ndarray,
-        *,
-        base_4x: np.ndarray,
-        scale: int,
-        target_shape: tuple[int, int, int],
-        case_id: str | None = None,
-    ) -> tuple[np.ndarray, dict[str, Any]]:
+    def _infer_tile(self, tile_rgb: np.ndarray, *, scale: int) -> np.ndarray:
         torch = self._torch
         inp = (
-            torch.from_numpy(source_rgb.astype(np.float32) / 255.0)
+            torch.from_numpy(tile_rgb.astype(np.float32) / 255.0)
             .permute(2, 0, 1)
             .unsqueeze(0)
             .to(self.device)
@@ -490,8 +503,63 @@ class TorchSpandrelRestorationBackend:
             if not np.all(np.isfinite(arr)):
                 raise ValueError("Torch/Spandrel model output contains non-finite values (NaN or Inf)")
             arr = np.clip(np.rint(arr * 255.0), 0, 255).astype(np.uint8)
-        out = _enforce_exact_shape(arr, target_shape, "torch_spandrel_output")
-        return out, {"weights_path": str(self.weights_path), "device": self.device}
+        expected = (tile_rgb.shape[0] * scale, tile_rgb.shape[1] * scale, 3)
+        return _enforce_exact_shape(arr, expected, "torch_spandrel_output")
+
+    def _infer_tiled(
+        self,
+        source_rgb: np.ndarray,
+        *,
+        scale: int,
+        target_shape: tuple[int, int, int],
+    ) -> tuple[np.ndarray, int]:
+        height, width = source_rgb.shape[:2]
+        core = int(self.tile_core)
+        context = self.tile_context
+        out = np.zeros(target_shape, dtype=np.uint8)
+        tiles = 0
+        for y in range(0, height, core):
+            for x in range(0, width, core):
+                right = min(x + core, width)
+                bottom = min(y + core, height)
+                left_ctx = max(0, x - context)
+                top_ctx = max(0, y - context)
+                right_ctx = min(width, right + context)
+                bottom_ctx = min(height, bottom + context)
+                tile = np.ascontiguousarray(source_rgb[top_ctx:bottom_ctx, left_ctx:right_ctx])
+                pred_tile = self._infer_tile(tile, scale=scale)
+                px = (x - left_ctx) * scale
+                py = (y - top_ctx) * scale
+                out[y * scale : bottom * scale, x * scale : right * scale] = pred_tile[
+                    py : py + (bottom - y) * scale,
+                    px : px + (right - x) * scale,
+                ]
+                tiles += 1
+        return out, tiles
+
+    def restore(
+        self,
+        source_rgb: np.ndarray,
+        *,
+        base_4x: np.ndarray,
+        scale: int,
+        target_shape: tuple[int, int, int],
+        case_id: str | None = None,
+    ) -> tuple[np.ndarray, dict[str, Any]]:
+        height, width = source_rgb.shape[:2]
+        if self.tile_core is not None and max(height, width) > self.tile_core:
+            out, tiles = self._infer_tiled(source_rgb, scale=scale, target_shape=target_shape)
+        else:
+            out = self._infer_tile(source_rgb, scale=scale)
+            tiles = 1
+        out = _enforce_exact_shape(out, target_shape, "torch_spandrel_output")
+        return out, {
+            "weights_path": str(self.weights_path),
+            "device": self.device,
+            "tile_core": self.tile_core,
+            "tile_context": self.tile_context if tiles > 1 else 0,
+            "tiles": tiles,
+        }
 
 
 _REALESR_OPTION_KEYS = frozenset(

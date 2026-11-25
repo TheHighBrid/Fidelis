@@ -228,6 +228,95 @@ class RestorationRunnerTests(unittest.TestCase):
                 self.assertEqual(res.image.shape, (64, 64, 3))
                 self.assertEqual(res.provenance.weights_sha256, expected_sha)
 
+    def test_torch_spandrel_tiled_overlapping_context_and_auto_device(self) -> None:
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            weights = Path(tmp) / "swinir.pth"
+            weights.write_bytes(b"fake-swinir-weights")
+
+            class _FakeTensor:
+                def __init__(self, arr: np.ndarray):
+                    self.arr = arr
+
+                def permute(self, *dims):
+                    return _FakeTensor(self.arr.transpose(dims))
+
+                def unsqueeze(self, dim):
+                    return _FakeTensor(np.expand_dims(self.arr, axis=dim))
+
+                def squeeze(self, dim):
+                    return _FakeTensor(np.squeeze(self.arr, axis=dim))
+
+                def to(self, device):
+                    return self
+
+                def detach(self):
+                    return self
+
+                def cpu(self):
+                    return self
+
+                def numpy(self):
+                    return self.arr
+
+            class _NoGrad:
+                def __enter__(self):
+                    return None
+
+                def __exit__(self, *args):
+                    return False
+
+            tile_shapes: list[tuple[int, int]] = []
+
+            class _FakeNearestModel:
+                def to(self, device):
+                    self.device = device
+                    return self
+
+                def eval(self):
+                    return self
+
+                def __call__(self, inp):
+                    _, _, h, w = inp.arr.shape
+                    tile_shapes.append((h, w))
+                    out = np.repeat(np.repeat(inp.arr, 4, axis=2), 4, axis=3)
+                    return _FakeTensor(out)
+
+            fake_torch = types.SimpleNamespace(
+                from_numpy=lambda arr: _FakeTensor(arr),
+                no_grad=lambda: _NoGrad(),
+                backends=types.SimpleNamespace(
+                    mps=types.SimpleNamespace(is_available=lambda: True)
+                ),
+            )
+            fake_spandrel = types.SimpleNamespace(
+                ModelLoader=lambda: types.SimpleNamespace(
+                    load_from_file=lambda p: types.SimpleNamespace(model=_FakeNearestModel())
+                )
+            )
+            src = _make_textured_rgb(20, 18, seed=7)
+            expected_4x = np.repeat(np.repeat(src, 4, axis=0), 4, axis=1)
+            with patch.dict(sys.modules, {"torch": fake_torch, "spandrel": fake_spandrel}):
+                with self.assertRaises(ValueError):
+                    create_restoration_runner("torch_spandrel", weights_path=weights, tile_core=0)
+                with self.assertRaises(ValueError):
+                    create_restoration_runner("torch_spandrel", weights_path=weights, tile_context=-1)
+                runner = create_restoration_runner(
+                    "torch_spandrel",
+                    weights_path=weights,
+                    device="auto",
+                    tile_core=8,
+                    tile_context=2,
+                )
+                res = runner.run(src, scale=4, apply_texture_guard=False)
+                self.assertEqual(res.provenance.extra["device"], "mps")
+                self.assertEqual(res.provenance.extra["tiles"], 9)
+                self.assertEqual(res.provenance.extra["tile_core"], 8)
+                self.assertEqual(res.provenance.extra["tile_context"], 2)
+                self.assertTrue(all(h <= 12 and w <= 12 for h, w in tile_shapes))
+                np.testing.assert_array_equal(res.image, expected_4x)
+
     def test_texture_guard_locks_preserve_roi_and_blends_interior_texture(self) -> None:
         import tempfile
 
