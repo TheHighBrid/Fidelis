@@ -36,6 +36,11 @@ It does not automatically intercept audition runs or establish historical exposu
 run it explicitly before corpus qualification. Source bytes/derivatives are outside
 its declared-hash scope.
 
+Required macOS CI on `713d4d9` completed the new tests and all earlier steps,
+then the ten-minute job limit cancelled the final pytest suite. Ubuntu completed
+in 4m22s. The runner allowance is raised to 15 minutes without removing tests or
+changing assertions; completion must be recorded on the resulting commit.
+
 Actual manifests at base `5099a7a`: **blocked**, 112 unique declared hashes,
 12 cross-split conflicts, 15 unknown hashes, zero malformed-record errors.
 Private report: `~/melato-corpus/fidelis/release-evidence/split-audit/preflight-5099a7a.json`.
