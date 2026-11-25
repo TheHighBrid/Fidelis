@@ -21,7 +21,7 @@ from urllib.parse import urlparse
 import httpx
 
 from fidelis.studio.capabilities import inventory
-from fidelis.studio.comfy import canonical_hash, validate_workflow
+from fidelis.studio.comfy import canonical_hash, extract_field_choices, validate_workflow
 from fidelis.studio.store import sha256
 
 WORKER_PREFLIGHT_SCHEMA = "fidelis.worker_preflight.v1"
@@ -279,8 +279,8 @@ def _node_choice_checks(node_id, class_type, inputs, specs, input_node):
         if node_id == input_node and name == "image":
             continue
         field = required_spec.get(name, optional_spec.get(name))
-        if isinstance(field, list) and field and isinstance(field[0], list):
-            allowed_choices = field[0]
+        allowed_choices = extract_field_choices(field)
+        if allowed_choices is not None:
             checks.append({
                 "node_id": str(node_id),
                 "class_type": class_type,
