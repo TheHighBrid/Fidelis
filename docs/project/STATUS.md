@@ -1,5 +1,19 @@
 # Current progress and evidence checkpoint
 
+> **F12 / MEL-63 CC0/Public-Domain corpus fill & held-out audition (2026-11-25):**
+> Populated 16 visually inspected, SHA-256-verified CC0/Public-Domain off-repo
+> photographs (Poly Haven, Wikimedia Commons, MET, Cleveland Museum of Art) with
+> annotated `bbox_norm` ROIs into `experiments/corpus_manifest.json`, bringing
+> frozen 60-case readiness from `30/60` to `46/60` (`calibration 23/30`,
+> `held_out 23/30`: `portraits 10/12`, `apparel_model 8/12`, `textiles 9/12`,
+> `macros 10/12`, `packshot_edge 9/12`). Executed a 6-case held-out `RealeSR-general-v3`
+> audition (`por_held_glasses_reflection`, `por_held_high_iso_backstage`,
+> `tex_held_suede_nap`, `tex_held_merino_rib`, `mac_held_care_label_symbols`,
+> `pak_held_high_key_jewelry`) with `0` locked-pixel mismatches across all 6 cases
+> (`4 FAIL_SHARPENING_ONLY`, `2 FAIL_SMOOTHING_REGRESSION`, off-repo receipt under
+> `release-evidence/b865815/f12-heldout-6-realesr/`). Remaining 14 slots (including
+> model-released portraits/apparel) and paid Clarity/Krea comparator runs remain open.
+
 > **F05 / MEL-58 precision-base selection & manifest audition delivery (2026-11-25):**
 > Added `model_id` folder/SHA-256 resolution in `RealESRGANNCNNBackend` (`fidelis/studio/hybrid_texture.py`, `fidelis/engine/restoration_runner.py`) and unified `load_audition_cases_from_manifest` (`fidelis/studio/audition.py`, `scripts/audition-melato.py`, `scripts/run-comparators.py`) supporting `corpus_manifest.json` and `melato_corpus_manifest.json` with fail-closed SHA-256 and path-traversal guards. Executed live Apple M1 NCNN comparison on `mel_028` (`3764×6688`, `0` locked pixel mismatches) across `RealeSR-general-v3`, `RealSR-DF2K`, and `ESRGAN-Remacri` (`docs/APPLE_M1_PRECISION_BASE_AUDITION.md`). `RealeSR-general-v3` (`BSD-3-Clause`) remains the selected commercial-cleared precision base (`5/8` local Melato masters `PASS_MATERIAL_DETAIL`); `RealSR-DF2K` / `ESRGAN-Remacri` commercial terms and full 60-case corpus coverage remain open.
 
