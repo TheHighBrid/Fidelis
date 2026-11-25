@@ -1,5 +1,15 @@
 # Current progress and evidence checkpoint
 
+> **F13 weave precision correction (#129, 2026-11-25):** Retained disk-backed
+> FFT processing while restoring the original shifted C-order NumPy sums, BLAS
+> norms and scalar precision. In a 2048×3072 M1 probe, previous bounded coherence
+> `0.9950470357729967` returns to reference `0.9950751066207886`, with energy
+> ratio also exactly matching the reference. Corrected peak RSS was 258,736,128
+> bytes, versus 637,206,528 for the original full-array calculation; extra I/O
+> increased operation time. Thresholds remain `0.75`/`0.90`, and no image/model
+> quality or release acceptance is claimed.
+> [Precision evidence and limits](checkpoints/2026-11-25-weave-precision.md).
+
 > **F13 bounded composition, drift & F4 material metrics (#129, 2026-11-25):**
 > Bounded `compose_regions` (`fidelis/postprocess/regions.py`, 256-row strips),
 > `build_roi_protection_masks` / `screen_internal_drift`

@@ -1,5 +1,15 @@
 # Fresh-context handoff
 
+## Weave acceptance precision · 2026-11-25 · #129
+
+The [precision checkpoint](checkpoints/2026-11-25-weave-precision.md) records a
+correction to #131's float64 strip reduction. Disk-backed shifted C-order power
+and the reference NumPy/BLAS scalar calculations preserve the existing weave
+criterion. A 2048×3072 M1 probe matches both reference outputs exactly, with peak
+RSS 258,736,128 bytes versus the original 637,206,528; extra disk passes cost time.
+This is numerical/resource evidence only. The full 198.7MP twill run and release
+quality/human/device/owner gates remain open.
+
 ## Native-grid evaluation memory · 2026-11-25 · #129
 
 The [memory checkpoint](checkpoints/2026-11-25-evaluation-memory.md) records a

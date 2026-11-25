@@ -125,21 +125,61 @@ def spectral_band_means(
     return {name: sums[name] / counts[name] if counts[name] else 0.0 for name in bands}
 
 
-def _unshifted_bin_offsets(length: int) -> np.ndarray:
-    """Return signed bin offsets matching ``fftshift`` distance from ``length // 2``."""
-    indices = np.arange(length, dtype=np.float64)
-    cutoff = (length - 1) // 2
-    return np.where(indices <= cutoff, indices, indices - length)
+def _weave_power_file(signal, complex_path, power_path, dtype, block_size):
+    """Store shifted C-order power on disk, matching reference reduction order."""
+    height, width = signal.shape
+    real_dtype = np.empty(1, dtype=dtype).real.dtype
+    transposed_path = power_path.with_suffix(".transposed.dat")
+    with complex_path.open("wb") as backing:
+        backing.truncate(height * width * dtype.itemsize)
+    with transposed_path.open("wb") as backing:
+        backing.truncate(height * width * real_dtype.itemsize)
+    _write_row_transforms(signal, complex_path, dtype, block_size)
+    # Integer unshifted bin coordinates reproduce shifted pixel-radius >= 2.
+    iy = np.arange(height, dtype=np.int64)
+    ix = np.arange(width, dtype=np.int64)
+    iy = np.where(iy < (height + 1) // 2, iy, iy - height)
+    ix = np.where(ix < (width + 1) // 2, ix, ix - width)
+    for start in range(0, width, block_size):
+        stop = min(start + block_size, width)
+        spectrum = _column_transform(complex_path, dtype, signal.shape, start, stop, block_size)
+        power = (np.abs(spectrum) ** 2) / max(float(height * width), 1.0)
+        mask = iy[:, None] ** 2 + ix[None, start:stop] ** 2 >= 4
+        np.multiply(power, mask, out=power)
+        with _mapped_rows(transposed_path, real_dtype, height, start, stop, mode="r+") as rows:
+            rows[:] = power.T
+            rows.flush()
+    complex_path.unlink()
+    # Transpose/shift once into reference C order. Flushing every FFT column's
+    # scatter into every output row block would add quadratic synchronous I/O.
+    with power_path.open("wb") as backing:
+        backing.truncate(height * width * real_dtype.itemsize)
+    for row_start in range(0, height, block_size):
+        row_stop = min(row_start + block_size, height)
+        source_rows = (np.arange(row_start, row_stop) - height // 2) % height
+        with _mapped_rows(power_path, real_dtype, width, row_start, row_stop, mode="r+") as rows:
+            for start in range(0, width, block_size):
+                stop = min(start + block_size, width)
+                columns = (np.arange(start, stop) + width // 2) % width
+                with _mapped_rows(transposed_path, real_dtype, height, start, stop) as source:
+                    rows[:, columns] = source[:, source_rows].T
+            rows.flush()
+    transposed_path.unlink()
+    with _mapped_rows(power_path, real_dtype, width, 0, height) as frame:
+        return float(np.sum(frame))
 
 
-def _accumulate_weave_strip(power_r, power_c, mask, stats):
-    stats["sum_r"] += float(np.sum(power_r, where=mask, dtype=np.float64))
-    stats["sum_c"] += float(np.sum(power_c, where=mask, dtype=np.float64))
-    pr_hp = np.where(mask, power_r.astype(np.float64), 0.0)
-    pc_hp = np.where(mask, power_c.astype(np.float64), 0.0)
-    stats["sum_r2"] += float(np.sum(pr_hp * pr_hp, dtype=np.float64))
-    stats["sum_c2"] += float(np.sum(pc_hp * pc_hp, dtype=np.float64))
-    stats["sum_rc"] += float(np.sum(pr_hp * pc_hp, dtype=np.float64))
+def _normalize_power_file(path, dtype, shape, total, block_size):
+    height, width = shape
+    for start in range(0, height, block_size):
+        stop = min(start + block_size, height)
+        with _mapped_rows(path, dtype, width, start, stop, mode="r+") as rows:
+            np.divide(rows, total + 1e-12, out=rows)
+            rows.flush()
+    # Preserve the actual NumPy/BLAS reduction and input order. Replacing this
+    # with float64 strip sums changes large float32 norms measurably.
+    with _mapped_rows(path, dtype, width, 0, height) as frame:
+        return np.linalg.norm(frame)
 
 
 def spectral_weave_coherence(
@@ -148,49 +188,57 @@ def spectral_weave_coherence(
     scratch_dir: str | Path | None = None,
     block_size: int = 128,
 ) -> tuple[float, float]:
-    """Compute F4 weave FFT coherence and energy ratio without full-grid FFT arrays."""
-    for name, arr in (("ref_signal", ref_signal), ("cand_signal", cand_signal)):
-        if arr.ndim != 2 or min(arr.shape) <= 0:
-            raise ValueError(f"{name} must be a nonempty two-dimensional array")
-        if arr.dtype != np.float32:
-            raise TypeError(f"{name} must have float32 dtype")
-    if ref_signal.shape != cand_signal.shape:
-        raise ValueError("ref_signal and cand_signal must have identical shapes")
+    """Compare full-ROI Hann spectra using bounded mappings and unchanged floors.
+
+    Inputs are already mean-centered by the caller. FFT precision/order,
+    pixel-bin radius >= 2 exclusion, spectral
+    normalization and denominator floors follow the material metric reference.
+    No crop, padding or resampling occurs. Power is stored in shifted C order so
+    NumPy sums and BLAS norms retain the reference ordering and precision. FFT
+    and elementwise working arrays use strips; scalar reductions map one whole
+    real disk frame, whose resident pages can grow to a frame before unmapping.
+    Inputs stay resident; scratch peak is two real power frames plus one complex
+    frame (or three real frames for the cross product). Other application buffers
+    and filesystem cache are additional. This is not a total-process RSS bound.
+    """
+    reference, candidate = ref_signal, cand_signal
+    if reference.ndim != 2 or candidate.ndim != 2 or reference.shape != candidate.shape:
+        raise ValueError("weave inputs must be aligned two-dimensional arrays")
+    if min(reference.shape) <= 0:
+        raise ValueError("weave inputs must be nonempty")
+    if reference.dtype != np.float32 or candidate.dtype != np.float32:
+        raise TypeError("weave inputs must have float32 dtype")
     block_size = operator.index(block_size)
     if block_size <= 0:
         raise ValueError("block_size must be positive")
-
-    height, width = ref_signal.shape
+    height, width = reference.shape
+    from fidelis.eval.texture_metrics import _fft_power_spectrum
+    probe_power = _fft_power_spectrum(np.zeros((3, 5), dtype=np.float32))
+    if not (probe_power * np.ones((3, 5), dtype=bool)).flags.c_contiguous:
+        raise RuntimeError("reference weave power layout is not supported")
     dtype = np.fft.fft(np.zeros(1, dtype=np.float32)).dtype
-    dy = _unshifted_bin_offsets(height)
-    dx = _unshifted_bin_offsets(width)
-    scale = max(float(height * width), 1.0)
-    stats = {"sum_r": 0.0, "sum_c": 0.0, "sum_r2": 0.0, "sum_c2": 0.0, "sum_rc": 0.0}
-
+    real_dtype = np.empty(1, dtype=dtype).real.dtype
     with tempfile.TemporaryDirectory(prefix="fidelis-weave-", dir=scratch_dir) as temp:
-        ref_path = Path(temp) / "ref-rows.dat"
-        cand_path = Path(temp) / "cand-rows.dat"
-        byte_size = height * width * dtype.itemsize
-        for path, sig in ((ref_path, ref_signal), (cand_path, cand_signal)):
-            with path.open("wb") as backing:
-                backing.truncate(byte_size)
-            _write_row_transforms(sig, path, dtype, block_size)
-
-        for start in range(0, width, block_size):
-            stop = min(start + block_size, width)
-            spec_r = _column_transform(ref_path, dtype, ref_signal.shape, start, stop, block_size)
-            spec_c = _column_transform(cand_path, dtype, cand_signal.shape, start, stop, block_size)
-            power_r = (np.abs(spec_r) ** 2) / scale
-            power_c = (np.abs(spec_c) ** 2) / scale
-            mask = np.sqrt(dy[:, None] ** 2 + dx[None, start:stop] ** 2) >= 2.0
-            _accumulate_weave_strip(power_r, power_c, mask, stats)
-
-    sum_r, sum_c = stats["sum_r"], stats["sum_c"]
-    if sum_r < 1e-9 and sum_c < 1e-9:
-        return 1.0, 1.0
-    denom_r = sum_r + 1e-12
-    denom_c = sum_c + 1e-12
-    norm_prod = ((stats["sum_r2"] ** 0.5) / denom_r) * ((stats["sum_c2"] ** 0.5) / denom_c)
-    fft_coh = float((stats["sum_rc"] / (denom_r * denom_c)) / max(norm_prod, 1e-12))
-    energy_ratio = float(sum_c / max(sum_r, 1e-9))
-    return fft_coh, energy_ratio
+        root = Path(temp)
+        ref_path, cand_path = root / "reference.dat", root / "candidate.dat"
+        complex_path = root / "row-transforms.dat"
+        sum_r = _weave_power_file(reference, complex_path, ref_path, dtype, block_size)
+        sum_c = _weave_power_file(candidate, complex_path, cand_path, dtype, block_size)
+        if sum_r < 1e-9 and sum_c < 1e-9:
+            return 1.0, 1.0
+        norm_r = _normalize_power_file(ref_path, real_dtype, reference.shape, sum_r, block_size)
+        norm_c = _normalize_power_file(cand_path, real_dtype, reference.shape, sum_c, block_size)
+        cross_path = root / "cross.dat"
+        with cross_path.open("wb") as backing:
+            backing.truncate(height * width * real_dtype.itemsize)
+        for start in range(0, height, block_size):
+            stop = min(start + block_size, height)
+            with _mapped_rows(ref_path, real_dtype, width, start, stop) as ref:
+                with _mapped_rows(cand_path, real_dtype, width, start, stop) as cand:
+                    with _mapped_rows(cross_path, real_dtype, width, start, stop, mode="r+") as cross_rows:
+                        np.multiply(ref, cand, out=cross_rows)
+                        cross_rows.flush()
+        with _mapped_rows(cross_path, real_dtype, width, 0, height) as frame:
+            cross = np.sum(frame)
+        denominator = float(norm_r * norm_c)
+        return float(cross / max(denominator, 1e-12)), sum_c / max(sum_r, 1e-9)
