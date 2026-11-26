@@ -375,6 +375,7 @@ def _run_single_case_audition(
     Image.fromarray(src).save(src_path, format="PNG")
     Image.fromarray(result.image).save(cand_path, format="PNG")
     Image.fromarray(bicubic_rgb).save(bic_path, format="PNG")
+    source_file_sha = _checkpoint_sha256_file(src_path)
 
     suite = BenchmarkSuite()
     detail_metrics = suite.evaluate_4x_detail(
@@ -438,6 +439,7 @@ def _run_single_case_audition(
         "split": blind_split,
         "category": "material_detail",
         "source_path": str(src_path),
+        "source_sha256": source_file_sha,
         "candidate_path": str(cand_path),
         "bicubic_path": str(bic_path),
         "provenance": result.provenance.to_dict(),
@@ -482,6 +484,7 @@ def _run_single_case_audition(
                 "split": blind_split,
                 "category": "material_detail",
                 "source_path": str(src_path),
+                "source_sha256": source_file_sha,
                 "outputs": {
                     "candidate": {"status": "completed", "output_path": str(cand_path)},
                     "bicubic": {"status": "completed", "output_path": str(bic_path)},
@@ -721,6 +724,7 @@ def run_model_vs_bicubic_audition(
             "split": split,
             "category": category,
             "source_path": str(src_p),
+            "source_sha256": source_file_sha,
             "candidate_path": str(cand_path),
             "bicubic_path": str(bic_path),
             "provenance": result.provenance.to_dict(),
@@ -752,6 +756,7 @@ def run_model_vs_bicubic_audition(
                 "split": split,
                 "category": category,
                 "source_path": str(src_p),
+                "source_sha256": source_file_sha,
                 "outputs": {
                     "candidate": {"status": "completed", "output_path": str(cand_path)},
                     "bicubic": {"status": "completed", "output_path": str(bic_path)},

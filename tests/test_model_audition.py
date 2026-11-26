@@ -510,6 +510,52 @@ class ModelAuditionTests(unittest.TestCase):
             self.assertEqual(cli_payload["manifest_resolution"]["selected_ids"], ["mel_sample"])
             self.assertEqual(cli_payload["summary"]["total_cases"], 1)
             self.assertTrue(Path(cli_payload["blind_ballot"]).is_file())
+            report_doc = json.loads(Path(cli_payload["report"]).read_text(encoding="utf-8"))
+            self.assertEqual(report_doc["cases"][0]["source_sha256"], img_sha)
+            key_doc = json.loads(Path(cli_payload["blind_answer_key"]).read_text(encoding="utf-8"))
+            first_pair = next(iter(key_doc["mapping"].values()))
+            self.assertEqual(first_pair["source_sha256"], img_sha)
+
+            # Aliased cross-split manifest must block audition-melato before inference
+            conflict_manifest = {
+                "schema_version": 1,
+                "cases": [
+                    {
+                        "case_id": "aliased_held_case",
+                        "split": "held_out",
+                        "source": {"sha256": img_sha},
+                    }
+                ],
+            }
+            conflict_path = root / "conflict.json"
+            conflict_path.write_text(json.dumps(conflict_manifest), encoding="utf-8")
+            melato_manifest_v1 = {"schema_version": 1, "assets": [{**melato_manifest["assets"][0], "split": "calibration"}]}
+            manifest_v1_path = root / "melato_v1.json"
+            manifest_v1_path.write_text(json.dumps(melato_manifest_v1), encoding="utf-8")
+            blocked = subprocess.run(
+                [
+                    sys.executable,
+                    str(REPO_ROOT / "scripts" / "audition-melato.py"),
+                    "--manifest",
+                    str(manifest_v1_path),
+                    "--master-root",
+                    str(master_root),
+                    "--split-preflight-manifest",
+                    str(conflict_path),
+                    "--backend",
+                    "bicubic",
+                    "--no-html",
+                    "--output-dir",
+                    str(root / "blocked_out"),
+                ],
+                cwd=str(REPO_ROOT),
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(blocked.returncode, 2, msg=blocked.stdout + blocked.stderr)
+            self.assertIn("cross-split source-SHA conflict", blocked.stderr)
+            self.assertFalse((root / "blocked_out" / "audition_report.json").exists())
 
 
 if __name__ == "__main__":

@@ -37,6 +37,12 @@ protocol defined in [QUALITY_GATES.md](project/QUALITY_GATES.md):
   path/to/held-out-submission.json \
   --output .cache/quality-acceptance-report.json
 
+# Verify source-SHA split isolation against explicit manifests
+.venv/bin/python scripts/evaluate-quality-acceptance.py \
+  path/to/held-out-submission.json \
+  --manifest experiments/corpus_manifest.json \
+  --manifest experiments/melato_corpus_manifest.json
+
 # Require explicit owner creative signoff (exits 2 if status is awaiting_owner_signoff)
 .venv/bin/python scripts/evaluate-quality-acceptance.py \
   path/to/held-out-submission.json \

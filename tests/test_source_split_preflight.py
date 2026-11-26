@@ -8,7 +8,10 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from fidelis.eval.source_split_preflight import check_source_split_isolation
+from fidelis.eval.source_split_preflight import (
+    check_source_split_isolation,
+    collect_source_split_index,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -116,6 +119,21 @@ class SourceSplitPreflightTests(unittest.TestCase):
                                   text=True, check=False)
         self.assertEqual(conflict.returncode, 1, conflict.stderr)
         self.assertEqual(json.loads(conflict.stdout)["summary"]["conflict_count"], 1)
+
+    def test_collect_source_split_index_maps_ids_and_detects_cross_manifest_hash_disagreement(self):
+        first = self.manifest("first.json", [self.case("mel_014", "calibration", SOURCE_SHA)])
+        second = self.manifest("second.json", [self.case("por_held_high_iso_backstage", "held_out", SOURCE_SHA)])
+        idx = collect_source_split_index([first, second])
+        self.assertEqual(idx["sha_by_id"]["mel_014"], SOURCE_SHA)
+        self.assertEqual(idx["sha_by_id"]["por_held_high_iso_backstage"], SOURCE_SHA)
+        self.assertEqual(idx["calibration_shas"], [SOURCE_SHA])
+        self.assertEqual(idx["conflict_shas"], [SOURCE_SHA])
+        self.assertEqual(idx["id_hash_conflicts"], [])
+
+        third = self.manifest("third.json", [self.case("mel_014", "calibration", "b" * 64)])
+        idx_conflict = collect_source_split_index([first, third])
+        self.assertEqual(len(idx_conflict["id_hash_conflicts"]), 1)
+        self.assertEqual(idx_conflict["id_hash_conflicts"][0]["id"], "mel_014")
 
 
 if __name__ == "__main__":

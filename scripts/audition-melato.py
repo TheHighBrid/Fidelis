@@ -25,6 +25,7 @@ from fidelis.eval.quality_acceptance import (
     AcceptanceThresholds,
     evaluate_held_out_acceptance,
 )
+from fidelis.eval.source_split_preflight import collect_source_split_index
 from fidelis.studio.audition import (
     ManifestLoadOptions,
     load_audition_cases_from_manifest,
@@ -112,6 +113,8 @@ def _build_acceptance_payload(
     report: dict[str, Any],
     protocol: dict[str, Any],
     receipt: dict[str, Any],
+    *,
+    manifest_paths: list[Path] | None = None,
 ) -> dict[str, Any]:
     cases = report.get("cases", [])
     all_texture = all(
@@ -130,12 +133,20 @@ def _build_acceptance_payload(
         bool(c.get("detail_metrics", {}).get("hardware_seam_passed", True))
         for c in cases
     )
+    cal_cases = [c for c in cases if c.get("split") == "calibration"]
+    cal_case_hashes = {
+        c["id"]: c["source_sha256"]
+        for c in cal_cases
+        if isinstance(c.get("source_sha256"), str) and c["source_sha256"]
+    }
     submission = {
         "protocol_id": protocol.get("id", "melato-fabric-hardware-v1"),
         "reproducibility_receipt": receipt,
         "calibration_summary": {
             "recipe_frozen": False,
-            "case_ids": [c["id"] for c in cases if c.get("split") == "calibration"],
+            "case_ids": [c["id"] for c in cal_cases],
+            "source_sha256s": sorted(set(cal_case_hashes.values())),
+            "case_source_hashes": cal_case_hashes,
         },
         "automated_metrics": {
             "interior_texture_passed": all_texture if cases else False,
@@ -148,7 +159,62 @@ def _build_acceptance_payload(
     return evaluate_held_out_acceptance(
         submission,
         thresholds=AcceptanceThresholds(require_automated_detail_gates=True),
+        manifest_paths=manifest_paths or None,
     )
+
+
+def _case_source_sha256(case: dict[str, Any], asset_root: Path) -> str | None:
+    declared = case.get("source_sha256")
+    if isinstance(declared, str) and re.fullmatch(r"[0-9a-fA-F]{64}", declared):
+        return declared.lower()
+    src = case.get("source_path")
+    if not src:
+        return None
+    src_path = Path(str(src))
+    if not src_path.is_absolute():
+        src_path = asset_root / src_path
+    if not src_path.is_file():
+        return None
+    digest = hashlib.sha256()
+    with src_path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(65536), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _preflight_case_split_isolation(
+    cases: list[dict[str, Any]],
+    manifest_paths: list[Path],
+    *,
+    asset_root: Path,
+    enforce_passed: bool,
+) -> dict[str, Any]:
+    index = collect_source_split_index(manifest_paths)
+    report = index["report"]
+    conflict_shas = set(index["conflict_shas"])
+    conflict_ids = {
+        str(alias.get("id"))
+        for group in report["conflicts"]
+        for alias in group.get("aliases", ())
+    }
+    if report["errors"] or index["id_hash_conflicts"]:
+        raise ValueError(
+            "Source split preflight failed due to invalid or conflicting manifest records"
+        )
+    if enforce_passed and not report["passed"]:
+        raise ValueError(
+            f"Source split isolation preflight status={report['status']!r} "
+            f"(conflicts={report['summary']['conflict_count']}, "
+            f"unknown_hashes={report['summary']['unknown_hash_count']})"
+        )
+    for case in cases:
+        cid = str(case.get("id", ""))
+        case_sha = _case_source_sha256(case, asset_root) or index["sha_by_id"].get(cid)
+        if cid in conflict_ids or (case_sha is not None and case_sha in conflict_shas):
+            raise ValueError(
+                f"Selected case {cid!r} participates in a cross-split source-SHA conflict"
+            )
+    return report
 
 
 def _diagnostic_receipt(protocol_path: Path, manifest_path: Path | None) -> dict[str, Any]:
@@ -357,6 +423,18 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Replay verified raw checkpoints from this directory without loading or calling an inference backend.",
     )
+    parser.add_argument(
+        "--split-preflight-manifest",
+        type=Path,
+        action="append",
+        default=[],
+        help="Additional manifest JSON path(s) checked for source-SHA cross-split aliases before running.",
+    )
+    parser.add_argument(
+        "--enforce-split-isolation",
+        action="store_true",
+        help="Fail closed unless source-SHA split preflight across supplied manifests passes with zero conflicts or unknowns.",
+    )
     return parser
 
 
@@ -411,6 +489,22 @@ def main(argv: list[str] | None = None) -> int:
 
         blind_split = args.blind_split if args.blind_split is not None else default_blind_split
 
+        preflight_manifests: list[Path] = []
+        if args.split_preflight_manifest or args.enforce_split_isolation:
+            if args.manifest is not None:
+                preflight_manifests.append(args.manifest)
+            preflight_manifests.extend(args.split_preflight_manifest)
+        split_preflight_report = (
+            _preflight_case_split_isolation(
+                cases,
+                preflight_manifests,
+                asset_root=args.root,
+                enforce_passed=args.enforce_split_isolation,
+            )
+            if preflight_manifests
+            else None
+        )
+
         protocol_sha = receipt["calibration_recipe_sha256"]
         if args.replay_checkpoint_dir is not None:
             runner = None
@@ -464,14 +558,28 @@ def main(argv: list[str] | None = None) -> int:
             model = report.get("model", {})
             receipt["model_weight_hashes"] = _measured_weight_hashes(model)
             receipt["seed_policy"] = f"blind_seed={args.blind_seed}"
+            receipt["source_case_hashes"] = {
+                c["id"]: c["source_sha256"]
+                for c in report.get("cases", [])
+                if c.get("source_sha256")
+            }
+            if split_preflight_report is not None:
+                receipt["source_split_preflight"] = split_preflight_report["summary"]
             receipt_path = args.output_dir / "audition_receipt.json"
             _write_json(receipt_path, receipt)
-            acceptance = _build_acceptance_payload(report, protocol, receipt)
+            acceptance = _build_acceptance_payload(
+                report,
+                protocol,
+                receipt,
+                manifest_paths=preflight_manifests or None,
+            )
             acceptance_path = args.output_dir / "acceptance_summary.json"
             _write_json(acceptance_path, acceptance)
             out_summary["acceptance_summary"] = str(acceptance_path)
             out_summary["acceptance_status"] = acceptance.get("overall_status")
             out_summary["audition_receipt"] = str(receipt_path)
+        if split_preflight_report is not None:
+            out_summary["source_split_preflight"] = split_preflight_report["summary"]
 
         print(json.dumps(out_summary, indent=2))
         return 0

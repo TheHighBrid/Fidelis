@@ -42,6 +42,13 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Exit non-zero unless creative signoff (team delegated or owner) is explicitly approved",
     )
+    parser.add_argument(
+        "--manifest",
+        type=Path,
+        action="append",
+        default=[],
+        help="Optional source manifest path(s) for source-SHA split isolation verification",
+    )
     args = parser.parse_args(argv)
 
     if not args.submission.is_file():
@@ -61,6 +68,7 @@ def main(argv: list[str] | None = None) -> int:
     report = evaluate_held_out_acceptance(
         submission_data,
         thresholds=AcceptanceThresholds(),
+        manifest_paths=args.manifest or None,
     )
 
     output_text = json.dumps(report, indent=2) + "\n"
