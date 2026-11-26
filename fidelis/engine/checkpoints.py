@@ -12,7 +12,6 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import shutil
 import subprocess  # nosec B404
 import uuid
 from collections.abc import Mapping, Sequence
@@ -144,12 +143,11 @@ def compute_rgb_pixel_sha256(arr: np.ndarray) -> str:
 
 
 def _query_git_state(repo_root: Path) -> tuple[str | None, bool | None]:
-    git_bin = shutil.which("git")
-    if not git_bin or not Path(git_bin).is_absolute():
+    if not Path("/usr/bin/git").is_file():
         return None, None
     try:
         code_commit = subprocess.run(  # nosec B603
-            [git_bin, "rev-parse", "HEAD"],
+            ["/usr/bin/git", "rev-parse", "HEAD"],
             cwd=repo_root,
             check=True,
             capture_output=True,
@@ -158,7 +156,7 @@ def _query_git_state(repo_root: Path) -> tuple[str | None, bool | None]:
         ).stdout.strip()
         working_tree_dirty = bool(
             subprocess.run(  # nosec B603
-                [git_bin, "status", "--porcelain"],
+                ["/usr/bin/git", "status", "--porcelain"],
                 cwd=repo_root,
                 check=True,
                 capture_output=True,
