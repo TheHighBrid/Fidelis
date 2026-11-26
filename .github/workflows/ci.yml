@@ -194,6 +194,7 @@ jobs:
           python -m unittest discover -s tests -p 'test_hybrid_texture.py'
           python -m unittest discover -s tests -p 'test_restoration_runner.py'
           python -m unittest discover -s tests -p 'test_model_audition.py'
+          python -m unittest discover -s tests -p 'test_cached_png_and_raw_checkpoints.py'
 
       - name: Held-out quality acceptance and inter-rater reliability tests
         run: python -m unittest discover -s tests -p 'test_quality_acceptance.py'

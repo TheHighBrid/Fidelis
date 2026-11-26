@@ -345,6 +345,18 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Evaluate automated detail gates via evaluate_held_out_acceptance and write acceptance_summary.json.",
     )
+    parser.add_argument(
+        "--raw-checkpoint-dir",
+        type=Path,
+        default=None,
+        help="Persist raw model output and bicubic base .npy checkpoints per case before texture guarding.",
+    )
+    parser.add_argument(
+        "--replay-checkpoint-dir",
+        type=Path,
+        default=None,
+        help="Replay verified raw checkpoints from this directory without loading or calling an inference backend.",
+    )
     return parser
 
 
@@ -399,24 +411,29 @@ def main(argv: list[str] | None = None) -> int:
 
         blind_split = args.blind_split if args.blind_split is not None else default_blind_split
 
-        runner_kwargs: dict[str, Any] = {}
-        if args.imported_dir is not None:
-            runner_kwargs["imported_dir"] = args.imported_dir
-        if args.weights is not None:
-            runner_kwargs["weights_path"] = args.weights
-        if args.model_id is not None:
-            runner_kwargs["model_id"] = args.model_id
-        if args.backend == "torch_spandrel":
-            runner_kwargs["device"] = args.torch_device
-            if args.tile_core is not None:
-                runner_kwargs["tile_core"] = args.tile_core
-            runner_kwargs["tile_context"] = args.tile_context
-        if args.backend in ("realesrgan_ncnn", "hybrid"):
-            runner_kwargs["detail_blend_weight"] = args.detail_blend_weight
-        if args.backend == "hybrid":
-            runner_kwargs["address"] = args.comfy_address
+        protocol_sha = receipt["calibration_recipe_sha256"]
+        if args.replay_checkpoint_dir is not None:
+            runner = None
+        else:
+            runner_kwargs: dict[str, Any] = {}
+            if args.imported_dir is not None:
+                runner_kwargs["imported_dir"] = args.imported_dir
+            if args.weights is not None:
+                runner_kwargs["weights_path"] = args.weights
+            if args.model_id is not None:
+                runner_kwargs["model_id"] = args.model_id
+            if args.backend == "torch_spandrel":
+                runner_kwargs["device"] = args.torch_device
+                if args.tile_core is not None:
+                    runner_kwargs["tile_core"] = args.tile_core
+                runner_kwargs["tile_context"] = args.tile_context
+            if args.backend in ("realesrgan_ncnn", "hybrid"):
+                runner_kwargs["detail_blend_weight"] = args.detail_blend_weight
+            if args.backend == "hybrid":
+                runner_kwargs["address"] = args.comfy_address
 
-        runner = create_restoration_runner(args.backend, **runner_kwargs)
+            runner = create_restoration_runner(args.backend, **runner_kwargs)
+
         report = run_model_vs_bicubic_audition(
             cases,
             runner,
@@ -426,6 +443,9 @@ def main(argv: list[str] | None = None) -> int:
             generate_html=not args.no_html,
             asset_root=args.root,
             blind_split=blind_split,
+            raw_checkpoint_dir=args.raw_checkpoint_dir,
+            replay_checkpoint_dir=args.replay_checkpoint_dir,
+            protocol_sha256=protocol_sha,
         )
 
         blind_info = report.get("blind", {})
