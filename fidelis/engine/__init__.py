@@ -1,8 +1,8 @@
 """Fidelis restoration engine package."""
 
+from fidelis.engine.checkpoint_replay import CheckpointRestorationBackend
 from fidelis.engine.checkpoints import (
     CheckpointError,
-    CheckpointRestorationBackend,
     make_raw_checkpoint_callback,
     save_raw_checkpoint,
 )

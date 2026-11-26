@@ -103,6 +103,7 @@ REQUIRED_ARCHIVE_PATHS: tuple[str, ...] = (
     "scripts/check-source-split-isolation.py",
     "tests/test_source_split_preflight.py",
     "fidelis/engine/checkpoints.py",
+    "fidelis/engine/checkpoint_replay.py",
     "tests/test_cached_png_and_raw_checkpoints.py",
     "fidelis/eval/melato_corpus_manifest.py",
     "fidelis/eval/metric_contract.py",

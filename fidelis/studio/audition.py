@@ -15,8 +15,9 @@ from typing import Any
 import numpy as np
 from PIL import Image
 
+from fidelis.engine.checkpoint_replay import CheckpointRestorationBackend
 from fidelis.engine.checkpoints import (
-    CheckpointRestorationBackend,
+    CheckpointExpectations,
     make_raw_checkpoint_callback,
     sha256_file as _checkpoint_sha256_file,
 )
@@ -626,20 +627,23 @@ def run_model_vs_bicubic_audition(
             case_runner = RestorationRunner(
                 CheckpointRestorationBackend(
                     replay_root / case_id,
-                    expected_case_id=case_id,
-                    expected_source_file_sha256=source_file_sha,
-                    require_source_file_sha256=True,
-                    expected_scale=scale,
-                    expected_target_shape=(th, tw, 3),
-                    expected_normalized_rois=target_rois,
-                    expected_protocol_sha256=protocol_sha256,
-                    expected_config_sha256=config_sha256,
+                    expectations=CheckpointExpectations(
+                        expected_case_id=case_id,
+                        expected_source_file_sha256=source_file_sha,
+                        require_source_file_sha256=True,
+                        expected_scale=scale,
+                        expected_target_shape=(th, tw, 3),
+                        expected_normalized_rois=target_rois,
+                        expected_protocol_sha256=protocol_sha256,
+                        expected_config_sha256=config_sha256,
+                    ),
                     evaluation_context={"case_id": case_id, "source_path": str(src_p)},
                 )
             )
-        else:
-            assert runner is not None
+        elif runner is not None:
             case_runner = runner
+        else:
+            raise ValueError("Batch audition requires runner or replay_checkpoint_dir")
         last_runner = case_runner
 
         result = case_runner.run(

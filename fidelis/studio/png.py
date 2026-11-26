@@ -167,6 +167,101 @@ def _scan_chunk_crc(stream, chunk_type, length, *, verify_crc):
         raise ValueError(f"PNG {chunk_type.decode('ascii', 'replace')} chunk CRC mismatch")
 
 
+def _sha256_seek_start(stream) -> str:
+    file_hash = hashlib.sha256()
+    for block in iter(lambda: stream.read(1024 * 1024), b""):
+        file_hash.update(block)
+    stream.seek(0)
+    return file_hash.hexdigest()
+
+
+def _read_validated_ihdr(
+    stream,
+    *,
+    expected_size: tuple[int, int],
+    expected_mode: str,
+    expected_color_type: int,
+    max_pixels: int | None,
+) -> tuple[int, int, int]:
+    exp_w, exp_h = expected_size
+    sig = _read_exact(stream, 8, "Supply a PNG with a valid image header")
+    if sig != _PNG_SIGNATURE:
+        raise ValueError("Supply a PNG with a valid image header")
+
+    first_len, first_type = struct.unpack(">I4s", _read_exact(stream, 8, "Missing PNG IHDR header"))
+    if first_type != b"IHDR" or first_len != 13:
+        raise ValueError("Supply a PNG with a valid IHDR header")
+    ihdr_bytes = _read_exact(stream, 13, "Truncated PNG IHDR chunk")
+    ihdr_crc = struct.unpack(">I", _read_exact(stream, 4, "Truncated PNG IHDR CRC"))[0]
+    if (zlib.crc32(b"IHDR" + ihdr_bytes) & 0xFFFFFFFF) != ihdr_crc:
+        raise ValueError("PNG IHDR chunk CRC mismatch")
+
+    width, height, bit_depth, color_type, compression, filter_method, interlace = struct.unpack(
+        ">IIBBBBB", ihdr_bytes
+    )
+    if compression != 0 or filter_method != 0 or interlace not in (0, 1):
+        raise ValueError("Unsupported PNG compression, filter, or interlace header")
+    if bit_depth != 8 or color_type != expected_color_type:
+        raise ValueError(
+            f"Cached PNG mode/depth mismatch: expected 8-bit {expected_mode}, "
+            f"got bit_depth={bit_depth}, color_type={color_type}"
+        )
+    if (width, height) != (exp_w, exp_h):
+        raise ValueError(
+            f"Cached PNG dimensions {width}x{height} do not match expected native size {exp_w}x{exp_h}; "
+            "silent resizing is forbidden"
+        )
+    if max_pixels is not None and width * height > max_pixels:
+        raise PngPixelLimit("Cached PNG exceeds configured pixel limit")
+    return width, height, interlace
+
+
+_FORBIDDEN_CACHED_PNG_CHUNKS = {
+    b"acTL": "Animated or multi-frame PNG passes are not supported",
+    b"tRNS": "Normalize orientation and use explicit alpha samples",
+    b"iCCP": "Cached PNG carries an ICC profile; untagged sRGB is required",
+}
+
+
+def _validate_iend_chunk(stream, length: int) -> None:
+    if length != 0:
+        raise ValueError("PNG IEND chunk must be empty")
+    iend_crc = struct.unpack(">I", _read_exact(stream, 4, "Truncated PNG IEND CRC"))[0]
+    if iend_crc != _IEND_CRC:
+        raise ValueError("PNG IEND chunk CRC mismatch")
+    if stream.read(1):
+        raise ValueError("Trailing bytes found after PNG IEND chunk")
+
+
+def _scan_png_chunks(stream, *, verify_crc: bool) -> None:
+    state = {"srgb": False, "non_srgb": False, "idat": False, "iend": False}
+    while True:
+        hdr = stream.read(8)
+        if not hdr:
+            break
+        if len(hdr) != 8:
+            raise ValueError("Truncated PNG chunk header")
+        length, chunk_type = struct.unpack(">I4s", hdr)
+        if chunk_type in _FORBIDDEN_CACHED_PNG_CHUNKS:
+            raise ValueError(_FORBIDDEN_CACHED_PNG_CHUNKS[chunk_type])
+        if chunk_type == b"IEND":
+            _validate_iend_chunk(stream, length)
+            state["iend"] = True
+            break
+        if chunk_type == b"sRGB":
+            state["srgb"] = True
+        elif chunk_type in (b"gAMA", b"cHRM"):
+            state["non_srgb"] = True
+        elif chunk_type == b"IDAT":
+            state["idat"] = True
+        _scan_chunk_crc(stream, chunk_type, length, verify_crc=verify_crc)
+
+    if not state["idat"] or not state["iend"]:
+        raise ValueError("Cached PNG is incomplete or missing IEND")
+    if state["non_srgb"] and not state["srgb"]:
+        raise ValueError("Convert tagged colour to sRGB before importing")
+
+
 def inspect_cached_generated_png(
     path,
     *,
@@ -179,7 +274,7 @@ def inspect_cached_generated_png(
 
     Never alters Pillow's global `Image.MAX_IMAGE_PIXELS` or weakens public upload limits.
     """
-    exp_w, exp_h = _validate_expected_size(expected_size)
+    exp_size = _validate_expected_size(expected_size)
     expected_color_type, channels = _validate_expected_mode(expected_mode)
     if max_pixels is not None and (isinstance(max_pixels, bool) or not isinstance(max_pixels, int) or max_pixels < 1):
         raise ValueError(f"max_pixels must be a positive integer or None, got {max_pixels!r}")
@@ -188,84 +283,16 @@ def inspect_cached_generated_png(
     if not src_path.is_file():
         raise FileNotFoundError(f"Cached PNG file not found: {src_path}")
 
-    file_hash = hashlib.sha256()
     with src_path.open("rb") as stream:
-        for block in iter(lambda: stream.read(1024 * 1024), b""):
-            file_hash.update(block)
-        stream.seek(0)
-
-        sig = _read_exact(stream, 8, "Supply a PNG with a valid image header")
-        if sig != _PNG_SIGNATURE:
-            raise ValueError("Supply a PNG with a valid image header")
-
-        first_len, first_type = struct.unpack(">I4s", _read_exact(stream, 8, "Missing PNG IHDR header"))
-        if first_type != b"IHDR" or first_len != 13:
-            raise ValueError("Supply a PNG with a valid IHDR header")
-        ihdr_bytes = _read_exact(stream, 13, "Truncated PNG IHDR chunk")
-        ihdr_crc = struct.unpack(">I", _read_exact(stream, 4, "Truncated PNG IHDR CRC"))[0]
-        if (zlib.crc32(b"IHDR" + ihdr_bytes) & 0xFFFFFFFF) != ihdr_crc:
-            raise ValueError("PNG IHDR chunk CRC mismatch")
-
-        width, height, bit_depth, color_type, compression, filter_method, interlace = struct.unpack(
-            ">IIBBBBB", ihdr_bytes
+        sha256_hex = _sha256_seek_start(stream)
+        width, height, interlace = _read_validated_ihdr(
+            stream,
+            expected_size=exp_size,
+            expected_mode=expected_mode,
+            expected_color_type=expected_color_type,
+            max_pixels=max_pixels,
         )
-        if compression != 0 or filter_method != 0 or interlace not in (0, 1):
-            raise ValueError("Unsupported PNG compression, filter, or interlace header")
-        if bit_depth != 8 or color_type != expected_color_type:
-            raise ValueError(
-                f"Cached PNG mode/depth mismatch: expected 8-bit {expected_mode}, "
-                f"got bit_depth={bit_depth}, color_type={color_type}"
-            )
-        if (width, height) != (exp_w, exp_h):
-            raise ValueError(
-                f"Cached PNG dimensions {width}x{height} do not match expected native size {exp_w}x{exp_h}; "
-                "silent resizing is forbidden"
-            )
-        if max_pixels is not None and width * height > max_pixels:
-            raise PngPixelLimit("Cached PNG exceeds configured pixel limit")
-
-        has_srgb = False
-        has_non_srgb_tag = False
-        has_idat = False
-        saw_iend = False
-
-        while True:
-            hdr = stream.read(8)
-            if not hdr:
-                break
-            if len(hdr) != 8:
-                raise ValueError("Truncated PNG chunk header")
-            length, chunk_type = struct.unpack(">I4s", hdr)
-            if chunk_type == b"acTL":
-                raise ValueError("Animated or multi-frame PNG passes are not supported")
-            if chunk_type == b"tRNS":
-                raise ValueError("Normalize orientation and use explicit alpha samples")
-            if chunk_type == b"iCCP":
-                raise ValueError("Cached PNG carries an ICC profile; untagged sRGB is required")
-            if chunk_type == b"sRGB":
-                has_srgb = True
-            elif chunk_type in (b"gAMA", b"cHRM"):
-                has_non_srgb_tag = True
-            elif chunk_type == b"IDAT":
-                has_idat = True
-
-            if chunk_type == b"IEND":
-                if length != 0:
-                    raise ValueError("PNG IEND chunk must be empty")
-                iend_crc = struct.unpack(">I", _read_exact(stream, 4, "Truncated PNG IEND CRC"))[0]
-                if iend_crc != _IEND_CRC:
-                    raise ValueError("PNG IEND chunk CRC mismatch")
-                if stream.read(1):
-                    raise ValueError("Trailing bytes found after PNG IEND chunk")
-                saw_iend = True
-                break
-
-            _scan_chunk_crc(stream, chunk_type, length, verify_crc=verify_crc)
-
-        if not has_idat or not saw_iend:
-            raise ValueError("Cached PNG is incomplete or missing IEND")
-        if has_non_srgb_tag and not has_srgb:
-            raise ValueError("Convert tagged colour to sRGB before importing")
+        _scan_png_chunks(stream, verify_crc=verify_crc)
 
     return {
         "path": str(src_path),
@@ -277,7 +304,7 @@ def inspect_cached_generated_png(
         "interlace": interlace,
         "iend_complete": True,
         "file_bytes": src_path.stat().st_size,
-        "sha256": file_hash.hexdigest(),
+        "sha256": sha256_hex,
     }
 
 

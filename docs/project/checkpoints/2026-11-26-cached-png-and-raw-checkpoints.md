@@ -28,7 +28,7 @@ upload/import limits were relaxed.
   both still trigger `Image.DecompressionBombError` under Pillow `Image.open`
   and validate cleanly via `inspect_cached_generated_png`.
 
-## Resumable raw inference checkpoints (`fidelis/engine/checkpoints.py`)
+## Resumable raw inference checkpoints (`fidelis/engine/checkpoints.py`, `fidelis/engine/checkpoint_replay.py`)
 
 - Added `raw_checkpoint_callback` inside `RestorationRunner.run()` immediately
   after `backend.restore()` + `_enforce_exact_shape()`, before texture guard

@@ -4,7 +4,7 @@
 > Added `inspect_cached_generated_png` / `read_cached_generated_png` in
 > `fidelis/studio/png.py` (validates PNG `IHDR` native dimensions/mode/CRC/IEND
 > without modifying global `Image.MAX_IMAGE_PIXELS` or public 16 MP/40 MP upload
-> limits) and `fidelis/engine/checkpoints.py` (`raw_checkpoint_callback` inside
+> limits) and `fidelis/engine/checkpoints.py` + `fidelis/engine/checkpoint_replay.py` (`raw_checkpoint_callback` inside
 > `RestorationRunner.run()` immediately after `backend.restore()` + shape check,
 > atomic `raw_candidate.npy` + `bicubic_base.npy` + `checkpoint_receipt.json`
 > last, and `CheckpointRestorationBackend` / `--replay-checkpoint-dir` with

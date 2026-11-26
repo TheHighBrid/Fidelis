@@ -18,7 +18,7 @@ from typing import (
 import numpy as np
 from PIL import Image
 
-from fidelis.engine.checkpoints import CheckpointRestorationBackend
+from fidelis.engine.checkpoint_replay import CheckpointRestorationBackend
 from fidelis.eval.comparators import ComparatorOutput
 from fidelis.postprocess.regions import RegionBlend, compose_regions
 from fidelis.postprocess.roi_protection import (
