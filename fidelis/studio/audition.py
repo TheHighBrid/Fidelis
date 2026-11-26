@@ -15,6 +15,11 @@ from typing import Any
 import numpy as np
 from PIL import Image
 
+from fidelis.engine.checkpoints import (
+    CheckpointRestorationBackend,
+    make_raw_checkpoint_callback,
+    sha256_file as _checkpoint_sha256_file,
+)
 from fidelis.engine.restoration_runner import (
     RestorationRunner,
     _bicubic_upscale,
@@ -537,6 +542,10 @@ def run_model_vs_bicubic_audition(
     emit_blind_review: bool = False,
     scale: int = 4,
     roi_space: str = "auto",
+    raw_checkpoint_dir: str | Path | None = None,
+    replay_checkpoint_dir: str | Path | None = None,
+    protocol_sha256: str | None = None,
+    config_sha256: str | None = None,
 ) -> dict[str, Any]:
     """Run candidate model (+ texture guard) vs deterministic 4x BICUBIC across cases or a single in-memory pair."""
     if source_rgb is not None or candidate_4x_rgb is not None:
@@ -556,23 +565,31 @@ def run_model_vs_bicubic_audition(
             blind_seed=blind_seed,
             blind_split=blind_split,
         )
-    if cases is None or runner is None:
-        raise ValueError("Batch audition requires both cases and runner")
+    if cases is None:
+        raise ValueError("Batch audition requires cases")
+    if replay_checkpoint_dir is not None and runner is not None:
+        raise ValueError("Specify either runner or replay_checkpoint_dir, not both")
+    if runner is None and replay_checkpoint_dir is None:
+        raise ValueError("Batch audition requires runner or replay_checkpoint_dir")
 
     out_dir = Path(output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     root = Path(asset_root) if asset_root is not None else None
+    ckpt_root = Path(raw_checkpoint_dir) if raw_checkpoint_dir is not None else None
+    replay_root = Path(replay_checkpoint_dir) if replay_checkpoint_dir is not None else None
     suite = BenchmarkSuite()
 
     case_results: list[dict[str, Any]] = []
     compat_cases: list[dict[str, Any]] = []
     outcome_counts: dict[str, int] = {}
+    last_runner: RestorationRunner | None = runner
 
     for raw_case in cases:
         case_id = str(raw_case["id"])
         src_p = Path(raw_case["source_path"])
         if root is not None and not src_p.is_absolute():
             src_p = root / src_p
+        source_file_sha = _checkpoint_sha256_file(src_p)
         with Image.open(src_p) as img:
             source_rgb = np.asarray(img.convert("RGB"), dtype=np.uint8)
 
@@ -591,7 +608,41 @@ def run_model_vs_bicubic_audition(
             raw_rois, source_shape=(sh, sw), target_shape=(th, tw), roi_space=roi_space
         )
 
-        result = runner.run(
+        saved_ckpt: dict[str, Any] = {}
+        ckpt_callback = (
+            make_raw_checkpoint_callback(
+                ckpt_root / case_id,
+                source_file_sha256=source_file_sha,
+                source_path=src_p,
+                protocol_sha256=protocol_sha256,
+                config_sha256=config_sha256,
+                out_record=saved_ckpt,
+            )
+            if ckpt_root is not None
+            else None
+        )
+
+        if replay_root is not None:
+            case_runner = RestorationRunner(
+                CheckpointRestorationBackend(
+                    replay_root / case_id,
+                    expected_case_id=case_id,
+                    expected_source_file_sha256=source_file_sha,
+                    require_source_file_sha256=True,
+                    expected_scale=scale,
+                    expected_target_shape=(th, tw, 3),
+                    expected_normalized_rois=target_rois,
+                    expected_protocol_sha256=protocol_sha256,
+                    expected_config_sha256=config_sha256,
+                    evaluation_context={"case_id": case_id, "source_path": str(src_p)},
+                )
+            )
+        else:
+            assert runner is not None
+            case_runner = runner
+        last_runner = case_runner
+
+        result = case_runner.run(
             source_rgb,
             scale=scale,
             target_size=(tw, th),
@@ -599,6 +650,7 @@ def run_model_vs_bicubic_audition(
             roi_space="target",
             apply_texture_guard=apply_texture_guard,
             case_id=case_id,
+            raw_checkpoint_callback=ckpt_callback,
         )
 
         case_dir = out_dir / "cases" / case_id
@@ -660,22 +712,35 @@ def run_model_vs_bicubic_audition(
             else result.drift_report
         )
 
-        case_results.append(
-            {
-                "id": case_id,
-                "split": split,
-                "category": category,
-                "source_path": str(src_p),
-                "candidate_path": str(cand_path),
-                "bicubic_path": str(bic_path),
-                "provenance": result.provenance.to_dict(),
-                "guard_receipt": result.guard_receipt,
-                "drift_report": drift_summary,
-                "detail_metrics": detail_metrics,
-                "outcome": outcome,
-                "crops": crops,
+        case_entry: dict[str, Any] = {
+            "id": case_id,
+            "split": split,
+            "category": category,
+            "source_path": str(src_p),
+            "candidate_path": str(cand_path),
+            "bicubic_path": str(bic_path),
+            "provenance": result.provenance.to_dict(),
+            "inference_executed": bool(result.provenance.extra.get("inference_executed", True)),
+            "guard_receipt": result.guard_receipt,
+            "drift_report": drift_summary,
+            "detail_metrics": detail_metrics,
+            "outcome": outcome,
+            "crops": crops,
+        }
+        if saved_ckpt:
+            case_entry["raw_checkpoint"] = {
+                "checkpoint_dir": saved_ckpt["checkpoint_dir"],
+                "receipt_path": saved_ckpt["receipt_path"],
+                "receipt_sha256": saved_ckpt["receipt_sha256"],
             }
-        )
+        if result.provenance.extra.get("checkpoint_replayed"):
+            case_entry["original_generation_identity"] = result.provenance.extra.get(
+                "original_generation_identity"
+            )
+            case_entry["evaluation_identity"] = result.provenance.extra.get(
+                "evaluation_identity"
+            )
+        case_results.append(case_entry)
         compat_cases.append(
             {
                 "id": case_id,
@@ -707,14 +772,21 @@ def run_model_vs_bicubic_audition(
 
     passed_count = sum(1 for c in case_results if c["outcome"]["passed"])
     total_count = len(case_results)
+    active_backend = last_runner.backend if last_runner is not None else None
+    inference_executed = (
+        all(bool(c.get("inference_executed", True)) for c in case_results)
+        if case_results
+        else (replay_root is None)
+    )
     report: dict[str, Any] = {
         "schema_version": 1,
         "report_type": "model_vs_bicubic_audition",
         "model": {
-            "model_id": runner.backend.model_id,
-            "backend": runner.backend.backend_name,
-            "weights_sha256": runner.backend.weights_sha256,
+            "model_id": active_backend.model_id if active_backend is not None else "unknown",
+            "backend": active_backend.backend_name if active_backend is not None else "unknown",
+            "weights_sha256": active_backend.weights_sha256 if active_backend is not None else "unknown",
             "apply_texture_guard": bool(apply_texture_guard),
+            "inference_executed": inference_executed,
         },
         "summary": {
             "total_cases": total_count,

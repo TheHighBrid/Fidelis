@@ -1,5 +1,22 @@
 # Current progress and evidence checkpoint
 
+> **Cached PNG validation & raw inference checkpoints (#135, 2026-11-26):**
+> Added `inspect_cached_generated_png` / `read_cached_generated_png` in
+> `fidelis/studio/png.py` (validates PNG `IHDR` native dimensions/mode/CRC/IEND
+> without modifying global `Image.MAX_IMAGE_PIXELS` or public 16 MP/40 MP upload
+> limits) and `fidelis/engine/checkpoints.py` (`raw_checkpoint_callback` inside
+> `RestorationRunner.run()` immediately after `backend.restore()` + shape check,
+> atomic `raw_candidate.npy` + `bicubic_base.npy` + `checkpoint_receipt.json`
+> last, and `CheckpointRestorationBackend` / `--replay-checkpoint-dir` with
+> `inference_executed: false`, `allow_pickle=False`, mmap extent/SHA validation,
+> separate `generation_identity` vs `evaluation_identity`, and rejection of
+> guarded `candidate_4x.png`, partial publication, path escape, and identity
+> tampering). Verified: **661/661** Python unit tests (including 6 new tests in
+> `tests/test_cached_png_and_raw_checkpoints.py` and real `17404×11416`
+> preserved twill PNG validation), `tests/test-web-ui.sh`, `tests/smoke-test.sh`,
+> `tests/test-release-pipeline.sh`, and `git diff --check`.
+> [Checkpoint receipt](checkpoints/2026-11-26-cached-png-and-raw-checkpoints.md).
+
 > **Source-SHA split detector (#134, 2026-11-25):** Explicit manifest preflight
 > detects aliases across cases/assets and fails closed on conflicting, invalid or
 > unknown identities. Actual inventory result: blocked, 12 split conflicts,

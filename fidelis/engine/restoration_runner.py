@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib
+import platform
 import time
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
@@ -17,6 +18,7 @@ from typing import (
 import numpy as np
 from PIL import Image
 
+from fidelis.engine.checkpoints import CheckpointRestorationBackend
 from fidelis.eval.comparators import ComparatorOutput
 from fidelis.postprocess.regions import RegionBlend, compose_regions
 from fidelis.postprocess.roi_protection import (
@@ -719,6 +721,34 @@ class HybridRestorationBackend:
         return out, dict(meta)
 
 
+def _backend_runtime_and_options(
+    backend: RestorationBackend, extra: Mapping[str, Any]
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    runtime: dict[str, Any] = {
+        "python": platform.python_version(),
+        "numpy": np.__version__,
+    }
+    options: dict[str, Any] = {}
+    for attr in ("device", "tile_core", "tile_context", "providers", "workflow_sha256", "deadline_seconds"):
+        if hasattr(backend, attr):
+            val = getattr(backend, attr)
+            if val is not None:
+                options[attr] = val
+    inner = getattr(backend, "_backend", None)
+    if inner is not None:
+        for attr in ("detail_blend_weight", "tile_threshold"):
+            if hasattr(inner, attr):
+                val = getattr(inner, attr)
+                if val is not None:
+                    options[attr] = val
+    for key in ("device", "tile_core", "tile_context", "tiles", "providers", "workflow_sha256", "family"):
+        if key in extra and extra[key] is not None:
+            options.setdefault(key, extra[key])
+    if "device" in options:
+        runtime["device"] = options["device"]
+    return runtime, options
+
+
 class RestorationRunner:
     """Unified restoration runner with exact-grid enforcement and M2 texture guard."""
 
@@ -737,6 +767,7 @@ class RestorationRunner:
         blend: RegionBlend | None = None,
         use_sobel_heuristic: bool = True,
         case_id: str | None = None,
+        raw_checkpoint_callback: Callable[[Mapping[str, Any]], None] | None = None,
     ) -> RestorationResult:
         src = _validate_rgb_uint8(source_rgb, "source_rgb")
         if scale < 1:
@@ -751,6 +782,13 @@ class RestorationRunner:
             tw, th = sw * scale, sh * scale
         target_shape = (th, tw, 3)
 
+        target_rois = _normalize_rois_for_guard(
+            rois, source_shape=(sh, sw), target_shape=(th, tw), roi_space=roi_space
+        )
+        validate_rois_fn = getattr(self.backend, "validate_normalized_rois", None)
+        if callable(validate_rois_fn):
+            validate_rois_fn(target_rois)
+
         base_4x = _bicubic_upscale(src, tw, th)
         raw_candidate, extra = self.backend.restore(
             src,
@@ -761,13 +799,30 @@ class RestorationRunner:
         )
         raw_candidate = _enforce_exact_shape(raw_candidate, target_shape, "raw_candidate")
 
+        if raw_checkpoint_callback is not None:
+            model_runtime, model_options = _backend_runtime_and_options(self.backend, extra)
+            raw_checkpoint_callback(
+                {
+                    "source_rgb": src,
+                    "base_4x": base_4x,
+                    "raw_candidate": raw_candidate,
+                    "scale": int(scale),
+                    "target_shape": target_shape,
+                    "model_id": self.backend.model_id,
+                    "backend": self.backend.backend_name,
+                    "weights_sha256": self.backend.weights_sha256,
+                    "normalized_rois": target_rois,
+                    "case_id": case_id,
+                    "extra": dict(extra),
+                    "model_runtime": model_runtime,
+                    "model_options": model_options,
+                }
+            )
+
         guard_receipt: dict[str, Any] | None = None
         drift_report: dict[str, Any] | None = None
 
         if apply_texture_guard:
-            target_rois = _normalize_rois_for_guard(
-                rois, source_shape=(sh, sw), target_shape=(th, tw), roi_space=roi_space
-            )
             masks, guard_receipt = build_roi_protection_masks(
                 base_4x,
                 target_rois,
@@ -946,4 +1001,6 @@ def create_restoration_runner(backend: str, **kwargs: Any) -> RestorationRunner:
         return RestorationRunner(RealESRGANRestorationBackend(**kwargs))
     if name in ("hybrid", "hybrid_zero_cost_texture"):
         return RestorationRunner(HybridRestorationBackend(**kwargs))
+    if name in ("checkpoint", "checkpoint_replay"):
+        return RestorationRunner(CheckpointRestorationBackend(**kwargs))
     raise ValueError(f"Unknown restoration backend: {backend!r}")
