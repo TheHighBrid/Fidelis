@@ -1,5 +1,13 @@
 # Fresh-context handoff
 
+## Source-hash split preflight · 2026-11-25 · #134
+
+The [preflight checkpoint](checkpoints/2026-11-25-source-split-preflight.md) adds a
+read-only explicit-manifest CLI. Actual current inventories block: 12 cross-split
+source-SHA conflicts and 15 unknown hashes. No splits/criteria were changed.
+Run before qualification; this does not automatically intercept audition runs or
+prove untouched historical exposure. Resolve the source-evidence plan before F13.
+
 ## Native execution and evidence integrity · 2026-11-25
 
 #133 merged at `5099a7a`; [execution checkpoint](checkpoints/2026-11-25-native-execution-evidence.md)

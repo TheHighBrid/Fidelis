@@ -1,5 +1,11 @@
 # Current progress and evidence checkpoint
 
+> **Source-SHA split detector (#134, 2026-11-25):** Explicit manifest preflight
+> detects aliases across cases/assets and fails closed on conflicting, invalid or
+> unknown identities. Actual inventory result: blocked, 12 split conflicts,
+> 15 unknown hashes; no records relabelled. Eight new plus 35 adjacent regressions
+> pass. [Usage, actual result and limits](checkpoints/2026-11-25-source-split-preflight.md).
+
 > **Native execution / integrity follow-up (2026-11-25):** #133 merged at
 > `5099a7a` after 647 local tests (four skips) and required CI. Actual M1 MPS
 > twill inference saved separate 198.7MP candidate/bicubic PNGs; evaluation was
