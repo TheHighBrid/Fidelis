@@ -1,5 +1,24 @@
 # Current progress and evidence checkpoint
 
+> **Autonomous resume audit & backlog/Linear reconciliation (2026-11-26, base `main` `9da54cc`):**
+> Audited `origin/main` (`9da54cc`, after PR #139 `#134` enforcement merged with
+> all CI/Codacy checks passing), open GH issues (`#129`, `#134`, `#135`, `#11`),
+> and Linear `P-MEL-3`. Reconciled `docs/project/backlog.json` to `9da54cc`
+> (`F12-A` / `MEL-79` marked `Done` matching Linear; `45/60` corpus slots and
+> `F05`/`F12`/`F13`/`F16` evidence updated) and restored auto-closed Linear
+> issues `MEL-58` (`F05`), `MEL-63` (`F12`), `MEL-66` (`F13`), and `MEL-68`
+> (`F16`) from `Done` back to `In Progress` matching open `E2..E4` gates. Host
+> capability check on 2026-11-26: `ncnn_executable: true`, `torch_importable:
+> false`, `nvidia_smi_present: false`, `127.0.0.1:8188` (`ComfyUI`) unreachable,
+> `adb` and `idevice_id` absent, and `6.2 GiB` free on `/` (`8 GB` unified RAM),
+> blocking the full 198.7 MP `tex_cotton_twill_chino` raw-checkpointed
+> evaluation (`#129`/`#135`), live SDXL GPU texture workflow (`F06`), and
+> physical mobile touch acceptance (`F08`). Release readiness audit reports
+> `overall_status: blocked_release_gates`, `certified_evidence_level:
+> E2_live_inference_verified`, `ready_for_release: false`; source-SHA split
+> preflight remains `blocked` (`112` unique source hashes, `12` cross-split
+> conflicts, `15` unknown hashes).
+
 > **Source-SHA acceptance & audition enforcement (#134, 2026-11-26):**
 > Extended `fidelis/eval/quality_acceptance.py` (`evaluate_held_out_acceptance`,
 > `scripts/evaluate-quality-acceptance.py --manifest`), `fidelis/studio/audition.py`,
