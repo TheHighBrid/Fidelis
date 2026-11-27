@@ -2,15 +2,15 @@
   "schema_version": 1,
   "source_split_checkpoint": "docs/project/checkpoints/2026-11-26-source-evidence-plan.md",
 
-  "execution_checkpoint": "docs/project/checkpoints/2026-11-25-native-execution-evidence.md",
-  "snapshot_date": "2026-11-26",
-  "code_snapshot": "7336376",
+  "execution_checkpoint": "docs/project/checkpoints/2026-11-27-twill-198mp-raw-checkpoint-eval.md",
+  "snapshot_date": "2026-11-27",
+  "code_snapshot": "b414a90",
   "code_branch": "main",
-  "code_pr": "https://github.com/TheHighBrid/Fidelis/pull/141",
+  "code_pr": "https://github.com/TheHighBrid/Fidelis/pull/142",
   "canonical_spec": "docs/FIDELIS_STUDIO_PLAN.md",
   "coordination_project": "https://linear.app/melato/project/fidelis-studio-a057f366fa71",
   "umbrella": "MEL-53",
-  "note": "Committed coordination snapshot reconciled against main (7336376) and Linear P-MEL-3. F01-F04, F05-A, F05-B, F07-A, F07-B, F08-A, F08-B, F09, F10, F11, F12-A, F14, F15, F17, and D01-D04 are merged into main and Done; F07 live ComfyUI MPS async queue qualification (#109) is merged into main (with F07 kept In Progress here pending F06 SDXL GPU workflow). F05, F06, F07, F08, F12, F13, and F16 remain In Progress in both backlog.json and Linear pending SDXL GPU texture weights/workflow, commercial model license clearance, remaining 14/60 corpus slots & paid Clarity/Krea comparators, open GH #129/#134/#135 owner/hardware execution, physical mobile touch hardware review, 30-case blind dual-reviewer ballots, and owner creative/release signoff.",
+  "note": "Committed coordination snapshot reconciled against main (b414a90) and Linear P-MEL-3. F01-F04, F05-A, F05-B, F07-A, F07-B, F08-A, F08-B, F09, F10, F11, F12-A, F14, F15, F17, and D01-D04 are merged into main and Done; F07 live ComfyUI MPS async queue qualification (#109) is merged into main (with F07 kept In Progress here pending F06 SDXL GPU workflow); GH #129/#135 198.7 MP tex_cotton_twill_chino raw-checkpointed evaluation + replay completed on main b414a90. F05, F06, F07, F08, F12, F13, and F16 remain In Progress in both backlog.json and Linear pending SDXL GPU texture weights/workflow, commercial model license clearance, remaining 14/60 corpus slots & paid Clarity/Krea comparators, open GH #134 owner corpus/split reconciliation, physical mobile touch hardware review, 30-case blind dual-reviewer ballots, and owner creative/release signoff.",
   "items": [
     {
       "id": "F01",
@@ -288,7 +288,7 @@
       "role": "Quality / creative review",
       "scope": "Tune on calibration cases and evaluate blind held-out results against Clarity/Krea.",
       "acceptance": "No critical fidelity defects; agreed threshold protocol, sample sizes/confidence intervals and category failures reported; final creative judgment recorded after concrete evidence.",
-      "evidence": "fidelis/eval/quality_acceptance.py; fidelis/eval/source_split_preflight.py; fidelis/engine/checkpoints.py; fidelis/engine/checkpoint_replay.py; scripts/evaluate-quality-acceptance.py; scripts/audition-melato.py; tests/test_quality_acceptance.py; tests/test_source_split_preflight.py; tests/test_cached_png_and_raw_checkpoints.py; docs/QUALITY_ACCEPTANCE.md; docs/project/checkpoints/2026-11-26-source-evidence-plan.md; docs/project/checkpoints/2026-11-26-source-hash-acceptance-guard.md; docs/project/checkpoints/2026-11-26-cached-png-and-raw-checkpoints.md; docs/project/checkpoints/2026-11-25-source-split-preflight.md; Wilson 95% CIs, Krippendorff alpha / Cohen kappa, G1-G6 gates, bounded composition/drift/F4 memory (#129/#130/#131/#133), source-SHA split preflight & acceptance/audition enforcement (#134/#137/#139), historical source-evidence resolution plan (#134), and cached PNG validation + raw inference checkpoints (#135/#138) merged on main; full 198.7 MP twill raw-checkpointed evaluation (#129/#135), owner corpus/slot resolution (#134), 30-case blind dual-reviewer ballots, and owner creative signoff remain open",
+      "evidence": "fidelis/eval/quality_acceptance.py; fidelis/eval/source_split_preflight.py; fidelis/engine/checkpoints.py; fidelis/engine/checkpoint_replay.py; scripts/evaluate-quality-acceptance.py; scripts/audition-melato.py; tests/test_quality_acceptance.py; tests/test_source_split_preflight.py; tests/test_cached_png_and_raw_checkpoints.py; docs/QUALITY_ACCEPTANCE.md; docs/project/checkpoints/2026-11-27-twill-198mp-raw-checkpoint-eval.md; docs/project/checkpoints/2026-11-26-source-evidence-plan.md; docs/project/checkpoints/2026-11-26-source-hash-acceptance-guard.md; docs/project/checkpoints/2026-11-26-cached-png-and-raw-checkpoints.md; docs/project/checkpoints/2026-11-25-source-split-preflight.md; Wilson 95% CIs, Krippendorff alpha / Cohen kappa, G1-G6 gates, bounded composition/drift/F4 memory (#129/#130/#131/#133), source-SHA split preflight & acceptance/audition enforcement (#134/#137/#139), historical source-evidence resolution plan (#134), cached PNG validation + raw inference checkpoints (#135/#138), and full 198.7 MP twill raw-checkpointed evaluation + replay on main b414a90 (#129/#135) verified; owner corpus/slot resolution (#134), 30-case blind dual-reviewer ballots, and owner creative signoff remain open",
       "priority": 2,
       "linear": {
         "id": "MEL-66",
@@ -296,10 +296,10 @@
         "url": "https://linear.app/melato/issue/MEL-66/f13-calibrate-and-pass-held-out-quality-acceptance",
         "title": "F13 \u00b7 Calibrate and pass held-out quality acceptance"
       },
-      "verification_checkpoint": "docs/project/checkpoints/2026-11-26-source-hash-acceptance-guard.md",
+      "verification_checkpoint": "docs/project/checkpoints/2026-11-27-twill-198mp-raw-checkpoint-eval.md",
       "resource_checkpoint": "docs/project/checkpoints/2026-11-25-evaluation-memory.md",
       "precision_checkpoint": "docs/project/checkpoints/2026-11-25-weave-precision.md",
-      "resource_followup": "GitHub #129 and #135 remain open pending full 198.7 MP tex_cotton_twill_chino raw-checkpointed evaluation on main (>= 5641e94) with sufficient disk/memory headroom (host currently at 5.2 GiB free on / and torch_importable=false)."
+      "resource_followup": "Full 198.7 MP tex_cotton_twill_chino raw-checkpointed evaluation and --replay-checkpoint-dir verification completed cleanly on main b414a90 (2.58 GiB peak RSS, 1195.33 s wall time, PASS_MATERIAL_DETAIL); #129 and #135 execution scope complete."
     },
     {
       "id": "F14",

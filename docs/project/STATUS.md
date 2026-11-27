@@ -1,5 +1,28 @@
 # Current progress and evidence checkpoint
 
+> **198.7 MP twill raw-checkpointed evaluation (`#129`/`#135`, 2026-11-27, base `main` `b414a90`):**
+> Completed the full `17404×11416` (`198,684,064` px) `tex_cotton_twill_chino`
+> raw-checkpointed SwinIR evaluation on clean `main` (`b414a905337719ab1db2163641d9ea41beb36463`,
+> `working_tree_dirty: false`) on Apple M1 (`8 GB` unified RAM): `torch_spandrel`
+> MPS (`tile_core=192`, `tile_context=32`, `345` tiles, `swinir-lightweight-div2k-x4`)
+> persisted `raw_candidate.npy` and `bicubic_base.npy` (`596,052,320` bytes each) plus
+> `checkpoint_receipt.json` (`sha256: 52a7c310...`) prior to a server restart, and
+> `--replay-checkpoint-dir` (`inference_executed: false`, `checkpoint_replayed: true`)
+> completed the full bounded evaluation in `1195.33 s` wall time at **`2,769,731,584` bytes
+> (`2.58 GiB`)** peak RSS (`0` process swaps). Outcome: `PASS_MATERIAL_DETAIL` (`drift: PASS`,
+> `194,208` blocks, `0` flagged, `0.0 px` max shift, `0` locked mismatches; `F2` var `1.515784`,
+> midband `1.767068`; `F3` overshoot `0.085335`, nyquist gain `0.796678`; PR #133 `F4` weave
+> orient `0.981975`, FFT `1.000002`, energy `1.015712`). Both `17404×11416` PNGs passed
+> `inspect_cached_generated_png(..., verify_crc=True)` while default Pillow `Image.open`
+> continued raising `DecompressionBombError`. `acceptance_summary.json` reports
+> `automated_detail_gates.passed: true` and `overall_status: "failed"` (`unfrozen_diagnostic_no_human_review`).
+> See [2026-11-27 twill checkpoint](checkpoints/2026-11-27-twill-198mp-raw-checkpoint-eval.md).
+> Remaining external `E2..E4` gates stay open: `#134` owner manifest split/slot
+> reconciliation, `F06`/`F05`/`F07` live ComfyUI SDXL GPU workflow & commercial license
+> clearance, `F12` remaining `14/60` corpus slots & paid Clarity/Krea comparators,
+> `F08`/`F15` physical Android/iOS touch QA, and `F13`/`F16` 30-case blind ballots &
+> dual-owner release signoff.
+
 > **Source-evidence plan, corpus audit & backlog/Linear reconciliation (`#134`, 2026-11-26, base `main` `7336376`):**
 > Published the in-repo historical source-evidence plan and corpus-slot resolution
 > protocol in [source-evidence plan](checkpoints/2026-11-26-source-evidence-plan.md)
