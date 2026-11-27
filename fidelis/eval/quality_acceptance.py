@@ -279,6 +279,39 @@ def _record_ballot_contamination(
     return True
 
 
+def _process_ballot_entry(
+    idx: int,
+    entry: Any,
+    context: Mapping[str, Any],
+    state: Mapping[str, Any],
+) -> None:
+    invalid_ballot_errors = state["invalid_ballot_errors"]
+    if not isinstance(entry, Mapping):
+        invalid_ballot_errors.append(f"ballot[{idx}]: not an object")
+        return
+    ballot = _normalize_ballot(entry)
+    case_id = ballot["case_id"]
+    if not case_id or not ballot["comparator"]:
+        invalid_ballot_errors.append(f"ballot[{idx}]: missing case_id or comparator")
+        return
+    ballot_sha, sha_error = _resolve_ballot_sha256(entry, case_id, idx, context["id_to_sha"])
+    if sha_error:
+        invalid_ballot_errors.append(sha_error)
+        return
+    if _record_ballot_contamination(
+        case_id, ballot["split"], ballot_sha, context["cal_set"], context["contaminated_shas"],
+        context["sha_aliases"], state["split_contamination_ids"], state["source_sha_contamination"],
+    ):
+        return
+    error = _ballot_error(ballot, idx, state["category_by_case"], state["seen_ballot_keys"])
+    if error:
+        invalid_ballot_errors.append(error)
+        return
+    state["held_out_cases_by_category"][ballot["category"]].add(case_id)
+    if _collect_defects(entry, ballot, idx, invalid_ballot_errors, state["critical_defects"]):
+        state["valid_ballots"].append(ballot)
+
+
 def _collect_ballots(
     submission,
     calibration_cases,
@@ -291,53 +324,31 @@ def _collect_ballots(
     raw_ballots = submission.get("held_out_ballots")
     if not isinstance(raw_ballots, Sequence):
         raw_ballots = []
-
-    valid_ballots: list[dict[str, Any]] = []
-    split_contamination_ids: list[str] = []
-    source_sha_contamination: list[dict[str, Any]] = []
-    invalid_ballot_errors: list[str] = []
-    critical_defects: list[dict[str, Any]] = []
-    held_out_cases_by_category: dict[str, set[str]] = {cat: set() for cat in REQUIRED_CATEGORIES}
-    category_by_case: dict[str, str] = {}
-
-    cal_set = set(calibration_cases)
-    contaminated_shas = set(calibration_shas) | set(conflict_shas)
-    id_to_sha = manifest_shas_by_id or {}
-    sha_aliases = aliases_by_sha or {}
-
-    seen_ballot_keys: set[tuple[str, str, str]] = set()
+    context = {
+        "cal_set": set(calibration_cases),
+        "contaminated_shas": set(calibration_shas) | set(conflict_shas),
+        "id_to_sha": manifest_shas_by_id or {},
+        "sha_aliases": aliases_by_sha or {},
+    }
+    state: dict[str, Any] = {
+        "valid_ballots": [],
+        "split_contamination_ids": [],
+        "source_sha_contamination": [],
+        "invalid_ballot_errors": [],
+        "critical_defects": [],
+        "held_out_cases_by_category": {cat: set() for cat in REQUIRED_CATEGORIES},
+        "category_by_case": {},
+        "seen_ballot_keys": set(),
+    }
     for idx, entry in enumerate(raw_ballots):
-        if not isinstance(entry, Mapping):
-            invalid_ballot_errors.append(f"ballot[{idx}]: not an object")
-            continue
-        ballot = _normalize_ballot(entry)
-        case_id = ballot["case_id"]
-        if not case_id or not ballot["comparator"]:
-            invalid_ballot_errors.append(f"ballot[{idx}]: missing case_id or comparator")
-            continue
-        ballot_sha, sha_error = _resolve_ballot_sha256(entry, case_id, idx, id_to_sha)
-        if sha_error:
-            invalid_ballot_errors.append(sha_error)
-            continue
-        if _record_ballot_contamination(
-            case_id, ballot["split"], ballot_sha, cal_set, contaminated_shas,
-            sha_aliases, split_contamination_ids, source_sha_contamination,
-        ):
-            continue
-        error = _ballot_error(ballot, idx, category_by_case, seen_ballot_keys)
-        if error:
-            invalid_ballot_errors.append(error)
-            continue
-        held_out_cases_by_category[ballot["category"]].add(case_id)
-        if _collect_defects(entry, ballot, idx, invalid_ballot_errors, critical_defects):
-            valid_ballots.append(ballot)
+        _process_ballot_entry(idx, entry, context, state)
     return (
-        valid_ballots,
-        split_contamination_ids,
-        source_sha_contamination,
-        invalid_ballot_errors,
-        critical_defects,
-        held_out_cases_by_category,
+        state["valid_ballots"],
+        state["split_contamination_ids"],
+        state["source_sha_contamination"],
+        state["invalid_ballot_errors"],
+        state["critical_defects"],
+        state["held_out_cases_by_category"],
     )
 
 
