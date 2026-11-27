@@ -1,5 +1,25 @@
 # Current progress and evidence checkpoint
 
+> **F12 / MEL-63 cashmere cable-knit corpus fill (2026-11-26, base `main` `33b6045`):**
+> Merged PR #140 into `main` (`33b6045`) and populated `tex_cashmere_cable_knit`
+> (`calibration`, `textiles`) in `experiments/corpus_manifest.json` with a
+> visually inspected (full-frame and 1:1 native ROI crop), SHA-256-verified
+> CC0-1.0 photograph from the FIDM Museum via Wikimedia Commons
+> (`File:2015_Rick_Owens_man%27s_jumpsuit,_Sphinx_collection,_cashmere_knit_04.jpg`,
+> off-repo `cc0_wikimedia_rick_owens_cashmere_knit_04.jpg`, `675×900` sRGB 8-bit,
+> SHA-256 `6af1b25db499aad3dc1271805ad2098a6f26175f9dd8eb4e054a0fc33b43c2fc`,
+> `yarn_twist` `bbox_norm [0.15, 0.15, 0.85, 0.85]`). Frozen 60-case readiness
+> is now **46/60** (`calibration 25/30`, `held_out 21/30`; `textiles 10/12`,
+> `macros 9/12`, `packshot_edge 9/12`, `portraits 10/12`, `apparel_model 8/12`;
+> `14` missing slots retained without weakening material, construction, or
+> model-release criteria). Remaining external `E2..E4` gates stay open: live
+> SDXL GPU ComfyUI texture workflow (`F06` / `MEL-60`), remaining `14/60`
+> corpus slots & paid Clarity/Krea comparator runs (`F12` / `MEL-63`), full
+> 198.7 MP `tex_cotton_twill_chino` raw-checkpointed evaluation (`#129`/`#135`
+> — deferred while `/` has `6.3 GiB` free), `#134` historical source-evidence
+> plan, 30-case blind dual-reviewer ballots (`F13` / `MEL-66`), physical
+> Android/iOS touch review (`F08` / `MEL-59`), and owner release signoff (`F16` / `MEL-68`).
+
 > **Autonomous resume audit & backlog/Linear reconciliation (2026-11-26, base `main` `9da54cc`):**
 > Audited `origin/main` (`9da54cc`, after PR #139 `#134` enforcement merged with
 > all CI/Codacy checks passing), open GH issues (`#129`, `#134`, `#135`, `#11`),

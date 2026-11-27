@@ -1,5 +1,20 @@
 # Fresh-context handoff
 
+## Cashmere cable-knit CC0 corpus fill · 2026-11-26 · F12 / MEL-63
+
+Frozen 60-case readiness is now **46/60** (`calibration 25/30`, `held_out 21/30`;
+`textiles 10/12`, `14` missing slots retained) after populating
+`tex_cashmere_cable_knit` with a visually inspected (full-frame and 1:1 ROI
+crop), SHA-256-verified CC0-1.0 FIDM Museum photograph via Wikimedia Commons
+(`File:2015_Rick_Owens_man%27s_jumpsuit,_Sphinx_collection,_cashmere_knit_04.jpg`,
+off-repo `cc0_wikimedia_rick_owens_cashmere_knit_04.jpg`, `675×900` sRGB 8-bit,
+SHA-256 `6af1b25db499aad3dc1271805ad2098a6f26175f9dd8eb4e054a0fc33b43c2fc`,
+`yarn_twist` `bbox_norm [0.15, 0.15, 0.85, 0.85]`). Source-SHA split preflight
+is unchanged except for adding this unique calibration hash (`113` unique hashes,
+same `12` pre-existing conflicts and `14` unknown hashes). Remaining `14`
+missing slots (`6` requiring model releases, `8` specialty materials/hardware/cutouts)
+stay unfilled without weakening fiber, construction, or release criteria.
+
 ## Source-hash split preflight · 2026-11-25 · #134
 
 The [preflight checkpoint](checkpoints/2026-11-25-source-split-preflight.md) adds a
