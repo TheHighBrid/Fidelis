@@ -109,6 +109,30 @@ def _build_single_image_case(
     }
 
 
+def _automated_gate_flags(cases: list[dict[str, Any]]) -> dict[str, bool]:
+    if not cases:
+        return {
+            "interior_texture_passed": False,
+            "oversharpen_restraint_passed": False,
+            "fabric_weave_passed": False,
+            "hardware_seam_passed": False,
+        }
+    return {
+        "interior_texture_passed": all(
+            bool(c.get("detail_metrics", {}).get("interior_texture_passed", False)) for c in cases
+        ),
+        "oversharpen_restraint_passed": all(
+            bool(c.get("detail_metrics", {}).get("oversharpen_restraint_passed", False)) for c in cases
+        ),
+        "fabric_weave_passed": all(
+            bool(c.get("detail_metrics", {}).get("fabric_weave_passed", True)) for c in cases
+        ),
+        "hardware_seam_passed": all(
+            bool(c.get("detail_metrics", {}).get("hardware_seam_passed", True)) for c in cases
+        ),
+    }
+
+
 def _build_acceptance_payload(
     report: dict[str, Any],
     protocol: dict[str, Any],
@@ -117,22 +141,6 @@ def _build_acceptance_payload(
     manifest_paths: list[Path] | None = None,
 ) -> dict[str, Any]:
     cases = report.get("cases", [])
-    all_texture = all(
-        bool(c.get("detail_metrics", {}).get("interior_texture_passed", False))
-        for c in cases
-    )
-    all_oversharpen = all(
-        bool(c.get("detail_metrics", {}).get("oversharpen_restraint_passed", False))
-        for c in cases
-    )
-    all_weave = all(
-        bool(c.get("detail_metrics", {}).get("fabric_weave_passed", True))
-        for c in cases
-    )
-    all_hw = all(
-        bool(c.get("detail_metrics", {}).get("hardware_seam_passed", True))
-        for c in cases
-    )
     cal_cases = [c for c in cases if c.get("split") == "calibration"]
     cal_case_hashes = {
         c["id"]: c["source_sha256"]
@@ -148,12 +156,7 @@ def _build_acceptance_payload(
             "source_sha256s": sorted(set(cal_case_hashes.values())),
             "case_source_hashes": cal_case_hashes,
         },
-        "automated_metrics": {
-            "interior_texture_passed": all_texture if cases else False,
-            "oversharpen_restraint_passed": all_oversharpen if cases else False,
-            "fabric_weave_passed": all_weave if cases else False,
-            "hardware_seam_passed": all_hw if cases else False,
-        },
+        "automated_metrics": _automated_gate_flags(cases),
         "ballots": [],
     }
     return evaluate_held_out_acceptance(
@@ -182,6 +185,26 @@ def _case_source_sha256(case: dict[str, Any], asset_root: Path) -> str | None:
     return digest.hexdigest()
 
 
+def _check_selected_case_conflicts(
+    cases: list[dict[str, Any]],
+    index: dict[str, Any],
+    asset_root: Path,
+) -> None:
+    conflict_shas = set(index["conflict_shas"])
+    conflict_ids = {
+        str(alias.get("id"))
+        for group in index["report"]["conflicts"]
+        for alias in group.get("aliases", ())
+    }
+    for case in cases:
+        cid = str(case.get("id", ""))
+        case_sha = _case_source_sha256(case, asset_root) or index["sha_by_id"].get(cid)
+        if cid in conflict_ids or (case_sha is not None and case_sha in conflict_shas):
+            raise ValueError(
+                f"Selected case {cid!r} participates in a cross-split source-SHA conflict"
+            )
+
+
 def _preflight_case_split_isolation(
     cases: list[dict[str, Any]],
     manifest_paths: list[Path],
@@ -191,12 +214,6 @@ def _preflight_case_split_isolation(
 ) -> dict[str, Any]:
     index = collect_source_split_index(manifest_paths)
     report = index["report"]
-    conflict_shas = set(index["conflict_shas"])
-    conflict_ids = {
-        str(alias.get("id"))
-        for group in report["conflicts"]
-        for alias in group.get("aliases", ())
-    }
     if report["errors"] or index["id_hash_conflicts"]:
         raise ValueError(
             "Source split preflight failed due to invalid or conflicting manifest records"
@@ -207,13 +224,7 @@ def _preflight_case_split_isolation(
             f"(conflicts={report['summary']['conflict_count']}, "
             f"unknown_hashes={report['summary']['unknown_hash_count']})"
         )
-    for case in cases:
-        cid = str(case.get("id", ""))
-        case_sha = _case_source_sha256(case, asset_root) or index["sha_by_id"].get(cid)
-        if cid in conflict_ids or (case_sha is not None and case_sha in conflict_shas):
-            raise ValueError(
-                f"Selected case {cid!r} participates in a cross-split source-SHA conflict"
-            )
+    _check_selected_case_conflicts(cases, index, asset_root)
     return report
 
 
@@ -438,6 +449,121 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _resolve_cli_cases(
+    args: argparse.Namespace,
+    protocol: dict[str, Any],
+    protocol_path: Path,
+    scale: int,
+) -> tuple[list[dict[str, Any]], dict[str, Any] | None, str]:
+    if args.smoke:
+        smoke = protocol.get("smoke_fixture")
+        if not isinstance(smoke, dict):
+            raise ValueError(f"Protocol missing 'smoke_fixture': {protocol_path}")
+        return [_normalize_case(smoke, scale=scale)], None, "held_out"
+    if args.manifest is not None:
+        manifest = _load_json(args.manifest)
+        default_case_split = (
+            "calibration" if isinstance(manifest, dict) and "assets" in manifest else "held_out"
+        )
+        cases, manifest_resolution = load_audition_cases_from_manifest(
+            manifest,
+            options=ManifestLoadOptions(
+                scale=scale,
+                asset_root=args.root,
+                master_root=args.master_root,
+                split=args.split,
+                case_ids=args.select_id,
+                skip_missing=args.skip_missing,
+                exclude_synthetic=not args.include_synthetic,
+                default_split=default_case_split,
+            ),
+        )
+        default_blind_split = (
+            args.split if args.split and args.split != "all" else default_case_split
+        )
+        return cases, manifest_resolution, default_blind_split
+    return (
+        [_build_single_image_case(args.image, case_id=args.case_id, rois_path=args.rois, scale=scale)],
+        None,
+        "held_out",
+    )
+
+
+def _run_split_preflight_if_requested(
+    args: argparse.Namespace,
+    cases: list[dict[str, Any]],
+) -> tuple[list[Path], dict[str, Any] | None]:
+    if not args.split_preflight_manifest and not args.enforce_split_isolation:
+        return [], None
+    preflight_manifests: list[Path] = []
+    if args.manifest is not None:
+        preflight_manifests.append(args.manifest)
+    preflight_manifests.extend(args.split_preflight_manifest)
+    split_preflight_report = _preflight_case_split_isolation(
+        cases,
+        preflight_manifests,
+        asset_root=args.root,
+        enforce_passed=args.enforce_split_isolation,
+    )
+    return preflight_manifests, split_preflight_report
+
+
+def _create_cli_runner(args: argparse.Namespace):
+    if args.replay_checkpoint_dir is not None:
+        return None
+    runner_kwargs: dict[str, Any] = {}
+    if args.imported_dir is not None:
+        runner_kwargs["imported_dir"] = args.imported_dir
+    if args.weights is not None:
+        runner_kwargs["weights_path"] = args.weights
+    if args.model_id is not None:
+        runner_kwargs["model_id"] = args.model_id
+    if args.backend == "torch_spandrel":
+        runner_kwargs["device"] = args.torch_device
+        if args.tile_core is not None:
+            runner_kwargs["tile_core"] = args.tile_core
+        runner_kwargs["tile_context"] = args.tile_context
+    if args.backend in ("realesrgan_ncnn", "hybrid"):
+        runner_kwargs["detail_blend_weight"] = args.detail_blend_weight
+    if args.backend == "hybrid":
+        runner_kwargs["address"] = args.comfy_address
+    return create_restoration_runner(args.backend, **runner_kwargs)
+
+
+def _write_acceptance_outputs(
+    args: argparse.Namespace,
+    report: dict[str, Any],
+    protocol: dict[str, Any],
+    receipt: dict[str, Any],
+    preflight_manifests: list[Path],
+    split_preflight_report: dict[str, Any] | None,
+    out_summary: dict[str, Any],
+) -> None:
+    model = report.get("model", {})
+    receipt["model_weight_hashes"] = _measured_weight_hashes(model)
+    receipt["seed_policy"] = f"blind_seed={args.blind_seed}"
+    receipt["source_case_hashes"] = {
+        c["id"]: c["source_sha256"]
+        for c in report.get("cases", [])
+        if c.get("source_sha256")
+    }
+    if split_preflight_report is not None:
+        receipt["source_split_preflight"] = split_preflight_report["summary"]
+    receipt_path = args.output_dir / "audition_receipt.json"
+    _write_json(receipt_path, receipt)
+    acceptance = _build_acceptance_payload(
+        report,
+        protocol,
+        receipt,
+        manifest_paths=preflight_manifests or None,
+    )
+    acceptance_path = args.output_dir / "acceptance_summary.json"
+    _write_json(acceptance_path, acceptance)
+    out_summary["acceptance_summary"] = str(acceptance_path)
+    out_summary["acceptance_status"] = acceptance.get("overall_status")
+    out_summary["audition_receipt"] = str(receipt_path)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -448,85 +574,12 @@ def main(argv: list[str] | None = None) -> int:
         receipt = _diagnostic_receipt(protocol_path, args.manifest)
         scale = int(protocol.get("scale", 4))
 
-        manifest_resolution: dict[str, Any] | None = None
-        if args.smoke:
-            smoke = protocol.get("smoke_fixture")
-            if not isinstance(smoke, dict):
-                raise ValueError(f"Protocol missing 'smoke_fixture': {protocol_path}")
-            cases = [_normalize_case(smoke, scale=scale)]
-            default_blind_split = "held_out"
-        elif args.manifest is not None:
-            manifest = _load_json(args.manifest)
-            default_case_split = (
-                "calibration" if isinstance(manifest, dict) and "assets" in manifest else "held_out"
-            )
-            cases, manifest_resolution = load_audition_cases_from_manifest(
-                manifest,
-                options=ManifestLoadOptions(
-                    scale=scale,
-                    asset_root=args.root,
-                    master_root=args.master_root,
-                    split=args.split,
-                    case_ids=args.select_id,
-                    skip_missing=args.skip_missing,
-                    exclude_synthetic=not args.include_synthetic,
-                    default_split=default_case_split,
-                ),
-            )
-            default_blind_split = (
-                args.split if args.split and args.split != "all" else default_case_split
-            )
-        else:
-            cases = [
-                _build_single_image_case(
-                    args.image,
-                    case_id=args.case_id,
-                    rois_path=args.rois,
-                    scale=scale,
-                )
-            ]
-            default_blind_split = "held_out"
-
-        blind_split = args.blind_split if args.blind_split is not None else default_blind_split
-
-        preflight_manifests: list[Path] = []
-        if args.split_preflight_manifest or args.enforce_split_isolation:
-            if args.manifest is not None:
-                preflight_manifests.append(args.manifest)
-            preflight_manifests.extend(args.split_preflight_manifest)
-        split_preflight_report = (
-            _preflight_case_split_isolation(
-                cases,
-                preflight_manifests,
-                asset_root=args.root,
-                enforce_passed=args.enforce_split_isolation,
-            )
-            if preflight_manifests
-            else None
+        cases, manifest_resolution, default_blind_split = _resolve_cli_cases(
+            args, protocol, protocol_path, scale
         )
-
-        protocol_sha = receipt["calibration_recipe_sha256"]
-        if args.replay_checkpoint_dir is not None:
-            runner = None
-        else:
-            runner_kwargs: dict[str, Any] = {}
-            if args.imported_dir is not None:
-                runner_kwargs["imported_dir"] = args.imported_dir
-            if args.weights is not None:
-                runner_kwargs["weights_path"] = args.weights
-            if args.model_id is not None:
-                runner_kwargs["model_id"] = args.model_id
-            if args.backend == "torch_spandrel":
-                runner_kwargs["device"] = args.torch_device
-                if args.tile_core is not None:
-                    runner_kwargs["tile_core"] = args.tile_core
-                runner_kwargs["tile_context"] = args.tile_context
-            if args.backend in ("realesrgan_ncnn", "hybrid"):
-                runner_kwargs["detail_blend_weight"] = args.detail_blend_weight
-            if args.backend == "hybrid":
-                runner_kwargs["address"] = args.comfy_address
-
-            runner = create_restoration_runner(args.backend, **runner_kwargs)
+        blind_split = args.blind_split if args.blind_split is not None else default_blind_split
+        preflight_manifests, split_preflight_report = _run_split_preflight_if_requested(args, cases)
+        runner = _create_cli_runner(args)
 
         report = run_model_vs_bicubic_audition(
             cases,
@@ -539,7 +592,7 @@ def main(argv: list[str] | None = None) -> int:
             blind_split=blind_split,
             raw_checkpoint_dir=args.raw_checkpoint_dir,
             replay_checkpoint_dir=args.replay_checkpoint_dir,
-            protocol_sha256=protocol_sha,
+            protocol_sha256=receipt["calibration_recipe_sha256"],
         )
 
         blind_info = report.get("blind", {})
@@ -553,31 +606,10 @@ def main(argv: list[str] | None = None) -> int:
         }
         if manifest_resolution is not None:
             out_summary["manifest_resolution"] = manifest_resolution
-
         if args.evaluate_acceptance:
-            model = report.get("model", {})
-            receipt["model_weight_hashes"] = _measured_weight_hashes(model)
-            receipt["seed_policy"] = f"blind_seed={args.blind_seed}"
-            receipt["source_case_hashes"] = {
-                c["id"]: c["source_sha256"]
-                for c in report.get("cases", [])
-                if c.get("source_sha256")
-            }
-            if split_preflight_report is not None:
-                receipt["source_split_preflight"] = split_preflight_report["summary"]
-            receipt_path = args.output_dir / "audition_receipt.json"
-            _write_json(receipt_path, receipt)
-            acceptance = _build_acceptance_payload(
-                report,
-                protocol,
-                receipt,
-                manifest_paths=preflight_manifests or None,
+            _write_acceptance_outputs(
+                args, report, protocol, receipt, preflight_manifests, split_preflight_report, out_summary
             )
-            acceptance_path = args.output_dir / "acceptance_summary.json"
-            _write_json(acceptance_path, acceptance)
-            out_summary["acceptance_summary"] = str(acceptance_path)
-            out_summary["acceptance_status"] = acceptance.get("overall_status")
-            out_summary["audition_receipt"] = str(receipt_path)
         if split_preflight_report is not None:
             out_summary["source_split_preflight"] = split_preflight_report["summary"]
 

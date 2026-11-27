@@ -189,6 +189,19 @@ def _normalize_ballot(entry):
     }
 
 
+def _extract_declared_ballot_sha(entry: Mapping[str, Any], prefix: str) -> str | None:
+    raw_direct = entry.get("source_sha256")
+    source_obj = entry.get("source")
+    if source_obj is not None and not isinstance(source_obj, Mapping):
+        raise ValueError(f"{prefix}: source must be an object")
+    raw_nested = source_obj.get("sha256") if isinstance(source_obj, Mapping) else None
+    direct_sha = _normalize_sha256(raw_direct, f"{prefix}: source_sha256")
+    nested_sha = _normalize_sha256(raw_nested, f"{prefix}: source.sha256")
+    if direct_sha and nested_sha and direct_sha != nested_sha:
+        raise ValueError(f"{prefix}: source_sha256 and source.sha256 disagree")
+    return direct_sha or nested_sha
+
+
 def _resolve_ballot_sha256(
     entry: Mapping[str, Any],
     case_id: str,
@@ -196,20 +209,10 @@ def _resolve_ballot_sha256(
     manifest_shas_by_id: Mapping[str, str],
 ) -> tuple[str | None, str | None]:
     prefix = f"ballot[{idx}] ({case_id})"
-    raw_direct = entry.get("source_sha256")
-    source_obj = entry.get("source")
-    if source_obj is not None and not isinstance(source_obj, Mapping):
-        return None, f"{prefix}: source must be an object"
-    raw_nested = source_obj.get("sha256") if isinstance(source_obj, Mapping) else None
     try:
-        direct_sha = _normalize_sha256(raw_direct, f"{prefix}: source_sha256")
-        nested_sha = _normalize_sha256(raw_nested, f"{prefix}: source.sha256")
+        declared_sha = _extract_declared_ballot_sha(entry, prefix)
     except ValueError as exc:
         return None, str(exc)
-
-    if direct_sha and nested_sha and direct_sha != nested_sha:
-        return None, f"{prefix}: source_sha256 and source.sha256 disagree"
-    declared_sha = direct_sha or nested_sha
     manifest_sha = manifest_shas_by_id.get(case_id)
     if declared_sha and manifest_sha and declared_sha != manifest_sha:
         return None, f"{prefix}: declared source SHA disagrees with manifest SHA"
@@ -253,6 +256,29 @@ def _collect_defects(entry, ballot, idx, invalid_ballot_errors, critical_defects
     return True
 
 
+def _record_ballot_contamination(
+    case_id: str,
+    ballot_split: str,
+    ballot_sha: str | None,
+    cal_set: set[str],
+    contaminated_shas: set[str],
+    sha_aliases: Mapping[str, Sequence[Mapping[str, Any]]],
+    split_contamination_ids: list[str],
+    source_sha_contamination: list[dict[str, Any]],
+) -> bool:
+    sha_contaminated = ballot_sha is not None and ballot_sha in contaminated_shas
+    if ballot_split == "held_out" and case_id not in cal_set and not sha_contaminated:
+        return False
+    split_contamination_ids.append(case_id)
+    if sha_contaminated and ballot_sha is not None:
+        source_sha_contamination.append({
+            "case_id": case_id,
+            "source_sha256": ballot_sha,
+            "aliases": [str(a.get("id")) for a in sha_aliases.get(ballot_sha, ())],
+        })
+    return True
+
+
 def _collect_ballots(
     submission,
     calibration_cases,
@@ -271,14 +297,11 @@ def _collect_ballots(
     source_sha_contamination: list[dict[str, Any]] = []
     invalid_ballot_errors: list[str] = []
     critical_defects: list[dict[str, Any]] = []
-    held_out_cases_by_category: dict[str, set[str]] = {
-        cat: set() for cat in REQUIRED_CATEGORIES
-    }
+    held_out_cases_by_category: dict[str, set[str]] = {cat: set() for cat in REQUIRED_CATEGORIES}
     category_by_case: dict[str, str] = {}
 
     cal_set = set(calibration_cases)
-    cal_sha_set = set(calibration_shas)
-    conflict_sha_set = set(conflict_shas)
+    contaminated_shas = set(calibration_shas) | set(conflict_shas)
     id_to_sha = manifest_shas_by_id or {}
     sha_aliases = aliases_by_sha or {}
 
@@ -296,17 +319,10 @@ def _collect_ballots(
         if sha_error:
             invalid_ballot_errors.append(sha_error)
             continue
-        sha_contaminated = ballot_sha is not None and (
-            ballot_sha in cal_sha_set or ballot_sha in conflict_sha_set
-        )
-        if ballot["split"] != "held_out" or case_id in cal_set or sha_contaminated:
-            split_contamination_ids.append(case_id)
-            if sha_contaminated and ballot_sha is not None:
-                source_sha_contamination.append({
-                    "case_id": case_id,
-                    "source_sha256": ballot_sha,
-                    "aliases": [str(a.get("id")) for a in sha_aliases.get(ballot_sha, ())],
-                })
+        if _record_ballot_contamination(
+            case_id, ballot["split"], ballot_sha, cal_set, contaminated_shas,
+            sha_aliases, split_contamination_ids, source_sha_contamination,
+        ):
             continue
         error = _ballot_error(ballot, idx, category_by_case, seen_ballot_keys)
         if error:
@@ -545,38 +561,45 @@ def _finalize_report(payload, thresholds):
     return report_payload
 
 
+def _parse_calibration_sha_list(raw_shas, cal_shas: set[str], cal_errors: list[str]) -> None:
+    if raw_shas is None:
+        return
+    if not isinstance(raw_shas, Sequence) or isinstance(raw_shas, (str, bytes)):
+        cal_errors.append("calibration_summary.source_sha256s must be a list")
+        return
+    for idx, raw_sha in enumerate(raw_shas):
+        try:
+            norm = _normalize_sha256(raw_sha, f"calibration_summary.source_sha256s[{idx}]")
+        except ValueError as exc:
+            cal_errors.append(str(exc))
+            continue
+        if norm:
+            cal_shas.add(norm)
+
+
+def _parse_calibration_hash_map(raw_case_hashes, cal_shas: set[str], cal_errors: list[str]) -> None:
+    if raw_case_hashes is None:
+        return
+    if not isinstance(raw_case_hashes, Mapping):
+        cal_errors.append("calibration_summary.case_source_hashes must be an object")
+        return
+    for cid, raw_sha in raw_case_hashes.items():
+        try:
+            norm = _normalize_sha256(raw_sha, f"calibration_summary.case_source_hashes[{cid!r}]")
+        except ValueError as exc:
+            cal_errors.append(str(exc))
+            continue
+        if norm:
+            cal_shas.add(norm)
+
+
 def _calibration_details(submission):
     calibration = submission.get("calibration_summary") or {}
     case_ids = [str(cid).strip() for cid in (calibration.get("case_ids") or []) if str(cid).strip()]
     cal_shas: set[str] = set()
     cal_errors: list[str] = []
-
-    raw_shas = calibration.get("source_sha256s")
-    if isinstance(raw_shas, Sequence) and not isinstance(raw_shas, (str, bytes)):
-        for idx, raw_sha in enumerate(raw_shas):
-            try:
-                norm = _normalize_sha256(raw_sha, f"calibration_summary.source_sha256s[{idx}]")
-            except ValueError as exc:
-                cal_errors.append(str(exc))
-                continue
-            if norm:
-                cal_shas.add(norm)
-    elif raw_shas is not None:
-        cal_errors.append("calibration_summary.source_sha256s must be a list")
-
-    raw_case_hashes = calibration.get("case_source_hashes")
-    if isinstance(raw_case_hashes, Mapping):
-        for cid, raw_sha in raw_case_hashes.items():
-            try:
-                norm = _normalize_sha256(raw_sha, f"calibration_summary.case_source_hashes[{cid!r}]")
-            except ValueError as exc:
-                cal_errors.append(str(exc))
-                continue
-            if norm:
-                cal_shas.add(norm)
-    elif raw_case_hashes is not None:
-        cal_errors.append("calibration_summary.case_source_hashes must be an object")
-
+    _parse_calibration_sha_list(calibration.get("source_sha256s"), cal_shas, cal_errors)
+    _parse_calibration_hash_map(calibration.get("case_source_hashes"), cal_shas, cal_errors)
     return bool(calibration.get("recipe_frozen", False)), case_ids, sorted(cal_shas), cal_errors
 
 
@@ -590,6 +613,36 @@ def _manifest_split_context(manifest_paths: Sequence[str | Path] | None):
         set(index["calibration_shas"]),
         set(index["conflict_shas"]),
         index["aliases_by_sha"],
+    )
+
+
+def _merge_manifest_conflicts(
+    preflight_report: Mapping[str, Any] | None,
+    split_contamination_ids: list[str],
+    source_sha_contamination: list[dict[str, Any]],
+) -> None:
+    if not preflight_report or not preflight_report.get("conflicts"):
+        return
+    seen_contam = {(e["case_id"], e["source_sha256"]) for e in source_sha_contamination}
+    for group in preflight_report["conflicts"]:
+        sha = group["sha256"]
+        alias_ids = [str(a["id"]) for a in group["aliases"]]
+        for aid in alias_ids:
+            if aid not in split_contamination_ids:
+                split_contamination_ids.append(aid)
+        if ("<manifest>", sha) not in seen_contam:
+            source_sha_contamination.append({"case_id": "<manifest>", "source_sha256": sha, "aliases": alias_ids})
+
+
+def _preflight_flags(split_index, valid_ballots) -> tuple[Any, bool, bool, bool]:
+    if split_index is None:
+        return None, False, False, False
+    report = split_index["report"]
+    return (
+        report,
+        bool(report["conflicts"]),
+        bool(report["errors"] or split_index["id_hash_conflicts"]),
+        bool(report["unknown_hashes"] and valid_ballots),
     )
 
 
@@ -624,31 +677,10 @@ def evaluate_held_out_acceptance(
         aliases_by_sha=aliases_by_sha,
     )
     all_invalid_errors = [*cal_errors, *invalid_ballot_errors]
-
-    preflight_report = split_index["report"] if split_index is not None else None
-    manifest_conflicts = bool(preflight_report and preflight_report["conflicts"])
-    manifest_errors = bool(
-        preflight_report and (preflight_report["errors"] or split_index["id_hash_conflicts"])
+    preflight_report, manifest_conflicts, manifest_errors, incomplete_manifest_hashes = _preflight_flags(
+        split_index, valid_ballots
     )
-    incomplete_manifest_hashes = bool(
-        preflight_report and preflight_report["unknown_hashes"] and valid_ballots
-    )
-    if manifest_conflicts:
-        seen_contam = {
-            (entry["case_id"], entry["source_sha256"]) for entry in source_sha_contamination
-        }
-        for group in preflight_report["conflicts"]:
-            sha = group["sha256"]
-            alias_ids = [str(a["id"]) for a in group["aliases"]]
-            for aid in alias_ids:
-                if aid not in split_contamination_ids:
-                    split_contamination_ids.append(aid)
-            if ("<manifest>", sha) not in seen_contam:
-                source_sha_contamination.append({
-                    "case_id": "<manifest>",
-                    "source_sha256": sha,
-                    "aliases": alias_ids,
-                })
+    _merge_manifest_conflicts(preflight_report, split_contamination_ids, source_sha_contamination)
 
     required_comparators, by_comparator, comparator_failures = _evaluate_comparators(submission, valid_ballots, thresholds)
     by_category, category_failures, missing_coverage_categories = _evaluate_categories(valid_ballots, required_comparators, held_out_cases_by_category, thresholds)

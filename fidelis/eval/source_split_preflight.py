@@ -23,6 +23,21 @@ def _records(document):
     return key, document[key]
 
 
+def _extract_alias_sha256(record, source):
+    # Production inventories use source.sha256; explicit diagnostic manifests use
+    # source_sha256; flat asset inventories may use top-level sha256. Reject disagreement.
+    hashes = []
+    for value in (source.get("sha256"), record.get("source_sha256"), record.get("sha256")):
+        if value is None or value == "":
+            continue
+        if not isinstance(value, str) or re.fullmatch(r"[0-9a-fA-F]{64}", value) is None:
+            raise ValueError("Nonempty source SHA-256 must contain exactly 64 hex characters")
+        hashes.append(value.lower())
+    if len(set(hashes)) > 1:
+        raise ValueError("source.sha256, source_sha256, and sha256 disagree")
+    return hashes[0] if hashes else None
+
+
 def _alias(record, collection, manifest, index):
     if not isinstance(record, dict):
         raise ValueError("Record must be an object")
@@ -38,27 +53,13 @@ def _alias(record, collection, manifest, index):
     source = record.get("source", {})
     if not isinstance(source, dict):
         raise ValueError("Record source must be an object")
-    # Production inventories use source.sha256; explicit diagnostic manifests use
-    # source_sha256; flat asset inventories may use top-level sha256. Reject disagreement.
-    nested = source.get("sha256")
-    diagnostic = record.get("source_sha256")
-    top_level = record.get("sha256")
-    hashes = []
-    for value in (nested, diagnostic, top_level):
-        if value is None or value == "":
-            continue
-        if not isinstance(value, str) or re.fullmatch(r"[0-9a-fA-F]{64}", value) is None:
-            raise ValueError("Nonempty source SHA-256 must contain exactly 64 hex characters")
-        hashes.append(value.lower())
-    if len(set(hashes)) > 1:
-        raise ValueError("source.sha256, source_sha256, and sha256 disagree")
     return {
         "manifest": manifest,
         "collection": collection,
         "record_index": index,
         "id": identity,
         "split": split,
-        "sha256": hashes[0] if hashes else None,
+        "sha256": _extract_alias_sha256(record, source),
     }
 
 
