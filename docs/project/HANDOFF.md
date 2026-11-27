@@ -1,5 +1,20 @@
 # Fresh-context handoff
 
+## Historical source-evidence & corpus-slot resolution plan · 2026-11-26 · #134
+
+Against `main` `7336376` (`#141`), [source-evidence plan](checkpoints/2026-11-26-source-evidence-plan.md)
+documents the exact `12` cross-split source-SHA conflicts (`113` unique hashes,
+`14` missing slots, `0` schema errors), disqualifies `por_held_high_iso_backstage` /
+`mel_014` (`bd1249a6...`) as untouched held-out certification for compared models,
+qualifies `por_held_glasses_reflection` / `mel_056` (`6a466d2f...`) as repeated
+held-out diagnostic evidence, records the missing off-repo `por_deep_skin_studio`
+master (`mel_032`), and records the `2026-11-26` CC0/PD audit confirming the `14`
+missing slots remain unfilled without relaxing criteria. Remaining gates are
+strictly external/owner (`#134` owner manifest/slot reconciliation, `#129`/`#135`
+198.7 MP twill evaluation on sufficient disk/torch host, `F06` SDXL GPU worker,
+`F12` remaining `14/60` slots & paid Clarity/Krea comparators, `F13` 30-case blind
+ballots, `F08`/`F15` physical mobile touch QA, and `F16` dual-owner signoff).
+
 ## Cashmere cable-knit CC0 corpus fill · 2026-11-26 · F12 / MEL-63
 
 Frozen 60-case readiness is now **46/60** (`calibration 25/30`, `held_out 21/30`;

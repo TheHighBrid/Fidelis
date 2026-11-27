@@ -1,5 +1,29 @@
 # Current progress and evidence checkpoint
 
+> **Source-evidence plan, corpus audit & backlog/Linear reconciliation (`#134`, 2026-11-26, base `main` `7336376`):**
+> Published the in-repo historical source-evidence plan and corpus-slot resolution
+> protocol in [source-evidence plan](checkpoints/2026-11-26-source-evidence-plan.md)
+> against `main` `7336376` (`#141`), classifying all `12` cross-split source-SHA
+> conflicts (`check-source-split-isolation.py`: `status: blocked`, `113` unique
+> source hashes, `12` conflicts, `14` unknown hashes, `0` errors), the `5`
+> cross-role `por_held_high_iso_backstage` / `mel_014` runs (`bd1249a6...`), and
+> the `4` repeated held-out diagnostic runs on `por_held_glasses_reflection` /
+> `mel_056` (`6a466d2f...`) without mutating frozen splits or historical artifacts.
+> Reconciled `docs/project/backlog.json` to `7336376` and restored auto-closed
+> Linear `MEL-63` (`F12`) back to `In Progress`. Audited remaining `14/60` missing
+> corpus slots across Wikimedia Commons, Openverse (`cc0,pdm`), Cleveland Museum
+> of Art, and Poly Haven with zero spec-compliant matches found without weakening
+> fiber, construction, or model-release rules. Host check on 2026-11-26:
+> `ncnn_executable: true`, `torch_importable: false`, `nvidia_smi_present: false`,
+> `127.0.0.1:8188` unreachable, `adb`/`idevice_id` absent, `5.2 GiB` free on `/`,
+> and `validate-corpus-manifest.py --verify-files` fails on missing off-repo
+> `por_deep_skin_studio` (`mel_032` / `648676378_1791816552214174.jpg`). Remaining
+> external `E2..E4` gates stay open: `#134` owner slot/manifest reconciliation,
+> `#129`/`#135` full 198.7 MP twill evaluation, `F06` live SDXL GPU workflow,
+> `F12` remaining `14/60` slots & Clarity/Krea comparators, `F13` blind
+> dual-reviewer ballots, `F08`/`F15` physical mobile touch QA, and `F16` owner
+> release signoff.
+
 > **F12 / MEL-63 cashmere cable-knit corpus fill (2026-11-26, base `main` `33b6045`):**
 > Merged PR #140 into `main` (`33b6045`) and populated `tex_cashmere_cable_knit`
 > (`calibration`, `textiles`) in `experiments/corpus_manifest.json` with a
