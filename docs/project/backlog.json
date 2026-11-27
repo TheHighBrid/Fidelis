@@ -3,14 +3,14 @@
   "source_split_checkpoint": "docs/project/checkpoints/2026-11-25-source-split-preflight.md",
 
   "execution_checkpoint": "docs/project/checkpoints/2026-11-25-native-execution-evidence.md",
-  "snapshot_date": "2026-11-24",
-  "code_snapshot": "7d97abd",
+  "snapshot_date": "2026-11-26",
+  "code_snapshot": "9da54cc",
   "code_branch": "main",
-  "code_pr": "https://github.com/TheHighBrid/Fidelis/pull/113",
+  "code_pr": "https://github.com/TheHighBrid/Fidelis/pull/139",
   "canonical_spec": "docs/FIDELIS_STUDIO_PLAN.md",
   "coordination_project": "https://linear.app/melato/project/fidelis-studio-a057f366fa71",
   "umbrella": "MEL-53",
-  "note": "Committed coordination snapshot reconciled against main (7d97abd) and Linear P-MEL-3. F01-F04, F05-A, F05-B, F07-A, F07-B, F08-A, F08-B, F09, F10, F11, F14, F15, F17, and D01-D04 are merged into main and marked Done in Linear; F07 live ComfyUI MPS async queue qualification (#109) is merged into main (with F07 kept In Progress here pending F06 SDXL GPU workflow). F05, F06, F07, F08, F12, F12-A, F13, and F16 remain In Progress pending SDXL GPU texture weights/workflow, off-repo 60-case corpus completion, physical mobile hardware, blind human review, and owner release signoff.",
+  "note": "Committed coordination snapshot reconciled against main (9da54cc) and Linear P-MEL-3. F01-F04, F05-A, F05-B, F07-A, F07-B, F08-A, F08-B, F09, F10, F11, F12-A, F14, F15, F17, and D01-D04 are merged into main and Done; F07 live ComfyUI MPS async queue qualification (#109) is merged into main (with F07 kept In Progress here pending F06 SDXL GPU workflow). F05, F06, F07, F08, F12, F13, and F16 remain In Progress in both backlog.json and Linear pending SDXL GPU texture weights/workflow, commercial model license clearance, remaining 15/60 corpus slots & paid Clarity/Krea comparators, open GH #129/#134/#135 quality/split execution, physical mobile touch hardware review, 30-case blind dual-reviewer ballots, and owner creative/release signoff.",
   "items": [
     {
       "id": "F01",
@@ -106,7 +106,7 @@
       "role": "Runtime / model research",
       "scope": "Audit actual capabilities and audition checksum-pinned candidates on target hardware.",
       "acceptance": "At least one selected base has real output, actual weight/runtime hashes and terms, target-device resource evidence and visual fidelity review. Availability alone does not pass.",
-      "evidence": "docs/APPLE_M1_PRECISION_BASE_AUDITION.md; docs/project/checkpoints/2026-11-13-apple-m1-base-audition.md; scripts/backend-doctor.py; fidelis/studio/capabilities.py; config/photo-candidates.tsv; config/model-provenance-v1.json; Apple M1 8GB Vulkan NCNN audition across RealeSR-general-v3, RealSR-DF2K and ESRGAN-Remacri recorded; full 60-case corpus and commercial license clearance remain open",
+      "evidence": "docs/APPLE_M1_PRECISION_BASE_AUDITION.md; docs/project/checkpoints/2026-11-13-apple-m1-base-audition.md; docs/project/checkpoints/2026-11-25-swinir-calibration.md; scripts/backend-doctor.py; fidelis/studio/capabilities.py; config/photo-candidates.tsv; config/model-provenance-v1.json; Apple M1 8GB Vulkan NCNN audition across RealeSR-general-v3, RealSR-DF2K and ESRGAN-Remacri plus MPS SwinIR-lightweight-DIV2K-x4 provenance/tiling (PR #120, #126) recorded; full 60-case corpus and commercial license clearance remain open",
       "priority": 2,
       "linear": {
         "id": "MEL-58",
@@ -260,7 +260,7 @@
       "role": "Evaluation / evidence",
       "scope": "Build 60-case rights/hash/ROI inventory, frozen 30/30 split and reproducible comparisons.",
       "acceptance": "Coverage and permissions documented; each output separate; settings/cost/time/hash recorded; real comparators distinguished from unavailable evidence.",
-      "evidence": "fidelis/eval/comparators.py; scripts/run-comparators.py; tests/test_comparators.py; docs/COMPARATOR_RUNNERS.md; docs/project/checkpoints/2026-11-10-comparator-runners.md; comparator runners and cost/provenance normalization verified; 60-case rights-cleared photo corpus and live paid API keys remain open",
+      "evidence": "fidelis/eval/comparators.py; experiments/corpus_manifest.json; experiments/corpus_material_candidate_reviews.json; scripts/run-comparators.py; tests/test_comparators.py; docs/COMPARATOR_RUNNERS.md; docs/project/checkpoints/2026-11-10-comparator-runners.md; comparator runners and 45/60 visually verified CC0/PD/Melato corpus cases (PR #121-#125, #132) verified on main; 15/60 corpus slots and live paid Clarity/Krea API runs remain open",
       "priority": 3,
       "linear": {
         "id": "MEL-63",
@@ -288,7 +288,7 @@
       "role": "Quality / creative review",
       "scope": "Tune on calibration cases and evaluate blind held-out results against Clarity/Krea.",
       "acceptance": "No critical fidelity defects; agreed threshold protocol, sample sizes/confidence intervals and category failures reported; final creative judgment recorded after concrete evidence.",
-      "evidence": "fidelis/eval/quality_acceptance.py; scripts/evaluate-quality-acceptance.py; tests/test_quality_acceptance.py; docs/QUALITY_ACCEPTANCE.md; docs/project/checkpoints/2026-11-10-held-out-acceptance.md; Wilson 95% CIs, Krippendorff alpha / Cohen kappa, and G1-G6 gates implemented; live 30-case held-out human signoff remains open",
+      "evidence": "fidelis/eval/quality_acceptance.py; fidelis/eval/source_split_preflight.py; fidelis/engine/checkpoints.py; fidelis/engine/checkpoint_replay.py; scripts/evaluate-quality-acceptance.py; scripts/audition-melato.py; tests/test_quality_acceptance.py; tests/test_source_split_preflight.py; tests/test_cached_png_and_raw_checkpoints.py; docs/QUALITY_ACCEPTANCE.md; docs/project/checkpoints/2026-11-26-source-hash-acceptance-guard.md; docs/project/checkpoints/2026-11-26-cached-png-and-raw-checkpoints.md; docs/project/checkpoints/2026-11-25-source-split-preflight.md; Wilson 95% CIs, Krippendorff alpha / Cohen kappa, G1-G6 gates, bounded composition/drift/F4 memory (#129/#130/#131/#133), source-SHA split preflight & acceptance/audition enforcement (#134/#137/#139), and cached PNG validation + raw inference checkpoints (#135/#138) merged on main; full 198.7 MP twill raw-checkpointed evaluation (#129/#135), historical source-evidence plan (#134), 30-case blind dual-reviewer ballots, and owner creative signoff remain open",
       "priority": 2,
       "linear": {
         "id": "MEL-66",
@@ -296,10 +296,10 @@
         "url": "https://linear.app/melato/issue/MEL-66/f13-calibrate-and-pass-held-out-quality-acceptance",
         "title": "F13 \u00b7 Calibrate and pass held-out quality acceptance"
       },
-      "verification_checkpoint": "docs/project/checkpoints/2026-11-10-held-out-acceptance.md",
+      "verification_checkpoint": "docs/project/checkpoints/2026-11-26-source-hash-acceptance-guard.md",
       "resource_checkpoint": "docs/project/checkpoints/2026-11-25-evaluation-memory.md",
       "precision_checkpoint": "docs/project/checkpoints/2026-11-25-weave-precision.md",
-      "resource_followup": "GitHub #129 remains open: spectral/luminance hotspots reduced and native guarded-pixel operation measured; full-resolution twill and remaining material/drift/composition peak memory are not qualified."
+      "resource_followup": "GitHub #129 and #135 remain open pending full 198.7 MP tex_cotton_twill_chino raw-checkpointed evaluation on main (>= 5641e94) with sufficient disk/memory headroom (host currently at 6.2 GiB free on /)."
     },
     {
       "id": "F14",
@@ -360,7 +360,7 @@
       "role": "Release / product",
       "scope": "Close release gates and publish scope, evidence, known limits and rollback.",
       "acceptance": "Required quality/operational gates met, release SHA and packages linked, blocking defects closed, owner creative/release signoff recorded; merged is not automatically released.",
-      "evidence": "config/release-candidate-v1.json; fidelis/studio/release_readiness.py; scripts/audit-release-readiness.py; tests/test_release_readiness.py; docs/RELEASE_READINESS.md; PR #82 merged Studio to main (7310aa6), PR #88-#90 added strict dual-owner signoff guards, and v3.1.0 archives were rebuilt and audited on candidate main 7d97abd (stored off-repo under release-evidence/7d97abdc/packages/); remains blocked until external E2-E4 gates (SDXL GPU workflow, 60-case corpus, blind human review, physical touch QA) and owner signoff close",
+      "evidence": "config/release-candidate-v1.json; fidelis/studio/release_readiness.py; scripts/audit-release-readiness.py; tests/test_release_readiness.py; docs/RELEASE_READINESS.md; PR #82 merged Studio to main (7310aa6), PR #88-#90 added strict dual-owner signoff guards, PR #114 rebuilt and audited v3.1.0 archives on 7d97abdc (stored off-repo under release-evidence/7d97abdc/), and PR #117 reconciled live_worker_verified against f07-live-receipt.json; remains blocked until external E2-E4 gates (SDXL GPU workflow, 60-case corpus, held-out quality acceptance, physical touch QA) and owner signoff close",
       "priority": 2,
       "linear": {
         "id": "MEL-68",
@@ -524,13 +524,13 @@
       "title": "Prepare corpus rights and ROI manifest",
       "parent": "F12",
       "milestone": "M3",
-      "state": "In Progress",
-      "implementation": "partial_inventory_tooling_verified_production_data_missing",
+      "state": "Done",
+      "implementation": "inventory_tooling_and_melato_roi_manifest_merged_remaining_slots_on_f12",
       "depends_on": [],
       "role": "Evaluation",
       "scope": "Define and populate corpus metadata for consent/rights, categories, source hashes, known text and critical ROIs.",
       "acceptance": "Inventory distinguishes available cases from missing ones; proposed 60-case coverage and calibration/held-out split are frozen before tuning.",
-      "evidence": "config/benchmark/; experiments/corpus_manifest.json; experiments/melato_corpus_manifest.json; fidelis/eval/corpus_manifest.py; fidelis/eval/melato_corpus_manifest.py; scripts/benchmark-corpus.py; scripts/validate-corpus-manifest.py; tests/test_corpus_manifest.py; tests/test_melato_corpus_manifest.py; 8 regression assets verified, 30/60 off-repo Melato slots inventoried, PR #113 reclassified mel_028 to apparel_model and annotated visually verified bbox_norm ROIs across all 8 locally available Melato masters (22 slotted off-repo masters and 30 missing corpus slots remain open); docs/project/checkpoints/2026-11-19-unified-studio-integration.md",
+      "evidence": "config/benchmark/; experiments/corpus_manifest.json; experiments/melato_corpus_manifest.json; fidelis/eval/corpus_manifest.py; fidelis/eval/melato_corpus_manifest.py; scripts/benchmark-corpus.py; scripts/validate-corpus-manifest.py; tests/test_corpus_manifest.py; tests/test_melato_corpus_manifest.py; 8 regression assets verified, 30/60 off-repo Melato slots inventoried, PR #113 reclassified mel_028 to apparel_model and annotated visually verified bbox_norm ROIs across all 8 locally available Melato masters (MEL-79 closed; remaining 15/60 corpus slot fills tracked on parent F12 / MEL-63); docs/project/checkpoints/2026-11-19-unified-studio-integration.md",
       "priority": 3,
       "linear": {
         "id": "MEL-79",
@@ -683,6 +683,6 @@
       "linear_id": "fb26feb5-8122-40cb-a6e1-01a83b4f542c"
     }
   ],
-  "latest_checkpoint": "docs/project/checkpoints/2026-11-19-unified-studio-integration.md",
-  "checkpoint_base_commit": "b03100192544024f56646c91ee560b8857de7e1c"
+  "latest_checkpoint": "docs/project/checkpoints/2026-11-26-source-hash-acceptance-guard.md",
+  "checkpoint_base_commit": "9da54cc"
 }
