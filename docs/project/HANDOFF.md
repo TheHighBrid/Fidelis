@@ -1,5 +1,19 @@
 # Fresh-context handoff
 
+## 198.7 MP twill raw-checkpointed evaluation · 2026-11-27 · #129 & #135
+
+On clean `main` `b414a90` (`PR #142`), [twill checkpoint](checkpoints/2026-11-27-twill-198mp-raw-checkpoint-eval.md)
+records full `17404×11416` (`198,684,064` px) `tex_cotton_twill_chino` raw-checkpointed
+SwinIR MPS inference (`345` tiles, `raw_candidate.npy` / `bicubic_base.npy` `596,052,320`
+bytes each) followed by `--replay-checkpoint-dir` bounded evaluation (`1195.33 s` wall
+time, `2.58 GiB` peak RSS, `PASS_MATERIAL_DETAIL`, PR #133 `F4` `weave_energy_ratio: 1.015712`,
+and `inspect_cached_generated_png` CRC/IEND verification with Pillow `DecompressionBombError`
+preserved). This is an unfrozen single-case calibration diagnostic (`overall_status: "failed"`
+in `acceptance_summary.json`), closing the `#129` and `#135` execution scope while `#134`
+owner manifest/slot reconciliation, `F06` SDXL GPU worker, `F12` remaining `14/60` slots &
+paid Clarity/Krea comparators, `F13` 30-case blind ballots, `F08`/`F15` physical mobile touch
+QA, and `F16` dual-owner signoff remain open.
+
 ## Historical source-evidence & corpus-slot resolution plan · 2026-11-26 · #134
 
 Against `main` `7336376` (`#141`), [source-evidence plan](checkpoints/2026-11-26-source-evidence-plan.md)
