@@ -87,6 +87,8 @@ def _publish_pair(case, pair_id, sides, blind_dir, split_seed, namespace):
         "left": left_comp, "right": right_comp,
         "left_output_path": str(orig_left), "right_output_path": str(orig_right),
     }
+    if case.get("source_sha256"):
+        key["source_sha256"] = case["source_sha256"]
     return item, key
 
 

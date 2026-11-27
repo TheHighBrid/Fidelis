@@ -21,10 +21,14 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
+
+from fidelis.eval.source_split_preflight import collect_source_split_index
 
 from fidelis.eval.quality_statistics import (
     _compute_inter_rater_agreement,
@@ -166,6 +170,14 @@ def _summarize_ballots(
     }
 
 
+def _normalize_sha256(value: Any, field_name: str) -> str | None:
+    if value is None or value == "":
+        return None
+    if not isinstance(value, str) or re.fullmatch(r"[0-9a-fA-F]{64}", value) is None:
+        raise ValueError(f"{field_name} must be a 64-character hex SHA-256")
+    return value.lower()
+
+
 def _normalize_ballot(entry):
     return {
         "case_id": str(entry.get("case_id", "")).strip(),
@@ -175,6 +187,36 @@ def _normalize_ballot(entry):
         "outcome": str(entry.get("outcome", "")).strip(),
         "reviewer_id": entry.get("reviewer_id"),
     }
+
+
+def _extract_declared_ballot_sha(entry: Mapping[str, Any], prefix: str) -> str | None:
+    raw_direct = entry.get("source_sha256")
+    source_obj = entry.get("source")
+    if source_obj is not None and not isinstance(source_obj, Mapping):
+        raise ValueError(f"{prefix}: source must be an object")
+    raw_nested = source_obj.get("sha256") if isinstance(source_obj, Mapping) else None
+    direct_sha = _normalize_sha256(raw_direct, f"{prefix}: source_sha256")
+    nested_sha = _normalize_sha256(raw_nested, f"{prefix}: source.sha256")
+    if direct_sha and nested_sha and direct_sha != nested_sha:
+        raise ValueError(f"{prefix}: source_sha256 and source.sha256 disagree")
+    return direct_sha or nested_sha
+
+
+def _resolve_ballot_sha256(
+    entry: Mapping[str, Any],
+    case_id: str,
+    idx: int,
+    manifest_shas_by_id: Mapping[str, str],
+) -> tuple[str | None, str | None]:
+    prefix = f"ballot[{idx}] ({case_id})"
+    try:
+        declared_sha = _extract_declared_ballot_sha(entry, prefix)
+    except ValueError as exc:
+        return None, str(exc)
+    manifest_sha = manifest_shas_by_id.get(case_id)
+    if declared_sha and manifest_sha and declared_sha != manifest_sha:
+        return None, f"{prefix}: declared source SHA disagrees with manifest SHA"
+    return declared_sha or manifest_sha, None
 
 
 def _ballot_error(ballot, idx, category_by_case, seen_ballot_keys):
@@ -214,43 +256,100 @@ def _collect_defects(entry, ballot, idx, invalid_ballot_errors, critical_defects
     return True
 
 
-def _collect_ballots(submission, calibration_cases):
+def _record_ballot_contamination(
+    case_id: str,
+    ballot_split: str,
+    ballot_sha: str | None,
+    cal_set: set[str],
+    contaminated_shas: set[str],
+    sha_aliases: Mapping[str, Sequence[Mapping[str, Any]]],
+    split_contamination_ids: list[str],
+    source_sha_contamination: list[dict[str, Any]],
+) -> bool:
+    sha_contaminated = ballot_sha is not None and ballot_sha in contaminated_shas
+    if ballot_split == "held_out" and case_id not in cal_set and not sha_contaminated:
+        return False
+    split_contamination_ids.append(case_id)
+    if sha_contaminated and ballot_sha is not None:
+        source_sha_contamination.append({
+            "case_id": case_id,
+            "source_sha256": ballot_sha,
+            "aliases": [str(a.get("id")) for a in sha_aliases.get(ballot_sha, ())],
+        })
+    return True
+
+
+def _process_ballot_entry(
+    idx: int,
+    entry: Any,
+    context: Mapping[str, Any],
+    state: Mapping[str, Any],
+) -> None:
+    invalid_ballot_errors = state["invalid_ballot_errors"]
+    if not isinstance(entry, Mapping):
+        invalid_ballot_errors.append(f"ballot[{idx}]: not an object")
+        return
+    ballot = _normalize_ballot(entry)
+    case_id = ballot["case_id"]
+    if not case_id or not ballot["comparator"]:
+        invalid_ballot_errors.append(f"ballot[{idx}]: missing case_id or comparator")
+        return
+    ballot_sha, sha_error = _resolve_ballot_sha256(entry, case_id, idx, context["id_to_sha"])
+    if sha_error:
+        invalid_ballot_errors.append(sha_error)
+        return
+    if _record_ballot_contamination(
+        case_id, ballot["split"], ballot_sha, context["cal_set"], context["contaminated_shas"],
+        context["sha_aliases"], state["split_contamination_ids"], state["source_sha_contamination"],
+    ):
+        return
+    error = _ballot_error(ballot, idx, state["category_by_case"], state["seen_ballot_keys"])
+    if error:
+        invalid_ballot_errors.append(error)
+        return
+    state["held_out_cases_by_category"][ballot["category"]].add(case_id)
+    if _collect_defects(entry, ballot, idx, invalid_ballot_errors, state["critical_defects"]):
+        state["valid_ballots"].append(ballot)
+
+
+def _collect_ballots(
+    submission,
+    calibration_cases,
+    *,
+    calibration_shas: Sequence[str] = (),
+    conflict_shas: Sequence[str] = (),
+    manifest_shas_by_id: Mapping[str, str] | None = None,
+    aliases_by_sha: Mapping[str, Sequence[Mapping[str, Any]]] | None = None,
+):
     raw_ballots = submission.get("held_out_ballots")
     if not isinstance(raw_ballots, Sequence):
         raw_ballots = []
-
-    valid_ballots: list[dict[str, Any]] = []
-    split_contamination_ids: list[str] = []
-    invalid_ballot_errors: list[str] = []
-    critical_defects: list[dict[str, Any]] = []
-    held_out_cases_by_category: dict[str, set[str]] = {
-        cat: set() for cat in REQUIRED_CATEGORIES
+    context = {
+        "cal_set": set(calibration_cases),
+        "contaminated_shas": set(calibration_shas) | set(conflict_shas),
+        "id_to_sha": manifest_shas_by_id or {},
+        "sha_aliases": aliases_by_sha or {},
     }
-    category_by_case: dict[str, str] = {}
-
-    cal_set = set(calibration_cases)
-
-    seen_ballot_keys: set[tuple[str, str, str]] = set()
+    state: dict[str, Any] = {
+        "valid_ballots": [],
+        "split_contamination_ids": [],
+        "source_sha_contamination": [],
+        "invalid_ballot_errors": [],
+        "critical_defects": [],
+        "held_out_cases_by_category": {cat: set() for cat in REQUIRED_CATEGORIES},
+        "category_by_case": {},
+        "seen_ballot_keys": set(),
+    }
     for idx, entry in enumerate(raw_ballots):
-        if not isinstance(entry, Mapping):
-            invalid_ballot_errors.append(f"ballot[{idx}]: not an object")
-            continue
-        ballot = _normalize_ballot(entry)
-        case_id = ballot["case_id"]
-        if not case_id or not ballot["comparator"]:
-            invalid_ballot_errors.append(f"ballot[{idx}]: missing case_id or comparator")
-            continue
-        if ballot["split"] != "held_out" or case_id in cal_set:
-            split_contamination_ids.append(case_id)
-            continue
-        error = _ballot_error(ballot, idx, category_by_case, seen_ballot_keys)
-        if error:
-            invalid_ballot_errors.append(error)
-            continue
-        held_out_cases_by_category[ballot["category"]].add(case_id)
-        if _collect_defects(entry, ballot, idx, invalid_ballot_errors, critical_defects):
-            valid_ballots.append(ballot)
-    return valid_ballots, split_contamination_ids, invalid_ballot_errors, critical_defects, held_out_cases_by_category
+        _process_ballot_entry(idx, entry, context, state)
+    return (
+        state["valid_ballots"],
+        state["split_contamination_ids"],
+        state["source_sha_contamination"],
+        state["invalid_ballot_errors"],
+        state["critical_defects"],
+        state["held_out_cases_by_category"],
+    )
 
 
 def _required_comparators(submission):
@@ -423,7 +522,17 @@ def _creative_signoff(submission):
     }
 
 
-def _overall_status(blocking_reasons, missing_coverage_categories, valid_ballots, critical_defects, split_contamination_ids, invalid_ballot_errors, owner_approved):
+def _overall_status(
+    blocking_reasons,
+    missing_coverage_categories,
+    valid_ballots,
+    critical_defects,
+    split_contamination_ids,
+    invalid_ballot_errors,
+    owner_approved,
+    *,
+    has_split_or_preflight_failure: bool = False,
+):
     quantitative_gates_passed = len(blocking_reasons) == 0
 
     if not quantitative_gates_passed:
@@ -433,6 +542,7 @@ def _overall_status(blocking_reasons, missing_coverage_categories, valid_ballots
             and len(critical_defects) == 0
             and not split_contamination_ids
             and not invalid_ballot_errors
+            and not has_split_or_preflight_failure
         ):
             overall_status = "blocked_incomplete_evidence"
         else:
@@ -462,30 +572,137 @@ def _finalize_report(payload, thresholds):
     return report_payload
 
 
+def _parse_calibration_sha_list(raw_shas, cal_shas: set[str], cal_errors: list[str]) -> None:
+    if raw_shas is None:
+        return
+    if not isinstance(raw_shas, Sequence) or isinstance(raw_shas, (str, bytes)):
+        cal_errors.append("calibration_summary.source_sha256s must be a list")
+        return
+    for idx, raw_sha in enumerate(raw_shas):
+        try:
+            norm = _normalize_sha256(raw_sha, f"calibration_summary.source_sha256s[{idx}]")
+        except ValueError as exc:
+            cal_errors.append(str(exc))
+            continue
+        if norm:
+            cal_shas.add(norm)
+
+
+def _parse_calibration_hash_map(raw_case_hashes, cal_shas: set[str], cal_errors: list[str]) -> None:
+    if raw_case_hashes is None:
+        return
+    if not isinstance(raw_case_hashes, Mapping):
+        cal_errors.append("calibration_summary.case_source_hashes must be an object")
+        return
+    for cid, raw_sha in raw_case_hashes.items():
+        try:
+            norm = _normalize_sha256(raw_sha, f"calibration_summary.case_source_hashes[{cid!r}]")
+        except ValueError as exc:
+            cal_errors.append(str(exc))
+            continue
+        if norm:
+            cal_shas.add(norm)
+
+
 def _calibration_details(submission):
     calibration = submission.get("calibration_summary") or {}
-    return bool(calibration.get("recipe_frozen", False)), [
-        str(cid).strip() for cid in (calibration.get("case_ids") or []) if str(cid).strip()
-    ]
+    case_ids = [str(cid).strip() for cid in (calibration.get("case_ids") or []) if str(cid).strip()]
+    cal_shas: set[str] = set()
+    cal_errors: list[str] = []
+    _parse_calibration_sha_list(calibration.get("source_sha256s"), cal_shas, cal_errors)
+    _parse_calibration_hash_map(calibration.get("case_source_hashes"), cal_shas, cal_errors)
+    return bool(calibration.get("recipe_frozen", False)), case_ids, sorted(cal_shas), cal_errors
+
+
+def _manifest_split_context(manifest_paths: Sequence[str | Path] | None):
+    if not manifest_paths:
+        return None, {}, set(), set(), {}
+    index = collect_source_split_index(manifest_paths)
+    return (
+        index,
+        index["sha_by_id"],
+        set(index["calibration_shas"]),
+        set(index["conflict_shas"]),
+        index["aliases_by_sha"],
+    )
+
+
+def _merge_manifest_conflicts(
+    preflight_report: Mapping[str, Any] | None,
+    split_contamination_ids: list[str],
+    source_sha_contamination: list[dict[str, Any]],
+) -> None:
+    if not preflight_report or not preflight_report.get("conflicts"):
+        return
+    seen_contam = {(e["case_id"], e["source_sha256"]) for e in source_sha_contamination}
+    for group in preflight_report["conflicts"]:
+        sha = group["sha256"]
+        alias_ids = [str(a["id"]) for a in group["aliases"]]
+        for aid in alias_ids:
+            if aid not in split_contamination_ids:
+                split_contamination_ids.append(aid)
+        if ("<manifest>", sha) not in seen_contam:
+            source_sha_contamination.append({"case_id": "<manifest>", "source_sha256": sha, "aliases": alias_ids})
+
+
+def _preflight_flags(split_index, valid_ballots) -> tuple[Any, bool, bool, bool]:
+    if split_index is None:
+        return None, False, False, False
+    report = split_index["report"]
+    return (
+        report,
+        bool(report["conflicts"]),
+        bool(report["errors"] or split_index["id_hash_conflicts"]),
+        bool(report["unknown_hashes"] and valid_ballots),
+    )
 
 
 def evaluate_held_out_acceptance(
     submission: Mapping[str, Any],
     *,
     thresholds: AcceptanceThresholds | None = None,
+    manifest_paths: Sequence[str | Path] | None = None,
 ) -> dict[str, Any]:
     """Evaluate a calibration + blind held-out quality submission against F13 gates."""
     thresholds = AcceptanceThresholds() if thresholds is None else thresholds
     receipt_check = validate_reproducibility_receipt(submission.get("reproducibility_receipt"))
-    calibration_frozen, calibration_cases = _calibration_details(submission)
-    valid_ballots, split_contamination_ids, invalid_ballot_errors, critical_defects, held_out_cases_by_category = _collect_ballots(submission, calibration_cases)
+    calibration_frozen, calibration_cases, cal_shas, cal_errors = _calibration_details(submission)
+    split_index, manifest_shas_by_id, manifest_cal_shas, conflict_shas, aliases_by_sha = (
+        _manifest_split_context(manifest_paths)
+    )
+    all_cal_shas = sorted(set(cal_shas) | manifest_cal_shas)
+
+    (
+        valid_ballots,
+        split_contamination_ids,
+        source_sha_contamination,
+        invalid_ballot_errors,
+        critical_defects,
+        held_out_cases_by_category,
+    ) = _collect_ballots(
+        submission,
+        calibration_cases,
+        calibration_shas=all_cal_shas,
+        conflict_shas=sorted(conflict_shas),
+        manifest_shas_by_id=manifest_shas_by_id,
+        aliases_by_sha=aliases_by_sha,
+    )
+    all_invalid_errors = [*cal_errors, *invalid_ballot_errors]
+    preflight_report, manifest_conflicts, manifest_errors, incomplete_manifest_hashes = _preflight_flags(
+        split_index, valid_ballots
+    )
+    _merge_manifest_conflicts(preflight_report, split_contamination_ids, source_sha_contamination)
+
     required_comparators, by_comparator, comparator_failures = _evaluate_comparators(submission, valid_ballots, thresholds)
     by_category, category_failures, missing_coverage_categories = _evaluate_categories(valid_ballots, required_comparators, held_out_cases_by_category, thresholds)
+    has_split_contamination = bool(split_contamination_ids or manifest_conflicts)
     blocking_reasons = [reason for condition, reason in (
         (not receipt_check["complete"], "incomplete_reproducibility_receipt"),
         (not calibration_frozen, "calibration_recipe_not_frozen"),
-        (split_contamination_ids, "split_contamination_detected"),
-        (invalid_ballot_errors, "invalid_ballot_records"),
+        (has_split_contamination, "split_contamination_detected"),
+        (manifest_errors, "source_split_preflight_failed"),
+        (incomplete_manifest_hashes, "incomplete_source_hash_coverage"),
+        (all_invalid_errors, "invalid_ballot_records"),
         (len(critical_defects) > thresholds.max_critical_defects, "critical_fidelity_defects_present"),
         (missing_coverage_categories, "incomplete_held_out_category_coverage"),
         (comparator_failures, "comparator_threshold_not_met"),
@@ -493,7 +710,16 @@ def evaluate_held_out_acceptance(
     ) if condition]
     automated_detail_gates = _automated_gate(submission, thresholds, blocking_reasons)
     signoff = _creative_signoff(submission)
-    overall_status, quantitative_gates_passed = _overall_status(blocking_reasons, missing_coverage_categories, valid_ballots, critical_defects, split_contamination_ids, invalid_ballot_errors, signoff["approved"])
+    overall_status, quantitative_gates_passed = _overall_status(
+        blocking_reasons,
+        missing_coverage_categories,
+        valid_ballots,
+        critical_defects,
+        split_contamination_ids,
+        all_invalid_errors,
+        signoff["approved"],
+        has_split_or_preflight_failure=has_split_contamination or manifest_errors or incomplete_manifest_hashes,
+    )
 
     return _finalize_report({
         "overall_status": overall_status,
@@ -504,8 +730,11 @@ def evaluate_held_out_acceptance(
         "calibration": {
             "recipe_frozen": calibration_frozen,
             "calibration_case_count": len(calibration_cases),
+            "calibration_source_sha256_count": len(all_cal_shas),
             "split_contamination_ids": sorted(set(split_contamination_ids)),
+            "source_sha_contamination": source_sha_contamination,
         },
+        "source_split_preflight": preflight_report,
         "critical_defect_count": len(critical_defects),
         "critical_defects": critical_defects,
         "comparator_results": by_comparator,
@@ -514,6 +743,6 @@ def evaluate_held_out_acceptance(
         "category_failures": category_failures,
         "inter_rater_agreement": _compute_inter_rater_agreement(valid_ballots),
         "missing_coverage_categories": missing_coverage_categories,
-        "invalid_ballot_errors": invalid_ballot_errors,
+        "invalid_ballot_errors": all_invalid_errors,
         "blocking_reasons": blocking_reasons,
     }, thresholds)

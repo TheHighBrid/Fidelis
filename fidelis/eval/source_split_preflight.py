@@ -23,6 +23,21 @@ def _records(document):
     return key, document[key]
 
 
+def _extract_alias_sha256(record, source):
+    # Production inventories use source.sha256; explicit diagnostic manifests use
+    # source_sha256; flat asset inventories may use top-level sha256. Reject disagreement.
+    hashes = []
+    for value in (source.get("sha256"), record.get("source_sha256"), record.get("sha256")):
+        if value is None or value == "":
+            continue
+        if not isinstance(value, str) or re.fullmatch(r"[0-9a-fA-F]{64}", value) is None:
+            raise ValueError("Nonempty source SHA-256 must contain exactly 64 hex characters")
+        hashes.append(value.lower())
+    if len(set(hashes)) > 1:
+        raise ValueError("source.sha256, source_sha256, and sha256 disagree")
+    return hashes[0] if hashes else None
+
+
 def _alias(record, collection, manifest, index):
     if not isinstance(record, dict):
         raise ValueError("Record must be an object")
@@ -38,26 +53,13 @@ def _alias(record, collection, manifest, index):
     source = record.get("source", {})
     if not isinstance(source, dict):
         raise ValueError("Record source must be an object")
-    # Production inventories use source.sha256; explicit diagnostic manifests use
-    # source_sha256. Reject disagreement instead of silently choosing a value.
-    nested = source.get("sha256")
-    diagnostic = record.get("source_sha256")
-    hashes = []
-    for value in (nested, diagnostic):
-        if value is None or value == "":
-            continue
-        if not isinstance(value, str) or re.fullmatch(r"[0-9a-fA-F]{64}", value) is None:
-            raise ValueError("Nonempty source SHA-256 must contain exactly 64 hex characters")
-        hashes.append(value.lower())
-    if len(set(hashes)) > 1:
-        raise ValueError("source.sha256 and source_sha256 disagree")
     return {
         "manifest": manifest,
         "collection": collection,
         "record_index": index,
         "id": identity,
         "split": split,
-        "sha256": hashes[0] if hashes else None,
+        "sha256": _extract_alias_sha256(record, source),
     }
 
 
@@ -78,13 +80,7 @@ def _collect_aliases(records, collection, manifest, aliases_by_hash, unknown, er
             aliases_by_hash[alias["sha256"]].append(alias)
 
 
-def check_source_split_isolation(manifest_paths):
-    """Return JSON-compatible evidence; conflicts/invalid/unknown inputs cannot pass.
-
-    Null/empty hashes are listed individually as unknown, never joined together.
-    A passing result only covers declared nonempty SHA identities in these inputs.
-    It does not establish release readiness or an untouched held-out history.
-    """
+def _scan_manifests(manifest_paths):
     manifests = []
     errors = []
     aliases_by_hash = defaultdict(list)
@@ -109,6 +105,17 @@ def check_source_split_isolation(manifest_paths):
                "splits": sorted({alias["split"] for alias in aliases})}
               for sha, aliases in sorted(aliases_by_hash.items())]
     conflicts = [group for group in groups if len(group["splits"]) > 1]
+    return manifests, groups, conflicts, unknown, errors
+
+
+def check_source_split_isolation(manifest_paths):
+    """Return JSON-compatible evidence; conflicts/invalid/unknown inputs cannot pass.
+
+    Null/empty hashes are listed individually as unknown, never joined together.
+    A passing result only covers declared nonempty SHA identities in these inputs.
+    It does not establish release readiness or an untouched held-out history.
+    """
+    manifests, groups, conflicts, unknown, errors = _scan_manifests(manifest_paths)
     if errors or conflicts:
         status = "blocked"
     elif unknown or not groups:
@@ -128,4 +135,45 @@ def check_source_split_isolation(manifest_paths):
         "shared_sources": [group for group in groups if len(group["aliases"]) > 1],
         "unknown_hashes": unknown,
         "errors": errors,
+    }
+
+
+def collect_source_split_index(manifest_paths):
+    """Build a source-SHA lookup index alongside the preflight report."""
+    report = check_source_split_isolation(manifest_paths)
+    sha_by_id: dict[str, str] = {}
+    id_shas: dict[str, set[str]] = defaultdict(set)
+    calibration_shas: set[str] = set()
+    held_out_shas: set[str] = set()
+    conflict_shas = {group["sha256"] for group in report["conflicts"]}
+    aliases_by_sha: dict[str, list[dict[str, object]]] = {}
+
+    manifests, groups, _conflicts, _unknown, _errors = _scan_manifests(manifest_paths)
+    del manifests
+    for group in groups:
+        sha = group["sha256"]
+        aliases = group["aliases"]
+        aliases_by_sha[sha] = aliases
+        if "calibration" in group["splits"]:
+            calibration_shas.add(sha)
+        if "held_out" in group["splits"]:
+            held_out_shas.add(sha)
+        for alias in aliases:
+            id_shas[alias["id"]].add(sha)
+
+    id_hash_conflicts: list[dict[str, object]] = []
+    for record_id, shas in sorted(id_shas.items()):
+        if len(shas) == 1:
+            sha_by_id[record_id] = next(iter(shas))
+        else:
+            id_hash_conflicts.append({"id": record_id, "sha256s": sorted(shas)})
+
+    return {
+        "report": report,
+        "sha_by_id": sha_by_id,
+        "calibration_shas": sorted(calibration_shas),
+        "held_out_shas": sorted(held_out_shas),
+        "conflict_shas": sorted(conflict_shas),
+        "aliases_by_sha": aliases_by_sha,
+        "id_hash_conflicts": id_hash_conflicts,
     }

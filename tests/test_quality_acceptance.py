@@ -307,6 +307,98 @@ class QualityAcceptanceTests(unittest.TestCase):
         self.assertIn("automated_f3_oversharpening_failed", fail_rep["blocking_reasons"])
         self.assertIn("automated_f4_fabric_or_hardware_failed", fail_rep["blocking_reasons"])
 
+    def test_aliased_held_out_ballot_caught_by_calibration_source_sha(self) -> None:
+        alias_sha = "bd1249a6e7ea02a231d199035a578d1b391815f8e57389aec2de1c28ebacb91b"
+        sub = _make_complete_submission(owner_status="approved")
+        sub["calibration_summary"]["case_ids"] = ["mel_014"]
+        sub["calibration_summary"]["source_sha256s"] = [alias_sha]
+        # Aliased held-out ID differs from mel_014, so only SHA catches exposure.
+        for ballot in sub["held_out_ballots"]:
+            if ballot["case_id"] == "portrait-07":
+                ballot["case_id"] = "por_held_high_iso_backstage"
+                ballot["source_sha256"] = alias_sha
+
+        report = evaluate_held_out_acceptance(sub)
+        self.assertFalse(report["quantitative_gates_passed"])
+        self.assertEqual(report["overall_status"], "failed")
+        self.assertIn("split_contamination_detected", report["blocking_reasons"])
+        self.assertIn("por_held_high_iso_backstage", report["calibration"]["split_contamination_ids"])
+        self.assertEqual(
+            report["calibration"]["source_sha_contamination"][0]["source_sha256"],
+            alias_sha,
+        )
+
+    def test_manifest_paths_catch_cross_split_alias_and_cli_enforces_manifest_flag(self) -> None:
+        alias_sha = "bd1249a6e7ea02a231d199035a578d1b391815f8e57389aec2de1c28ebacb91b"
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            frozen_manifest = root / "frozen.json"
+            approved_manifest = root / "approved.json"
+            frozen_cases = [
+                {"case_id": f"{cat}-0{i}", "split": "calibration", "source": {"sha256": f"{idx:064x}"}}
+                for idx, (cat, i) in enumerate(((c, j) for c in REQUIRED_CATEGORIES for j in range(1, 7)), start=1)
+            ]
+            for idx, (cat, i) in enumerate(((c, j) for c in REQUIRED_CATEGORIES for j in range(7, 13)), start=101):
+                cid = "por_held_high_iso_backstage" if (cat == "portrait" and i == 7) else f"{cat}-{i:02d}"
+                sha = alias_sha if cid == "por_held_high_iso_backstage" else f"{idx:064x}"
+                frozen_cases.append({"case_id": cid, "split": "held_out", "source": {"sha256": sha}})
+
+            frozen_manifest.write_text(json.dumps({"schema_version": 1, "cases": frozen_cases}), encoding="utf-8")
+            approved_manifest.write_text(
+                json.dumps({
+                    "schema_version": 1,
+                    "assets": [{"asset_id": "mel_014", "split": "calibration", "source": {"sha256": alias_sha}}],
+                }),
+                encoding="utf-8",
+            )
+
+            sub = _make_complete_submission(owner_status="approved")
+            for ballot in sub["held_out_ballots"]:
+                if ballot["case_id"] == "portrait-07":
+                    ballot["case_id"] = "por_held_high_iso_backstage"
+
+            # Clean manifest alone passes without contamination
+            clean_rep = evaluate_held_out_acceptance(sub, manifest_paths=[frozen_manifest])
+            self.assertEqual(clean_rep["overall_status"], "accepted")
+            self.assertEqual(clean_rep["source_split_preflight"]["status"], "passed")
+
+            # Adding approved manifest exposes mel_014 <-> por_held_high_iso_backstage alias conflict
+            sub_path = root / "sub.json"
+            sub_path.write_text(json.dumps(sub), encoding="utf-8")
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    str(REPO_ROOT / "scripts" / "evaluate-quality-acceptance.py"),
+                    str(sub_path),
+                    "--manifest",
+                    str(frozen_manifest),
+                    "--manifest",
+                    str(approved_manifest),
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(proc.returncode, 2)
+            cli_rep = json.loads(proc.stdout)
+            self.assertEqual(cli_rep["overall_status"], "failed")
+            self.assertIn("split_contamination_detected", cli_rep["blocking_reasons"])
+            self.assertIn("por_held_high_iso_backstage", cli_rep["calibration"]["split_contamination_ids"])
+
+    def test_malformed_or_disagreeing_source_sha_on_ballot_fails_closed(self) -> None:
+        sub = _make_complete_submission(owner_status="approved")
+        sub["held_out_ballots"][0]["source_sha256"] = "not-a-sha"
+        bad_rep = evaluate_held_out_acceptance(sub)
+        self.assertEqual(bad_rep["overall_status"], "failed")
+        self.assertIn("invalid_ballot_records", bad_rep["blocking_reasons"])
+
+        sub_disagree = _make_complete_submission(owner_status="approved")
+        sub_disagree["held_out_ballots"][0]["source_sha256"] = "a" * 64
+        sub_disagree["held_out_ballots"][0]["source"] = {"sha256": "b" * 64}
+        disagree_rep = evaluate_held_out_acceptance(sub_disagree)
+        self.assertEqual(disagree_rep["overall_status"], "failed")
+        self.assertIn("invalid_ballot_records", disagree_rep["blocking_reasons"])
+
 
 if __name__ == "__main__":
     unittest.main()

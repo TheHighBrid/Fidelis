@@ -1,5 +1,17 @@
 # Current progress and evidence checkpoint
 
+> **Source-SHA acceptance & audition enforcement (#134, 2026-11-26):**
+> Extended `fidelis/eval/quality_acceptance.py` (`evaluate_held_out_acceptance`,
+> `scripts/evaluate-quality-acceptance.py --manifest`), `fidelis/studio/audition.py`,
+> `fidelis/eval/blind_review.py`, and `scripts/audition-melato.py` (`--split-preflight-manifest`,
+> `--enforce-split-isolation`) using `collect_source_split_index` in
+> `fidelis/eval/source_split_preflight.py`. Aliased held-out IDs sharing a
+> calibration or cross-split source SHA-256 now fail closed with
+> `split_contamination_detected`, audition reports/answer keys/receipts record
+> measured `source_sha256`, and `audition-melato.py` blocks conflicted cases
+> before inference. No frozen splits, thresholds, or historical artifacts were
+> altered. [Checkpoint receipt](checkpoints/2026-11-26-source-hash-acceptance-guard.md).
+
 > **Cached PNG validation & raw inference checkpoints (#135, 2026-11-26):**
 > Added `inspect_cached_generated_png` / `read_cached_generated_png` in
 > `fidelis/studio/png.py` (validates PNG `IHDR` native dimensions/mode/CRC/IEND
