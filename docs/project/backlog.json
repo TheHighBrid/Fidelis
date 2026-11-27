@@ -4,13 +4,13 @@
 
   "execution_checkpoint": "docs/project/checkpoints/2026-11-25-native-execution-evidence.md",
   "snapshot_date": "2026-11-26",
-  "code_snapshot": "9da54cc",
+  "code_snapshot": "33b6045",
   "code_branch": "main",
-  "code_pr": "https://github.com/TheHighBrid/Fidelis/pull/139",
+  "code_pr": "https://github.com/TheHighBrid/Fidelis/pull/140",
   "canonical_spec": "docs/FIDELIS_STUDIO_PLAN.md",
   "coordination_project": "https://linear.app/melato/project/fidelis-studio-a057f366fa71",
   "umbrella": "MEL-53",
-  "note": "Committed coordination snapshot reconciled against main (9da54cc) and Linear P-MEL-3. F01-F04, F05-A, F05-B, F07-A, F07-B, F08-A, F08-B, F09, F10, F11, F12-A, F14, F15, F17, and D01-D04 are merged into main and Done; F07 live ComfyUI MPS async queue qualification (#109) is merged into main (with F07 kept In Progress here pending F06 SDXL GPU workflow). F05, F06, F07, F08, F12, F13, and F16 remain In Progress in both backlog.json and Linear pending SDXL GPU texture weights/workflow, commercial model license clearance, remaining 15/60 corpus slots & paid Clarity/Krea comparators, open GH #129/#134/#135 quality/split execution, physical mobile touch hardware review, 30-case blind dual-reviewer ballots, and owner creative/release signoff.",
+  "note": "Committed coordination snapshot reconciled against main (33b6045) and Linear P-MEL-3. F01-F04, F05-A, F05-B, F07-A, F07-B, F08-A, F08-B, F09, F10, F11, F12-A, F14, F15, F17, and D01-D04 are merged into main and Done; F07 live ComfyUI MPS async queue qualification (#109) is merged into main (with F07 kept In Progress here pending F06 SDXL GPU workflow). F05, F06, F07, F08, F12, F13, and F16 remain In Progress in both backlog.json and Linear pending SDXL GPU texture weights/workflow, commercial model license clearance, remaining 14/60 corpus slots & paid Clarity/Krea comparators, open GH #129/#134/#135 quality/split execution, physical mobile touch hardware review, 30-case blind dual-reviewer ballots, and owner creative/release signoff.",
   "items": [
     {
       "id": "F01",
@@ -260,7 +260,7 @@
       "role": "Evaluation / evidence",
       "scope": "Build 60-case rights/hash/ROI inventory, frozen 30/30 split and reproducible comparisons.",
       "acceptance": "Coverage and permissions documented; each output separate; settings/cost/time/hash recorded; real comparators distinguished from unavailable evidence.",
-      "evidence": "fidelis/eval/comparators.py; experiments/corpus_manifest.json; experiments/corpus_material_candidate_reviews.json; scripts/run-comparators.py; tests/test_comparators.py; docs/COMPARATOR_RUNNERS.md; docs/project/checkpoints/2026-11-10-comparator-runners.md; comparator runners and 45/60 visually verified CC0/PD/Melato corpus cases (PR #121-#125, #132) verified on main; 15/60 corpus slots and live paid Clarity/Krea API runs remain open",
+      "evidence": "fidelis/eval/comparators.py; experiments/corpus_manifest.json; experiments/corpus_material_candidate_reviews.json; scripts/run-comparators.py; tests/test_comparators.py; docs/COMPARATOR_RUNNERS.md; docs/project/checkpoints/2026-11-10-comparator-runners.md; comparator runners and 46/60 visually verified CC0/PD/Melato corpus cases (PR #121-#125, #132, plus tex_cashmere_cable_knit CC0 fill) verified on main; 14/60 corpus slots and live paid Clarity/Krea API runs remain open",
       "priority": 3,
       "linear": {
         "id": "MEL-63",
@@ -530,7 +530,7 @@
       "role": "Evaluation",
       "scope": "Define and populate corpus metadata for consent/rights, categories, source hashes, known text and critical ROIs.",
       "acceptance": "Inventory distinguishes available cases from missing ones; proposed 60-case coverage and calibration/held-out split are frozen before tuning.",
-      "evidence": "config/benchmark/; experiments/corpus_manifest.json; experiments/melato_corpus_manifest.json; fidelis/eval/corpus_manifest.py; fidelis/eval/melato_corpus_manifest.py; scripts/benchmark-corpus.py; scripts/validate-corpus-manifest.py; tests/test_corpus_manifest.py; tests/test_melato_corpus_manifest.py; 8 regression assets verified, 30/60 off-repo Melato slots inventoried, PR #113 reclassified mel_028 to apparel_model and annotated visually verified bbox_norm ROIs across all 8 locally available Melato masters (MEL-79 closed; remaining 15/60 corpus slot fills tracked on parent F12 / MEL-63); docs/project/checkpoints/2026-11-19-unified-studio-integration.md",
+      "evidence": "config/benchmark/; experiments/corpus_manifest.json; experiments/melato_corpus_manifest.json; fidelis/eval/corpus_manifest.py; fidelis/eval/melato_corpus_manifest.py; scripts/benchmark-corpus.py; scripts/validate-corpus-manifest.py; tests/test_corpus_manifest.py; tests/test_melato_corpus_manifest.py; 8 regression assets verified, 30/60 off-repo Melato slots inventoried, PR #113 reclassified mel_028 to apparel_model and annotated visually verified bbox_norm ROIs across all 8 locally available Melato masters (MEL-79 closed; remaining 14/60 corpus slot fills tracked on parent F12 / MEL-63); docs/project/checkpoints/2026-11-19-unified-studio-integration.md",
       "priority": 3,
       "linear": {
         "id": "MEL-79",
