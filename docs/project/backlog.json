@@ -1,5 +1,6 @@
 {
   "schema_version": 1,
+  "current_archive_workflow_checkpoint": "docs/project/checkpoints/2026-11-27-current-archive-workflow.md",
   "source_split_checkpoint": "docs/project/checkpoints/2026-11-26-source-evidence-plan.md",
 
   "execution_checkpoint": "docs/project/checkpoints/2026-11-27-twill-198mp-raw-checkpoint-eval.md",
