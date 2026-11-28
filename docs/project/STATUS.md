@@ -1,5 +1,13 @@
 # Current progress and evidence checkpoint
 
+> **Offline dependency installation (#147, 2026-11-28):** Added a packaged
+> hash-locked local-wheel installer with no overwrite/fallback, local dependency
+> consistency and exact import/version checks. Actual fresh archive environment
+> completed real NCNN/region/export, 588,000 protected pixels and zero mismatches.
+> Eleven installer and seven packaging tests pass. Existing Python/native runtime
+> are prerequisites; this is not whole-machine bootstrap or release approval.
+> [Evidence and limits](checkpoints/2026-11-28-offline-python-install.md).
+
 > **Current clean archive API workflow (#145, 2026-11-27):** Audited `8d621e2`
 > archives, extracted into a new directory and installed documented dependencies
 > in a fresh Python environment. Real local Fast_Fidelity/RealeSR NCNN plus

@@ -53,6 +53,11 @@ Node is used for editor syntax and browser/native brush math parity. Confirm an
 available Node runtime; the existing GitHub runners provide one. Do not silently
 count a skipped Node parity test as a device/browser acceptance result.
 
+For a new extracted preview with a prepared local wheelhouse, use the
+[hash-locked offline Python step](docs/OFFLINE_PYTHON.md) before creating `.venv`.
+Its receipt verifies dependency imports only; native runtime/model installation
+and complete release acceptance remain separate.
+
 ## Run the application and tests
 
 ```bash
