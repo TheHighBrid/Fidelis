@@ -1,5 +1,15 @@
 # Fresh-context handoff
 
+## Repeatable offline Python step · 2026-11-28 · #147
+
+The [installer checkpoint](checkpoints/2026-11-28-offline-python-install.md)
+records a real new-archive install using 22 hash-locked local wheels, no index/cache
+or dependency resolver downloads, local dependency/import checks and retained
+failure receipts. The resulting M1 environment completed actual NCNN preset →
+regions → export, again preserving all 588,000 protected pixels. Existing Python
+and isolated NCNN runtime were prerequisites; native bootstrap/redistribution,
+quality/device/human and final approval gates remain open.
+
 ## Current archive and real protected export · 2026-11-27 · #145
 
 The [current workflow checkpoint](checkpoints/2026-11-27-current-archive-workflow.md)
