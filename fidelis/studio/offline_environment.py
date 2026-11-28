@@ -6,7 +6,7 @@ import hashlib
 import json
 import os
 import re
-import subprocess
+import subprocess  # nosec B404 - fixed Python/venv/pip operations, no shell execution
 from pathlib import Path
 
 _PACKAGE = re.compile(r"([A-Za-z0-9][A-Za-z0-9._-]*)==([A-Za-z0-9][A-Za-z0-9.!+_-]*)")
@@ -94,7 +94,10 @@ def _run(command, root, env, log):
     log.write(json.dumps({"command": list(map(str, command))}) + "\n")
     log.flush()
     try:
-        result = subprocess.run(list(map(str, command)), cwd=root, env=env,
+        # Only _install/_verify build these argument vectors: selected Python,
+        # fixed isolated module operations and validated local paths. Lock text
+        # never becomes executable arguments. No shell parses these values.
+        result = subprocess.run(list(map(str, command)), cwd=root, env=env, shell=False,  # nosec B603 # nosemgrep
                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                 text=True, check=False, timeout=300)
     except subprocess.SubprocessError as error:
