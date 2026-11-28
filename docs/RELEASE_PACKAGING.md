@@ -23,6 +23,11 @@ byte-verified.
 
 ## 1. Release & Offline Bundle Packaging
 
+For a fresh extracted preview, the [offline Python dependency step](OFFLINE_PYTHON.md)
+installs a verified target-specific local wheelhouse into a new environment.
+Its readiness receipt covers Python imports only. Native runtime/model staging,
+whole-machine bootstrap and release qualification remain separate obligations.
+
 - `scripts/package-release.sh` builds `dist/fidelis-v<version>.tar.gz` (and `.zip`
   when `zip` is available) with `.sha256` checksums, excluding `.cache`, `.fidelis`,
   `.venv`, `.git`, `runtime`, `models`, `.env*`, and audition/corpus output folders.
