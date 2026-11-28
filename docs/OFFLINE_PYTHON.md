@@ -34,6 +34,9 @@ python3.12 scripts/install-offline-python.py \
 The installer checks pinned requirement syntax and local wheel hashes before
 creating the environment. It invokes pip with no index, no cache, wheel-only
 packages and required hashes, then checks the scientific/Studio imports. It
+installs only the explicit lock entries (`--no-deps`) and runs a local `pip check`
+before import verification, so dependency metadata cannot add remote downloads.
+The lock must therefore contain the complete transitive dependency set. It
 writes `offline-python-install.json` and `offline-python-install.log` in the
 extraction. `dependency_environment_ready` refers only to that environment;
 runtime/model and release readiness remain unverified. No network fallback or

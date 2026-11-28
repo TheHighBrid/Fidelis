@@ -129,9 +129,12 @@ def _install(root, wheelhouse, snapshot, python_executable, entries, log):
     _run([python_executable, "-I", "-m", "venv", root / ".venv"], root, env, log)
     python = root / ".venv" / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
     command = [python, "-I", "-m", "pip", "--disable-pip-version-check", "install",
-               "--no-index", "--require-hashes", "--only-binary=:all:", "--no-cache-dir",
+               "--no-index", "--no-deps", "--require-hashes", "--only-binary=:all:", "--no-cache-dir",
                "--find-links", wheelhouse, "-r", snapshot]
     _run(command, root, env, log)
+    # Do not let wheel dependency metadata introduce direct remote URLs. Install
+    # the complete explicit lock only, then check dependency consistency locally.
+    _run([python, "-I", "-m", "pip", "--disable-pip-version-check", "check"], root, env, log)
     return _verify(python, root, env, log, entries)
 
 

@@ -48,13 +48,14 @@ class OfflineEnvironmentTests(unittest.TestCase):
         self.assertEqual(receipt["model_readiness"], "unverified")
         self.assertEqual(receipt["release_approval"], "not_granted")
         self.assertEqual(receipt["wheels"][0]["sha256"], self.digest)
-        self.assertEqual(run.call_count, 3)
+        self.assertEqual(run.call_count, 4)
         command = run.call_args_list[1].args[0]
-        for flag in ("-I", "--no-index", "--require-hashes", "--only-binary=:all:", "--no-cache-dir"):
+        for flag in ("-I", "--no-index", "--no-deps", "--require-hashes", "--only-binary=:all:", "--no-cache-dir"):
             self.assertIn(flag, command)
         self.assertNotEqual(command[-1], str(self.lock))
         self.assertEqual(Path(command[-1]).read_text(), f"demo==1.0 --hash=sha256:{self.digest}\n")
-        self.assertIn("skimage", run.call_args_list[2].args[0][-1])
+        self.assertEqual(run.call_args_list[2].args[0][-1], "check")
+        self.assertIn("skimage", run.call_args_list[3].args[0][-1])
 
     def test_reject_unsafe_or_unpinned_lock_before_creating_evidence(self):
         examples = ["demo", "demo>=1.0", "demo==1.0", "-r other.txt",
@@ -140,9 +141,19 @@ class OfflineEnvironmentTests(unittest.TestCase):
 
     def test_import_failure_or_wrong_installed_version_cannot_claim_success(self):
         with patch("subprocess.run", side_effect=[self.completed(["venv", "command"]),
-                   self.completed(["pip", "command"]), SimpleNamespace(returncode=1, stdout="import failed")]):
+                   self.completed(["pip", "command"]), self.completed(["pip", "check"]),
+                   SimpleNamespace(returncode=1, stdout="import failed")]):
             with self.assertRaises(RuntimeError):
                 self.install()
+        self.assertEqual(json.loads((self.app / "offline-python-install.json").read_text())["status"], "failed")
+
+    def test_incomplete_dependency_lock_cannot_claim_readiness(self):
+        with patch("subprocess.run", side_effect=[self.completed(["venv", "command"]),
+                   self.completed(["pip", "command"]),
+                   SimpleNamespace(returncode=1, stdout="missing dependency; no resolver fallback")]) as run:
+            with self.assertRaises(RuntimeError):
+                self.install()
+        self.assertEqual(run.call_count, 3)
         self.assertEqual(json.loads((self.app / "offline-python-install.json").read_text())["status"], "failed")
 
     def test_timeout_is_wrapped_and_retained(self):
