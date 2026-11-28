@@ -1,5 +1,6 @@
 {
   "schema_version": 1,
+  "native_preview_checkpoint": "docs/project/checkpoints/2026-11-28-native-preview-bootstrap.md",
   "offline_python_checkpoint": "docs/project/checkpoints/2026-11-28-offline-python-install.md",
   "current_archive_workflow_checkpoint": "docs/project/checkpoints/2026-11-27-current-archive-workflow.md",
   "source_split_checkpoint": "docs/project/checkpoints/2026-11-26-source-evidence-plan.md",

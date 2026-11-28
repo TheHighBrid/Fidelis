@@ -1,5 +1,16 @@
 # Fresh-context handoff
 
+## Clean native preview bootstrap · 2026-11-28 · #149
+
+The [native checkpoint](checkpoints/2026-11-28-native-preview-bootstrap.md) records
+new-archive Python installation and fresh native-home bootstrap from pinned runtime
+archives and freshly downloaded, verified RealeSR weights. Actual M1 preset →
+regions → export again preserves all 588,000 protected pixels and reproduces the
+established export hash. Owner runtime untouched; no DF2K installed. Runtime/model
+notices are pinned and confined, including the independently found model-notice
+symlink gap. Existing Python/OS and input preparation remain prerequisites; quality,
+source/corpus, human/device and final approval gates stay open.
+
 ## Repeatable offline Python step · 2026-11-28 · #147
 
 The [installer checkpoint](checkpoints/2026-11-28-offline-python-install.md)
