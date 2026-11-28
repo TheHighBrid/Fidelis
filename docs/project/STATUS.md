@@ -1,5 +1,14 @@
 # Current progress and evidence checkpoint
 
+> **Current clean archive API workflow (#145, 2026-11-27):** Audited `8d621e2`
+> archives, extracted into a new directory and installed documented dependencies
+> in a fresh Python environment. Real local Fast_Fidelity/RealeSR NCNN plus
+> region protection/reblend/export completed in 6.817 s; 588,000 protected pixels,
+> zero mismatches. Export is byte-identical to the older verified workflow.
+> Cache-only dependency installation failed; registry downloads and an existing
+> NCNN runtime were used. No offline-install, human/device or quality verdict.
+> [Receipt, hashes and limits](checkpoints/2026-11-27-current-archive-workflow.md).
+
 > **198.7 MP twill raw-checkpointed evaluation (`#129`/`#135`, 2026-11-27, base `main` `b414a90`):**
 > Completed the full `17404×11416` (`198,684,064` px) `tex_cotton_twill_chino`
 > raw-checkpointed SwinIR evaluation on clean `main` (`b414a905337719ab1db2163641d9ea41beb36463`,

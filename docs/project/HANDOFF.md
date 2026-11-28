@@ -1,5 +1,15 @@
 # Fresh-context handoff
 
+## Current archive and real protected export · 2026-11-27 · #145
+
+The [current workflow checkpoint](checkpoints/2026-11-27-current-archive-workflow.md)
+verifies committed `8d621e2` from audited source archives in a fresh Python
+environment: actual Fast_Fidelity/RealeSR NCNN inference, regional reblend and
+1324×1976 export; all 588,000 protected pixels match exactly. Export SHA matches
+the historical workflow. Free dependency downloads and pre-existing NCNN runtime
+were required; this is not disconnected install or human/device/quality approval.
+The superseded local raw-checkpoint WIP is preserved at `ce950d6`, not merged.
+
 ## 198.7 MP twill raw-checkpointed evaluation · 2026-11-27 · #129 & #135
 
 On clean `main` `b414a90` (`PR #142`), [twill checkpoint](checkpoints/2026-11-27-twill-198mp-raw-checkpoint-eval.md)
