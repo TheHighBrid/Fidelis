@@ -1,5 +1,34 @@
 # Current progress and evidence checkpoint
 
+> **Autonomous resume audit & main reconciliation (2026-11-28, base `main` `43d9c5c`):**
+> Audited `origin/main` (`43d9c5c`, after PR #143–#150 merged with green GitHub
+> Actions `Fidelis CI` and `Browser acceptance report integrity`), open GH issues
+> (`#134`, `#11`), and Linear `P-MEL-3`. Reconciled `docs/project/backlog.json`
+> to `43d9c5c` (updating `F15` evidence with `#147`/`#149` and `F08`/`F08-B` with
+> `2026-11-28` Chrome `158.0.8127.88` CDP re-verification). Full local verification
+> on `43d9c5c`: **691/691** Python unit tests (`158.806 s`), **149/149** pytest
+> protocol/regression/E2E tests (`94.57 s`), `22/22` `test_browser_acceptance_report.mjs`,
+> `review-ui.cjs`, `test-studio-interactions.cjs`, `native-inspection-ui.cjs`,
+> `tests/smoke-test.sh`, `tests/test-web-ui.sh`, `tests/test-release-pipeline.sh`,
+> `tests/test-vosr-sweep.sh`, `tests/test-pipeline-instrumentation.sh`, and
+> `tests/test-browser-acceptance.sh` (`Google Chrome 158.0.8127.88` CDP on
+> `darwin arm64`, `0` defects). Host capability check on 2026-11-28: Apple M1
+> (`8 GB` unified RAM), `2.1 GiB` free disk on `/`, `ncnn_executable: true`,
+> `torch_importable: false` in `.venv` (`torch 2.15.0` MPS in
+> `~/.local/share/fidelis/release-agent-src/.venv`), `nvidia_smi_present: false`,
+> `127.0.0.1:8188` ComfyUI unreachable (`ConnectError`), no ComfyUI or SDXL
+> checkpoints on disk, `adb` and `idevice_id` absent, `validate-corpus-manifest.py
+> --verify-files --master-root ~/melato-corpus/fidelis` failing on missing
+> off-repo `por_deep_skin_studio` (`mel_032`), `check-source-split-isolation.py`
+> `blocked` (`113` unique hashes, `12` conflicts, `14` unknown hashes), and
+> `audit-release-readiness.py --allow-blocked` reporting `E2_live_inference_verified`
+> (`overall_status: blocked_release_gates`, `ready_for_release: false`). Remaining
+> open gates (`F05`, `F06`, `F07`, `F08`, `F12`, `F13`/`#134`, `F16`) require
+> external hardware/disk/ComfyUI SDXL weights, missing `14/60` corpus slots +
+> `mel_032` recovery + `#134` split resolution, paid Clarity/Krea comparators,
+> physical Android/iOS touch hardware review, 30-case blind dual-reviewer ballots,
+> and final creative/release signoff.
+
 > **Native preview bootstrap (#149, 2026-11-28):** Pinned both native archive,
 > executable and notice identities; added no-overwrite macOS arm64 bootstrap with
 > only the cleared RealeSR model. Actual new archive/new native home completed

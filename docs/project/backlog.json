@@ -6,14 +6,14 @@
   "source_split_checkpoint": "docs/project/checkpoints/2026-11-26-source-evidence-plan.md",
 
   "execution_checkpoint": "docs/project/checkpoints/2026-11-27-twill-198mp-raw-checkpoint-eval.md",
-  "snapshot_date": "2026-11-27",
-  "code_snapshot": "b414a90",
+  "snapshot_date": "2026-11-28",
+  "code_snapshot": "43d9c5c",
   "code_branch": "main",
-  "code_pr": "https://github.com/TheHighBrid/Fidelis/pull/142",
+  "code_pr": "https://github.com/TheHighBrid/Fidelis/pull/150",
   "canonical_spec": "docs/FIDELIS_STUDIO_PLAN.md",
   "coordination_project": "https://linear.app/melato/project/fidelis-studio-a057f366fa71",
   "umbrella": "MEL-53",
-  "note": "Committed coordination snapshot reconciled against main (b414a90) and Linear P-MEL-3. F01-F04, F05-A, F05-B, F07-A, F07-B, F08-A, F08-B, F09, F10, F11, F12-A, F14, F15, F17, and D01-D04 are merged into main and Done; F07 live ComfyUI MPS async queue qualification (#109) is merged into main (with F07 kept In Progress here pending F06 SDXL GPU workflow); GH #129/#135 198.7 MP tex_cotton_twill_chino raw-checkpointed evaluation + replay completed on main b414a90. F05, F06, F07, F08, F12, F13, and F16 remain In Progress in both backlog.json and Linear pending SDXL GPU texture weights/workflow, commercial model license clearance, remaining 14/60 corpus slots & paid Clarity/Krea comparators, open GH #134 owner corpus/split reconciliation, physical mobile touch hardware review, 30-case blind dual-reviewer ballots, and owner creative/release signoff.",
+  "note": "Committed coordination snapshot reconciled against main (43d9c5c, after PR #143-#150) and Linear P-MEL-3. F01-F04, F05-A, F05-B, F07-A, F07-B, F08-A, F08-B, F09, F10, F11, F12-A, F14, F15 (including #147 hash-locked offline Python installer and #149 macOS arm64 native preview bootstrap), F17, and D01-D04 are merged into main and Done. F05, F06, F07, F08, F12, F13, and F16 remain In Progress in both backlog.json and Linear pending SDXL GPU ComfyUI workflow/weights (blocked on host: 2.1 GiB free disk, no ComfyUI/SDXL checkpoints), commercial model license clearance, remaining 14/60 corpus slots & paid Clarity/Krea comparators, open GH #134 corpus/split reconciliation & missing mel_032 master, physical Android/iOS touch hardware review (adb/idevice_id absent), 30-case blind dual-reviewer ballots, and creative/release signoff.",
   "items": [
     {
       "id": "F01",
@@ -174,7 +174,7 @@
       "role": "Studio UX",
       "scope": "Complete acceptance of painted masks, brush tools, revision saves, preview and actual native-pixel inspection.",
       "acceptance": "Mouse/pen/touch/keyboard and stale edits verified on real browser/device; native 100/200% crops distinguish source pixels from preview zoom; no mask protection regression.",
-      "evidence": "fidelis/studio/studio.html; fidelis/studio/review-ui.js; editor.js; brush.py; tests/test_region_brush.py; F08-A native crops/paired inspector, F08-B same-host Chrome CDP (desktop 1440x900 + touch 390x844, 0 defects), and Studio native-inspector structural ROI proposal/lock UI (PR #103, d135326) verified on main; physical Android/iOS touch hardware review remains open",
+      "evidence": "fidelis/studio/studio.html; fidelis/studio/review-ui.js; editor.js; brush.py; tests/test_region_brush.py; F08-A native crops/paired inspector, F08-B same-host Chrome CDP (desktop 1440x900 + touch 390x844, 0 defects; re-verified 2026-11-28 on main 43d9c5c with Chrome 158.0.8127.88), and Studio native-inspector structural ROI proposal/lock UI (PR #103, d135326) verified on main; physical Android/iOS touch hardware review remains open",
       "priority": 2,
       "linear": {
         "id": "MEL-59",
@@ -340,7 +340,7 @@
       "role": "UX / release engineering",
       "scope": "Complete accessible premium UI, device checks and reproducible install/upgrade/rollback.",
       "acceptance": "Actual M1/Android/browser checks and measured resource budgets; packaging includes intended modules/dependencies and protects saved data on upgrade/rollback.",
-      "evidence": "fidelis/studio/packaging.py; scripts/verify-upgrade-rollback.py; scripts/package-release.sh; scripts/package-offline-bundle.sh; Dockerfile; tests/test_release_packaging.py; tests/test-release-pipeline.sh; docs/RELEASE_PACKAGING.md; docs/project/checkpoints/2026-11-10-studio-packaging.md; Apple M1 8GB NCNN budgets and Chrome CDP responsive checks recorded; physical Android device signoff remains open; 2026-11-19 display-only mask legend, inspector dock/nudge/readout and mid-width layout are fixture-tested in docs/project/checkpoints/2026-11-19-studio-ui-krea-polish.md and are not device acceptance",
+      "evidence": "fidelis/studio/packaging.py; fidelis/studio/offline_environment.py; fidelis/studio/native_preview.py; scripts/verify-upgrade-rollback.py; scripts/package-release.sh; scripts/package-offline-bundle.sh; scripts/install-offline-python.py; scripts/bootstrap-macos-preview.py; scripts/ncnn-preview-runtime.sh; config/offline/macos-arm64-py312-20261128.txt; Dockerfile; tests/test_release_packaging.py; tests/test-release-pipeline.sh; tests/test_offline_environment.py; tests/test_native_preview.py; docs/RELEASE_PACKAGING.md; docs/OFFLINE_PYTHON.md; docs/NATIVE_PREVIEW.md; docs/project/checkpoints/2026-11-10-studio-packaging.md; docs/project/checkpoints/2026-11-28-offline-python-install.md; docs/project/checkpoints/2026-11-28-native-preview-bootstrap.md; Apple M1 8GB NCNN budgets, Chrome CDP responsive checks, hash-locked 22-wheel offline Python install (#147), and isolated macOS arm64 native preview bootstrap (#149) recorded; physical Android device signoff remains open; 2026-11-19 display-only mask legend, inspector dock/nudge/readout and mid-width layout are fixture-tested in docs/project/checkpoints/2026-11-19-studio-ui-krea-polish.md and are not device acceptance",
       "priority": 3,
       "linear": {
         "id": "MEL-69",
@@ -512,7 +512,7 @@
       "role": "QA / UX",
       "scope": "Arrange a reachable local test surface and verify pointer/touch/keyboard, masks, undo and stale saves.",
       "acceptance": "Actual browser/device/version, screenshots or interaction evidence and defects recorded. Do not infer visual acceptance from Node math parity.",
-      "evidence": "scripts/browser-acceptance.mjs; tests/test-browser-acceptance.sh; docs/BROWSER_ACCEPTANCE.md; docs/project/checkpoints/2026-11-10-browser-acceptance.md; Google Chrome 157.0.8103.79 CDP verified on darwin arm64 across 1440x900 desktop and 390x844 mobile touch viewports with 0 defects; 2026-11-16 gate integrity follow-up has 8 passing Node tests, Linux Chromium startup aborted, physical Android/iOS touch hardware review remains open",
+      "evidence": "scripts/browser-acceptance.mjs; tests/test-browser-acceptance.sh; docs/BROWSER_ACCEPTANCE.md; docs/project/checkpoints/2026-11-10-browser-acceptance.md; Google Chrome 157.0.8103.79 and 158.0.8127.88 CDP verified on darwin arm64 across 1440x900 desktop and 390x844 mobile touch viewports with 0 defects; 2026-11-16 gate integrity follow-up has 8 passing Node tests, Linux Chromium startup aborted, physical Android/iOS touch hardware review remains open",
       "priority": 2,
       "linear": {
         "id": "MEL-80",
@@ -686,6 +686,6 @@
       "linear_id": "fb26feb5-8122-40cb-a6e1-01a83b4f542c"
     }
   ],
-  "latest_checkpoint": "docs/project/checkpoints/2026-11-26-source-evidence-plan.md",
-  "checkpoint_base_commit": "7336376"
+  "latest_checkpoint": "docs/project/checkpoints/2026-11-28-native-preview-bootstrap.md",
+  "checkpoint_base_commit": "43d9c5c"
 }
