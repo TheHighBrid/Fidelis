@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "catalog_id": "fidelis-model-provenance-v1",
-  "updated_at": "2026-11-10",
+  "updated_at": "2026-11-28",
   "policy": "Weights, upstream revisions, checksums, and usage terms are tracked separately from quality certification. Missing weights or unverified terms must never be marked certified or production-eligible.",
   "runtimes": [
     {
@@ -10,10 +10,13 @@
       "repository": "https://github.com/nihui/realsr-ncnn-vulkan",
       "revision": "20220728",
       "download_url": "https://github.com/nihui/realsr-ncnn-vulkan/releases/download/20220728/realsr-ncnn-vulkan-20220728-macos.zip",
-      "archive_sha256": null,
+      "archive_sha256": "b4bb7a55508a65091aedcbdc3e942b1b4779a71baba29c2e2175e02d41ddf1d6",
+      "archive_member": "realsr-ncnn-vulkan-20220728-macos/realsr-ncnn-vulkan",
+      "license_notice_path": "config/runtime-licenses/realsr-ncnn-vulkan-20220728.txt",
+      "license_notice_sha256": "57157b0fc6954dd1645dc674cc99bebbab4cb84c5b306b910989777e3d0d6fbd",
       "local_relative_path": "runtime/realsr-binary",
       "macos_binary_sha256": "4daca3d6c89f7e24f7fb10a8584cefeccceac0811413908f57e53f724fb86fb0",
-      "provenance_status": "tagged_release_archive_unhashed",
+      "provenance_status": "pinned_sha256",
       "license": "MIT",
       "commercial_status": "cleared_permissive",
       "installer_script": "scripts/install-macos-runtime.sh"
@@ -24,10 +27,14 @@
       "repository": "https://github.com/xinntao/Real-ESRGAN",
       "revision": "v0.2.5.0",
       "download_url": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesrgan-ncnn-vulkan-20220424-macos.zip",
-      "archive_sha256": null,
-      "local_relative_path": "runtime/realesrgan-ncnn-vulkan",
+      "archive_sha256": "e0ad05580abfeb25f8d8fb55aaf7bedf552c375b5b4d9bd3c8d59764d2cc333a",
+      "archive_member": "realesrgan-ncnn-vulkan",
+      "license_notice_path": "config/runtime-licenses/realesrgan-ncnn-vulkan-20220424.txt",
+      "license_notice_sha256": "4a699ec4863d96a91fc265948a0c90033f7e8735d515524dcf3444736406e0c2",
+      "license_notice_revision": "685d429c81888252bdb10f56c7754baededc3823",
+      "local_relative_path": "runtime/realesrgan-binary",
       "macos_binary_sha256": "c1c35d92079085de96b9d547fd7e4464bc8a2e9ccf28d7b8c712d72ade91b7cc",
-      "provenance_status": "tagged_release_archive_unhashed",
+      "provenance_status": "pinned_sha256",
       "license": "BSD-3-Clause",
       "commercial_status": "cleared_permissive",
       "installer_script": "scripts/install-macos-runtime.sh"

@@ -28,6 +28,11 @@ installs a verified target-specific local wheelhouse into a new environment.
 Its readiness receipt covers Python imports only. Native runtime/model staging,
 whole-machine bootstrap and release qualification remain separate obligations.
 
+The [macOS arm64 native preview bootstrap](NATIVE_PREVIEW.md) stages selected,
+hash-verified executables and the cleared RealeSR model into a new isolated home
+from prepared local inputs. Its byte-verification receipt is separate from actual
+inference and quality acceptance. It does not replace the owner's installed runtime.
+
 - `scripts/package-release.sh` builds `dist/fidelis-v<version>.tar.gz` (and `.zip`
   when `zip` is available) with `.sha256` checksums, excluding `.cache`, `.fidelis`,
   `.venv`, `.git`, `runtime`, `models`, `.env*`, and audition/corpus output folders.

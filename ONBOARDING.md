@@ -58,6 +58,10 @@ For a new extracted preview with a prepared local wheelhouse, use the
 Its receipt verifies dependency imports only; native runtime/model installation
 and complete release acceptance remain separate.
 
+For a new macOS arm64 runtime home, use the
+[pinned native preview bootstrap](docs/NATIVE_PREVIEW.md). It stages only the
+cleared RealeSR model and leaves the normal installed runtime untouched.
+
 ## Run the application and tests
 
 ```bash
