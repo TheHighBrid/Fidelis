@@ -59,6 +59,7 @@
       "local_relative_dir": "runtime/models-RealeSR-general-v3",
       "terms": {
         "license": "BSD-3-Clause",
+        "packaged_notice_sha256": "5db8ca648f040893303f15bed1e3741b64723912275c087d56614f82d1fc6777",
         "commercial_status": "cleared_permissive",
         "production_terms_cleared": true,
         "separate_obligations": "Retain upstream Real-ESRGAN copyright notice and BSD-3-Clause disclaimer when redistributing.",

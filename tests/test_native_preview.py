@@ -76,7 +76,8 @@ class NativePreviewTests(unittest.TestCase):
         self.catalog["models"].append({
             "model_id": identity, "local_relative_dir": "runtime/" + folder,
             "weights": weights, "source": {"folder": folder, "revision": "pinned-fixture"},
-            "terms": {"production_terms_cleared": cleared, "license": "BSD-3-Clause"},
+            "terms": {"production_terms_cleared": cleared, "license": "BSD-3-Clause",
+                      "packaged_notice_sha256": digest(b"fixture BSD model notice")},
         })
 
     def save_catalog(self):
@@ -179,6 +180,28 @@ class NativePreviewTests(unittest.TestCase):
         entry["license_notice_path"] = "../outside.txt"
         self.save_catalog()
         with self.assertRaises(ValueError):
+            self.bootstrap()
+        self.assert_failed_clean()
+
+    def test_selected_model_notice_is_confined_and_pinned(self):
+        notice = self.repo / "config/model-licenses/RealeSR-general-v3.txt"
+        outside = self.base / "outside-notice.txt"
+        outside.write_bytes(b"fixture BSD model notice")
+        notice.unlink()
+        notice.symlink_to(outside)
+        with self.assertRaisesRegex(ValueError, "unsafe model license notice"):
+            self.bootstrap()
+        self.assert_failed_clean()
+        self.assertEqual(outside.read_bytes(), b"fixture BSD model notice")
+        notice.unlink()
+        notice.write_bytes(b"different non-license text")
+        with self.assertRaisesRegex(ValueError, "notice checksum"):
+            self.bootstrap()
+        self.assert_failed_clean()
+        notice.write_bytes(b"fixture BSD model notice")
+        del self.catalog["models"][0]["terms"]["packaged_notice_sha256"]
+        self.save_catalog()
+        with self.assertRaisesRegex(ValueError, "notice checksum"):
             self.bootstrap()
         self.assert_failed_clean()
 

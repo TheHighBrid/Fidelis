@@ -19,7 +19,8 @@ class OfflineRedistributionTests(unittest.TestCase):
             (root / 'config/model-licenses/safe.txt').write_text('Required notice')
             model = {'model_id': 'safe', 'local_relative_dir': 'runtime/models-safe',
                      'weights': {'x4.bin': hashlib.sha256(b'weights').hexdigest()},
-                     'terms': {'production_terms_cleared': True, 'license': 'BSD-3-Clause'}}
+                     'terms': {'production_terms_cleared': True, 'license': 'BSD-3-Clause',
+                               'packaged_notice_sha256': hashlib.sha256(b'Required notice').hexdigest()}}
             (root / 'config/model-provenance-v1.json').write_text(json.dumps({'models': [model, {'local_relative_dir': None}]}))
             out = root / 'out'
             receipt = stage_models(root, root / 'runtime', out)
