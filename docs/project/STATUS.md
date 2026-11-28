@@ -1,5 +1,14 @@
 # Current progress and evidence checkpoint
 
+> **Native preview bootstrap (#149, 2026-11-28):** Pinned both native archive,
+> executable and notice identities; added no-overwrite macOS arm64 bootstrap with
+> only the cleared RealeSR model. Actual new archive/new native home completed
+> real local preset, region reblend and export: 588,000 protected pixels, zero
+> mismatches, established export hash reproduced. Fifteen native/wrapper tests
+> plus provenance, redistribution and packaging tests pass. Owner runtime is
+> untouched; no whole-machine or quality/release approval is claimed.
+> [Evidence and limits](checkpoints/2026-11-28-native-preview-bootstrap.md).
+
 > **Offline dependency installation (#147, 2026-11-28):** Added a packaged
 > hash-locked local-wheel installer with no overwrite/fallback, local dependency
 > consistency and exact import/version checks. Actual fresh archive environment

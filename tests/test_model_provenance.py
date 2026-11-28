@@ -89,6 +89,7 @@ class ModelProvenanceTests(unittest.TestCase):
         base = json.loads((REPO_ROOT / "config/model-provenance-v1.json").read_text())
         catalog = copy.deepcopy(base)
         catalog["runtimes"][0]["provenance_status"] = "pinned_sha256"
+        catalog["runtimes"][0]["archive_sha256"] = None
         with self.assertRaises(ProvenanceError):
             validate_provenance_catalog(catalog)
         with tempfile.TemporaryDirectory() as temp:

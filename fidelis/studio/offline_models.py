@@ -5,6 +5,20 @@ import shutil
 from pathlib import Path
 
 
+def _verified_notice(root, model):
+    identity = model['model_id']
+    if not isinstance(identity, str) or Path(identity).name != identity:
+        raise ValueError('Invalid model notice identity')
+    notice = root / 'config/model-licenses' / (identity + '.txt')
+    if (notice.is_symlink() or not notice.is_file()
+            or not notice.resolve().is_relative_to(root.resolve())):
+        raise ValueError('Missing or unsafe model license notice: ' + identity)
+    expected = model.get('terms', {}).get('packaged_notice_sha256')
+    if hashlib.sha256(notice.read_bytes()).hexdigest() != expected:
+        raise ValueError('Model license notice checksum mismatch: ' + identity)
+    return notice, expected
+
+
 def stage_models(repo_root, runtime, destination):
     root, runtime, destination = map(Path, (repo_root, runtime, destination))
     catalog = json.loads((root / 'config/model-provenance-v1.json').read_text())
@@ -19,8 +33,8 @@ def stage_models(repo_root, runtime, destination):
             receipt['excluded'].append({'folder': folder.name, 'reason': 'terms_not_cleared'})
             continue
         # Each cleared model requires an explicit packaged license notice.
-        notice = root / 'config/model-licenses' / (model['model_id'] + '.txt')
-        if folder.is_symlink() or not folder.is_dir() or not notice.is_file():
+        notice, notice_sha = _verified_notice(root, model)
+        if folder.is_symlink() or not folder.is_dir():
             raise ValueError('Invalid model directory or missing license notice: ' + folder.name)
         weights = model.get('weights', {})
         if not weights:
@@ -38,6 +52,8 @@ def stage_models(repo_root, runtime, destination):
         for source in verified:
             shutil.copyfile(source, target / source.name)
         shutil.copyfile(notice, target / 'LICENSE.txt')
+        if hashlib.sha256((target / 'LICENSE.txt').read_bytes()).hexdigest() != notice_sha:
+            raise ValueError('Staged model license notice checksum mismatch: ' + folder.name)
         (target / 'redistribution-provenance.json').write_text(json.dumps(model, indent=2) + '\n')
         receipt['included'].append({'model_id': model['model_id'], 'folder': folder.name,
                                     'weights': weights, 'license': terms['license']})
